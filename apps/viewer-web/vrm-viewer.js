@@ -3,10 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMHumanBoneList, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import {
-  buildHumanoidSpaceAlignment,
-  invertQuatArray,
-  multiplyQuatArray,
   normalizeQuatArray,
+  normalizedLocalPoseRotation,
+  vrmSpecWorldAlignment,
 } from "./vrm-canonical-alignment.js";
 import {
   PART_META,
@@ -20,59 +19,6 @@ import {
 
 const ROOT_NAMES = ["hips", "pelvis", "root"];
 const MAX_RENDER_HZ = 60;
-const CANONICAL_PARENT = {
-  spine: "hips",
-  chest: "spine",
-  upperChest: "chest",
-  neck: "upperChest",
-  head: "neck",
-  leftShoulder: "upperChest",
-  leftUpperArm: "leftShoulder",
-  leftLowerArm: "leftUpperArm",
-  leftHand: "leftLowerArm",
-  rightShoulder: "upperChest",
-  rightUpperArm: "rightShoulder",
-  rightLowerArm: "rightUpperArm",
-  rightHand: "rightLowerArm",
-  leftUpperLeg: "hips",
-  leftLowerLeg: "leftUpperLeg",
-  leftFoot: "leftLowerLeg",
-  leftToes: "leftFoot",
-  rightUpperLeg: "hips",
-  rightLowerLeg: "rightUpperLeg",
-  rightFoot: "rightLowerLeg",
-  rightToes: "rightFoot",
-  leftThumbProximal: "leftHand",
-  leftThumbIntermediate: "leftThumbProximal",
-  leftThumbDistal: "leftThumbIntermediate",
-  leftIndexProximal: "leftHand",
-  leftIndexIntermediate: "leftIndexProximal",
-  leftIndexDistal: "leftIndexIntermediate",
-  leftMiddleProximal: "leftHand",
-  leftMiddleIntermediate: "leftMiddleProximal",
-  leftMiddleDistal: "leftMiddleIntermediate",
-  leftRingProximal: "leftHand",
-  leftRingIntermediate: "leftRingProximal",
-  leftRingDistal: "leftRingIntermediate",
-  leftLittleProximal: "leftHand",
-  leftLittleIntermediate: "leftLittleProximal",
-  leftLittleDistal: "leftLittleIntermediate",
-  rightThumbProximal: "rightHand",
-  rightThumbIntermediate: "rightThumbProximal",
-  rightThumbDistal: "rightThumbIntermediate",
-  rightIndexProximal: "rightHand",
-  rightIndexIntermediate: "rightIndexProximal",
-  rightIndexDistal: "rightIndexIntermediate",
-  rightMiddleProximal: "rightHand",
-  rightMiddleIntermediate: "rightMiddleProximal",
-  rightMiddleDistal: "rightMiddleIntermediate",
-  rightRingProximal: "rightHand",
-  rightRingIntermediate: "rightRingProximal",
-  rightRingDistal: "rightRingIntermediate",
-  rightLittleProximal: "rightHand",
-  rightLittleIntermediate: "rightLittleProximal",
-  rightLittleDistal: "rightLittleIntermediate",
-};
 
 function finitePoint(point) {
   return (
@@ -164,7 +110,13 @@ function fitStaticScene(scene) {
 
 function resolveVrmBodyOffset(vrm) {
   const rawHips = vrm?.humanoid?.getRawBoneNode?.("hips");
-  return rawHips ? rawHips.position.clone().multiplyScalar(-1) : new THREE.Vector3(0, 0, 0);
+  if (!rawHips || !vrm?.scene) return new THREE.Vector3(0, 0, 0);
+  vrm.scene.updateMatrixWorld(true);
+  const hipsInLoadFrame = rawHips.getWorldPosition(new THREE.Vector3());
+  // loadModel calls this before attaching gltf.scene, so both values are in
+  // the same parent/load frame. Preserve any scene rotation/scale and move the
+  // complete hierarchy until its actual hips world point is at the origin.
+  return vrm.scene.position.clone().sub(hipsInLoadFrame);
 }
 
 export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
@@ -513,15 +465,6 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     publishDiagnostics();
   }
 
-  function poseQuat(q) {
-    return normalizeQuatArray(q);
-  }
-
-  function conjugateQuatByBasis(q, basis) {
-    const basisN = normalizeQuatArray(basis);
-    return multiplyQuatArray(multiplyQuatArray(basisN, q), invertQuatArray(basisN));
-  }
-
   function frameBlend(frame, frameCount) {
     const count = Math.max(1, Number(frameCount) || 1);
     const value = Math.max(0, Math.min(Number(frame) || 0, count - 1));
@@ -550,53 +493,10 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     ];
   }
 
-  function captureRawHumanoidPositionMap(vrm, localRoot = motionRoot) {
-    const humanoid = vrm?.humanoid;
-    if (!humanoid) return {};
-    const world = new THREE.Vector3();
-    const positions = {};
-    for (const boneName of VRMHumanBoneList) {
-      const bone = humanoid.getRawBoneNode(boneName);
-      if (!bone) continue;
-      bone.getWorldPosition(world);
-      localRoot.worldToLocal(world);
-      positions[boneName] = [world.x, world.y, world.z];
-    }
-    return positions;
-  }
-
-  function reconstructTargetRestPositionMap(motion) {
-    const restBones = motion?.rest_bones || [];
-    const offsets = motion?.rest_offsets || {};
-    if (!restBones.length) return null;
-    const positions = {};
-    for (const boneName of restBones) {
-      if (boneName === "hips") {
-        positions.hips = [0, 0, 0];
-        continue;
-      }
-      const parent = CANONICAL_PARENT[boneName];
-      const parentPosition = parent ? positions[parent] : null;
-      const offset = offsets[boneName];
-      if (!parentPosition || !finitePoint(offset)) continue;
-      positions[boneName] = [
-        parentPosition[0] + offset[0],
-        parentPosition[1] + offset[1],
-        parentPosition[2] + offset[2],
-      ];
-    }
-    return positions;
-  }
-
   function applyVrmCanonicalWorldAlignment(vrm = state.vrm) {
     if (!vrm) return null;
     canonicalRoot.quaternion.identity();
-    motionRoot.updateMatrixWorld(true);
-    const rawPositions = captureRawHumanoidPositionMap(vrm, motionRoot);
-    const targetRestPositions = reconstructTargetRestPositionMap(state.motion);
-    const alignment = targetRestPositions
-      ? buildHumanoidSpaceAlignment(rawPositions, targetRestPositions)
-      : null;
+    const alignment = vrmSpecWorldAlignment(vrm.meta?.metaVersion);
     if (!alignment?.alignment_quaternion) {
       state.vrmWorldAlignment = null;
       return null;
@@ -614,15 +514,18 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     const blend = frameBlend(frame, motion.frame_count);
     const pose = {};
     const canonicalToVrm = motion.canonical_to_vrm || {};
-    const alignQuat = state.vrmWorldAlignment?.alignment_quaternion || null;
-    const alignBasis = alignQuat ? invertQuatArray(normalizeQuatArray(alignQuat)) : null;
     (motion.core_bones || []).forEach((boneName, boneIndex) => {
       const rotation0 = motion.core_quaternions?.[blend.a]?.[boneIndex];
       const rotation1 = motion.core_quaternions?.[blend.b]?.[boneIndex] || rotation0;
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
-      pose[vrmBoneName] = { rotation: alignBasis ? conjugateQuatByBasis(rotation, alignBasis) : poseQuat(rotation) };
+      pose[vrmBoneName] = {
+        rotation: normalizedLocalPoseRotation(
+          rotation,
+          state.vrmWorldAlignment?.alignment_quaternion || null,
+        ),
+      };
     });
     (motion.hand_bones || []).forEach((boneName, boneIndex) => {
       const rotation0 = motion.hand_quaternions?.[blend.a]?.[boneIndex];
@@ -630,7 +533,12 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
-      pose[vrmBoneName] = { rotation: alignBasis ? conjugateQuatByBasis(rotation, alignBasis) : poseQuat(rotation) };
+      pose[vrmBoneName] = {
+        rotation: normalizedLocalPoseRotation(
+          rotation,
+          state.vrmWorldAlignment?.alignment_quaternion || null,
+        ),
+      };
     });
     return pose;
   }
@@ -647,9 +555,6 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     if (typeof state.vrm.humanoid.setNormalizedPose === "function") {
       state.vrm.humanoid.resetNormalizedPose?.();
       state.vrm.humanoid.setNormalizedPose(pose);
-    } else if (typeof state.vrm.humanoid.setRawPose === "function") {
-      state.vrm.humanoid.resetRawPose?.();
-      state.vrm.humanoid.setRawPose(pose);
     }
     if (typeof state.vrm.update === "function") state.vrm.update(0);
     else state.vrm.humanoid.update?.();
@@ -678,10 +583,18 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       }
       const vrm = gltf.userData.vrm || null;
       if (vrm) {
+        if (typeof vrm.humanoid?.setNormalizedPose !== "function") {
+          throw new Error("This VRM runtime does not expose normalized humanoid pose application");
+        }
+        if (!vrmSpecWorldAlignment(vrm.meta?.metaVersion)) {
+          throw new Error(`Unsupported or missing VRM meta version: ${vrm.meta?.metaVersion ?? "unknown"}`);
+        }
         VRMUtils.removeUnnecessaryVertices(gltf.scene);
         VRMUtils.combineSkeletons?.(gltf.scene);
-        VRMUtils.rotateVRM0?.(vrm);
-        vrm.scene.rotation.set(0, 0, 0);
+        // Keep the load-time VRM frame unchanged. canonicalRoot computes the
+        // complete avatar-to-canonical alignment, and local pose conjugation
+        // uses that same transform. Applying rotateVRM0 here would introduce a
+        // second outer frame that must otherwise be included in the conjugate.
         vrm.scene.position.copy(resolveVrmBodyOffset(vrm));
         canonicalRoot.add(vrm.scene);
         state.vrm = vrm;

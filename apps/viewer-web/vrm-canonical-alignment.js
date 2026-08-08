@@ -22,6 +22,37 @@ export function normalizeQuatArray(q) {
   return [q[0] / len, q[1] / len, q[2] / len, q[3] / len];
 }
 
+export function normalizedLocalPoseRotation(q, alignmentQuaternion = null) {
+  const local = normalizeQuatArray(q);
+  if (!alignmentQuaternion) return local;
+  // three-vrm's normalized rig has identity rest rotations, but its offsets
+  // are constructed in the avatar's load-time world frame. If the avatar is
+  // placed under a canonical world/rest alignment A, the normalized local
+  // rotation must be A^-1 q A so that A (A^-1 q A) o = q (A o).
+  const alignment = normalizeQuatArray(alignmentQuaternion);
+  const inverseAlignment = invertQuatArray(alignment);
+  return multiplyQuatArray(multiplyQuatArray(inverseAlignment, local), alignment);
+}
+
+export function vrmSpecWorldAlignment(metaVersion) {
+  const version = String(metaVersion ?? "").trim();
+  if (version === "0") {
+    return {
+      source: "vrm0_spec_yaw_to_canonical",
+      meta_version: "0",
+      alignment_quaternion: [0, 1, 0, 0],
+    };
+  }
+  if (version === "1") {
+    return {
+      source: "vrm1_spec_identity",
+      meta_version: "1",
+      alignment_quaternion: [0, 0, 0, 1],
+    };
+  }
+  return null;
+}
+
 export function invertQuatArray(q) {
   const nq = normalizeQuatArray(q);
   return [-nq[0], -nq[1], -nq[2], nq[3]];

@@ -18,6 +18,58 @@ import {
   timeLabel,
   verifiedSidecarReference,
 } from "./annotations.js";
+import {
+  buildHumanoidSpaceAlignment,
+  multiplyQuatArray,
+  normalizedLocalPoseRotation,
+  vrmSpecWorldAlignment,
+} from "./vrm-canonical-alignment.js";
+
+test("VRM normalized local rotations are conjugated exactly once into the aligned avatar frame", () => {
+  const rawRest = {
+    hips: [0, 0, 0],
+    spine: [0, 0.9723, -0.2337],
+    leftUpperLeg: [-1, 0, 0],
+    rightUpperLeg: [1, 0, 0],
+  };
+  const canonicalRest = {
+    hips: [0, 0, 0],
+    spine: [0, 1, 0],
+    leftUpperLeg: [1, 0, 0],
+    rightUpperLeg: [-1, 0, 0],
+  };
+  const inferredFromSpine = buildHumanoidSpaceAlignment(rawRest, canonicalRest);
+  assert.ok(inferredFromSpine);
+  const alignment = vrmSpecWorldAlignment("0");
+  assert.deepEqual(alignment.alignment_quaternion, [0, 1, 0, 0]);
+  assert.deepEqual(vrmSpecWorldAlignment("1").alignment_quaternion, [0, 0, 0, 1]);
+  assert.equal(vrmSpecWorldAlignment("unknown"), null);
+  assert.notDeepEqual(
+    inferredFromSpine.alignment_quaternion.map((value) => Number(value.toFixed(6))),
+    alignment.alignment_quaternion,
+    "anatomical spine lean must not be mistaken for a world-axis correction",
+  );
+
+  const local = [Math.sin(0.35), 0.1, -0.05, Math.cos(0.35)];
+  const normalized = normalizedLocalPoseRotation(local, alignment.alignment_quaternion);
+  const left = multiplyQuatArray(alignment.alignment_quaternion, normalized);
+  const right = multiplyQuatArray(local, alignment.alignment_quaternion);
+  assert.ok(Math.abs(left.reduce((sum, value, index) => sum + value * right[index], 0)) > 1 - 1e-8);
+  assert.notDeepEqual(
+    normalized.map((value) => Number(value.toFixed(8))),
+    normalizedLocalPoseRotation(local).map((value) => Number(value.toFixed(8))),
+  );
+
+  const source = readFileSync(new URL("./vrm-viewer.js", import.meta.url), "utf8");
+  const poseFunction = source.match(/function poseObjectFromFrame\(frame\) \{[\s\S]*?\n  \}/)?.[0] || "";
+  assert.match(poseFunction, /normalizedLocalPoseRotation/);
+  assert.match(poseFunction, /vrmWorldAlignment\?\.alignment_quaternion/);
+  assert.doesNotMatch(poseFunction, /conjugateQuatByBasis|alignBasis/);
+  assert.doesNotMatch(source, /setRawPose/);
+  assert.doesNotMatch(source, /VRMUtils\.rotateVRM0/);
+  assert.match(source, /vrmSpecWorldAlignment\(vrm\.meta\?\.metaVersion\)/);
+  assert.match(source, /does not expose normalized humanoid pose application/);
+});
 
 test("dataset-native sample text is never inserted as HTML", () => {
   const source = readFileSync(new URL("./app.js", import.meta.url), "utf8");
