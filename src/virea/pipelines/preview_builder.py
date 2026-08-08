@@ -76,7 +76,15 @@ class PreviewBuilder:
         source: SourceSnapshot | None = None,
         files: dict[str, Any] | None = None,
     ) -> PreviewPayload:
-        compare = source.positions if source is not None else None
+        if canonical.retarget_source_positions is not None:
+            compare = canonical.retarget_source_positions
+            compare_names = canonical.retarget_source_joint_names
+        elif source is not None:
+            compare = source.positions
+            compare_names = source.joint_names
+        else:
+            compare = None
+            compare_names = None
         fps = float(clip.motion.get("fps", clip.sample.fps or 30.0))
         return PreviewPayload(
             stage="processed",
@@ -92,7 +100,13 @@ class PreviewBuilder:
             quality=preview_quality(
                 canonical.positions, compare,
                 joint_names=canonical.joint_names[:canonical.positions.shape[1]],
+                source_joint_names=compare_names,
                 fps=fps,
+                retarget_mode=str(
+                    canonical.metadata.get("retarget_mode")
+                    or canonical.metadata.get("position_to_rotation")
+                    or ""
+                ),
             ),
             files=files or {},
             motion=self.motion_dict_from_sequence(canonical.sequence),

@@ -354,10 +354,19 @@ class MotionXAdapter(BaseDatasetAdapter):
             ],
             axis=1,
         ).astype(np.float32)
-        translation = arr[:, 309:312]
+        translation = arr[:, 309:312].copy()
         sub_source = self._sub_source(sample_id)
-        translation_scale = 0.01 if sub_source.casefold() == "aist" else 1.0
-        translation = (translation * np.float32(translation_scale)).astype(np.float32)
+        if sub_source.casefold() == "aist":
+            # Motion-X's published AIST converter calibrates translation by
+            # 94 and reverses Z. This is not a generic centimeter conversion.
+            translation_scale = 1.0 / 94.0
+            translation *= np.float32(translation_scale)
+            translation[:, 2] *= -1.0
+            translation_transform = "motionx_official_aist_div94_flip_z"
+        else:
+            translation_scale = 1.0
+            translation_transform = "identity"
+        translation = translation.astype(np.float32)
         face_expr = arr[:, 159:209]
         face_shape = arr[:, 209:309]
         betas = arr[:, 312:322]
@@ -370,7 +379,8 @@ class MotionXAdapter(BaseDatasetAdapter):
             "sub_source": sub_source,
             "dataset_profile": self._profile_key(sample_id),
             "translation_scale": translation_scale,
-            "translation_scale_rule": "aist_centimeter_to_meter_else_source_meter",
+            "translation_scale_rule": "aist_div94_flip_z_else_identity",
+            "translation_transform": translation_transform,
             "declared_world_basis": "identity_y_up",
             "fullpose_pack": {
                 "root_body": [0, 66],

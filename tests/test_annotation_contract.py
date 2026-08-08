@@ -17,6 +17,13 @@ from virea.data.adapters.grab import GRABAdapter
 from virea.data.adapters.humanml3d import HumanML3DAdapter
 from virea.data.adapters.motionx import MotionXAdapter
 from virea.data.adapters.susuinteracts import SuSuInterActsAdapter
+from virea.data.bvh import (
+    BEAT_BODY_SOURCE_JOINT,
+    BEAT_HAND_SOURCE_JOINT,
+    BVHMotion,
+    beat_bvh_to_body22,
+    parse_bvh,
+)
 from virea.data.annotations import (
     AnnotationV1,
     cache_data_sidecar,
@@ -30,6 +37,15 @@ from virea.data.annotations import (
     sidecar_cache_health,
 )
 from virea.data.types import DatasetRecord, PreviewPayload, RawClip, SampleRef
+from virea.motion.canonical import (
+    CANONICAL_TO_VRM_BONE_NAME,
+    CORE_INDEX,
+    HAND_INDEX,
+    unpack_sequence,
+)
+from virea.motion.codecs import default_codecs
+from virea.motion.rotation import axis_angle_to_quat_xyzw, quat_to_matrix_xyzw
+from virea.motion.skeleton import CANONICAL_PARENT, FK_BONES
 
 
 def _record(key: str) -> DatasetRecord:
@@ -459,7 +475,7 @@ def test_raw_numpy_pickle_is_disabled_by_default_and_never_executes(
 
 def test_amass_156_keeps_hands_and_marks_filename_as_derived(tmp_path: Path) -> None:
     path = tmp_path / "subject" / "wave_poses.npz"
-    path.parent.mkdir(parents=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, poses=np.zeros((2, 156), dtype=np.float32), trans=np.zeros((2, 3)), mocap_framerate=20.0)
     clip = AMASSAdapter(_record("amass"), tmp_path).load("subject/wave_poses")
     assert clip.sample.codec_key == "smplh_body_hands"
@@ -540,15 +556,309 @@ def test_beat_preserves_full_tsv_and_semantic_score_scale(tmp_path: Path) -> Non
     assert item["original"]["line"].endswith("extra")
 
 
-def test_beat_missing_fps_uses_profile_fallback_120(tmp_path: Path) -> None:
-    pose = tmp_path / "pose" / "speaker" / "clip.npz"
-    pose.parent.mkdir(parents=True)
-    np.savez(pose, poses=np.zeros((240, 66), dtype=np.float32), trans=np.zeros((240, 3), dtype=np.float32))
-    clip = BEATAdapter(_record("beat"), tmp_path).load("pose/speaker/clip")
+def _write_beat_body_fixture(
+    path: Path,
+    *,
+    declared_frame_count: int = 2,
+    payload_frame_count: int = 2,
+) -> None:
+    if payload_frame_count not in {1, 2} or declared_frame_count < payload_frame_count:
+        raise ValueError("fixture supports one or two payload frames")
+    children = {
+        "Hips": ["Spine", "RightUpLeg", "LeftUpLeg"],
+        "Spine": ["Spine1"],
+        "Spine1": ["Spine2"],
+        "Spine2": ["Spine3"],
+        "Spine3": ["Neck", "RightShoulder", "LeftShoulder"],
+        "Neck": ["Neck1"],
+        "Neck1": ["Head"],
+        "RightShoulder": ["RightArm"],
+        "RightArm": ["RightForeArm"],
+        "RightForeArm": ["RightHand"],
+        "LeftShoulder": ["LeftArm"],
+        "LeftArm": ["LeftForeArm"],
+        "LeftForeArm": ["LeftHand"],
+        "RightUpLeg": ["RightLeg"],
+        "RightLeg": ["RightFoot"],
+        "RightFoot": ["RightForeFoot"],
+        "RightForeFoot": ["RightToeBase"],
+        "LeftUpLeg": ["LeftLeg"],
+        "LeftLeg": ["LeftFoot"],
+        "LeftFoot": ["LeftForeFoot"],
+        "LeftForeFoot": ["LeftToeBase"],
+    }
+    for side in ("Right", "Left"):
+        hand = f"{side}Hand"
+        children[hand] = [f"{hand}Middle1", f"{hand}Ring", f"{hand}Index"]
+        for finger in ("Middle",):
+            for index in range(1, 4):
+                children[f"{hand}{finger}{index}"] = [f"{hand}{finger}{index + 1}"]
+        children[f"{hand}Ring"] = [f"{hand}Ring1", f"{hand}Pinky"]
+        for finger in ("Ring", "Pinky", "Index", "Thumb"):
+            for index in range(1, 4):
+                children[f"{hand}{finger}{index}"] = [f"{hand}{finger}{index + 1}"]
+        children[f"{hand}Pinky"] = [f"{hand}Pinky1"]
+        children[f"{hand}Index"] = [f"{hand}Index1", f"{hand}Thumb1"]
+    channel_starts: dict[str, int] = {}
+    lines = ["HIERARCHY"]
+    channel_cursor = 0
+
+    def emit(name: str, depth: int) -> None:
+        nonlocal channel_cursor
+        indent = "\t" * depth
+        lines.append(f"{indent}{'ROOT' if name == 'Hips' else 'JOINT'} {name}")
+        lines.append(f"{indent}{{")
+        offset = "0 0 0" if name == "Hips" else "0 1 0"
+        lines.append(f"{indent}\tOFFSET {offset}")
+        if name == "Hips":
+            lines.append(
+                f"{indent}\tCHANNELS 6 Xposition Yposition Zposition Xrotation Yrotation Zrotation"
+            )
+            channel_starts[name] = channel_cursor + 3
+            channel_cursor += 6
+        else:
+            lines.append(f"{indent}\tCHANNELS 3 Xrotation Yrotation Zrotation")
+            channel_starts[name] = channel_cursor
+            channel_cursor += 3
+        for child in children.get(name, []):
+            emit(child, depth + 1)
+        lines.append(f"{indent}}}")
+
+    emit("Hips", 0)
+    first = np.zeros(channel_cursor, dtype=np.float32)
+    second = first.copy()
+    second[channel_starts["Spine2"]] = 10.0
+    second[channel_starts["Spine3"] + 1] = 20.0
+    second[channel_starts["Neck1"] + 2] = 30.0
+    second[channel_starts["Head"]] = 5.0
+    second[channel_starts["LeftForeFoot"] + 1] = 15.0
+    second[channel_starts["LeftToeBase"] + 2] = 7.0
+    second[channel_starts["LeftHandIndex"]] = 11.0
+    second[channel_starts["LeftHandIndex1"] + 1] = 13.0
+    second[channel_starts["LeftHandThumb1"] + 2] = 17.0
+    second[channel_starts["LeftHandThumb2"]] = 19.0
+    second[channel_starts["LeftHandThumb3"] + 1] = 23.0
+    payload_rows = [first, second][:payload_frame_count]
+    lines.extend(
+        [
+            "MOTION",
+            f"Frames: {declared_frame_count}",
+            "Frame Time: 0.008333333333333333",
+            *(" ".join(str(float(value)) for value in row) for row in payload_rows),
+        ]
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_beat_loads_full_bvh_and_composes_skipped_joint_rotations(tmp_path: Path) -> None:
+    _write_beat_body_fixture(tmp_path / "hf" / "speaker" / "clip.bvh")
+    adapter = BEATAdapter(_record("beat"), tmp_path)
+    discovered = adapter.discover()
+    assert [item.sample_id for item in discovered] == ["pose/speaker/clip"]
+    assert discovered[0].source_format == "beat_bvh_full_hierarchy"
+    clip = adapter.load("pose/speaker/clip")
     assert clip.sample.fps == 120.0
     assert clip.motion["fps"] == 120.0
-    assert clip.sample.duration_sec == pytest.approx(2.0)
-    assert clip.sample.metadata["fps_source"] == "profile_fallback"
+    assert clip.sample.duration_sec == pytest.approx(2.0 / 120.0)
+    assert clip.sample.metadata["fps_source"] == "bvh_frame_time"
+    assert clip.sample.metadata["dataset_profile"] == "beat_bvh_full75_runtime"
+    assert clip.sample.metadata["legacy_pose_pack_status"] == "absent"
+    assert clip.sample.metadata["collapsed_rotation_paths"]["upperChest"] == [
+        "Spine2",
+        "Spine3",
+    ]
+    assert clip.sample.metadata["collapsed_rotation_paths"]["head"] == ["Neck1", "Head"]
+    matrices = quat_to_matrix_xyzw(
+        axis_angle_to_quat_xyzw(clip.motion["poses"].reshape(2, 22, 3))
+    )
+
+    def rotation(axis: str, degrees: float) -> np.ndarray:
+        vector = np.zeros(3, dtype=np.float32)
+        vector["XYZ".index(axis)] = np.deg2rad(degrees)
+        return quat_to_matrix_xyzw(axis_angle_to_quat_xyzw(vector))
+
+    np.testing.assert_allclose(
+        matrices[1, 9],
+        rotation("X", 10.0) @ rotation("Y", 20.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        matrices[1, 15],
+        rotation("Z", 30.0) @ rotation("X", 5.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        matrices[1, 10],
+        rotation("Y", 15.0) @ rotation("Z", 7.0),
+        atol=1e-5,
+    )
+    hand_matrices = quat_to_matrix_xyzw(clip.motion["hand_quaternions_xyzw"])
+    np.testing.assert_allclose(
+        hand_matrices[1, 3],
+        rotation("X", 11.0) @ rotation("Y", 13.0),
+        atol=1e-5,
+    )
+    assert CANONICAL_TO_VRM_BONE_NAME["leftThumbProximal"] == "leftThumbMetacarpal"
+    np.testing.assert_allclose(
+        hand_matrices[1, HAND_INDEX["leftThumbProximal"]],
+        rotation("X", 11.0) @ rotation("Z", 17.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        hand_matrices[1, HAND_INDEX["leftThumbIntermediate"]],
+        rotation("X", 19.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        hand_matrices[1, HAND_INDEX["leftThumbDistal"]],
+        rotation("Y", 23.0),
+        atol=1e-5,
+    )
+
+    canonical = default_codecs()[clip.sample.codec_key].to_canonical(clip)
+    decoded = unpack_sequence(canonical.sequence)
+    canonical_hands = quat_to_matrix_xyzw(decoded["hand_quats_xyzw"])
+    thumb_proximal = canonical_hands[1, HAND_INDEX["leftThumbProximal"]]
+    thumb_intermediate = canonical_hands[1, HAND_INDEX["leftThumbIntermediate"]]
+    thumb_distal = canonical_hands[1, HAND_INDEX["leftThumbDistal"]]
+    np.testing.assert_allclose(
+        thumb_proximal,
+        rotation("X", 11.0) @ rotation("Z", 17.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        thumb_proximal @ thumb_intermediate,
+        rotation("X", 11.0) @ rotation("Z", 17.0) @ rotation("X", 19.0),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        thumb_proximal @ thumb_intermediate @ thumb_distal,
+        rotation("X", 11.0)
+        @ rotation("Z", 17.0)
+        @ rotation("X", 19.0)
+        @ rotation("Y", 23.0),
+        atol=1e-5,
+    )
+    assert canonical.metadata["hand_channels"] == "adapter_native_parent_path_collapsed"
+    assert canonical.metadata["rest_frame_correction_policy"] == (
+        "identity_world_aligned_bvh_axes"
+    )
+
+    # Independent endpoint-orientation oracle across all 52 target bones.  It
+    # catches body/hand packing, non-standard palm hierarchy and root ordering
+    # mistakes that local-path assertions alone cannot see.
+    raw_motion = parse_bvh(tmp_path / "hf" / "speaker" / "clip.bvh")
+    raw_world: dict[str, np.ndarray] = {}
+    for joint in raw_motion.joints:
+        local = np.eye(3, dtype=np.float32)
+        for channel, channel_index in zip(joint.channels, joint.channel_indices):
+            if channel.endswith("rotation"):
+                local = local @ rotation(
+                    channel[0].upper(),
+                    float(raw_motion.frames[1, channel_index]),
+                )
+        raw_world[joint.name] = (
+            local if joint.parent is None else raw_world[joint.parent] @ local
+        )
+
+    root_matrix = quat_to_matrix_xyzw(decoded["root_rotation_xyzw"])[1]
+    core_matrices = quat_to_matrix_xyzw(decoded["core_quats_xyzw"])[1]
+    final_hand_matrices = quat_to_matrix_xyzw(decoded["hand_quats_xyzw"])[1]
+    target_world: dict[str, np.ndarray] = {}
+    for bone_name in FK_BONES:
+        if bone_name == "hips":
+            target_world[bone_name] = root_matrix
+            continue
+        local = (
+            core_matrices[CORE_INDEX[bone_name]]
+            if bone_name in CORE_INDEX
+            else final_hand_matrices[HAND_INDEX[bone_name]]
+        )
+        target_world[bone_name] = target_world[CANONICAL_PARENT[bone_name]] @ local
+    source_mapping = {**BEAT_BODY_SOURCE_JOINT, **BEAT_HAND_SOURCE_JOINT}
+    for bone_name in FK_BONES:
+        np.testing.assert_allclose(
+            target_world[bone_name],
+            raw_world[source_mapping[bone_name]],
+            atol=1e-5,
+            err_msg=f"BEAT endpoint world orientation mismatch at {bone_name}",
+        )
+
+
+def test_beat_chunked_decoder_matches_single_chunk_across_boundaries(tmp_path: Path) -> None:
+    bvh_path = tmp_path / "chunked.bvh"
+    _write_beat_body_fixture(bvh_path)
+    parsed = parse_bvh(bvh_path)
+    frames = np.repeat(parsed.frames[1:2], 7, axis=0)
+    frame_scale = np.arange(1, 8, dtype=np.float32).reshape(-1, 1)
+    frames *= frame_scale
+    frames[0] = parsed.frames[0]
+    frames[:, 0] = np.arange(7, dtype=np.float32) * 2.5
+    frames[:, 1] = np.arange(7, dtype=np.float32) * -1.25
+    frames[:, 2] = np.arange(7, dtype=np.float32) * 0.5
+    motion = BVHMotion(
+        joints=parsed.joints,
+        frames=frames,
+        frame_time=parsed.frame_time,
+        declared_frame_count=frames.shape[0],
+    )
+
+    chunked = beat_bvh_to_body22(motion, chunk_size=2)
+    single_chunk = beat_bvh_to_body22(motion, chunk_size=frames.shape[0])
+    expected_shapes = {
+        "poses": (7, 66),
+        "translation": (7, 3),
+        "source_positions": (7, 22, 3),
+        "source_full_positions": (7, 52, 3),
+        "hand_quaternions_xyzw": (7, 30, 4),
+    }
+    for key, expected_shape in expected_shapes.items():
+        actual = np.asarray(chunked[key])
+        assert actual.shape == expected_shape
+        assert np.all(np.isfinite(actual))
+        np.testing.assert_allclose(actual, single_chunk[key], atol=1e-6, rtol=1e-6)
+    assert chunked["source_rest_offsets"].keys() == single_chunk[
+        "source_rest_offsets"
+    ].keys()
+    for bone_name, offset in chunked["source_rest_offsets"].items():
+        np.testing.assert_array_equal(offset, single_chunk["source_rest_offsets"][bone_name])
+    assert chunked["collapsed_paths"] == single_chunk["collapsed_paths"]
+    with pytest.raises(ValueError, match="chunk_size must be a positive integer"):
+        beat_bvh_to_body22(motion, chunk_size=0)
+
+
+def test_beat_reports_declared_actual_and_intentionally_decoded_frames(tmp_path: Path) -> None:
+    bvh_path = tmp_path / "hf" / "speaker" / "short.bvh"
+    _write_beat_body_fixture(
+        bvh_path,
+        declared_frame_count=3,
+        payload_frame_count=2,
+    )
+    adapter = BEATAdapter(_record("beat"), tmp_path)
+    short = adapter.load("pose/speaker/short")
+    assert short.sample.frame_count == 2
+    assert short.sample.duration_sec == pytest.approx(2 / 120.0)
+    assert short.sample.metadata["bvh_declared_frame_count"] == 3
+    assert short.sample.metadata["bvh_decoded_frame_count"] == 2
+    assert short.sample.metadata["bvh_actual_payload_frame_count"] == 2
+    assert short.sample.metadata["bvh_payload_ended_early"] is True
+    assert any("actual readable frame count" in item for item in short.validation_warnings)
+
+    complete_path = tmp_path / "hf" / "speaker" / "complete.bvh"
+    _write_beat_body_fixture(complete_path)
+    limited = adapter.load("pose/speaker/complete", max_frames=1)
+    assert limited.sample.frame_count == 1
+    assert limited.sample.metadata["bvh_decoded_frame_count"] == 1
+    assert limited.sample.metadata["bvh_actual_payload_frame_count"] is None
+    assert limited.sample.metadata["bvh_decode_truncated_by_max_frames"] is True
+    assert limited.sample.metadata["original_time"] == {
+        "frame_count": 2,
+        "duration_sec": pytest.approx(2 / 120.0),
+        "fps": pytest.approx(120.0),
+    }
+    with pytest.raises(ValueError, match="max_frames must be positive"):
+        adapter.load("pose/speaker/complete", max_frames=0)
 
 
 def test_grab_exposes_object_pose_and_honest_categorical_contact(
@@ -623,8 +933,13 @@ def test_motionx_reorders_fullpose_and_uses_aist_unit_profile(tmp_path: Path) ->
     np.testing.assert_allclose(fullpose[:, 66:69], 3.0)
     np.testing.assert_allclose(fullpose[:, 69:75], 0.0)
     np.testing.assert_allclose(fullpose[:, 75:165], 2.0)
-    np.testing.assert_allclose(clip.motion["translation"], 1.0)
+    np.testing.assert_allclose(
+        clip.motion["translation"],
+        np.asarray([[100.0 / 94.0, 100.0 / 94.0, -100.0 / 94.0]], dtype=np.float32),
+    )
     assert clip.sample.metadata["dataset_profile"] == "motionx_aist_smplx322"
+    assert clip.sample.metadata["translation_scale"] == pytest.approx(1.0 / 94.0)
+    assert clip.sample.metadata["translation_transform"] == "motionx_official_aist_div94_flip_z"
     source_parameters = next(item for item in clip.channels if item["kind"] == "source_parameters")
     assert source_parameters["availability"] == "external"
     assert source_parameters["shape"] == [2, 324]

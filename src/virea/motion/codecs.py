@@ -9,12 +9,18 @@ from virea.data.types import RawClip
 from virea.motion.canonical import (
     CANONICAL_SKELETON_ID,
     CORE_INDEX,
+    HAND_BONES,
     HAND_INDEX,
     identity_quats,
     pack_sequence,
     unpack_sequence,
 )
-from virea.motion.retarget import body_positions_from_fk_positions, fit_positions_to_vrm, retarget_named_quats_to_vrm
+from virea.motion.retarget import (
+    body_positions_from_fk_positions,
+    fit_positions_to_vrm,
+    retarget_named_quats_to_vrm,
+    target_scale_from_rest_offsets,
+)
 from virea.motion.snapshot import SourceSnapshot
 from virea.motion.source_fk import (
     SUSU_MAYA_AIM_AXES,
@@ -28,6 +34,7 @@ from virea.motion.rotation import (
     quat_apply_xyzw,
     quat_inverse_xyzw,
     quat_multiply_xyzw,
+    normalize_quat_xyzw,
     sixd_rows_to_quat_xyzw,
     sixd_to_quat_xyzw,
 )
@@ -52,6 +59,7 @@ class CanonicalResult:
     edges: list[tuple[int, int]]
     metadata: dict[str, Any]
     retarget_source_positions: np.ndarray | None = None
+    retarget_source_joint_names: list[str] | None = None
 
 
 class MotionCodec:
@@ -98,26 +106,88 @@ class AxisAngleBody22Codec(MotionCodec):
             core_quats_xyzw=core,
         )
 
+    def _rest_contract(
+        self,
+        clip: RawClip,
+    ) -> tuple[dict[str, list[float] | np.ndarray], dict[str, np.ndarray] | None, str]:
+        payload = clip.motion.get("source_rest_offsets")
+        if payload is None:
+            return self.source_rest_offsets, {}, "identity_canonical_parameter_frames"
+        if not isinstance(payload, dict):
+            raise ValueError("source_rest_offsets must be a bone-name mapping")
+        offsets: dict[str, list[float] | np.ndarray] = {}
+        for name, value in payload.items():
+            offset = np.asarray(value, dtype=np.float32)
+            if offset.shape != (3,) or not np.all(np.isfinite(offset)):
+                raise ValueError(f"source rest offset {name} must be a finite vec3")
+            offsets[str(name)] = offset
+        missing = sorted(set(BODY_BONES[1:]) - set(offsets))
+        if missing:
+            raise ValueError(f"source rest offsets are missing body bones: {', '.join(missing)}")
+        policy = str(clip.motion.get("rest_frame_correction_policy", ""))
+        if policy == "identity_world_aligned_bvh_axes":
+            return offsets, {}, policy
+        raise ValueError(
+            "adapter-provided source rest geometry requires an explicit, supported "
+            "rest_frame_correction_policy"
+        )
+
     def to_canonical(self, clip: RawClip) -> CanonicalResult:
         poses = np.asarray(clip.motion["poses"], dtype=np.float32)
         translation = np.asarray(clip.motion.get("translation"), dtype=np.float32)
         if translation.ndim != 2 or translation.shape[0] != poses.shape[0]:
             translation = np.zeros((poses.shape[0], 3), dtype=np.float32)
         body_quats = self._body_quats(poses)
+        source_rest_offsets, body_rest_frame_corrections, rest_frame_policy = self._rest_contract(clip)
+        hand_quats = clip.motion.get("hand_quaternions_xyzw")
+        hand_quats_by_name: dict[str, np.ndarray] | None = None
+        if hand_quats is not None:
+            hand_quats = np.asarray(hand_quats, dtype=np.float32)
+            if hand_quats.shape != (poses.shape[0], len(HAND_BONES), 4):
+                raise ValueError(
+                    "native hand quaternions must have shape "
+                    f"{(poses.shape[0], len(HAND_BONES), 4)}, got {hand_quats.shape}"
+                )
+            hand_quats = normalize_quat_xyzw(hand_quats)
+            hand_quats_by_name = {
+                name: hand_quats[:, index]
+                for index, name in enumerate(HAND_BONES)
+            }
         retarget = retarget_named_quats_to_vrm(
             root_translation=translation,
             root_rotation_xyzw=body_quats[:, BODY_INDEX["hips"]],
             local_quats_by_name={name: body_quats[:, idx] for idx, name in enumerate(BODY_BONES) if name != "hips"},
-            source_body_rest_offsets=self.source_rest_offsets,
+            source_body_rest_offsets=source_rest_offsets,
+            hand_quats_by_name=hand_quats_by_name,
+            source_hand_rest_offsets=source_rest_offsets,
+            body_rest_frame_corrections=body_rest_frame_corrections,
+            hand_rest_frame_corrections=(
+                {}
+                if rest_frame_policy
+                in {"identity_world_aligned_bvh_axes", "identity_canonical_parameter_frames"}
+                else None
+            ),
             world_basis=self.world_basis,
             root_rotation_semantics=self.root_rotation_semantics,
         )
+        native_source_positions = clip.motion.get("source_positions")
+        if native_source_positions is not None:
+            native_source_positions = np.asarray(native_source_positions, dtype=np.float32)
+            if native_source_positions.shape != (poses.shape[0], len(BODY_BONES), 3):
+                raise ValueError(
+                    "native source positions must have shape "
+                    f"{(poses.shape[0], len(BODY_BONES), 3)}, got {native_source_positions.shape}"
+                )
+            if not np.all(np.isfinite(native_source_positions)):
+                raise ValueError("native source positions must be finite")
+            native_source_positions = native_source_positions * np.float32(retarget["scale"])
         return CanonicalResult(
             sequence=retarget["sequence"],
             positions=retarget["positions"],
             joint_names=FK_BONES,
             edges=FK_EDGES,
             metadata={
+                **dict(clip.motion.get("source_metadata", {})),
                 "codec": self.key,
                 "source_profile": self.source_profile,
                 "canonical_skeleton": CANONICAL_SKELETON_ID,
@@ -127,8 +197,22 @@ class AxisAngleBody22Codec(MotionCodec):
                 "retarget_scale": retarget["scale"],
                 "declared_world_basis": self.world_basis,
                 "world_basis": retarget.get("world_basis", {}),
+                "source_geometry": (
+                    "adapter_native_fk" if native_source_positions is not None else "codec_rest_fk"
+                ),
+                "hand_channels": (
+                    "adapter_native_parent_path_collapsed"
+                    if hand_quats_by_name is not None
+                    else "unavailable_identity"
+                ),
+                "rest_frame_correction_policy": rest_frame_policy,
             },
-            retarget_source_positions=retarget.get("source_positions"),
+            retarget_source_positions=(
+                native_source_positions
+                if native_source_positions is not None
+                else retarget.get("source_positions")
+            ),
+            retarget_source_joint_names=list(BODY_BONES),
         )
 
     def extract_source(self, clip: RawClip) -> SourceSnapshot:
@@ -137,21 +221,56 @@ class AxisAngleBody22Codec(MotionCodec):
         if translation.ndim != 2 or translation.shape[0] != poses.shape[0]:
             translation = np.zeros((poses.shape[0], 3), dtype=np.float32)
         body_quats = self._body_quats(poses)
-        positions, names, edges = source_fk_from_body_quats(
-            translation,
-            body_quats[:, BODY_INDEX["hips"]],
-            {name: body_quats[:, idx] for idx, name in enumerate(BODY_BONES) if name != "hips"},
-            self.source_rest_offsets,
-            normalize_world=True,
-            world_basis=self.world_basis,
-        )
+        source_rest_offsets, _, rest_frame_policy = self._rest_contract(clip)
+        source_scale = target_scale_from_rest_offsets(source_rest_offsets)
+        native_source_positions = clip.motion.get("source_positions")
+        native_full_source_positions = clip.motion.get("source_full_positions")
+        if native_full_source_positions is not None:
+            positions = np.asarray(native_full_source_positions, dtype=np.float32)
+            if positions.shape != (poses.shape[0], len(FK_BONES), 3) or not np.all(
+                np.isfinite(positions)
+            ):
+                raise ValueError("native full source positions must be finite canonical body+hand positions")
+            positions = positions * np.float32(source_scale)
+            names = list(FK_BONES)
+            edges = list(FK_EDGES)
+        elif native_source_positions is not None:
+            positions = np.asarray(native_source_positions, dtype=np.float32)
+            if positions.shape != (poses.shape[0], len(BODY_BONES), 3) or not np.all(
+                np.isfinite(positions)
+            ):
+                raise ValueError("native source positions must be finite body22 positions")
+            positions = positions * np.float32(source_scale)
+            names = list(BODY_BONES)
+            edges = list(BODY_EDGES)
+        else:
+            positions, names, edges = source_fk_from_body_quats(
+                translation,
+                body_quats[:, BODY_INDEX["hips"]],
+                {name: body_quats[:, idx] for idx, name in enumerate(BODY_BONES) if name != "hips"},
+                source_rest_offsets,
+                normalize_world=True,
+                world_basis=self.world_basis,
+            )
         return SourceSnapshot(
             positions=positions,
             joint_names=names,
             edges=edges,
             fps=float(clip.motion.get("fps", clip.sample.fps or 30.0)),
             coordinate_system="world_normalized",
-            metadata={"codec": self.key, "source_profile": self.source_profile, "declared_world_basis": self.world_basis},
+            metadata={
+                **dict(clip.motion.get("source_metadata", {})),
+                "codec": self.key,
+                "source_profile": self.source_profile,
+                "declared_world_basis": self.world_basis,
+                "source_geometry": (
+                    "adapter_native_fk"
+                    if native_source_positions is not None or native_full_source_positions is not None
+                    else "codec_rest_fk"
+                ),
+                "rest_frame_correction_policy": rest_frame_policy,
+                "source_to_canonical_scale": source_scale,
+            },
         )
 
 
@@ -230,6 +349,8 @@ class SMPLHBodyHandsCodec(AxisAngleBody22Codec):
                 name: hand_quats[:, index] for name, index in SMPLH_HAND_INDEX.items()
             },
             source_hand_rest_offsets=DEFAULT_REST_OFFSETS,
+            body_rest_frame_corrections={},
+            hand_rest_frame_corrections={},
             world_basis=self.world_basis,
             root_rotation_semantics=self.root_rotation_semantics,
         )
@@ -239,6 +360,7 @@ class SMPLHBodyHandsCodec(AxisAngleBody22Codec):
             joint_names=FK_BONES,
             edges=FK_EDGES,
             metadata={
+                **dict(clip.motion.get("source_metadata", {})),
                 "codec": self.key,
                 "source_profile": self.source_profile,
                 "canonical_skeleton": CANONICAL_SKELETON_ID,
@@ -251,6 +373,7 @@ class SMPLHBodyHandsCodec(AxisAngleBody22Codec):
                 "hand_channels": "native_smplh_axis_angle_30",
             },
             retarget_source_positions=retarget.get("source_positions"),
+            retarget_source_joint_names=list(BODY_BONES),
         )
 
 
@@ -308,6 +431,8 @@ class SMPLXFullposeCodec(MotionCodec):
             source_body_rest_offsets=DEFAULT_REST_OFFSETS,
             hand_quats_by_name={name: hands[:, idx] for idx, name in enumerate(HAND_INDEX)},
             source_hand_rest_offsets=DEFAULT_REST_OFFSETS,
+            body_rest_frame_corrections={},
+            hand_rest_frame_corrections={},
             world_basis=world_basis,
             root_rotation_semantics=self.root_rotation_semantics,
         )
@@ -329,6 +454,7 @@ class SMPLXFullposeCodec(MotionCodec):
                 "world_basis": retarget.get("world_basis", {}),
             },
             retarget_source_positions=retarget.get("source_positions"),
+            retarget_source_joint_names=list(BODY_BONES),
         )
 
     def extract_source(self, clip: RawClip) -> SourceSnapshot:
@@ -482,8 +608,12 @@ class PositionSequenceCodec(MotionCodec):
                 "declared_world_basis": self.world_basis,
                 "world_basis": retarget.get("world_basis", {}),
                 "root_rotation_semantics": "not_applicable",
+                "root_orientation_recovery": retarget.get("root_orientation_recovery"),
+                "upper_chest_orientation_recovery": retarget.get("upper_chest_orientation_recovery"),
+                "rotation_observability": retarget.get("rotation_observability", {}),
             },
             retarget_source_positions=retarget.get("source_positions"),
+            retarget_source_joint_names=list(BODY_BONES),
         )
 
     def extract_source(self, clip: RawClip) -> SourceSnapshot:
@@ -537,13 +667,24 @@ class HumanML3D263Codec(PositionSequenceCodec):
 
         data = np.asarray(motion, dtype=np.float32)
         joint_count = 22
-        required_width = 4 + (joint_count - 1) * 3
+        ric_end = 4 + (joint_count - 1) * 3
+        rotation_end = ric_end + (joint_count - 1) * 6
+        required_width = 263
         if data.ndim != 2 or data.shape[0] < 1 or data.shape[1] < required_width:
             raise ValueError(
                 f"HumanML3D 263D motion must have shape (T, >= {required_width}), got {data.shape}"
             )
         if not np.all(np.isfinite(data[:, :required_width])):
-            raise ValueError("HumanML3D root/RIC features contain non-finite values")
+            raise ValueError("HumanML3D 263D features contain non-finite values")
+
+        # The 126D block is the official first-two-columns 6D representation,
+        # but HumanML3D's Skeleton applies each entry before translating the
+        # *child* edge.  That is not glTF/VRM node-local semantics.  Validate
+        # the native channel so corruption cannot pass silently, while using
+        # the independently recoverable RIC positions for the target motion.
+        sixd_to_quat_xyzw(
+            data[:, ric_end:rotation_end].reshape(data.shape[0], joint_count - 1, 6)
+        )
 
         frame_count = data.shape[0]
         half_yaw = np.zeros((frame_count,), dtype=np.float32)
@@ -559,7 +700,7 @@ class HumanML3D263Codec(PositionSequenceCodec):
         root_position = np.cumsum(root_position, axis=0, dtype=np.float32)
         root_position[:, 1] = data[:, 3]
 
-        local = data[:, 4:required_width].reshape(frame_count, joint_count - 1, 3)
+        local = data[:, 4:ric_end].reshape(frame_count, joint_count - 1, 3)
         inverse_root = np.broadcast_to(
             quat_inverse_xyzw(root_quat)[:, None, :],
             (frame_count, joint_count - 1, 4),
@@ -571,7 +712,13 @@ class HumanML3D263Codec(PositionSequenceCodec):
         return positions, SMPL24_NAMES[:joint_count], {
             "humanml_decoder": "official_recover_from_ric_numpy",
             "humanml_consumed_features": "root4_plus_ric63",
-            "humanml_ignored_features": "rotation6d126_velocity66_contact4",
+            "humanml_validated_not_applied_features": "child_edge_rotation6d126",
+            "humanml_ignored_features": "velocity66_contact4",
+            "humanml_rotation_semantics": "child_incoming_edge_rotation_before_translation",
+            "humanml_rotation_target_policy": "do_not_map_directly_to_gltf_node_local",
+            "humanml_rotation_observability": (
+                "native_6d_is_position_ik_derived_and_does_not_restore_independent_physical_twist"
+            ),
         }
 
     def to_canonical(self, clip: RawClip) -> CanonicalResult:
@@ -794,6 +941,18 @@ def _susu_hand_map(side: str) -> dict[int, str]:
         15: f"{prefix}LittleIntermediate",
         16: f"{prefix}LittleDistal",
     }
+
+
+SUSU_POSITION_HAND_INDEX: dict[str, int] = {
+    **{
+        canonical: 24 + source_index
+        for source_index, canonical in _susu_hand_map("left").items()
+    },
+    **{
+        canonical: 43 + source_index
+        for source_index, canonical in _susu_hand_map("right").items()
+    },
+}
 
 
 def _compose_local_quats(quats: np.ndarray, indices: tuple[int, ...]) -> np.ndarray:
@@ -1050,6 +1209,14 @@ class SuSu6DCodec(MotionCodec):
         canonical_positions = canonical_positions.copy()
         return canonical_positions, mapped_names, _canonical_edges_for_names(mapped_names)
 
+    def _canonical_hand_from_source_positions(self, positions: np.ndarray) -> dict[str, np.ndarray]:
+        source = np.asarray(positions, dtype=np.float32)
+        return {
+            canonical: source[:, source_index].copy()
+            for canonical, source_index in SUSU_POSITION_HAND_INDEX.items()
+            if source_index < source.shape[1]
+        }
+
     def _root_translation(self, body: np.ndarray, profile: SuSuProfile) -> tuple[np.ndarray, float, str]:
         axes = list(profile.root_axes)
         root = body[:, axes].astype(np.float32)
@@ -1083,13 +1250,20 @@ class SuSu6DCodec(MotionCodec):
             source_body_rest_offsets=DEFAULT_REST_OFFSETS,
             hand_quats_by_name=local_hand_quats,
             source_hand_rest_offsets=DEFAULT_REST_OFFSETS,
+            body_rest_frame_corrections={},
+            hand_rest_frame_corrections={},
             world_basis=profile.rotation_world_basis,
             root_rotation_semantics="local_to_world",
         )
         if available_positions is not None:
             native_positions, native_names, native_edges = self._canonical_body_from_source_positions(available_positions)
             body_positions = body_positions_from_fk_positions(native_positions, native_names)
-            retarget = fit_positions_to_vrm(body_positions, world_basis=profile.position_world_basis)
+            hand_positions = self._canonical_hand_from_source_positions(available_positions)
+            retarget = fit_positions_to_vrm(
+                body_positions,
+                world_basis=profile.position_world_basis,
+                hand_positions_by_name=hand_positions,
+            )
         else:
             if profile.rotation_space == "global":
                 native_names = list(BODY_BONES)
@@ -1109,19 +1283,25 @@ class SuSu6DCodec(MotionCodec):
                 reconstructed = body_positions_from_fk_positions(native_positions, native_names)
                 retarget = fit_positions_to_vrm(reconstructed, world_basis=profile.rotation_world_basis)
 
-        # Position fitting recovers body swing but cannot recover twist and
-        # historically replaced every finger with identity.  Preserve the
-        # native hand locals from the independently corrected direct path.
+        # Rotation-only profiles have no positional hand oracle. Keep their
+        # native locals visible for draft debugging, but do not call them
+        # verified. Position-bearing profiles instead recover the wrist frame
+        # and finger swing from the authoritative 63-joint positions above.
         fitted = unpack_sequence(retarget["sequence"])
-        direct_unpacked = unpack_sequence(direct["sequence"])
-        retarget["sequence"] = pack_sequence(
-            root_translation=fitted["root_translation"],
-            root_rotation_xyzw=fitted["root_rotation_xyzw"],
-            core_quats_xyzw=fitted["core_quats_xyzw"],
-            hand_quats_xyzw=direct_unpacked["hand_quats_xyzw"],
-        )
-        retarget["positions"] = forward_kinematics_from_sequence(retarget["sequence"])
-        retarget["mode"] = "position_fit_body_plus_direct_local_6d_fingers"
+        if available_positions is None:
+            direct_unpacked = unpack_sequence(direct["sequence"])
+            retarget["sequence"] = pack_sequence(
+                root_translation=fitted["root_translation"],
+                root_rotation_xyzw=fitted["root_rotation_xyzw"],
+                core_quats_xyzw=fitted["core_quats_xyzw"],
+                hand_quats_xyzw=direct_unpacked["hand_quats_xyzw"],
+            )
+            retarget["positions"] = forward_kinematics_from_sequence(retarget["sequence"])
+            retarget["mode"] = "position_fit_body_plus_unverified_direct_local_6d_fingers"
+            finger_retarget = "direct_local_6d_preserved_unverified"
+        else:
+            retarget["mode"] = "position_fit_body_wrist_and_finger_swing_from_63_positions"
+            finger_retarget = "position_fit_swing_from_authoritative_positions"
         return CanonicalResult(
             sequence=retarget["sequence"],
             positions=retarget["positions"],
@@ -1130,6 +1310,8 @@ class SuSu6DCodec(MotionCodec):
             metadata={
                 "codec": clip.sample.codec_key,
                 "source_profile": profile.name,
+                "canonical_skeleton": CANONICAL_SKELETON_ID,
+                "target_skeleton": "vrm1_humanoid",
                 "root_translation": profile.root_translation_mode,
                 "root_translation_scale": profile.root_translation_scale,
                 "root_translation_effective_scale": root_translation_effective_scale,
@@ -1148,10 +1330,15 @@ class SuSu6DCodec(MotionCodec):
                 "rotation_export_transform": "sentiavatar_process_batch_data.local_bvh.v1",
                 "rotation_only_rest_source": "SentiAvatar template_susu_retarget_63nodes.bvh",
                 "rotation_profile_status": profile.validation_status,
-                "finger_retarget": "direct_local_6d_preserved_in_final_sequence",
-                "position_fit_twist_limit": available_positions is not None,
+                "finger_retarget": finger_retarget,
+                "finger_twist_observability": "distal_and_single_child_axial_twist_not_observable_from_positions",
+                "position_fit_twist_limit": True,
+                "root_orientation_recovery": retarget.get("root_orientation_recovery"),
+                "upper_chest_orientation_recovery": retarget.get("upper_chest_orientation_recovery"),
+                "rotation_observability": retarget.get("rotation_observability", {}),
             },
             retarget_source_positions=retarget.get("source_positions"),
+            retarget_source_joint_names=list(BODY_BONES),
         )
 
     def extract_source(self, clip: RawClip) -> SourceSnapshot:
@@ -1210,7 +1397,7 @@ def default_codecs() -> dict[str, MotionCodec]:
         "smplh_body_hands": SMPLHBodyHandsCodec(),
         "beat_axis_angle_body22": AxisAngleBody22Codec(
             source_rest_offsets=DEFAULT_REST_OFFSETS,
-            source_profile="beat_bvh_body22",
+            source_profile="beat_bvh_full75_body22_hands30",
             world_basis="identity_y_up",
             root_rotation_semantics="local_to_world",
         ),

@@ -341,7 +341,7 @@ class BABELAdapter(BaseDatasetAdapter):
             "fps": fps,
             "source_metadata": {
                 "dataset_profile": profile_key,
-                "declared_world_basis": "identity_y_up" if codec_key == "smplx_fullpose" else "z_up_to_y_up",
+                "declared_world_basis": "z_up_to_y_up",
             },
         }
         if codec_key == "smplx_fullpose":

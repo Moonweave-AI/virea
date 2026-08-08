@@ -21,7 +21,7 @@ from virea.data.types import RawClip
 from virea.motion.canonical import CANONICAL_SKELETON_ID, CORE_BONES, HAND_BONES
 from virea.motion.codecs import CanonicalResult, MotionCodec, default_codecs
 from virea.motion.quality import preview_quality
-from virea.motion.skeleton import BODY_BONES, DEFAULT_REST_OFFSETS
+from virea.motion.skeleton import DEFAULT_REST_OFFSETS
 from virea.motion.snapshot import SourceSnapshot
 from virea.pipelines.artifacts import artifact_paths, legacy_vrm_motion_path
 from virea.pipelines.artifacts import motion_uid
@@ -263,7 +263,11 @@ class ProcessingPipeline:
         retarget_src = canonical.retarget_source_positions
         if retarget_src is not None and retarget_src.shape[0] == canonical.positions.shape[0]:
             src_pos = retarget_src
-            src_names = list(BODY_BONES[:retarget_src.shape[1]])
+            src_names = canonical.retarget_source_joint_names
+            if src_names is None or len(src_names) != retarget_src.shape[1]:
+                raise ValueError(
+                    "canonical retarget source positions require an exact joint-name contract"
+                )
         elif source.positions.shape[0] == canonical.positions.shape[0]:
             src_pos = source.positions
             src_names = source.joint_names
@@ -276,6 +280,11 @@ class ProcessingPipeline:
             joint_names=canonical.joint_names[:canonical.positions.shape[1]],
             source_joint_names=src_names,
             fps=fps,
+            retarget_mode=str(
+                canonical.metadata.get("retarget_mode")
+                or canonical.metadata.get("position_to_rotation")
+                or ""
+            ),
         )
         return ProcessingOutput(
             clip=clip,

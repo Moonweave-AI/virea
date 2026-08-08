@@ -19,7 +19,6 @@ from virea.motion.skeleton import (
     BODY_INDEX,
     CANONICAL_PARENT,
     DEFAULT_REST_OFFSETS,
-    FK_BONES,
     forward_kinematics,
     forward_kinematics_from_sequence,
 )
@@ -120,7 +119,7 @@ def _rest_offset(bone_name: str, offsets: dict[str, list[float] | np.ndarray] | 
     )
 
 
-def _target_scale_from_rest_offsets(source_rest_offsets: dict[str, list[float] | np.ndarray]) -> float:
+def target_scale_from_rest_offsets(source_rest_offsets: dict[str, list[float] | np.ndarray]) -> float:
     target_total = 0.0
     source_total = 0.0
     for chain in STABLE_SCALE_CHAINS:
@@ -136,7 +135,7 @@ def _target_scale_from_positions(body_positions: np.ndarray) -> float:
     source_total = 0.0
     frame = positions[0]
     for chain in STABLE_SCALE_CHAINS:
-        parent = "hips"
+        parent = CANONICAL_PARENT.get(chain[0], "hips")
         for bone_name in chain:
             if bone_name not in BODY_INDEX or parent not in BODY_INDEX:
                 parent = bone_name
@@ -145,20 +144,6 @@ def _target_scale_from_positions(body_positions: np.ndarray) -> float:
             target_total += float(np.linalg.norm(_rest_offset(bone_name)))
             parent = bone_name
     return 1.0 if source_total < 1e-6 else float(target_total / source_total)
-
-
-def _corrections_from_rest_offsets(source_rest_offsets: dict[str, list[float] | np.ndarray], bones: list[str]) -> dict[str, np.ndarray]:
-    corrections: dict[str, np.ndarray] = {}
-    for bone_name in ["hips", *bones]:
-        child_name = PRIMARY_CHILD.get(bone_name)
-        if not child_name:
-            continue
-        source_vec = _rest_offset(child_name, source_rest_offsets)
-        target_vec = _rest_offset(child_name)
-        if np.linalg.norm(source_vec) < 1e-6 or np.linalg.norm(target_vec) < 1e-6:
-            continue
-        corrections[bone_name] = quat_from_two_vectors_xyzw(target_vec, source_vec)
-    return corrections
 
 
 def _broadcast_quat(quat: np.ndarray, frame_count: int) -> np.ndarray:
@@ -275,21 +260,38 @@ def retarget_named_quats_to_vrm(
     source_body_rest_offsets: dict[str, list[float] | np.ndarray],
     hand_quats_by_name: dict[str, np.ndarray] | None = None,
     source_hand_rest_offsets: dict[str, list[float] | np.ndarray] | None = None,
+    body_rest_frame_corrections: dict[str, np.ndarray] | None = None,
+    hand_rest_frame_corrections: dict[str, np.ndarray] | None = None,
     normalize_world: bool = True,
     world_basis: str | np.ndarray | dict[str, Any] | None = None,
     root_rotation_semantics: str = "local_to_world",
 ) -> dict[str, Any]:
+    if root_rotation_semantics != "local_to_world":
+        raise ValueError(
+            "generic parent-local retarget only supports local_to_world root rotations; "
+            "world_operator requires a representation-specific codec that canonicalizes "
+            "source rest frames and every rotation space before retargeting"
+        )
     frame_count = int(np.asarray(root_translation).shape[0])
-    scale = _target_scale_from_rest_offsets(source_body_rest_offsets)
+    scale = target_scale_from_rest_offsets(source_body_rest_offsets)
     target_root_translation = np.asarray(root_translation, dtype=np.float32) * np.float32(scale)
     target_root_translation = target_root_translation - target_root_translation[:1]
     source_root_rotation = normalize_quat_xyzw(root_rotation_xyzw)
+
+    # ``scale`` maps the complete source skeleton into canonical metres.  It
+    # must apply to both the root trajectory and every rest offset used by the
+    # source FK oracle; scaling only the trajectory makes Before/After agree
+    # only when the source skeleton happens to use canonical bone lengths.
+    scaled_source_body_rest_offsets = {
+        name: np.asarray(offset, dtype=np.float32) * np.float32(scale)
+        for name, offset in source_body_rest_offsets.items()
+    }
 
     source_positions = forward_kinematics(
         root_translation=target_root_translation,
         root_rotation_xyzw=source_root_rotation,
         local_quats=local_quats_by_name,
-        rest_offsets=source_body_rest_offsets,
+        rest_offsets=scaled_source_body_rest_offsets,
         joint_names=BODY_BONES,
     )
     basis: dict[str, Any] | None = None
@@ -304,7 +306,15 @@ def retarget_named_quats_to_vrm(
             semantics=root_rotation_semantics,
         )
 
-    body_corrections = _corrections_from_rest_offsets(source_body_rest_offsets, CORE_BONES)
+    if body_rest_frame_corrections is None:
+        raise ValueError(
+            "direct retarget requires explicit source-to-target body rest-frame corrections; "
+            "use an empty mapping only when identity local frames are independently verified"
+        )
+    body_corrections = {
+        name: normalize_quat_xyzw(np.asarray(value, dtype=np.float32))
+        for name, value in body_rest_frame_corrections.items()
+    }
     root_rotation = source_root_rotation.copy()
     if "hips" in body_corrections:
         root_rotation = quat_multiply_xyzw(root_rotation, _broadcast_quat(body_corrections["hips"], frame_count))
@@ -326,7 +336,15 @@ def retarget_named_quats_to_vrm(
 
     hand = identity_quats(frame_count, len(HAND_BONES))
     if hand_quats_by_name:
-        hand_corrections = _corrections_from_rest_offsets(source_hand_rest_offsets or DEFAULT_REST_OFFSETS, HAND_BONES)
+        if hand_rest_frame_corrections is None:
+            raise ValueError(
+                "direct retarget requires explicit source-to-target hand rest-frame corrections; "
+                "use an empty mapping only when identity local frames are independently verified"
+            )
+        hand_corrections = {
+            name: normalize_quat_xyzw(np.asarray(value, dtype=np.float32))
+            for name, value in hand_rest_frame_corrections.items()
+        }
         all_corrections = {**body_corrections, **hand_corrections}
         for bone_name, source_quat in hand_quats_by_name.items():
             if bone_name not in HAND_INDEX:
@@ -394,6 +412,55 @@ def _quat_from_rotation_matrix(matrix: np.ndarray) -> np.ndarray:
         scale = np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2.0
         q[:] = [(m[0, 2] + m[2, 0]) / scale, (m[1, 2] + m[2, 1]) / scale, 0.25 * scale, (m[1, 0] - m[0, 1]) / scale]
     return normalize_quat_xyzw(q)
+
+
+def _orthonormal_frame_from_up_lateral(
+    up: np.ndarray,
+    lateral: np.ndarray,
+) -> np.ndarray | None:
+    """Build a right-handed frame whose columns are lateral, up, forward.
+
+    A single parent-child direction determines only swing.  The independent
+    left/right vector is required to recover rotation around that direction
+    (pelvis/torso yaw in particular).
+    """
+
+    up_axis = _normalize_vec3(up)
+    if up_axis is None:
+        return None
+    lateral_axis = _normalize_vec3(_project_away_axis(np.asarray(lateral, dtype=np.float64), up_axis))
+    if lateral_axis is None:
+        return None
+    forward_axis = _normalize_vec3(np.cross(lateral_axis, up_axis))
+    if forward_axis is None:
+        return None
+    # Recompute lateral after Gram-Schmidt so numerical drift cannot create a
+    # reflection or a non-orthogonal rotation matrix.
+    lateral_axis = _normalize_vec3(np.cross(up_axis, forward_axis))
+    if lateral_axis is None:
+        return None
+    frame = np.column_stack([lateral_axis, up_axis, forward_axis])
+    if float(np.linalg.det(frame)) < 0.0:
+        return None
+    return frame.astype(np.float32)
+
+
+def _rotation_between_frames(
+    target_up: np.ndarray,
+    target_lateral: np.ndarray,
+    desired_up: np.ndarray,
+    desired_lateral: np.ndarray,
+) -> np.ndarray | None:
+    """Return the proper rotation mapping a target rest frame to an observed frame."""
+
+    target_frame = _orthonormal_frame_from_up_lateral(target_up, target_lateral)
+    desired_frame = _orthonormal_frame_from_up_lateral(desired_up, desired_lateral)
+    if target_frame is None or desired_frame is None:
+        return None
+    rotation = desired_frame @ target_frame.T
+    if not np.all(np.isfinite(rotation)) or not np.isclose(np.linalg.det(rotation), 1.0, atol=1e-5):
+        return None
+    return _quat_from_rotation_matrix(rotation)
 
 
 def infer_clip_world_basis(source_positions: np.ndarray) -> dict[str, Any]:
@@ -470,6 +537,7 @@ def fit_positions_to_vrm(
     body_positions: np.ndarray,
     normalize_world: bool = True,
     world_basis: str | np.ndarray | dict[str, Any] | None = None,
+    hand_positions_by_name: dict[str, np.ndarray] | None = None,
 ) -> dict[str, Any]:
     source_positions = np.asarray(body_positions, dtype=np.float32)
     basis: dict[str, Any] | None = None
@@ -481,26 +549,87 @@ def fit_positions_to_vrm(
 
     scale = _target_scale_from_positions(working)
     working = working * np.float32(scale)
+    working_hands: dict[str, np.ndarray] = {}
+    for bone_name, values in (hand_positions_by_name or {}).items():
+        positions = np.asarray(values, dtype=np.float32)
+        if positions.shape != (source_positions.shape[0], 3) or not np.all(np.isfinite(positions)):
+            raise ValueError(
+                f"hand position {bone_name} must have finite shape {(source_positions.shape[0], 3)}, "
+                f"got {positions.shape}"
+            )
+        if basis is not None:
+            positions = rotate_positions_by_matrix(positions, basis["rotation_matrix"])
+        working_hands[bone_name] = positions * np.float32(scale)
     root_translation = working[:, BODY_INDEX["hips"]].copy()
     root_translation = root_translation - root_translation[:1]
     centered = working.copy()
     centered -= working[:1, BODY_INDEX["hips"]].reshape(1, 1, 3)
     centered[:, BODY_INDEX["hips"]] = root_translation
+    root_origin = working[:1, BODY_INDEX["hips"]]
+    centered_hands = {
+        name: values - root_origin
+        for name, values in working_hands.items()
+    }
 
     frame_count = centered.shape[0]
     root_rotation = identity_quats(frame_count, 1)[:, 0]
     target_spine_offset = _rest_offset("spine")
+    target_pelvis_lateral = _rest_offset("leftUpperLeg") - _rest_offset("rightUpperLeg")
     if "spine" in BODY_INDEX and np.linalg.norm(target_spine_offset) >= 1e-6:
         for frame_idx in range(frame_count):
             desired_spine_dir = centered[frame_idx, BODY_INDEX["spine"]] - centered[frame_idx, BODY_INDEX["hips"]]
             if np.linalg.norm(desired_spine_dir) < 1e-6:
                 continue
-            root_rotation[frame_idx] = quat_from_two_vectors_xyzw(target_spine_offset, desired_spine_dir)
+            desired_pelvis_lateral = (
+                centered[frame_idx, BODY_INDEX["leftUpperLeg"]]
+                - centered[frame_idx, BODY_INDEX["rightUpperLeg"]]
+            )
+            full_frame_rotation = _rotation_between_frames(
+                target_spine_offset,
+                target_pelvis_lateral,
+                desired_spine_dir,
+                desired_pelvis_lateral,
+            )
+            root_rotation[frame_idx] = (
+                full_frame_rotation
+                if full_frame_rotation is not None
+                else quat_from_two_vectors_xyzw(target_spine_offset, desired_spine_dir)
+            )
     root_rotation = normalize_quat_xyzw(root_rotation)
     core = identity_quats(frame_count, len(CORE_BONES))
     world_rotations: dict[str, np.ndarray] = {"hips": root_rotation}
     for bone_name in CORE_BONES:
         child_name = PRIMARY_CHILD.get(bone_name)
+        if bone_name in {"leftHand", "rightHand"} and centered_hands:
+            side = "left" if bone_name.startswith("left") else "right"
+            middle_name = f"{side}MiddleProximal"
+            index_name = f"{side}IndexProximal"
+            little_name = f"{side}LittleProximal"
+            if all(name in centered_hands for name in (middle_name, index_name, little_name)):
+                parent_name = CANONICAL_PARENT[bone_name]
+                parent_world = world_rotations[parent_name]
+                output = identity_quats(frame_count, 1)[:, 0]
+                target_primary = _rest_offset(middle_name)
+                target_lateral = _rest_offset(index_name) - _rest_offset(little_name)
+                for frame_idx in range(frame_count):
+                    parent_inverse = quat_inverse_xyzw(parent_world[frame_idx])
+                    hand_origin = centered[frame_idx, BODY_INDEX[bone_name]]
+                    desired_primary = centered_hands[middle_name][frame_idx] - hand_origin
+                    desired_lateral = (
+                        centered_hands[index_name][frame_idx]
+                        - centered_hands[little_name][frame_idx]
+                    )
+                    fitted_frame = _rotation_between_frames(
+                        target_primary,
+                        target_lateral,
+                        quat_apply_xyzw(parent_inverse, desired_primary),
+                        quat_apply_xyzw(parent_inverse, desired_lateral),
+                    )
+                    if fitted_frame is not None:
+                        output[frame_idx] = fitted_frame
+                core[:, CORE_INDEX[bone_name]] = normalize_quat_xyzw(output)
+                world_rotations[bone_name] = quat_multiply_xyzw(parent_world, output)
+                continue
         if child_name not in BODY_INDEX or bone_name not in BODY_INDEX:
             world_rotations[bone_name] = world_rotations.get(CANONICAL_PARENT.get(bone_name, "hips"), root_rotation)
             continue
@@ -513,12 +642,64 @@ def fit_positions_to_vrm(
                 desired_world = centered[frame_idx, BODY_INDEX[child_name]] - centered[frame_idx, BODY_INDEX[bone_name]]
                 if np.linalg.norm(desired_world) < 1e-6:
                     continue
-                desired_local = quat_apply_xyzw(quat_inverse_xyzw(parent_world[frame_idx]), desired_world)
+                parent_inverse = quat_inverse_xyzw(parent_world[frame_idx])
+                desired_local = quat_apply_xyzw(parent_inverse, desired_world)
+                if bone_name == "upperChest":
+                    desired_lateral_world = (
+                        centered[frame_idx, BODY_INDEX["leftShoulder"]]
+                        - centered[frame_idx, BODY_INDEX["rightShoulder"]]
+                    )
+                    desired_lateral_local = quat_apply_xyzw(parent_inverse, desired_lateral_world)
+                    target_shoulder_lateral = _rest_offset("leftShoulder") - _rest_offset("rightShoulder")
+                    full_frame_rotation = _rotation_between_frames(
+                        target_child_offset,
+                        target_shoulder_lateral,
+                        desired_local,
+                        desired_lateral_local,
+                    )
+                    if full_frame_rotation is not None:
+                        output[frame_idx] = full_frame_rotation
+                        continue
                 output[frame_idx] = quat_from_two_vectors_xyzw(target_child_offset, desired_local)
         core[:, CORE_INDEX[bone_name]] = normalize_quat_xyzw(output)
         world_rotations[bone_name] = quat_multiply_xyzw(parent_world, output)
 
-    sequence = pack_sequence(root_translation=root_translation, root_rotation_xyzw=root_rotation, core_quats_xyzw=core)
+    hand = identity_quats(frame_count, len(HAND_BONES))
+    if centered_hands:
+        for bone_name in HAND_BONES:
+            parent_name = CANONICAL_PARENT[bone_name]
+            parent_world = world_rotations.get(parent_name)
+            if parent_world is None:
+                continue
+            output = identity_quats(frame_count, 1)[:, 0]
+            child_name = PRIMARY_CHILD.get(bone_name)
+            if bone_name in centered_hands and child_name in centered_hands:
+                target_child_offset = _rest_offset(child_name)
+                if np.linalg.norm(target_child_offset) >= 1e-6:
+                    for frame_idx in range(frame_count):
+                        desired_world = (
+                            centered_hands[child_name][frame_idx]
+                            - centered_hands[bone_name][frame_idx]
+                        )
+                        if np.linalg.norm(desired_world) < 1e-6:
+                            continue
+                        desired_local = quat_apply_xyzw(
+                            quat_inverse_xyzw(parent_world[frame_idx]),
+                            desired_world,
+                        )
+                        output[frame_idx] = quat_from_two_vectors_xyzw(
+                            target_child_offset,
+                            desired_local,
+                        )
+            hand[:, HAND_INDEX[bone_name]] = normalize_quat_xyzw(output)
+            world_rotations[bone_name] = quat_multiply_xyzw(parent_world, output)
+
+    sequence = pack_sequence(
+        root_translation=root_translation,
+        root_rotation_xyzw=root_rotation,
+        core_quats_xyzw=core,
+        hand_quats_xyzw=hand,
+    )
     return {
         "sequence": sequence,
         "positions": forward_kinematics_from_sequence(sequence),
@@ -526,6 +707,18 @@ def fit_positions_to_vrm(
         "scale": float(scale),
         "mode": "position_fit_to_vrm",
         "world_basis": _serializable_basis(basis),
+        "root_orientation_recovery": "pelvis_up_lateral_frame_with_spine_swing_fallback",
+        "upper_chest_orientation_recovery": "neck_shoulder_frame_with_neck_swing_fallback",
+        "rotation_observability": {
+            "root_yaw": "recovered_from_labeled_left_right_hips",
+            "upper_chest_twist": "recovered_from_labeled_left_right_shoulders",
+            "wrist_twist": (
+                "recovered_from_labeled_index_middle_little_roots"
+                if centered_hands
+                else "not_observable_without_hand_positions"
+            ),
+            "single_child_bone_twist": "not_observable_from_joint_positions",
+        },
     }
 
 

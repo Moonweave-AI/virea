@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from virea.motion.skeleton import BODY_BONES, BODY_INDEX, BODY_EDGES, CANONICAL_PARENT
+from virea.motion.skeleton import BODY_BONES
 
 PRIMARY_CHILD = {
     "hips": "spine",
@@ -71,6 +71,104 @@ def _bone_direction_errors(
         })
     results.sort(key=lambda x: x["max_rad"], reverse=True)
     return results
+
+
+FRAME_DEFINITIONS = {
+    "pelvis": {
+        "origin": "hips",
+        "up": "spine",
+        "left": "leftUpperLeg",
+        "right": "rightUpperLeg",
+    },
+    "upper_chest": {
+        "origin": "upperChest",
+        "up": "neck",
+        "left": "leftShoulder",
+        "right": "rightShoulder",
+    },
+}
+
+
+def _position_frame(up: np.ndarray, lateral: np.ndarray) -> np.ndarray | None:
+    up_norm = float(np.linalg.norm(up))
+    if not np.isfinite(up_norm) or up_norm < 1e-8:
+        return None
+    y_axis = up / up_norm
+    x_axis = lateral - float(np.dot(lateral, y_axis)) * y_axis
+    x_norm = float(np.linalg.norm(x_axis))
+    if not np.isfinite(x_norm) or x_norm < 1e-8:
+        return None
+    x_axis = x_axis / x_norm
+    z_axis = np.cross(x_axis, y_axis)
+    z_norm = float(np.linalg.norm(z_axis))
+    if not np.isfinite(z_norm) or z_norm < 1e-8:
+        return None
+    z_axis = z_axis / z_norm
+    x_axis = np.cross(y_axis, z_axis)
+    return np.column_stack([x_axis, y_axis, z_axis])
+
+
+def _frame_orientation_errors(
+    source: np.ndarray,
+    target: np.ndarray,
+    joint_names: list[str],
+) -> dict[str, Any]:
+    """Measure full pelvis/torso frame error, including axial yaw/twist.
+
+    Primary-child direction metrics cannot observe rotation around that child
+    axis.  Labeled left/right hip and shoulder pairs provide the second axis
+    needed to expose that class of retargeting error.
+    """
+
+    name_to_idx = {name: idx for idx, name in enumerate(joint_names)}
+    details: list[dict[str, Any]] = []
+    all_angles: list[float] = []
+    for frame_name, definition in FRAME_DEFINITIONS.items():
+        required = tuple(definition.values())
+        if any(name not in name_to_idx for name in required):
+            continue
+        indices = {key: name_to_idx[name] for key, name in definition.items()}
+        frame_angles: list[float] = []
+        frame_indices: list[int] = []
+        for frame_idx in range(min(source.shape[0], target.shape[0])):
+            src_up = source[frame_idx, indices["up"]] - source[frame_idx, indices["origin"]]
+            src_lateral = source[frame_idx, indices["left"]] - source[frame_idx, indices["right"]]
+            tgt_up = target[frame_idx, indices["up"]] - target[frame_idx, indices["origin"]]
+            tgt_lateral = target[frame_idx, indices["left"]] - target[frame_idx, indices["right"]]
+            src_frame = _position_frame(src_up, src_lateral)
+            tgt_frame = _position_frame(tgt_up, tgt_lateral)
+            if src_frame is None or tgt_frame is None:
+                continue
+            relative = src_frame.T @ tgt_frame
+            cosine = float(np.clip((np.trace(relative) - 1.0) * 0.5, -1.0, 1.0))
+            frame_angles.append(float(np.degrees(np.arccos(cosine))))
+            frame_indices.append(frame_idx)
+        if not frame_angles:
+            continue
+        values = np.asarray(frame_angles, dtype=np.float64)
+        worst_local = int(np.argmax(values))
+        details.append({
+            "frame": frame_name,
+            "frames_evaluated": int(values.size),
+            "mean_deg": round(float(np.mean(values)), 4),
+            "p95_deg": round(float(np.percentile(values, 95)), 4),
+            "max_deg": round(float(np.max(values)), 4),
+            "worst_frame": int(frame_indices[worst_local]),
+        })
+        all_angles.extend(frame_angles)
+    if not all_angles:
+        return {"status": "unavailable", "reason": "no non-degenerate labeled two-axis frames"}
+    values = np.asarray(all_angles, dtype=np.float64)
+    p95 = float(np.percentile(values, 95))
+    maximum = float(np.max(values))
+    return {
+        "status": "passed" if p95 <= 5.0 and maximum <= 15.0 else "failed",
+        "mean_deg": round(float(np.mean(values)), 4),
+        "p95_deg": round(p95, 4),
+        "max_deg": round(maximum, 4),
+        "thresholds_deg": {"p95": 5.0, "max": 15.0},
+        "details": details,
+    }
 
 
 
@@ -190,6 +288,7 @@ def preview_quality(
     joint_names: list[str] | None = None,
     source_joint_names: list[str] | None = None,
     fps: float = 30.0,
+    retarget_mode: str = "",
 ) -> dict[str, Any]:
     """Comprehensive quality assessment using proper retarget metrics.
 
@@ -204,6 +303,14 @@ def preview_quality(
     bbox_min = pos.reshape(-1, 3).min(axis=0).tolist() if pos.size else [0.0, 0.0, 0.0]
     bbox_max = pos.reshape(-1, 3).max(axis=0).tolist() if pos.size else [0.0, 0.0, 0.0]
 
+    mode_token = str(retarget_mode or "").casefold()
+    if "position_fit" in mode_token or "position_fitting" in mode_token:
+        comparison_policy = "position_fit_geometry_primary"
+    elif "direct" in mode_token:
+        comparison_policy = "direct_rotation_primary_position_diagnostic"
+    else:
+        comparison_policy = "preview_geometry_diagnostic"
+
     report: dict[str, Any] = {
         "schema_valid": finite and frame_count > 0 and joint_count > 0,
         "finite": finite,
@@ -211,6 +318,8 @@ def preview_quality(
         "joint_count": joint_count,
         "bbox_min": [round(float(v), 5) for v in bbox_min],
         "bbox_max": [round(float(v), 5) for v in bbox_max],
+        "retarget_mode": retarget_mode or None,
+        "comparison_policy": comparison_policy,
     }
 
     if frame_count > 0:
@@ -243,6 +352,29 @@ def preview_quality(
                     all_max_deg = [e["max_deg"] for e in direction_errors]
                     overall_max_pct = max(all_max_deg) / 360.0 * 100.0
                     report["retarget_direction_error"]["max_as_pct_of_full_rotation"] = round(overall_max_pct, 6)
+                    direction_mean = float(report["retarget_direction_error"]["overall_mean_deg"])
+                    direction_max = float(report["retarget_direction_error"]["overall_max_deg"])
+                    report["retarget_direction_error"].update({
+                        "status": (
+                            "passed" if direction_mean <= 5.0 and direction_max <= 15.0 else "failed"
+                        ),
+                        "thresholds_deg": {"mean": 5.0, "max": 15.0},
+                        "applicability": (
+                            "primary"
+                            if comparison_policy == "position_fit_geometry_primary"
+                            else "diagnostic_rest_geometry_dependent"
+                        ),
+                    })
+                report["retarget_frame_orientation_error"] = _frame_orientation_errors(
+                    src_aligned,
+                    tgt_aligned,
+                    common,
+                )
+                report["retarget_frame_orientation_error"]["applicability"] = (
+                    "primary"
+                    if comparison_policy == "position_fit_geometry_primary"
+                    else "diagnostic_rest_geometry_dependent"
+                )
             else:
                 report["retarget_direction_error"] = {
                     "status": "no_common_joints",
@@ -256,5 +388,35 @@ def preview_quality(
                 "target_shape": list(pos.shape),
             }
 
-    report["status"] = "passed" if finite and frame_count > 0 else "failed"
+    retarget_gate = {"status": "unavailable", "reason": "no comparable retarget geometry"}
+    if comparison_policy == "position_fit_geometry_primary" and source_positions is not None:
+        gate_metrics = [
+            report.get("retarget_direction_error", {}),
+            report.get("retarget_frame_orientation_error", {}),
+        ]
+        failed_metrics = [
+            key
+            for key, metric in zip(("bone_direction", "labeled_body_frames"), gate_metrics)
+            if metric.get("status") == "failed"
+        ]
+        available_metrics = [metric for metric in gate_metrics if metric.get("status") == "passed"]
+        retarget_gate = {
+            "status": "failed" if failed_metrics else ("passed" if available_metrics else "unavailable"),
+            "failed_metrics": failed_metrics,
+            "policy": comparison_policy,
+        }
+    elif comparison_policy == "direct_rotation_primary_position_diagnostic":
+        retarget_gate = {
+            "status": "not_applicable",
+            "policy": comparison_policy,
+            "reason": (
+                "position directions depend on source and target rest geometry; "
+                "direct paths require source-specific global-rotation oracle tests"
+            ),
+        }
+    report["retarget_gate"] = retarget_gate
+    base_passed = finite and frame_count > 0
+    report["status"] = (
+        "passed" if base_passed and retarget_gate.get("status") != "failed" else "failed"
+    )
     return report

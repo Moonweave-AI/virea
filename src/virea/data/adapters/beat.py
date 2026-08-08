@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from virea.data.adapters.base import BaseDatasetAdapter
+from virea.data.bvh import beat_bvh_to_body22, parse_bvh
 from virea.data.annotations import (
     SidecarCapacityError,
     cache_data_sidecar,
@@ -15,11 +16,25 @@ from virea.data.annotations import (
     make_channel,
     sidecar_cache_limits,
 )
-from virea.data.profiles import profile_for
 from virea.data.types import RawClip, SampleRef
 
 
 class BEATAdapter(BaseDatasetAdapter):
+    def _related_bvh_path(self, pose_path: Path) -> Path:
+        relative = pose_path.relative_to(self.raw_root / "pose")
+        return (self.raw_root / "hf" / relative).with_suffix(".bvh")
+
+    def _paths_from_sample_id(self, sample_id: str) -> tuple[Path, Path]:
+        relative = Path(sample_id)
+        if not relative.parts or relative.parts[0] != "pose":
+            raise ValueError("BEAT sample id must begin with pose/")
+        source_relative = Path(*relative.parts[1:])
+        bvh_path = self._safe_path(self.raw_root / "hf", source_relative.with_suffix(".bvh"))
+        legacy_pose_path = self._safe_path(
+            self.raw_root / "pose", source_relative.with_suffix(".npz")
+        )
+        return bvh_path, legacy_pose_path
+
     def _related_text_path(self, pose_path: Path) -> Path:
         speaker = pose_path.parent.name
         return self.raw_root / "hf" / speaker / f"{pose_path.stem}.txt"
@@ -270,55 +285,118 @@ class BEATAdapter(BaseDatasetAdapter):
         if not self.raw_root.exists():
             return []
         samples: list[SampleRef] = []
-        for path in sorted((self.raw_root / "pose").rglob("*.npz")):
-            sample_id = self._rel_id(path)
-            text_path = self._related_text_path(path)
+        for bvh_path in sorted((self.raw_root / "hf").rglob("*.bvh")):
+            relative = bvh_path.relative_to(self.raw_root / "hf")
+            sample_id = (Path("pose") / relative.with_suffix("")).as_posix()
+            path = self.raw_root / "pose" / relative.with_suffix(".npz")
+            text_path = bvh_path.with_suffix(".txt")
             text = text_path.read_text(encoding="utf-8", errors="replace")[:200] if text_path.exists() else ""
             if not (self._matches(sample_id, query) or self._matches(text, query)):
                 continue
-            samples.append(self._sample(sample_id, path, "beat_bvh_axis_angle_npz", "beat_axis_angle_body22", text=text, related_paths={"text": text_path}, metadata={"dataset_profile": "beat_body22_converted"}))
+            samples.append(
+                self._sample(
+                    sample_id,
+                    bvh_path,
+                    "beat_bvh_full_hierarchy",
+                    "beat_axis_angle_body22",
+                    text=text,
+                    related_paths={"text": text_path, "legacy_pose_pack": path},
+                    metadata={"dataset_profile": "beat_bvh_full75_runtime"},
+                )
+            )
             if len(samples) >= limit:
                 break
         return samples
 
     def load(self, sample_id: str, max_frames: int | None = None) -> RawClip:
-        path = self._path_from_id(sample_id, ".npz")
-        if not path.exists():
+        bvh_path, path = self._paths_from_sample_id(sample_id)
+        if not bvh_path.exists():
             raise FileNotFoundError(f"BEAT sample not found: {sample_id}")
-        payload = np.load(path, allow_pickle=False)
-        poses = np.asarray(payload["poses"], dtype=np.float32)
-        trans = np.asarray(payload.get("trans", np.zeros((poses.shape[0], 3))), dtype=np.float32)
-        profile = profile_for("beat_body22_converted")
-        fps_key = next((key for key in profile.fps_fields if key in payload.files), None)
-        fps = float(np.asarray(payload[fps_key]).reshape(-1)[0]) if fps_key else float(profile.fps_fallback)
+        decoded = beat_bvh_to_body22(parse_bvh(bvh_path, max_frames=max_frames))
+        poses = np.asarray(decoded["poses"], dtype=np.float32)
+        trans = np.asarray(decoded["translation"], dtype=np.float32)
+        source_positions = np.asarray(decoded["source_positions"], dtype=np.float32)
+        source_full_positions = np.asarray(decoded["source_full_positions"], dtype=np.float32)
+        hand_quaternions = np.asarray(decoded["hand_quaternions_xyzw"], dtype=np.float32)
+        source_rest_offsets = {
+            str(name): np.asarray(offset, dtype=np.float32)
+            for name, offset in decoded["source_rest_offsets"].items()
+        }
+        fps = float(decoded["fps"])
         text_path = self._related_text_path(path)
         text, annotations = self._read_text(text_path, sample_id, fps)
         face_path = self.raw_root / "hf" / path.parent.name / f"{path.stem}.json"
         audio_path = self.raw_root / "hf" / path.parent.name / f"{path.stem}.wav"
+        decoded_frame_count = int(decoded["decoded_frame_count"])
+        actual_payload_frame_count = decoded["actual_payload_frame_count"]
+        original_frame_count = (
+            int(actual_payload_frame_count)
+            if actual_payload_frame_count is not None
+            else int(decoded["declared_frame_count"])
+        )
         metadata = {
             "has_face": face_path.exists(),
             "has_audio": audio_path.exists(),
-            "dataset_profile": "beat_body22_converted",
-            "fps_source": fps_key or "profile_fallback",
-            "fps_fallback_provenance": None if fps_key else "dataset_profile",
+            "dataset_profile": "beat_bvh_full75_runtime",
+            "fps_source": "bvh_frame_time",
+            "fps_fallback_provenance": None,
+            "pose_source": "full_hierarchy_bvh_runtime_collapse",
+            "legacy_pose_pack_status": (
+                "ignored_missing_intermediate_rotations" if path.exists() else "absent"
+            ),
+            "collapsed_rotation_paths": decoded["collapsed_paths"],
+            "bvh_euler_convention": decoded["euler_convention"],
+            "source_coordinate_system": decoded["coordinate_system"],
+            "source_unit": decoded["unit"],
+            "bvh_declared_frame_count": int(decoded["declared_frame_count"]),
+            "bvh_decoded_frame_count": decoded_frame_count,
+            "bvh_actual_payload_frame_count": actual_payload_frame_count,
+            "bvh_decode_truncated_by_max_frames": bool(
+                decoded["decode_truncated_by_max_frames"]
+            ),
+            "bvh_payload_ended_early": bool(decoded["payload_ended_early"]),
+            "hand_rotation_mapping": "full_bvh_parent_path_collapse_30_vrm_bones",
         }
         sample = self._sample(
             sample_id,
-            path,
-            "beat_bvh_axis_angle_npz",
+            bvh_path,
+            "beat_bvh_full_hierarchy",
             "beat_axis_angle_body22",
             fps=fps,
-            frame_count=poses.shape[0],
+            frame_count=original_frame_count,
+            duration_sec=original_frame_count / fps,
             text=text,
-            related_paths={"text": text_path, "face": face_path, "audio": audio_path},
+            related_paths={
+                "text": text_path,
+                "face": face_path,
+                "audio": audio_path,
+                "legacy_pose_pack": path,
+            },
             metadata=metadata,
         )
         return RawClip(
             sample=sample,
-            motion={"poses": poses, "translation": trans, "fps": fps},
+            motion={
+                "poses": poses,
+                "translation": trans,
+                "source_positions": source_positions,
+                "source_full_positions": source_full_positions,
+                "hand_quaternions_xyzw": hand_quaternions,
+                "source_rest_offsets": source_rest_offsets,
+                "rest_frame_correction_policy": "identity_world_aligned_bvh_axes",
+                "fps": fps,
+            },
             annotations=annotations,
             channels=[
                 self._audio_channel(sample_id, audio_path, fps, poses.shape[0]),
                 self._face_channel(sample_id, face_path),
             ],
+            validation_warnings=(
+                [
+                    "BEAT BVH header declares more frames than the readable payload; "
+                    "the actual readable frame count is authoritative."
+                ]
+                if decoded["payload_ended_early"]
+                else []
+            ),
         ).limited(max_frames)

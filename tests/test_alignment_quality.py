@@ -4,12 +4,20 @@ import numpy as np
 import pytest
 
 from virea.data.registry import DatasetRegistry
-from virea.motion.canonical import pack_sequence
-from virea.motion.codecs import SUSU_BODY_NAMES
+from virea.motion.canonical import CORE_INDEX, HAND_BONES, HAND_INDEX, pack_sequence, unpack_sequence
+from virea.motion.codecs import (
+    SMPLH_HAND_INDEX,
+    SMPLX_HAND_INDEX,
+    SUSU_BODY_NAMES,
+    SUSU_POSITION_HAND_INDEX,
+    default_codecs,
+)
+from virea.motion.retarget import resolve_world_basis
+from virea.motion.rotation import axis_angle_to_quat_xyzw, quat_to_matrix_xyzw
 from virea.motion.skeleton import (
+    BODY_BONES,
     DEFAULT_REST_OFFSETS,
     FK_BONES,
-    FK_INDEX,
     control_rest_alignment_audit,
     forward_kinematics_from_sequence,
     target_rest_offsets_map,
@@ -106,7 +114,14 @@ def test_processed_preview_is_vrm_fk_not_a_raw_copy(dataset: str, monkeypatch: p
     _assert_finite_payload(raw)
     _assert_finite_payload(processed)
     _assert_processed_is_true_vrm_fk(processed)
-    assert processed.joint_names != raw.joint_names or processed.positions.shape != raw.positions.shape
+    if processed.joint_names == raw.joint_names and processed.positions.shape == raw.positions.shape:
+        # A source adapter may now expose the complete canonical-name topology
+        # (BEAT full BVH is the important case).  Topology equality is not a raw
+        # copy: the processed payload must still be independently reconstructed
+        # by canonical target FK and differ numerically from the source rig.
+        delta = np.linalg.norm(processed.positions - raw.positions, axis=2)
+        assert float(np.max(delta)) > 1e-5
+    assert processed.metadata["canonical_skeleton"] == "virea_canonical_skeleton.v1"
 
 
 def test_susu_retarget_maya_rotation_only_is_explicitly_draft_and_fail_closed(
@@ -154,6 +169,69 @@ def test_susu_retarget_maya_rotation_only_is_explicitly_draft_and_fail_closed(
     assert float(np.median(left_upper_arm[:, 0] - right_upper_arm[:, 0])) > 0.10
 
 
+@pytest.mark.parametrize(
+    ("dataset", "sample_id"),
+    [
+        ("amass", "ACCAD/Female1General_c3d/A10_-_lie_to_crouch_stageii"),
+        ("babel", "babel-teach/train/11929"),
+        ("grab", "s1/airplane_fly_1"),
+        ("motionx", "motion_data/smplx_322/aist/subset_0000/Dance_Break"),
+    ],
+)
+def test_real_direct_profiles_preserve_every_mapped_local_rotation(
+    dataset: str,
+    sample_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if dataset == "grab":
+        monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
+    registry = _full_registry_or_skip()
+    adapter = registry.adapter(dataset)
+    try:
+        clip = adapter.load(sample_id, max_frames=8)
+    except FileNotFoundError:
+        pytest.skip(f"direct rotation oracle sample is unavailable: {dataset}/{sample_id}")
+    codec = default_codecs()[clip.sample.codec_key]
+    result = codec.to_canonical(clip)
+    decoded = unpack_sequence(result.sequence)
+
+    if clip.sample.codec_key == "smplh_body_hands":
+        source_axis_angles = np.asarray(clip.motion["poses"], dtype=np.float32).reshape(-1, 52, 3)
+        hand_mapping = SMPLH_HAND_INDEX
+        hand_source_offset = 22
+    elif clip.sample.codec_key == "smplx_fullpose":
+        source_axis_angles = np.asarray(clip.motion["fullpose"], dtype=np.float32).reshape(-1, 55, 3)
+        hand_mapping = SMPLX_HAND_INDEX
+        hand_source_offset = 0
+    else:
+        pytest.skip(f"sample does not use a direct SMPL-family codec: {clip.sample.codec_key}")
+
+    source_quaternions = axis_angle_to_quat_xyzw(source_axis_angles)
+    source_hands = source_quaternions[:, hand_source_offset:]
+    basis = resolve_world_basis(result.metadata["declared_world_basis"])["rotation_matrix"]
+    np.testing.assert_allclose(
+        quat_to_matrix_xyzw(decoded["root_rotation_xyzw"]),
+        np.einsum("ij,tjk->tik", basis, quat_to_matrix_xyzw(source_quaternions[:, 0])),
+        atol=2e-5,
+    )
+    for body_index, bone_name in enumerate(BODY_BONES):
+        if bone_name == "hips" or bone_name not in CORE_INDEX:
+            continue
+        np.testing.assert_allclose(
+            quat_to_matrix_xyzw(decoded["core_quats_xyzw"][:, CORE_INDEX[bone_name]]),
+            quat_to_matrix_xyzw(source_quaternions[:, body_index]),
+            atol=2e-5,
+            err_msg=f"real {dataset} body local rotation mismatch at {bone_name}",
+        )
+    for bone_name, source_index in hand_mapping.items():
+        np.testing.assert_allclose(
+            quat_to_matrix_xyzw(decoded["hand_quats_xyzw"][:, HAND_INDEX[bone_name]]),
+            quat_to_matrix_xyzw(source_hands[:, source_index]),
+            atol=2e-5,
+            err_msg=f"real {dataset} hand local rotation mismatch at {bone_name}",
+        )
+
+
 def test_prone_and_inverted_motions_are_not_rotated_upright() -> None:
     registry = _full_registry_or_skip()
     adapter = registry.adapter("motionx")
@@ -180,18 +258,42 @@ def test_prone_and_inverted_motions_are_not_rotated_upright() -> None:
     assert float(np.median(feet_y)) > float(np.median(handstand.positions[:, names.index("head"), 1]))
 
 
-def test_amass_stageii_crawl_uses_its_explicit_identity_y_up_profile() -> None:
+def test_amass_stageii_embedded_markers_prove_z_up_and_processed_motion_uses_it() -> None:
     registry = _full_registry_or_skip()
     adapter = registry.adapter("amass")
-    sample_id = "ACCAD/Female1General_c3d/A11_-_crawl_forward_stageii"
-    if not (adapter.raw_root / f"{sample_id}.npz").exists():
-        pytest.skip("AMASS crawl regression sample is not available")
+    stand_id = "ACCAD/Female1General_c3d/A1_-_Stand_stageii"
+    stand_path = adapter.raw_root / f"{stand_id}.npz"
+    if not stand_path.exists():
+        pytest.skip("AMASS Stage-II stand regression sample is not available")
 
-    processed = ProcessedPreviewPipeline(registry).preview("amass", sample_id, max_frames=64)
+    with np.load(stand_path, allow_pickle=False) as payload:
+        markers = np.asarray(payload["markers"], dtype=np.float32)
+        translation = np.asarray(payload["trans"], dtype=np.float32)
+    marker_span = np.nanpercentile(markers, 99, axis=(0, 1)) - np.nanpercentile(
+        markers, 1, axis=(0, 1)
+    )
+    assert float(marker_span[2]) > 2.0 * float(max(marker_span[0], marker_span[1]))
+    assert float(np.median(translation[:, 2])) > 0.8
+
+    stand = ProcessedPreviewPipeline(registry).preview("amass", stand_id, max_frames=64)
+    names = stand.joint_names
+    head_y = stand.positions[:, names.index("head"), 1]
+    feet_y = np.maximum(
+        stand.positions[:, names.index("leftFoot"), 1],
+        stand.positions[:, names.index("rightFoot"), 1],
+    )
+    assert float(np.median(head_y - feet_y)) > 1.2
+    assert stand.metadata["declared_world_basis"] == "z_up_to_y_up"
+    assert stand.metadata["dataset_profile"] == "amass_smplx_stageii165"
+
+    crawl_id = "ACCAD/Female1General_c3d/A11_-_crawl_forward_stageii"
+    if not (adapter.raw_root / f"{crawl_id}.npz").exists():
+        return
+    processed = ProcessedPreviewPipeline(registry).preview("amass", crawl_id, max_frames=64)
     head_delta = _mean_delta(processed, "hips", "head")
     assert abs(float(head_delta[1])) < 0.18
     assert abs(float(head_delta[0])) > 0.45
-    assert processed.metadata["declared_world_basis"] == "identity_y_up"
+    assert processed.metadata["declared_world_basis"] == "z_up_to_y_up"
     assert processed.metadata["dataset_profile"] == "amass_smplx_stageii165"
 
 
@@ -209,6 +311,65 @@ def test_susu_position_samples_use_declared_basis_without_left_right_flip(
     names = raw.joint_names
     assert raw.metadata["declared_world_basis"] == "neg_z_up_to_y_up"
     assert float(raw.positions[0, names.index("leftUpperArm"), 0] - raw.positions[0, names.index("rightUpperArm"), 0]) > 0.05
+
+
+@pytest.mark.parametrize(
+    "sample_id",
+    [
+        "fbx_to_json_data_susu_retarget_maya/20251106/Human_0916_183_0_4_01_XG",
+        "fbx_to_json_data_susu_retarget_maya/20251119/Human_0916_308_0_13_01_XC",
+    ],
+)
+def test_real_susu_63_point_finger_segments_reach_target_fk(
+    sample_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
+    registry = _full_registry_or_skip()
+    adapter = registry.adapter("susuinteracts")
+    try:
+        clip = adapter.load(sample_id, max_frames=124)
+    except FileNotFoundError:
+        pytest.skip(f"SuSu 63-point regression sample is unavailable: {sample_id}")
+    source_positions = np.asarray(clip.motion.get("positions"), dtype=np.float32)
+    if source_positions.shape[1:] != (63, 3):
+        pytest.skip(f"SuSu sample does not carry authoritative 63-point positions: {sample_id}")
+
+    result = default_codecs()[clip.sample.codec_key].to_canonical(clip)
+    assert result.metadata["retarget_mode"] == "position_fit_body_wrist_and_finger_swing_from_63_positions"
+    assert result.metadata["finger_retarget"] == "position_fit_swing_from_authoritative_positions"
+    basis = resolve_world_basis(result.metadata["declared_world_basis"])["rotation_matrix"]
+    target_index = {name: index for index, name in enumerate(result.joint_names)}
+    errors: list[np.ndarray] = []
+    for side in ("left", "right"):
+        for finger in ("Thumb", "Index", "Middle", "Ring", "Little"):
+            chain = [
+                f"{side}{finger}Proximal",
+                f"{side}{finger}Intermediate",
+                f"{side}{finger}Distal",
+            ]
+            for parent, child in zip(chain, chain[1:]):
+                source_vector = (
+                    source_positions[:, SUSU_POSITION_HAND_INDEX[child]]
+                    - source_positions[:, SUSU_POSITION_HAND_INDEX[parent]]
+                )
+                source_vector = np.einsum("ij,tj->ti", basis, source_vector)
+                target_vector = (
+                    result.positions[:, target_index[child]]
+                    - result.positions[:, target_index[parent]]
+                )
+                source_norm = np.linalg.norm(source_vector, axis=1)
+                target_norm = np.linalg.norm(target_vector, axis=1)
+                valid = (source_norm > 1e-7) & (target_norm > 1e-7)
+                assert valid.any(), f"degenerate real finger segment {parent}->{child}"
+                dot = np.sum(source_vector[valid] * target_vector[valid], axis=1)
+                dot /= source_norm[valid] * target_norm[valid]
+                errors.append(np.degrees(np.arccos(np.clip(dot, -1.0, 1.0))))
+
+    all_errors = np.concatenate(errors)
+    assert len(errors) == 20
+    assert float(np.max(all_errors)) < 0.1
+    assert set(SUSU_POSITION_HAND_INDEX) == set(HAND_BONES)
 
 
 def test_real_vrm_control_template_is_audited_without_changing_canonical_payload() -> None:

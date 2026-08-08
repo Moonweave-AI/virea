@@ -210,7 +210,7 @@ def source_fk_from_body_quats(
     preview (Y-up, Z-forward) so that Before/After are comparable.
     """
     from virea.motion.retarget import (
-        _target_scale_from_rest_offsets,
+        target_scale_from_rest_offsets,
         infer_clip_world_basis,
         resolve_world_basis,
         rotate_positions_by_matrix,
@@ -220,15 +220,19 @@ def source_fk_from_body_quats(
     edge_list = edges or BODY_EDGES
     translation = np.asarray(root_translation, dtype=np.float32)
 
-    scale = _target_scale_from_rest_offsets(source_body_rest_offsets)
+    scale = target_scale_from_rest_offsets(source_body_rest_offsets)
     scaled_translation = translation * np.float32(scale)
     scaled_translation = scaled_translation - scaled_translation[:1]
+    scaled_rest_offsets = {
+        name: np.asarray(offset, dtype=np.float32) * np.float32(scale)
+        for name, offset in source_body_rest_offsets.items()
+    }
 
     positions = forward_kinematics(
         root_translation=scaled_translation,
         root_rotation_xyzw=normalize_quat_xyzw(root_rotation_xyzw),
         local_quats=local_quats_by_name,
-        rest_offsets=source_body_rest_offsets,
+        rest_offsets=scaled_rest_offsets,
         joint_names=names,
     )
 
