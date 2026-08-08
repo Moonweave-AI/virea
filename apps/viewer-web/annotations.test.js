@@ -19,7 +19,10 @@ import {
   verifiedSidecarReference,
 } from "./annotations.js";
 import {
+  applyQuatArray,
+  buildTerminalRestPoseCorrections,
   buildHumanoidSpaceAlignment,
+  hierarchicalRestLocalRotation,
   multiplyQuatArray,
   normalizedLocalPoseRotation,
   vrmSpecWorldAlignment,
@@ -45,7 +48,7 @@ function mirrorQuatAcrossX(q) {
   return [q[0], -q[1], -q[2], q[3]];
 }
 
-test("three-vrm normalized pose axes are portable and never inferred from avatar offsets", () => {
+test("three-vrm normalized axes reject the removed per-bone self-conjugation path", () => {
   const identity = [0, 0, 0, 1];
   const local = quatFromAxisAngle([1, 0.2, -0.1], Math.PI / 4);
   const offsetDerivedFrame = quatFromAxisAngle([0, 1, 0], Math.PI / 3);
@@ -60,6 +63,163 @@ test("three-vrm normalized pose axes are portable and never inferred from avatar
     "avatar rest-offset geometry is not a second normalized-pose coordinate frame",
   );
   assert.ok(quatsEquivalent(normalizedLocalPoseRotation(identity), identity));
+});
+
+test("hierarchical terminal rest correction preserves a non-commuting two-level endpoint chain", () => {
+  const targetToCanonical = quatFromAxisAngle([0.2, 0.9, -0.3], Math.PI / 3);
+  const canonicalOffsets = {
+    leftLowerLeg: [0, -1, 0],
+    leftFoot: [0.15, -0.8, 0.1],
+    leftToes: [0.05, 0.02, 0.45],
+  };
+  const targetFootOffset = applyQuatArray(invertQuat(targetToCanonical), canonicalOffsets.leftFoot);
+  const targetToesOffset = applyQuatArray(invertQuat(targetToCanonical), canonicalOffsets.leftToes);
+  const targetPositions = {
+    leftUpperLeg: [0, 1, 0],
+    leftLowerLeg: [0, 0, 0],
+    leftFoot: targetFootOffset,
+    leftToes: targetFootOffset.map((value, index) => value + targetToesOffset[index]),
+  };
+  const result = buildTerminalRestPoseCorrections(canonicalOffsets, targetPositions);
+  assert.equal(result.calibratedEdgeCount, 2);
+  assert.ok(result.maxCalibratedErrorDeg < 1e-6);
+
+  const lowerLegDelta = quatFromAxisAngle([0.8, -0.2, 0.3], Math.PI / 4);
+  const footDelta = quatFromAxisAngle([-0.1, 0.7, 0.4], Math.PI / 5);
+  const targetLowerLegLocal = hierarchicalRestLocalRotation(
+    lowerLegDelta,
+    "leftLowerLeg",
+    result.globalCorrections,
+  );
+  const targetFootLocal = hierarchicalRestLocalRotation(
+    footDelta,
+    "leftFoot",
+    result.globalCorrections,
+  );
+  const targetFootWorld = targetLowerLegLocal;
+  const targetToesWorld = multiplyQuatArray(targetFootWorld, targetFootLocal);
+  const actualFootEndpoint = applyQuatArray(targetFootWorld, targetFootOffset);
+  const actualToesSegment = applyQuatArray(targetToesWorld, targetToesOffset);
+  const expectedFootEndpoint = applyQuatArray(lowerLegDelta, canonicalOffsets.leftFoot);
+  const expectedToesSegment = applyQuatArray(
+    multiplyQuatArray(lowerLegDelta, footDelta),
+    canonicalOffsets.leftToes,
+  );
+  for (let index = 0; index < 3; index += 1) {
+    assert.ok(Math.abs(actualFootEndpoint[index] - expectedFootEndpoint[index]) < 1e-7);
+    assert.ok(Math.abs(actualToesSegment[index] - expectedToesSegment[index]) < 1e-7);
+  }
+
+  const identityLeaf = hierarchicalRestLocalRotation(
+    [0, 0, 0, 1],
+    "leftToes",
+    result.globalCorrections,
+  );
+  assert.ok(quatsEquivalent(identityLeaf, [0, 0, 0, 1]));
+});
+
+test("hierarchical terminal rest corrections preserve left-right mirror symmetry", () => {
+  const canonicalOffsets = {
+    leftLowerLeg: [0, -1, 0],
+    leftFoot: [0.1, -0.8, 0.15],
+    leftToes: [0, 0, 0.45],
+    rightLowerLeg: [0, -1, 0],
+    rightFoot: [-0.1, -0.8, 0.15],
+    rightToes: [0, 0, 0.45],
+  };
+  const leftTargetToCanonical = quatFromAxisAngle([0.8, 0.1, -0.2], Math.PI / 5);
+  const rightTargetToCanonical = mirrorQuatAcrossX(leftTargetToCanonical);
+  const leftFoot = applyQuatArray(invertQuat(leftTargetToCanonical), canonicalOffsets.leftFoot);
+  const leftToes = applyQuatArray(invertQuat(leftTargetToCanonical), canonicalOffsets.leftToes);
+  const rightFoot = applyQuatArray(invertQuat(rightTargetToCanonical), canonicalOffsets.rightFoot);
+  const rightToes = applyQuatArray(invertQuat(rightTargetToCanonical), canonicalOffsets.rightToes);
+  const targetPositions = {
+    leftUpperLeg: [0.5, 1, 0],
+    leftLowerLeg: [0.5, 0, 0],
+    leftFoot: leftFoot.map((value, index) => value + [0.5, 0, 0][index]),
+    leftToes: leftFoot.map((value, index) => value + leftToes[index] + [0.5, 0, 0][index]),
+    rightUpperLeg: [-0.5, 1, 0],
+    rightLowerLeg: [-0.5, 0, 0],
+    rightFoot: rightFoot.map((value, index) => value + [-0.5, 0, 0][index]),
+    rightToes: rightFoot.map((value, index) => value + rightToes[index] + [-0.5, 0, 0][index]),
+  };
+  const result = buildTerminalRestPoseCorrections(canonicalOffsets, targetPositions);
+  assert.ok(quatsEquivalent(
+    result.globalCorrections.rightLowerLeg,
+    mirrorQuatAcrossX(result.globalCorrections.leftLowerLeg),
+  ));
+  assert.ok(quatsEquivalent(
+    result.globalCorrections.rightFoot,
+    mirrorQuatAcrossX(result.globalCorrections.leftFoot),
+  ));
+});
+
+test("terminal palm frames align all observable finger segments and preserve leaf identity", () => {
+  const targetToCanonical = quatFromAxisAngle([0.3, -0.4, 0.8], Math.PI / 4);
+  const canonicalOffsets = {};
+  const targetPositions = { leftHand: [0, 0, 0] };
+  const rootOffsets = {
+    Thumb: [0.7, -0.36, 0.08],
+    Index: [0.95, -0.22, 0],
+    Middle: [1, 0, 0],
+    Ring: [0.96, 0.2, 0],
+    Little: [0.86, 0.38, 0],
+  };
+  for (const [finger, rootOffset] of Object.entries(rootOffsets)) {
+    const proximal = `left${finger}Proximal`;
+    const intermediate = `left${finger}Intermediate`;
+    const distal = `left${finger}Distal`;
+    canonicalOffsets[proximal] = rootOffset;
+    canonicalOffsets[intermediate] = [0.32, 0, 0];
+    canonicalOffsets[distal] = [0.24, 0, 0];
+    const targetRoot = applyQuatArray(invertQuat(targetToCanonical), rootOffset);
+    const targetIntermediate = applyQuatArray(
+      invertQuat(targetToCanonical),
+      canonicalOffsets[intermediate],
+    );
+    const targetDistal = applyQuatArray(
+      invertQuat(targetToCanonical),
+      canonicalOffsets[distal],
+    );
+    targetPositions[proximal] = targetRoot;
+    targetPositions[intermediate] = targetRoot.map(
+      (value, index) => value + targetIntermediate[index],
+    );
+    targetPositions[distal] = targetPositions[intermediate].map(
+      (value, index) => value + targetDistal[index],
+    );
+  }
+  const result = buildTerminalRestPoseCorrections(canonicalOffsets, targetPositions);
+  assert.equal(result.calibratedEdgeCount, 10);
+  assert.ok(result.maxCalibratedErrorDeg < 1e-6);
+  assert.ok(quatsEquivalent(result.globalCorrections.leftHand, targetToCanonical));
+  for (const finger of Object.keys(rootOffsets)) {
+    const intermediate = `left${finger}Intermediate`;
+    const distal = `left${finger}Distal`;
+    assert.ok(quatsEquivalent(
+      hierarchicalRestLocalRotation([0, 0, 0, 1], distal, result.globalCorrections),
+      [0, 0, 0, 1],
+    ));
+    assert.ok(quatsEquivalent(
+      result.globalCorrections[distal],
+      result.globalCorrections[intermediate],
+    ));
+  }
+});
+
+test("an incomplete terminal chain fails closed instead of applying half a correction", () => {
+  const result = buildTerminalRestPoseCorrections(
+    { leftFoot: [0, -1, 0], leftToes: [0, 0, 1] },
+    {
+      leftUpperLeg: [0, 1, 0],
+      leftLowerLeg: [0, 0, 0],
+      leftFoot: [0.2, -0.98, 0],
+    },
+  );
+  assert.equal(result.globalCorrections.leftLowerLeg, undefined);
+  assert.equal(result.globalCorrections.leftFoot, undefined);
+  assert.equal(result.globalCorrections.leftToes, undefined);
+  assert.equal(result.calibratedEdgeCount, 0);
 });
 
 test("non-commuting normalized rotations match the three-vrm raw mesh transfer oracle", () => {
@@ -152,7 +312,7 @@ test("a two-level non-commuting terminal chain matches the raw mesh world triad 
   assert.ok(quatsEquivalent(actualCanonicalChildWorld, expectedCanonicalChildWorld));
 });
 
-test("left and right terminal rotations remain mirrored without side-specific frame correction", () => {
+test("left and right portable terminal rotations remain mirrored before rest calibration", () => {
   for (const [label, leftDelta] of [
     ["wrist/fingers", quatFromAxisAngle([0.8, 0.3, -0.2], Math.PI / 4)],
     ["ankle/toes", quatFromAxisAngle([0.2, -0.7, 0.4], Math.PI / 5)],
@@ -221,13 +381,15 @@ test("VRM normalized local rotations are conjugated exactly once into the aligne
   const poseFunction = source.match(/function poseObjectFromFrame\(frame\) \{[\s\S]*?\n  \}/)?.[0] || "";
   assert.match(poseFunction, /normalizedLocalPoseRotation/);
   assert.match(poseFunction, /vrmWorldAlignment\?\.alignment_quaternion/);
-  assert.doesNotMatch(poseFunction, /vrmRestFrameCorrections|restFrameQuaternion/);
+  assert.match(poseFunction, /hierarchicalRestLocalRotation/);
   assert.doesNotMatch(poseFunction, /conjugateQuatByBasis|alignBasis/);
   assert.doesNotMatch(source, /setRawPose/);
   assert.doesNotMatch(source, /VRMUtils\.rotateVRM0/);
   assert.match(source, /vrmSpecWorldAlignment\(vrm\.meta\?\.metaVersion\)/);
-  assert.doesNotMatch(source, /buildTerminalRestFrameCorrections|refreshVrmRestFrameCorrections/);
-  assert.match(source, /normalizedPoseAxisMode: "three-vrm-portable"/);
+  assert.match(source, /buildTerminalRestPoseCorrections/);
+  assert.match(source, /normalizedPoseAxisMode: terminalRest/);
+  assert.match(source, /"three-vrm-hierarchical-terminal-rest"/);
+  assert.match(source, /legacyTerminalSelfConjugationCount: 0/);
   assert.match(source, /restFrameCorrectionCount: 0/);
   assert.match(source, /does not expose normalized humanoid pose application/);
 });
@@ -239,8 +401,9 @@ test("real VRM QA waits for structured preview readiness instead of presentation
   assert.match(source, /previewReady\?\.frames/);
   assert.match(source, /dataset\.hasVrmHumanoid === "true"/);
   assert.doesNotMatch(source, /dataset\.anchorModes.*includes\("humanoid"\)/);
-  assert.match(source, /realDiagnostics\.normalizedPoseAxisMode !== "three-vrm-portable"/);
-  assert.match(source, /realDiagnostics\.restFrameCorrectionCount !== 0/);
+  assert.match(source, /realDiagnostics\.normalizedPoseAxisMode !== "three-vrm-hierarchical-terminal-rest"/);
+  assert.match(source, /realDiagnostics\.legacyTerminalSelfConjugationCount !== 0/);
+  assert.match(source, /realDiagnostics\.hierarchicalRestCorrectionCount < 1/);
   assert.doesNotMatch(source, /startsWith\(["']Frames:/);
 });
 

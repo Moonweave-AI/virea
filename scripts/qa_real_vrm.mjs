@@ -14,6 +14,11 @@ const durationMs = Math.max(2_000, Number(process.env.VIREA_QA_DURATION_MS || 10
 const warmupMs = Math.max(0, Number(process.env.VIREA_QA_WARMUP_MS || 30_000));
 const timingRepeats = Math.max(1, Number(process.env.VIREA_QA_REPEATS || 3));
 const stressAnnotationCount = Math.max(0, Number(process.env.VIREA_QA_STRESS_ANNOTATIONS || 100));
+const requestedFrame = process.env.VIREA_QA_FRAME === undefined
+  ? null
+  : Math.max(0, Number(process.env.VIREA_QA_FRAME) || 0);
+const detailZoomSteps = Math.max(0, Number(process.env.VIREA_QA_ZOOM_STEPS || 0));
+const detailPanYPixels = Number(process.env.VIREA_QA_PAN_Y_PIXELS || 0);
 const browserPath = process.env.VIREA_QA_BROWSER_PATH
   ? resolve(process.env.VIREA_QA_BROWSER_PATH)
   : null;
@@ -81,6 +86,29 @@ try {
     null,
     { timeout: 15_000 },
   );
+  if (requestedFrame !== null) {
+    await page.evaluate((frame) => window.__vireaShowcase.setFrame(frame), requestedFrame);
+    await page.waitForTimeout(100);
+  }
+  if (detailZoomSteps > 0) {
+    await page.locator("#modelCanvas").hover();
+    for (let index = 0; index < detailZoomSteps; index += 1) {
+      await page.mouse.wheel(0, -420);
+    }
+    await page.waitForTimeout(150);
+  }
+  if (Number.isFinite(detailPanYPixels) && detailPanYPixels !== 0) {
+    const box = await page.locator("#modelCanvas").boundingBox();
+    if (box) {
+      const x = box.x + box.width * 0.5;
+      const y = box.y + box.height * 0.5;
+      await page.mouse.move(x, y);
+      await page.mouse.down({ button: "right" });
+      await page.mouse.move(x, y + detailPanYPixels, { steps: 12 });
+      await page.mouse.up({ button: "right" });
+      await page.waitForTimeout(150);
+    }
+  }
 
   const realDiagnostics = await page.locator("#modelCanvas").evaluate((canvas) => ({
     markerPoolSize: Number(canvas.dataset.markerPoolSize || 0),
@@ -89,10 +117,17 @@ try {
     anchorModes: canvas.dataset.anchorModes || "",
     hasVrmHumanoid: canvas.dataset.hasVrmHumanoid === "true",
     normalizedPoseAxisMode: canvas.dataset.normalizedPoseAxisMode || "",
+    legacyTerminalSelfConjugationCount: Number(canvas.dataset.legacyTerminalSelfConjugationCount || 0),
+    hierarchicalRestCorrectionMode: canvas.dataset.hierarchicalRestCorrectionMode || "",
+    hierarchicalRestCorrectionCount: Number(canvas.dataset.hierarchicalRestCorrectionCount || 0),
+    hierarchicalRestCalibratedEdgeCount: Number(canvas.dataset.hierarchicalRestCalibratedEdgeCount || 0),
+    hierarchicalRestMaxErrorDeg: Number(canvas.dataset.hierarchicalRestMaxErrorDeg || Number.NaN),
     restFrameCorrectionCount: Number(canvas.dataset.restFrameCorrectionCount || 0),
   }));
   const realDesktopScreenshot = `${outputPrefix}-real-desktop.png`;
   await page.locator(".model-panel").screenshot({ path: realDesktopScreenshot });
+  const realCanvasScreenshot = `${outputPrefix}-real-canvas.png`;
+  await page.locator("#modelCanvas").screenshot({ path: realCanvasScreenshot });
 
   const stressFixture = stressAnnotationCount
     ? await page.evaluate((count) => {
@@ -249,6 +284,7 @@ try {
     base_url: baseUrl,
     dataset,
     sample_id: sampleId,
+    requested_frame: requestedFrame,
     loaded_sample_id: loadedSampleId,
     vrm_file: basename(vrmPath),
     git_commit: gitCommit,
@@ -274,14 +310,20 @@ try {
     diagnostics_after: diagnosticsAfter,
     frame_timing: frameTiming,
     narrow_layout: narrowLayout,
-    screenshots: [realDesktopScreenshot, stressDesktopScreenshot, narrowScreenshot],
+    screenshots: [realDesktopScreenshot, realCanvasScreenshot, stressDesktopScreenshot, narrowScreenshot],
     console_errors: consoleErrors,
   };
   console.log(JSON.stringify(result, null, 2));
 
   const failed = [
     !realDiagnostics.hasVrmHumanoid,
-    realDiagnostics.normalizedPoseAxisMode !== "three-vrm-portable",
+    realDiagnostics.normalizedPoseAxisMode !== "three-vrm-hierarchical-terminal-rest",
+    realDiagnostics.legacyTerminalSelfConjugationCount !== 0,
+    realDiagnostics.hierarchicalRestCorrectionMode !== "hierarchical-terminal-rest.v1",
+    realDiagnostics.hierarchicalRestCorrectionCount < 1,
+    realDiagnostics.hierarchicalRestCalibratedEdgeCount < 1,
+    !Number.isFinite(realDiagnostics.hierarchicalRestMaxErrorDeg),
+    realDiagnostics.hierarchicalRestMaxErrorDeg >= 0.1,
     realDiagnostics.restFrameCorrectionCount !== 0,
     stressAnnotationCount > 0 && !diagnosticsAfter.anchorModes.includes("humanoid"),
     stressAnnotationCount > 0 && stressFixture.activeCount < stressAnnotationCount,

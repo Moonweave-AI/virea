@@ -3,6 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMHumanBoneList, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import {
+  TERMINAL_PARENT,
+  buildTerminalRestPoseCorrections,
+  hierarchicalRestLocalRotation,
   normalizeQuatArray,
   normalizedLocalPoseRotation,
   vrmSpecWorldAlignment,
@@ -182,6 +185,7 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     frame: 0,
     vrm: null,
     vrmWorldAlignment: null,
+    hierarchicalRestPose: null,
     staticScene: null,
     currentFileName: "",
     theme: "light",
@@ -243,6 +247,7 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     canonicalRoot.quaternion.identity();
     state.vrm = null;
     state.vrmWorldAlignment = null;
+    state.hierarchicalRestPose = null;
     state.staticScene = null;
     state.currentFileName = "";
   }
@@ -509,6 +514,40 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     return alignment;
   }
 
+  function refreshHierarchicalRestPose() {
+    state.hierarchicalRestPose = null;
+    const restOffsets = state.motion?.rest_offsets;
+    if (!state.vrm?.humanoid || !restOffsets || !state.vrmWorldAlignment) return null;
+
+    // Capture the avatar's normalized rest geometry, not its current animated
+    // pose. Raw humanoid nodes are used here because they are the exact nodes
+    // ultimately driving the skin. Transforming them into motionRoot space
+    // removes root motion while retaining the VRM0/VRM1 canonicalRoot frame A.
+    state.vrm.humanoid.resetNormalizedPose?.();
+    if (typeof state.vrm.update === "function") state.vrm.update(0);
+    else state.vrm.humanoid.update?.();
+    motionRoot.updateMatrixWorld(true);
+    state.vrm.scene.updateMatrixWorld(true);
+
+    const canonicalToVrm = state.motion?.canonical_to_vrm || {};
+    const requiredBones = new Set([
+      ...Object.keys(TERMINAL_PARENT),
+      ...Object.values(TERMINAL_PARENT),
+    ]);
+    const targetCanonicalPositions = {};
+    for (const boneName of requiredBones) {
+      const vrmBoneName = canonicalToVrm[boneName] || boneName;
+      const node = state.vrm.humanoid.getRawBoneNode?.(vrmBoneName);
+      if (!node) continue;
+      const point = node.getWorldPosition(new THREE.Vector3());
+      motionRoot.worldToLocal(point);
+      targetCanonicalPositions[boneName] = [point.x, point.y, point.z];
+    }
+    const result = buildTerminalRestPoseCorrections(restOffsets, targetCanonicalPositions);
+    if (result.correctionCount > 0) state.hierarchicalRestPose = result;
+    return state.hierarchicalRestPose;
+  }
+
   function poseObjectFromFrame(frame) {
     const motion = state.motion;
     if (!motion) return {};
@@ -521,9 +560,14 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
+      const semanticRotation = hierarchicalRestLocalRotation(
+        rotation,
+        boneName,
+        state.hierarchicalRestPose?.globalCorrections,
+      );
       pose[vrmBoneName] = {
         rotation: normalizedLocalPoseRotation(
-          rotation,
+          semanticRotation,
           state.vrmWorldAlignment?.alignment_quaternion || null,
         ),
       };
@@ -534,9 +578,14 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
+      const semanticRotation = hierarchicalRestLocalRotation(
+        rotation,
+        boneName,
+        state.hierarchicalRestPose?.globalCorrections,
+      );
       pose[vrmBoneName] = {
         rotation: normalizedLocalPoseRotation(
-          rotation,
+          semanticRotation,
           state.vrmWorldAlignment?.alignment_quaternion || null,
         ),
       };
@@ -600,6 +649,7 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
         canonicalRoot.add(vrm.scene);
         state.vrm = vrm;
         applyVrmCanonicalWorldAlignment(vrm);
+        refreshHierarchicalRestPose();
         applyFrame();
         const boneCount = VRMHumanBoneList.filter((boneName) => vrm.humanoid?.getRawBoneNode?.(boneName)).length;
         const aligned = state.vrmWorldAlignment ? "aligned to processed VRM rest" : "loaded without rest alignment";
@@ -626,6 +676,7 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     state.motion = payload?.motion || null;
     state.frame = 0;
     applyVrmCanonicalWorldAlignment(state.vrm);
+    refreshHierarchicalRestPose();
     applyFrame();
     resetView();
     if (!state.motion) {
@@ -665,13 +716,24 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
   }
 
   function getDiagnostics() {
+    const terminalRest = state.hierarchicalRestPose;
     return {
       markerPoolSize: state.markerPool.length,
       visibleMarkerCount: state.markerPool.filter((entry) => entry.group.visible).length,
       textureCreateCount: state.textureCreateCount,
       anchorModes: [...new Set(state.markerSpecs.map((spec) => spec.anchorMode).filter(Boolean))],
       hasVrmHumanoid: Boolean(state.vrm?.humanoid),
-      normalizedPoseAxisMode: "three-vrm-portable",
+      normalizedPoseAxisMode: terminalRest
+        ? "three-vrm-hierarchical-terminal-rest"
+        : "three-vrm-portable",
+      legacyTerminalSelfConjugationCount: 0,
+      hierarchicalRestCorrectionMode: terminalRest?.mode || "none",
+      hierarchicalRestCorrectionCount: terminalRest?.correctionCount || 0,
+      hierarchicalRestCalibratedEdgeCount: terminalRest?.calibratedEdgeCount || 0,
+      hierarchicalRestMaxErrorDeg: terminalRest?.maxCalibratedErrorDeg ?? null,
+      hierarchicalRestMissingBones: terminalRest?.missingBones || [],
+      // Deprecated compatibility field: this remains the count of the removed
+      // per-bone self-conjugation path, not the new hierarchical correction.
       restFrameCorrectionCount: 0,
       hasStaticGlbFallback: Boolean(state.staticScene),
       frame: state.frame,
@@ -689,6 +751,11 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       diagnostics.anchorModes.join(","),
       diagnostics.hasVrmHumanoid,
       diagnostics.normalizedPoseAxisMode,
+      diagnostics.legacyTerminalSelfConjugationCount,
+      diagnostics.hierarchicalRestCorrectionMode,
+      diagnostics.hierarchicalRestCorrectionCount,
+      diagnostics.hierarchicalRestCalibratedEdgeCount,
+      diagnostics.hierarchicalRestMaxErrorDeg,
       diagnostics.restFrameCorrectionCount,
     ].join("|");
     if (signature === state.diagnosticsSignature) return;
@@ -699,6 +766,13 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     canvas.dataset.anchorModes = diagnostics.anchorModes.join(",");
     canvas.dataset.hasVrmHumanoid = String(diagnostics.hasVrmHumanoid);
     canvas.dataset.normalizedPoseAxisMode = diagnostics.normalizedPoseAxisMode;
+    canvas.dataset.legacyTerminalSelfConjugationCount = String(diagnostics.legacyTerminalSelfConjugationCount);
+    canvas.dataset.hierarchicalRestCorrectionMode = diagnostics.hierarchicalRestCorrectionMode;
+    canvas.dataset.hierarchicalRestCorrectionCount = String(diagnostics.hierarchicalRestCorrectionCount);
+    canvas.dataset.hierarchicalRestCalibratedEdgeCount = String(diagnostics.hierarchicalRestCalibratedEdgeCount);
+    canvas.dataset.hierarchicalRestMaxErrorDeg = diagnostics.hierarchicalRestMaxErrorDeg == null
+      ? ""
+      : String(diagnostics.hierarchicalRestMaxErrorDeg);
     canvas.dataset.restFrameCorrectionCount = String(diagnostics.restFrameCorrectionCount);
   }
 
