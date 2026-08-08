@@ -239,9 +239,10 @@ byte length、media type 和读取 API。Viewer 从不直接打开 raw 绝对路
    GRAB 可提供 55-joint fullpose；Motion-X `smplx_322` 原生旋转块只有 root 3、body 63、
    hands 90、jaw 3 共 159 维，Codec 规范化时为缺失的 eye slots 补 identity，不能把源数据
    描述成 fullpose55。
-3. BEAT 的 BVH-derived body22：官方原始 BVH 的 120 FPS、Z-up、Y-forward 和右手系，与
-   本项目读取的转换后 NPZ/TSV 必须分开记录；上游 BVH channel conversion 作为有 provenance
-   的已完成步骤，VIREA 从 body22 local axis-angle 开始。
+3. BEAT 的 raw BVH：VIREA 直接解析已安装的 75-joint BVH hierarchy、offset 和声明的
+   `Xrotation/Yrotation/Zrotation` channels。当前 raw 文件以右手、Y-up、Z-forward、厘米和约
+   120 FPS 解释；沿真实父子路径组合被折叠关节，输出 body22 与 hands30。旧 body22 NPZ 只作
+   legacy related artifact，不能作为发现、解码或正式产物的事实源。
 4. HumanML3D：263D 按官方 `recover_from_ric` 所需的 root 4 维与 RIC 63 维重建 22-joint
    positions，再进入 position fitting；解码失败必须 fail-fast，禁止生成伪动作。
 5. SuSu：有 positions 时直接映射 positions；无 positions 时按经样本验证的 6D layout、

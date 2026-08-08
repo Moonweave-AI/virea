@@ -73,7 +73,7 @@ $$
 |---|---|
 | SMPL / SMPL-H | 66 body、可选 90 hands、AMASS/BABEL carrier、filename derived |
 | SMPL-X | fullpose55 与 Motion-X 322 重组、eye identity slots、hand index table |
-| BVH-derived BEAT | raw BVH 与 converted NPZ 分层、channel order、converted basis、ordinal score |
+| BEAT raw BVH | 75-joint hierarchy、XYZ channel、Y-up/cm profile、collapsed endpoint rotation oracle、hands30 与 ordinal score |
 | HumanML3D 263D | root4 + RIC63 official decode、20 FPS、fail-fast、caption sentinel |
 | SuSu 6D | columns/local、root/positions profile、body/hand topology压缩、两路 fitting + hands 合并 |
 

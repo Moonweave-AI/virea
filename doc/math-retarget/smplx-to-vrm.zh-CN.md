@@ -104,7 +104,7 @@ Mapping 后得到 $h_{t,k}^{S}$，其中 $k$ 是 canonical hand slot。依赖顺
 | Translation | GRAB 字段/unit | `309:312`；sub-source unit 单独校准 |
 | Extra channels | object/contact | text/face，部分子源 audio |
 
-当前 AIST translation `0.01` 规则属于项目 sub-source rule；它必须有 sample calibration 和 provenance。官方 Motion-X 统一 30 FPS，并不证明所有子源具有相同 world basis/unit。
+当前 AIST translation 按 Motion-X 官方转换器执行：先除以 `94`，再翻转 Z 分量。该操作只校准 translation；官方脚本没有同步改写 root orientation，因此不能把它描述为完整 world-basis 变换。Motion-X 统一 30 FPS 也不证明所有子源具有相同 world basis/unit，AIST root/basis 在获得作者渲染或 source-mesh 黄金对照前继续保持 draft。
 
 ## 6. Direct retarget
 

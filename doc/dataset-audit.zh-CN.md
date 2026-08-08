@@ -33,7 +33,7 @@ Profile 写入 registry 不等于 `release_ready`。截至本次文档复审，�
 |---|---|---|---|---:|---|
 | AMASS | `.npz` poses、trans、framerate；另有 position 旁路 | SMPL/SMPL-H body local axis-angle | `local_to_world` | 文件字段优先，fallback 60 | direct；position 旁路 fitting |
 | BABEL | annotation JSON + AMASS carrier | motion 仍为 SMPL/SMPL-H | `local_to_world` | carrier 字段优先；必须与 BABEL duration 校验 | direct |
-| BEAT | 上游 BVH-derived `.npz` + TSV/媒体 | 22-joint body local axis-angle | `local_to_world`，需 converter 证据 | 转换文件字段优先；官方 raw 120 | direct |
+| BEAT | 原始 75-joint BVH + TSV/媒体 | 声明顺序 Euler，经 hierarchy 压缩为 body22 + hands30 | `local_to_world`，raw Y-up identity basis | BVH Frame Time，约 120.0048 | direct；rotation exact、reduced position approximate |
 | GRAB | `.npz` fullpose/trans/object/contact | SMPL-X 55 local axis-angle | `local_to_world` | 文件字段优先，fallback 120 | direct + hands |
 | Motion-X | `(T,322)` array + text/face files | SMPL-X-derived 53 rotation joints | `local_to_world`，sub-source 验证 | 官方统一 30 | 重组为 55 slots 后 direct |
 | HumanML3D | parquet 内 263D feature | 22-joint positions；263D 含 root/RIC/6D/velocity/contact | `not_applicable` | 官方 20 | official RIC decode + fitting |
@@ -50,6 +50,7 @@ Profile 写入 registry 不等于 `release_ready`。截至本次文档复审，�
 - SMPL `global_orient` 是 body-local template 到 source world 的 `local_to_world` map；canonical root 使用左乘 basis，不做 world-operator 共轭。
 - 从路径或文件名得到的 “run / crouch” 等动作词一律是 `derived`，source 指向 path，reasoning 说明规范化规则。
 - HumanAct12 position sequence 是独立旁路，不能描述为 AMASS SMPL-H axis-angle。
+- `surface_model_type=smplx` 的 Stage-II carrier 不能继承普通 Y-up 假设。真实文件的 embedded markers 与 root translation 证明高度轴是正 Z，因此 AMASS/BABEL Stage-II profile 使用 Z-up 到 Y-up basis；更广的 sub-source/VRM 回归完成前仍保持 draft。
 
 未闭环：不同 AMASS 子库的 carrier 文件、framerate 和 profile basis 需要真实样本回归；文件名语义不能计入 native annotation coverage。
 
@@ -68,11 +69,11 @@ Profile 写入 registry 不等于 `release_ready`。截至本次文档复审，�
 
 ## BEAT
 
-标准背景：官方 raw motion 是 120 FPS BVH，右手系、Z-up、Y-forward；还提供音频、面部和语义文件。官方仓库是此处 FPS/坐标与通道定义的事实源。
+标准背景：官方 motion 是 120 FPS、75-joint BVH，还提供音频、面部和语义文件。完整本地 192 个 raw BVH 均声明 X/Y/Z rotation channels；hierarchy offset 直接证明当前文件是右手、Y-up、Z-forward、厘米。README 中 Blender 场景的 Z-up/Y-forward 不用于重复变换 raw bytes。
 
-上游已完成：VIREA 当前不解析 raw BVH channel。项目输入是上游转换后的 body22 axis-angle pack；因此 `beat_body22_converted` profile 必须记录转换 provenance 与转换后的 basis，不能把官方 raw basis 再重复应用一次。
+当前仓库边界：Adapter 直接发现并流式解析 `hf/**/*.bvh`，不再依赖旧 pose NPZ。Codec 按列向量主动旋转解释 $R_xR_yR_z$，沿真实父子路径组合 Spine2/Spine3、Neck1/Head、ForeFoot/ToeBase 与 palm/finger intermediates，得到 body22 + hands30。Legacy body22 pack只列为 related artifact，不能参与正式解码。
 
-Root semantic：常规 BVH root active orientation 是 root-local 到 converted world 的 `local_to_world` map；当前 profile按此解释。若 converter 改写为 world-coordinate operator，必须用独立 profile 和同帧证据，不能从字段 shape 推断。
+Root semantic：BVH root active orientation 是 root-local 到 source world 的 `local_to_world` map；当前 raw basis 为 identity。Raw offsets用于原生 FK 与 scale，不从骨段方向推导 joint-frame correction。层级压缩能精确保留 52 个选中端点的 world orientation，但固定 reduced offsets不能逐帧精确保留被删中间关节后的 position。
 
 标注规则：
 
@@ -81,7 +82,7 @@ Root semantic：常规 BVH root active orientation 是 root-local 到 converted 
 - 多数标签是 action interval；没有部位真值时 bodypart 为 `null`。
 - face/audio 文件存在可作为 native channel availability，但不等于已有逐帧曲线、波形或字幕时间轴。
 
-未闭环：每种本地 converted NPZ 需要证明 axis-angle layout、basis 和 FPS 没有重复转换。
+真实验证：Wayne/Kieks/Nidal 的 full hierarchy rotation oracle通过；Wayne 52 endpoint 最大 matrix-element error 为 `6.56e-7`。三位 speaker scale 为 `0.92212/0.99050/0.90560`。最大 79,397-frame payload 已分块完整处理且全部有限。仍需把每类动作的真实 VRM 视觉证据纳入固定回归 manifest。
 
 ## GRAB
 
@@ -104,11 +105,13 @@ Root semantic：常规 BVH root active orientation 是 root-local 到 converted 
 当前语义：
 
 - Decoder 只用 official `recover_from_ric` 所需 root 4 与 RIC 63 重建 22-joint positions，再进入 position fitting。
+- 后 126D 是由 positions IK 推导的 child incoming-edge minimum rotations，不是 glTF/VRM 同名 node-local，也没有原始 SMPL twist；只作一致性诊断。
+- 真实发布样本的 rotation-FK 与 RIC 存在样本级差异，默认以 RIC geometry 为权威；超阈值时不启用 6D 辅助。
 - Decode shape、finite 或依赖失败必须 fail-fast；禁止生成 rest-pose 或合成轨迹兜底。
 - caption 原样保留。只有 `(start,end)=(0,0)` 或两者均缺失表示 whole-sequence；`start=0,end>0` 是合法 action interval。
 - caption 不从自然语言拆成 bodypart 真值。
 
-未闭环：parquet 的 motion storage 变体、caption 时间单位和 official decoder 等价性需真实 fixture 断言；position fitting 只恢复 swing，不恢复唯一 twist。
+已验证 official RIC fixture、真实转身与多类动作。Pelvis/torso 两轴 frame 已修复 yaw 丢失；单子链和末端 axial twist仍数学不可观测，不得宣称完整皮肤 twist。
 
 ## Motion-X
 
@@ -129,7 +132,7 @@ Root semantic：常规 BVH root active orientation 是 root-local 到 converted 
 
 标注规则：sequence/body/hand/face text 分开保留。左右手只有源目录/字段明确时为 native；从文本词语推断时为 derived。附加文本缺失时只显示存在的信息。
 
-未闭环：官方资料不能证明所有聚合 sub-source 共用同一 world basis/unit。AIST、GRAB 等子源必须分别校准；root 仍是 SMPL-X-family `local_to_world`，但 profile 要验证 basis。把它误作 world operator，或出现“手在地面变成手在墙上”，都是 Stop-Ship 信号。
+未闭环：官方资料不能证明所有聚合 sub-source 共用同一 world basis/unit。AIST translation 按官方脚本执行 `/94` 并翻转 Z，但脚本不改 root orientation，因此这只是 translation calibration，不是完整 basis conversion。真实 AIST 仍存在 source root 约 175–179° 单帧跳变与异常速度，profile保持 draft；把它误作已验证 world basis 是 Stop-Ship。
 
 ## SuSuInterActs
 
@@ -140,7 +143,7 @@ Root semantic：常规 BVH root active orientation 是 root-local 到 converted 
 - `susu_official_columns_local` 是标准 profile；positions 存在时直接映射 positions，没有 positions 时复现官方 local quaternion swizzle/pelvis correction，并用 `template_susu_retarget_63nodes.bvh` 的 source rest offsets 做 FK 后进入 position fitting，不能套 canonical rest skeleton。
 - 本地 `retarget_maya` 与 `chonglu` 的 root axes、unit、positions basis 可能不同；未用同帧 BVH/positions 证明前，保持 `draft` 并 fail-closed。
 - 不能默认解释为 first-two-rows/global，再做 global-to-local；该旧逻辑与官方实现冲突。
-- 经过验证的 native hand local quaternions可以在 body position fitting 后写入 canonical hand slots；仍需验证 wrist 连续性、rest correction 和实际 VRM finger direction。
+- 有 63-joint positions 时，body、wrist 与可观测 finger swing统一由 positions fitting；两份真实样本 20 条 finger directions 的 max error 为 `0.034°`。Rotation-only direct local fingers仍标 unverified，不能外推。
 - 中文对话通常是 whole-clip context；face/audio availability 与逐帧内容分开。
 
 真实 `retarget_maya` rotation-only 固定样本的“脚高于头”回归已由官方 exporter/BVH 同帧对照关闭；这只证明该故障链已修复，不等于整个 sub-source 已通过。多 actor、手指、root trajectory 与真实 VRM 验收前，相关 profile 继续是 draft。
@@ -151,11 +154,11 @@ Root semantic：常规 BVH root active orientation 是 root-local 到 converted 
 
 | Gate | 当前结论 |
 |---|---|
-| 官方字段/论文对照 | 已建立一手来源；本地变体仍需样本证据 |
+| 官方字段/论文对照 | 已建立一手来源；HumanML edge-frame、BEAT XYZ hierarchy、Motion-X AIST translation 与 SuSu columns/local 已逐项对码 |
 | 完整 raw root 可访问 | 本地条件具备；不等于全样本通过 |
 | v0.2 全量重建 | 未验证 |
 | 每数据集 7 条固定真实样本 | manifest 需要按 RFC 分层重选并重建 |
-| 真实 VRM bone/marker 对齐 | 未验证 |
+| 真实 VRM bone/marker 对齐 | 指定 VRM0 的 world axis、52-bone mapping、normalized local conjugation与性能通过；七库多动作视觉 manifest仍未完成 |
 | 49 个 v0.2 GIF/WebM | 旧文件存在；新 provenance/IP manifest 未通过 |
 | 公开再分发 | `unknown`，fail-closed |
 

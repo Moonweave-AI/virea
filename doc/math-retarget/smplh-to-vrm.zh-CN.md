@@ -76,7 +76,7 @@ Source hand 顺序来自 SMPL-H/SMPL-X family 的两手 15 joints。Codec 用显
 - `root_rotation_semantics` 为 `local_to_world`；
 - translation 单位与 scale 规则进入 resolved profile。
 
-这是当前工程 profile，不等于所有 AMASS sub-dataset 已通过真实回归。Sub-source 出现不同 axis/unit 时必须拆 profile，不能改一个全局 magic value。
+这是当前工程 profile，不等于所有 AMASS sub-dataset 已通过真实回归。真实 `surface_model_type=smplx` Stage-II 文件的 embedded markers 与 root translation 已证明正 Z 为高度轴，独立 Stage-II profile也使用 Z-up 到 Y-up；它此前误设 identity Y-up 的分支已删除。Sub-source 出现不同 axis/unit 时必须拆 profile，不能改一个全局 magic value。
 
 ## 5. Direct retarget
 
@@ -102,7 +102,7 @@ $$
 R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
 $$
 
-父 correction inverse 把输入 frame 从 source parent rest frame 拉回 target parent；右侧当前 correction把 target joint rest frame 送入 source joint frame。Local rotation 不再套 $B$。
+父 correction inverse 把输入 frame 从 source parent rest frame 拉回 target parent；右侧当前 correction把 target joint rest frame送入 source joint frame。Correction必须来自显式 frame标定；不能由单根 rest offset方向猜完整 twist。已验证同一 normalized parameter frame的 SMPL family显式使用 identity correction。Local rotation不再套 $B$。
 
 最后按 root 3+4、core 21x4、hands 30x4 打包 211 维，并用 fixed target rest 做 FK。
 

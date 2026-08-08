@@ -47,7 +47,7 @@ VRM 不是 SMPL-X pose vector。SMPL、SMPL-H、SMPL-X、BVH、263D 和 6D rotat
 |---|---|---|
 | AMASS | SMPL/SMPL-H body axis-angle | 通常无原生动作文本；文件名只能作为推导信息 |
 | BABEL | AMASS carrier motion | sequence 与时间区间动作标注 |
-| BEAT | 上游 BVH 转换后的 body22 axis-angle | gesture、语义区间、原始 ordinal score、音频/表情可用性 |
+| BEAT | 原始 75-joint BVH，运行时解码为 body22 + hands30 | gesture、语义区间、原始 ordinal score、音频/表情可用性 |
 | GRAB | SMPL-X 55-joint fullpose | 交互物体、动作上下文、逐帧接触 |
 | HumanML3D | 263D feature 到 22-joint positions | caption 与可选时间区间 |
 | Motion-X | 322D SMPL-X-derived array | sequence/body/hand/face text 与表情通道 |

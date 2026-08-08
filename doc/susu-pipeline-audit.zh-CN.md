@@ -42,7 +42,7 @@ superseded_by: []
 
 两条路径都不能把 local rotation 再当 world rotation转换一次。Position fitting 恢复 swing direction，不唯一恢复 twist。
 
-Hand local quaternions不应被 position fitting 的 identity slots覆盖。只有通过 source mapping、wrist continuity 和真实 VRM finger regression 后，才把 native hands 合并到最终 30 个 hand slots；未校准本地变体继续 fail-closed。
+有 63-joint positions 时，body、wrist 与可观测 finger swing统一从 positions fitting得到，不能把 direct fingers挂到缺失 wrist frame 的 fitted parent。Rotation-only 路径才保留明确标记为 unverified 的 direct local fingers；未校准本地变体继续 fail-closed。
 
 ## 已固定的 rotation-only 回归
 

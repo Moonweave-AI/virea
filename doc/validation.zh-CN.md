@@ -47,10 +47,11 @@ superseded_by: []
 
 ## 3. Source decode 层
 
-- [ ] axis-angle 零旋转、已知 90 度旋转、批量 shape 与 `xyzw` 顺序。
-- [ ] 6D 前两列 Gram–Schmidt 与 Zhou 等人的定义一致；退化输入 fail-fast。
-- [ ] SuSu official local rotations 的 FK 与官方 exporter/同帧 positions 对齐。
-- [ ] HumanML3D 263D decoder 与 official `recover_from_ric` 对固定 fixture 数值等价；失败不输出伪动作。
+- [x] axis-angle 零旋转、已知 90 度旋转、批量 shape、finite 与 `xyzw` 顺序。
+- [x] 6D 前两列 Gram–Schmidt 与 Zhou 等人的定义一致；零轴、共线与非有限输入 fail-fast。
+- [x] SuSu columns/local 用两份同帧 63-joint positions确认；rotation-only fingers仍按下方 draft边界处理。
+- [x] HumanML3D 263D decoder 与 official `recover_from_ric` 对固定 fixture 数值等价；失败不输出伪动作。
+- [x] BEAT raw 75-joint BVH 的 XYZ channel、层级压缩、body22 + hands30 由 52 endpoint world-rotation oracle验证。
 - [ ] Source preview 只使用 source decode，不复用 processed positions。
 
 真实样本人工检查：root、左右肢体、脚底、手部、初始姿态、极端姿态和时长。
@@ -62,7 +63,8 @@ superseded_by: []
 - [ ] determinant 为 `-1` 时不把 basis 转成 quaternion；`local_to_world` 遇 reflection 时没有经验证的 handedness decode就 fail-closed。
 - [ ] 单位、首帧归零、axis reorder 和 basis 只应用一次；local joint rotation不重复做 world transform。
 - [ ] GRAB 与 Motion-X 共享 mapping 但使用独立 profile；AMASS 与 BABEL carrier profile 可追溯。
-- [ ] 真实 AMASS、BABEL、GRAB 常规样本在 source/target 的 Y 高度 span 一致；把 SMPL `global_orient` 共轭的旧回归测试必须失败。
+- [x] 真实 AMASS、BABEL、GRAB 常规样本在 source/target 的 Y 高度 span 一致；把 SMPL `global_orient` 共轭的旧回归测试必须失败。
+- [x] AMASS/BABEL Stage-II embedded markers证明 Z-up，并通过 Stand/crawl方向回归；profile仍等待更广样本后升级。
 - [ ] Motion-X prone/handstand/contact 样本不会把地面法向映射成墙面法向。
 - [ ] SuSu source preview 在 retarget 前无脚高于头、左右翻转或单位爆炸。
 
@@ -70,9 +72,9 @@ superseded_by: []
 
 - [ ] 每帧恰为 211 维：3 root translation、4 root quaternion、84 core quaternion、120 hand quaternion。
 - [ ] 所有 quaternion 为 `xyzw`、norm 在 `1 +/- 1e-4`，相邻帧做同半球连续化。
-- [ ] Direct path 的 root basis、parent-local rest correction、hands slot 与 metadata 对码。
-- [ ] Position fitting 的 swing direction 与父空间转换正确，并在报告中保留 twist 不可辨识边界。
-- [ ] SuSu body position fitting 后，只有经过校准的 native local hands 才能注入 hand slots。
+- [x] Direct path 的 root basis、显式 parent-local frame correction、hands slot 与 metadata 对码；未知 correction与通用 world-operator fail-closed。
+- [x] Position fitting 的 pelvis/torso/wrist多轴 frame、swing direction 与父空间转换正确，并在报告中保留 twist 不可辨识边界。
+- [x] SuSu 63-joint positions 路径的 wrist与 20 条 finger directions由 positions拟合；rotation-only direct fingers明确标 unverified。
 - [ ] 相同 sequence/rest artifact 的 float64 FK 重建最大误差小于 `0.02 mm`。
 - [ ] persisted artifact 在另一进程/机器读取时不扫描本机 VRM，并重建相同 hash/positions。
 
@@ -140,12 +142,12 @@ superseded_by: []
 | 层 | 状态 | 结论 |
 |---|---|---|
 | Accepted RFC/ADR | 通过 | 架构方向已批准，不等于实现或许可批准 |
-| Python 合约与真实数据回归 | 通过（本轮范围） | 在完整 raw root 与真实 VRM control 环境中为 `97 passed`；该数字只代表已编码 fixture 与抽样门禁，不替代固定七乘七视觉验收 |
+| Python 合约与真实数据回归 | 通过（本轮范围） | 默认环境 `91 passed, 25 skipped`；完整 raw root + 指定 VRM + trusted legacy containers 为 `116 passed`。只代表已编码 fixture 与抽样门禁，不替代固定七乘七视觉验收 |
 | 七库真实 smoke | 通过（每库一条） | 七库 source/processed 均满足有限值、真实 FPS/duration 与 profile contract；AMASS、匹配时间契约的 BABEL、BEAT、GRAB、HumanML3D 通过 persist/Reader 零差回读；这不是每库七条 |
 | Formal artifact fail-closed | 通过 | BABEL carrier duration 不匹配、Motion-X AIST draft 与 SuSu rotation-only draft 均被正式写入门禁拒绝，且不创建文件或空目录 |
 | 旧 49 GIF/WebM 文件 | 文件存在 | v0.2 provenance、真实模型全骨骼视觉与 IP 未闭环 |
 | 公开 legacy 媒体暴露 | Stop-Ship | 98 个文件已在公开 `main` 可经 raw URL/clone 获取；移除 README 链接不能撤回，需独立 `allowed` 证据或经批准的当前树/历史/fork/缓存处置 |
-| 指定真实 VRM | 部分通过 | 一条真实 SuSu 样本加载 54 个 humanoid bones；104 active 压测经 30 秒预热与 `3 x 10 s` 后 worst p95 `4.3 ms`、0 Long Task、池容量稳定、760 px 无溢出；native 只覆盖 head/face/audio，不能外推到全骨骼或七库 |
+| 指定真实 VRM | 部分通过 | VRM0 54 humanoid bones、52 canonical mapping、Y-180 world alignment与单次 normalized-local conjugation通过；真实 63-point SuSu 样本 + 104 active压力经 30 秒预热和三轮 10 秒测量，worst p95 `4.3 ms`、0 Long Task、pool/texture `10 -> 10`、760 px无溢出、console error为零。仍不能外推到七库全部动作的 mesh视觉质量 |
 | Release | No-Go | Motion-X/SuSu 仍有 draft profile，固定 `7 x 7` v0.2 manifest 与全骨骼真实 VRM 视觉证据未完成，dataset/VRM/衍生媒体 IP decision 也不是全部 `allowed`，仓库 LICENSE/第三方 NOTICE 尚待 Owner 决定 |
 
 ## 可执行检查

@@ -219,7 +219,7 @@ Canonical FK 默认使用仓库确定性的 `DEFAULT_REST_OFFSETS`。v0.2 artifa
 
 ## 7. Direct local quaternion path
 
-这条路径用于 SMPL/SMPL-H body、SMPL-X family 和上游 BVH-derived body22。
+这条路径用于 SMPL/SMPL-H body、SMPL-X family，以及由仓库内 BEAT BVH decoder 按完整层级生成的 body22 + hands30。
 
 ### 7.1 Scale 与 root
 
@@ -239,23 +239,23 @@ Root rotation 先由 profile 语义选择左乘或共轭，再应用 hips rest c
 
 ### 7.2 Rest-frame correction
 
-设 $C_j$ 把 target joint $j$ 的 rest frame 映射到 source rest frame。它由 primary-child 的 target/source rest directions 构造。Target local matrix 为：
+设 $C_j$ 把 target joint $j$ 的 rest frame 映射到 source rest frame。$C_j$ 必须来自显式、经过权威标定的 joint frame；单条 target/source rest direction只能约束 swing，不能决定绕该方向的 frame twist，因此当前通用代码不会据此自动制造 correction。Target local matrix为：
 
 $$
 R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
 $$
 
-为什么父 correction 取逆：source local rotation 的输入向量当前在 source parent rest frame，必须先回到 target parent frame。为什么右乘当前 correction：旋转的输出 frame 要从 target joint rest frame 送到 source joint rest frame，才能应用 source pose。缺少某个 correction 时只省略对应因子，并在 metadata 记录，不制造未知骨架方向。
+为什么父 correction 取逆：source local rotation 的输入向量当前在 source parent rest frame，必须先回到 target parent frame。为什么右乘当前 correction：旋转的输出 frame 要从 target joint rest frame 送到 source joint rest frame，才能应用 source pose。若 source 表示与 target normalized frame已由权威定义为 identity，则显式传空 correction map；未知 frame不得静默省略因子继续运行。
 
 等价 quaternion 实现保持同一乘法顺序：父 correction inverse 在左，当前 correction 在右。Local quaternion 不再额外套 world basis。
 
 ### 7.3 输出
 
-映射后的 root、21 core 与可用的 30 hand quaternions进入 211 维 pack。SMPL-X 可提供 hands；AMASS/BABEL/BEAT 主路径若未接手部，hands 为 identity 并带缺失说明。
+映射后的 root、21 core 与可用的 30 hand quaternions进入 211 维 pack。SMPL-X 与当前 BEAT raw-BVH 路径可提供 hands；AMASS/BABEL 主路径若未接手部，hands 为 identity 并带缺失说明。
 
 ## 8. Position fitting path
 
-这条路径用于 HumanML3D 解码 positions、AMASS position 旁路和 SuSu positions/FK positions。输入 $X\in\mathbb R^{T\times N_B\times3}$，其中 $N_B=22$，joint order 与 canonical body skeleton 对齐。
+这条路径用于 HumanML3D 解码 positions、AMASS position 旁路和 SuSu positions/FK positions。输入 $X\in\mathbb R^{T\times N\times3}$；HumanML/AMASS常为 22 joints，SuSu authoritative positions可为 63 joints，并通过显式 name/index map对齐 canonical body与hands。
 
 先应用唯一 world transform，并用第 0 帧稳定骨链估计 $\lambda$：
 
@@ -273,7 +273,7 @@ $$
 r_t^{T}=X_{t,0}''.
 $$
 
-设 $d_{t,j}^{W}=X_{t,\chi(j)}''-X_{t,j}''$ 是观测 child world direction，父节点已拟合的 world matrix为 $G_{t,\pi(j)}$。把方向转回 parent-local：
+Pelvis 先用 up 与左右髋、upperChest 用 neck 与左右肩、wrist 用多个 finger roots构造正交 frame，以恢复可观测 yaw/twist。普通 chain joint再令 $d_{t,j}^{W}=X_{t,\chi(j)}''-X_{t,j}''$ 为观测 child world direction；父节点已拟合的 world matrix为 $G_{t,\pi(j)}$。把方向转回 parent-local：
 
 $$
 d_{t,j}^{L}=G_{t,\pi(j)}^{-1}d_{t,j}^{W}.
@@ -287,7 +287,7 @@ $$
 
 这里 $q(a\rightarrow b)$ 表示把非零方向 $a$ 旋到 $b$ 的单位 quaternion。之所以先转到 parent-local，是因为 canonical slots 存的不是 world rotation。
 
-Positions 只约束骨骼轴的 swing；绕该轴的 twist 有无穷多个解。前臂、手腕、上臂和腿部质量因此受限，文档与质量报告不得宣称 position fitting 完整恢复原始 rotation。
+单条 positions edge只约束骨骼轴的 swing；绕该轴的 twist有无穷多个解。多条非共线 edges可以恢复分叉 frame，但单子节点与 distal axial twist仍不可观测。文档与质量报告不得把 position fitting 的几何一致性宣称为完整原始 rotation真值。
 
 ## 9. 真实时间与重采样
 
@@ -319,9 +319,9 @@ $$
 |---|---|---|---|
 | [SMPL-H / body](smplh-to-vrm.zh-CN.md) | body axis-angle | direct path | AMASS/BABEL carrier、FPS、annotations |
 | [SMPL-X](smplx-to-vrm.zh-CN.md) | 55 fullpose 或 Motion-X 53 rotations 重组 | direct + hands | GRAB/Motion-X 独立 profile |
-| [BVH / BEAT](bvh-to-vrm.zh-CN.md) | 上游转换后的 body22 axis-angle | direct path | raw BVH 定义与 converted input 分层 |
+| [BVH / BEAT](bvh-to-vrm.zh-CN.md) | 原始 75-joint BVH | 层级压缩后 direct body + hands | 选中端点世界朝向精确，删减链位置为近似 |
 | [HumanML3D 263D](humanml3d-263d-to-vrm.zh-CN.md) | official root/RIC 到 positions | position fitting | caption/time 与 fail-fast |
-| [SuSu 6D](susu-to-vrm.zh-CN.md) | columns/local 或 native positions | position fitting + verified hands | 本地变体必须校准 |
+| [SuSu 6D](susu-to-vrm.zh-CN.md) | columns/local 与可选 63-joint positions | positions拟合 body/wrist/fingers；rotation-only fingers unverified | 本地变体保持 draft |
 
 [VRM/glTF 目标层](vrm-gltf-target.zh-CN.md) 给出 pack、FK、target runtime 和代码对应表。[公式评审清单](review-checklist.zh-CN.md) 用于检查公式渲染和实现对码。
 

@@ -54,9 +54,9 @@ superseded_by: []
 |---|---|---|---|
 | SMPL / SMPL-H body axis-angle | AMASS、BABEL | [SMPL-H 到 VRM](math-retarget/smplh-to-vrm.zh-CN.md) | direct local quaternion |
 | SMPL-X family | GRAB、Motion-X | [SMPL-X 到 VRM](math-retarget/smplx-to-vrm.zh-CN.md) | direct local quaternion；可含 hands |
-| BVH-derived body22 | BEAT | [BVH / BEAT 到 VRM](math-retarget/bvh-to-vrm.zh-CN.md) | 上游 BVH conversion 后 direct local quaternion |
+| BVH 75-joint | BEAT | [BVH / BEAT 到 VRM](math-retarget/bvh-to-vrm.zh-CN.md) | 仓库内解析 channel，并按真实层级压缩为 body22 + hands30 |
 | HumanML3D 263D / positions | HumanML3D、position 旁路 | [263D 到 VRM](math-retarget/humanml3d-263d-to-vrm.zh-CN.md) | official RIC decode 后 position fitting |
-| 自定义 body/hand 6D | SuSuInterActs | [SuSu 到 VRM](math-retarget/susu-to-vrm.zh-CN.md) | positions 或 local-rotation FK 后 position fitting；验证后合并 hands |
+| 自定义 body/hand 6D | SuSuInterActs | [SuSu 到 VRM](math-retarget/susu-to-vrm.zh-CN.md) | 63-point path拟合 body/wrist/fingers；rotation-only direct fingers保持 draft |
 
 目标层的 glTF/VRM TRS、quaternion、rest correction 和 position fitting 细节见 [VRM/glTF 目标层](math-retarget/vrm-gltf-target.zh-CN.md)。
 
@@ -65,7 +65,8 @@ superseded_by: []
 - [Pipeline 使用指南](pipeline.zh-CN.md)：Windows、macOS、Linux 安装、数据路径、处理、Viewer、重建与排错。
 - [Showcase 说明与 7 x 7 看板](showcase/README.md)：媒体选择、录制、哈希与 IP gate；旧媒体状态也在此页。
 - [参考资料与设计基线](references.zh-CN.md)：仅列一手论文、官方规范、官方数据仓库和明确的工程参考。
-- [Source Authority Review](research/source-authority-review.zh-CN.md)：记录研究问题、方法、关键证据、负面结果与尚未取得的证据。
+- [姿态重定向真实核验](research/pose-retarget-validation-2026-08-08.zh-CN.md)：当前七库、真实 VRM、反例与不可观测边界的主研究记录。
+- [Source Authority Review](research/source-authority-review.zh-CN.md)：前期权威资料审查，已由上面的真实核验记录继承。
 - [理论与目标边界](theory.zh-CN.md)：说明 VRM-native 的目标和非目标。
 
 ## 专项与兼容入口

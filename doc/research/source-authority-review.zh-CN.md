@@ -1,6 +1,6 @@
 ---
 type: research-log
-status: InReview
+status: Superseded
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
 updated: 2026-08-08
@@ -13,7 +13,8 @@ related:
   - ../dataset-audit.zh-CN.md
   - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
 supersedes: []
-superseded_by: []
+superseded_by:
+  - pose-retarget-validation-2026-08-08.zh-CN.md
 ---
 
 # Source Authority Review 研究日志
@@ -43,7 +44,7 @@ superseded_by: []
 |---|---|---|
 | AMASS | poses/trans/framerate；没有通用动作文本 | filename action 必须是 derived |
 | BABEL | sequence 与 frame-level 秒区间，carrier 是 AMASS | seq/action 分层；carrier duration 必须校验 |
-| BEAT | raw 120 FPS BVH、Z-up、Y-forward、右手系；含 audio/face/semantic | 项目 converted NPZ 另记 basis/provenance，不能重复 raw transform |
+| BEAT | raw 120 FPS、75-joint BVH；含 audio/face/semantic | 当时 converted NPZ 的假设已被后续真实文件审计否决，现状见 superseding 研究记录 |
 | GRAB | 120 FPS SMPL-X、object rigid pose、per-object-vertex contact | native contact map 不得被聚合结果覆盖 |
 | Motion-X | 30 FPS；322D 分块由作者 loader 明确 | 53 rotation joints重组 55 slots；expression 不得混入 fullpose |
 | HumanML3D | 20 FPS、22 joints、263D；官方 RIC recovery | root4+RIC63 NumPy 等价 decode；失败 fail-fast |
@@ -56,7 +57,7 @@ superseded_by: []
 
 - Motion-X 官方资料没有证明所有聚合 sub-source 共用同一 world basis 与 translation unit；必须按 sub-source 校准。
 - BABEL 本地 record 的直接路径规则不能稳定命中 carrier；相似 `_poses` / `_stageii` 文件可能出现约二倍 duration 差异。
-- BEAT 官方定义 raw BVH，但当前仓库消费 upstream converted NPZ/TSV；若 converter/version 不可追溯，无法声明 raw-to-VRM 全链可复现。
+- 本记录形成时，BEAT 仍消费 upstream converted NPZ；该边界后来被仓库内 raw BVH decoder替代。本段仅保留为被否决方案的历史证据。
 - SuSu 本地目录名不能证明 rows/columns、local/global、unit 或 root axes。一条真实 `retarget_maya` rotation-only 样本已用官方 exporter/BVH 关闭脚头倒置故障，但不足以覆盖整个 sub-source；当前仍只允许 draft profile。
 - Position fitting无法由 positions 唯一恢复 twist；该限制对前臂、手腕、上臂和腿部持续存在。
 - 指定 VRM 有完整 canonical core/hands mapping，但 metadata license URL 为空；rights 只能是 `local-only`，派生媒体不可公开推送。
@@ -79,4 +80,4 @@ superseded_by: []
 
 ## 决策
 
-研究结果已 Promote to RFC-0001 并被 Accepted：采用 versioned annotation/profile/artifact、显式 basis/unit/time、HumanML fail-fast、Motion-X 正确重组、SuSu columns/local 与 fail-closed 本地变体。研究本身不批准 Release；当前发布结论仍是 No-Go。
+本记录已由 [姿态重定向真实核验](pose-retarget-validation-2026-08-08.zh-CN.md) 取代。其仍有效的 versioned profile、HumanML fail-fast、Motion-X 322 重组和 SuSu columns/local 结论已进入 RFC；BEAT converted-NPZ 假设不再有效。研究本身不批准 Release。

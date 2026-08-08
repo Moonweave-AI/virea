@@ -86,10 +86,16 @@ Viewer 解包相邻两帧后：
 2. root/core/hand quaternion 最短弧 SLERP；
 3. root translation/rotation施加到 motion root；
 4. 21 core 与 30 hand local rotations组装为 humanoid pose；
-5. 优先调用 three-vrm normalized pose API，旧 runtime 才降级到 raw pose API；
-6. 调用 humanoid update，使 raw glTF node 与 skin 更新。
+5. 只调用 three-vrm normalized pose API；缺少该 API 时 fail-closed，不把 normalized quaternion直接交给 raw pose API；
+6. 调用 VRM update，使 raw glTF node、skin 与 humanoid state更新。
 
-设 $q_{t,j}^{C}$ 是 canonical local quaternion，$A_j$ 是 runtime 计算的 canonical-to-avatar rest alignment，则具体 Avatar local rotation 应保持 parent/local 语义。Normalized pose API 负责隔离不同 VRM rest pose；Viewer 不把 canonical FK world rotation 直接写进 raw child node。
+World alignment 由 VRM metadata 决定，不从 hips-to-spine 的解剖倾斜猜 world-up：VRM 0.x 使用绕 Y 轴 180 度的外层 rotation，VRM 1.x 使用 identity；未知版本 fail-closed。设这个外层 rotation 为 $A$，canonical local quaternion 为 $q_{t,j}^{C}$。因为 three-vrm normalized rig 的 rest local rotation 是 identity，而 rest offset 仍按 raw VRM world geometry建立，写入 normalized node 的 local rotation必须是：
+
+$$
+q_{t,j}^{V}=A^{-1}q_{t,j}^{C}A.
+$$
+
+外层再施加 $A$ 后，骨段端点与 canonical 目标相同。Root translation与 root rotation位于该 alignment之外的 motion root，不重复共轭；hips rotation也不同时写入 motion root与 normalized pose。Viewer 不把 canonical FK world rotation直接写进 raw child node。
 
 具体 runtime alignment metadata 必须包含 loader/version、humanoid coverage 和降级状态。没有 humanoid 的 GLB 只显示静态模型与 canonical fallback，不声明成功 retarget。
 
@@ -124,5 +130,7 @@ Marker sprite 使用对象池；每帧只更新 $a_{t,b}$ 对应 transform。文
 - quaternion 非单位或零长度；
 - artifact 缺实际 rest/profile，却试图扫描本机 VRM 补齐；
 - Viewer 把 canonical world rotations逐关节写为 raw local rotations；
+- normalized pose API 缺失时直接降级到 raw pose API；
+- 从 spine 方向猜 VRM world-up，或对 VRM0 local rotation漏掉/重复一次 $A^{-1}qA$；
 - marker 使用 canonical position却显示为“真实 VRM bone”；
 - 具体 VRM license 未明确却公开推送模型或派生媒体。

@@ -41,15 +41,15 @@ superseded_by: []
 
 ## 七个数据集
 
-- [AMASS 官方主页](https://amass.is.tue.mpg.de/) 与 [作者仓库](https://github.com/nghorbani/amass)：SMPL family motion、poses/trans/framerate 和许可入口。没有通用动作文本时，VIREA 的文件名词语只能是 derived。
+- [AMASS 官方主页](https://amass.is.tue.mpg.de/)、[作者仓库](https://github.com/nghorbani/amass)、[可视化 notebook](https://github.com/nghorbani/amass/blob/master/notebooks/01-AMASS_Visualization.ipynb) 与 [SOMA Stage-II writer](https://github.com/nghorbani/soma/blob/main/src/soma/amass/prepare_amass_npz.py)：SMPL family motion、root/body/hand切片、poses/trans/framerate 和 Stage-II 来源。
 - [BABEL Data](https://babel.is.tue.mpg.de/data.html)：AMASS carrier 上的 sequence 与 frame-level 时间标注定义。
-- [BEAT 作者仓库](https://github.com/PantoMatrix/BEAT)：raw BVH、120 FPS、坐标、audio、face 与 semantic file 的官方说明。
+- [BEAT 作者仓库](https://github.com/PantoMatrix/BEAT)、[BVH hierarchy/channel 说明](https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/BVH.html) 与 [Blender BVH importer](https://github.com/blender/blender-addons/blob/b42d68627734cb18af0e6f41537063984313a284/io_anim_bvh/import_bvh.py#L603-L608)：75-joint raw BVH、120 FPS、声明欧拉顺序、audio、face 与 semantic file。
 - [GRAB 作者仓库](https://github.com/otaheri/GRAB) 与 [官方主页](https://grab.is.tue.mpg.de/)：120 FPS SMPL-X、物体刚体运动与 contact 数据。
-- [HumanML3D 作者仓库](https://github.com/EricGuo5513/HumanML3D) 与 [CVPR 论文](https://openaccess.thecvf.com/content/CVPR2022/html/Guo_Generating_Diverse_and_Natural_3D_Human_Motions_From_Text_CVPR_2022_paper.html)：20 FPS、22 joints、text 与 motion feature 的上游定义。
-- [Motion-X 作者仓库](https://github.com/IDEA-Research/Motion-X)：30 FPS、322D layout、sequence/body/hand/face text 与原始数据再分发边界。仓库 README 的 loader 切片是 322D 的直接依据。
+- [HumanML3D 作者仓库](https://github.com/EricGuo5513/HumanML3D)、固定提交的 [263D 构造](https://github.com/EricGuo5513/HumanML3D/blob/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/motion_representation.ipynb)、[Skeleton IK/FK](https://github.com/EricGuo5513/HumanML3D/blob/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/common/skeleton.py)、[joint topology](https://github.com/EricGuo5513/HumanML3D/blob/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/paramUtil.py) 与 [CVPR 论文](https://openaccess.thecvf.com/content/CVPR2022/html/Guo_Generating_Diverse_and_Natural_3D_Human_Motions_From_Text_CVPR_2022_paper.html)：20 FPS、22 joints、root/RIC 与 child-edge 6D 语义。
+- [Motion-X 作者仓库](https://github.com/IDEA-Research/Motion-X) 与 [AIST translation converter](https://github.com/IDEA-Research/Motion-X/blob/main/non-mocap-dataset-process/aist.py)：30 FPS、322D layout、AIST `/94` 与 Z translation flip、sequence/body/hand/face text 及再分发边界。
 - [SentiAvatar / SuSuInterActs 作者仓库](https://github.com/SentiAvatar/SentiAvatar) 与 [项目主页](https://sentiavatar.github.io/)：20 FPS、body/hand 6D、对话、face/audio 与官方 exporter 的入口。
 
-工程约束：官方资料与“项目已经预转换的本地 NPZ/TSV/Parquet”分开记录。例如 BEAT 官方 raw 是 BVH，但 VIREA 当前主输入是上游转换后的 body22 axis-angle；不能重复应用 raw basis。
+工程约束：官方资料与本地文件事实分开记录。BEAT 当前直接解析 raw BVH；本地 hierarchy证明 Y-up 时，不因 README 的 Blender 场景描述再做一次 Z-up 转换。旧 body22 NPZ只作 legacy provenance。
 
 ## Rotation 与运动学
 

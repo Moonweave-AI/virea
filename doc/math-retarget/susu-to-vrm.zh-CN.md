@@ -18,7 +18,7 @@ superseded_by: []
 
 # SuSuInterActs 到 VRM
 
-SuSu 有独立的 body/hand 6D 和可选 positions。v1 以 SentiAvatar 官方公开实现为基线：前两列、parent-local、20 FPS。最终 body 始终来自 position fitting；经过同一 profile 修正的 native hand local quaternions再合入 30 hand slots。
+SuSu 有独立的 body/hand 6D 和可选 positions。v1 以 SentiAvatar 官方公开实现为基线：前两列、parent-local、20 FPS。有 63-joint positions 时，body、wrist 与可观测 finger swing 全部来自 position fitting；rotation-only 时才保留尚未完成真值验收的 direct local 6D fingers，因此整个 profile继续是 draft。
 
 ## 1. 输入契约
 
@@ -118,13 +118,13 @@ $$
 X_{t,j}^{C}=s_pB_p(X_{t,j}^{S}-X_{0,0}^{S}).
 $$
 
-$s_p$ 是 positions unit scale，$B_p$ 是 positions world basis。Source joints按显式 name/index mapping压到 canonical body22，然后进入 position fitting：
+$s_p$ 是 positions unit scale，$B_p$ 是 positions world basis。Source joints按显式 name/index mapping保留 body 与可映射手指点，再进入 position fitting。Pelvis 使用 spine 与左右髋建立正交 frame，upperChest 使用 neck 与左右肩，wrist 使用多个 finger roots，因此不再只依赖单条 forearm-to-hand direction：
 
 $$
 q_{t,j}^{F}=q(o_{\chi(j)}^{T}\rightarrow d_{t,j}^{L}).
 $$
 
-$q_{t,j}^{F}$ 是 fitted body local quaternion，$d_{t,j}^{L}$ 是观测 child direction在 parent-local 的表达。它只恢复 swing，不唯一恢复 twist。
+$q_{t,j}^{F}$ 是 fitted local quaternion，$d_{t,j}^{L}$ 是观测 child direction在 parent-local 的表达。多条非共线方向可以恢复 pelvis、torso 与 wrist 的可观测 frame；单子节点和 distal 绕自身骨轴的 twist仍不唯一。
 
 ## 7. 无 positions 的路径
 
@@ -144,17 +144,17 @@ $$
 
 如果某个经校准 profile 明确声明 rotations 是 global，则先用 global rotations、fixed bone length 和 calibrated aim axes重建 positions，再 fitting。未经校准的本地 global/rows 猜测禁止正式写入。
 
-## 8. Native fingers 合入最终 sequence
+## 8. Fingers 进入最终 sequence
 
-Body 无论来自 native positions 还是 reconstructed positions，都使用 fitted root/core。另行把同一 source hand locals走 direct rest correction，得到 $q_{t,k}^{D}$。最终 pack：
+有 63-joint authoritative positions 时，最终 30 hand slots来自同一 position fitting；wrist frame与 20 个可观测 finger segment directions一起拟合，不再把 direct fingers挂到一个丢失 wrist twist 的 fitted parent上。最终 pack：
 
 $$
-z_t=[r_t^{F},q_{t,0}^{F},\{q_{t,j}^{F}\}_{j=1}^{21},\{q_{t,k}^{D}\}_{k=1}^{30}].
+z_t=[r_t^{F},q_{t,0}^{F},\{q_{t,j}^{F}\}_{j=1}^{21},\{q_{t,k}^{F}\}_{k=1}^{30}].
 $$
 
-这样 body保留 position fitting 的方向，hands 不再被 identity 覆盖。当前 metadata mode 为 `position_fit_body_plus_direct_local_6d_fingers`，并记录 rotation layout/space、profile status、positions availability、effective root unit 和 twist 边界。
+两份真实 63-point 样本的 20 条 finger directions 对 source positions 达到 mean `0.006°`、p95 `0.028°`、max `0.034°`；左右 wrist orthonormal frame最大误差 `0.028°`。这证明可观测 segment direction 已闭环，不证明 distal axial twist存在真值。
 
-这不自动证明手指正确：仍需验证 wrist parent continuity、source-to-target finger rest correction、左右 finger order 和真实 VRM 30/30 nodes。
+Rotation-only 路径没有 authoritative finger positions，仍采用 `position_fit_body_plus_unverified_direct_local_6d_fingers`，metadata 明确标记 `direct_local_6d_preserved_unverified`。它不能因为 positions 样本通过就被提升为正式 profile。
 
 ## 9. Source preview
 
@@ -163,7 +163,7 @@ $$
 
 两路 source preview 都必须先于 VRM 检查。若 source 已出现脚高于头、左右翻转、单位爆炸或地面变墙面，停止在 Adapter/Codec/Profile 层排查。
 
-当前 rotation-only 倒置反例已经通过官方 BVH 对照；profile 仍保持 `draft`，因为还缺多 actor、多动作、root trajectory、手腕连续性和真实 VRM 全身/手指视觉回归。
+当前 rotation-only 倒置反例已经通过官方 BVH 对照；profile 仍保持 `draft`，因为 rotation-only finger/wrist 真值、多 actor、多动作、root trajectory 和真实 VRM 全身视觉回归仍未闭环。
 
 ## 10. Annotation 与多模态边界
 
