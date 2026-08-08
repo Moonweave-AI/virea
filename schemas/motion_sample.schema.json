@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/motion_sample.schema.json",
+  "$id": "https://github.com/Moonweave-AI/virea/schemas/motion_sample.schema.json",
   "title": "VIREA MotionSample",
   "type": "object",
   "required": ["schema_version", "artifact_schema_version", "motion_uid", "manifest_sha256", "array_sha256", "source_fingerprint", "sample", "source", "time", "skeleton", "annotations", "channels", "validation_warnings", "sidecars", "redactions", "canonical_artifact", "files", "quality", "processing"],

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/dataset_manifest.schema.json",
+  "$id": "https://github.com/Moonweave-AI/virea/schemas/dataset_manifest.schema.json",
   "title": "VIREA Dataset Manifest",
   "type": "object",
   "required": ["schema_version", "dataset", "samples"],

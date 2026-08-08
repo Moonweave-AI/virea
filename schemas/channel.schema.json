@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/channel.schema.json",
+  "$id": "https://github.com/Moonweave-AI/virea/schemas/channel.schema.json",
   "title": "VIREA Multimodal Channel v1",
   "type": "object",
   "required": [

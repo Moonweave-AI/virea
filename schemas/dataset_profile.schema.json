@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/dataset_profile.schema.json",
+  "$id": "https://github.com/Moonweave-AI/virea/schemas/dataset_profile.schema.json",
   "title": "VIREA Dataset Profile v1",
   "type": "object",
   "required": [
