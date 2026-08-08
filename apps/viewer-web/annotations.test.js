@@ -25,6 +25,163 @@ import {
   vrmSpecWorldAlignment,
 } from "./vrm-canonical-alignment.js";
 
+function quatFromAxisAngle(axis, angle) {
+  const length = Math.hypot(...axis);
+  const scale = Math.sin(angle / 2) / length;
+  return [axis[0] * scale, axis[1] * scale, axis[2] * scale, Math.cos(angle / 2)];
+}
+
+function invertQuat(q) {
+  return [-q[0], -q[1], -q[2], q[3]];
+}
+
+function quatsEquivalent(a, b, tolerance = 1e-8) {
+  const dot = Math.abs(a.reduce((sum, value, index) => sum + value * b[index], 0));
+  return 1 - dot <= tolerance;
+}
+
+function mirrorQuatAcrossX(q) {
+  // For S=diag(-1, 1, 1), S R(q) S is represented by (x, -y, -z, w).
+  return [q[0], -q[1], -q[2], q[3]];
+}
+
+test("three-vrm normalized pose axes are portable and never inferred from avatar offsets", () => {
+  const identity = [0, 0, 0, 1];
+  const local = quatFromAxisAngle([1, 0.2, -0.1], Math.PI / 4);
+  const offsetDerivedFrame = quatFromAxisAngle([0, 1, 0], Math.PI / 3);
+  const artificialRetarget = multiplyQuatArray(
+    multiplyQuatArray(offsetDerivedFrame, local),
+    invertQuat(offsetDerivedFrame),
+  );
+
+  assert.ok(quatsEquivalent(normalizedLocalPoseRotation(local), local));
+  assert.ok(
+    !quatsEquivalent(artificialRetarget, local, 1e-4),
+    "avatar rest-offset geometry is not a second normalized-pose coordinate frame",
+  );
+  assert.ok(quatsEquivalent(normalizedLocalPoseRotation(identity), identity));
+});
+
+test("non-commuting normalized rotations match the three-vrm raw mesh transfer oracle", () => {
+  const vrm0Alignment = quatFromAxisAngle([0, 1, 0], Math.PI);
+  const canonicalDelta = quatFromAxisAngle([0.3, 1, 0.2], Math.PI / 3);
+  const rawParentWorldRest = quatFromAxisAngle([1, -0.4, 0.2], Math.PI / 5);
+  const rawBoneLocalRest = quatFromAxisAngle([-0.1, 0.6, 1], Math.PI / 7);
+  const normalizedDelta = normalizedLocalPoseRotation(canonicalDelta, vrm0Alignment);
+
+  // This is the exact transfer implemented by VRMHumanoidRig.update():
+  // rawLocal = P^-1 * normalizedDelta * P * rawLocalRest.
+  const rawLocal = multiplyQuatArray(
+    multiplyQuatArray(
+      multiplyQuatArray(invertQuat(rawParentWorldRest), normalizedDelta),
+      rawParentWorldRest,
+    ),
+    rawBoneLocalRest,
+  );
+  const actualCanonicalWorld = multiplyQuatArray(
+    multiplyQuatArray(vrm0Alignment, rawParentWorldRest),
+    rawLocal,
+  );
+  const expectedCanonicalWorld = multiplyQuatArray(
+    canonicalDelta,
+    multiplyQuatArray(
+      multiplyQuatArray(vrm0Alignment, rawParentWorldRest),
+      rawBoneLocalRest,
+    ),
+  );
+  assert.ok(quatsEquivalent(actualCanonicalWorld, expectedCanonicalWorld));
+
+  const identityDelta = [0, 0, 0, 1];
+  const rawIdentityLocal = multiplyQuatArray(
+    multiplyQuatArray(
+      multiplyQuatArray(invertQuat(rawParentWorldRest), identityDelta),
+      rawParentWorldRest,
+    ),
+    rawBoneLocalRest,
+  );
+  assert.ok(quatsEquivalent(rawIdentityLocal, rawBoneLocalRest));
+});
+
+test("a two-level non-commuting terminal chain matches the raw mesh world triad oracle", () => {
+  const vrm0Alignment = quatFromAxisAngle([0, 1, 0], Math.PI);
+  const canonicalParentDelta = quatFromAxisAngle([0.7, -0.2, 0.4], Math.PI / 4);
+  const canonicalChildDelta = quatFromAxisAngle([-0.1, 0.8, 0.3], Math.PI / 3);
+  const rawGrandparentWorldRest = quatFromAxisAngle([0.2, 0.5, -0.7], Math.PI / 7);
+  const rawParentLocalRest = quatFromAxisAngle([0.9, 0.1, 0.3], Math.PI / 6);
+  const rawParentWorldRest = multiplyQuatArray(rawGrandparentWorldRest, rawParentLocalRest);
+  const rawChildLocalRest = quatFromAxisAngle([-0.4, 0.2, 1], Math.PI / 8);
+  const normalizedParentDelta = normalizedLocalPoseRotation(
+    canonicalParentDelta,
+    vrm0Alignment,
+  );
+  const normalizedChildDelta = normalizedLocalPoseRotation(
+    canonicalChildDelta,
+    vrm0Alignment,
+  );
+
+  const animatedRawParentLocal = multiplyQuatArray(
+    multiplyQuatArray(
+      multiplyQuatArray(invertQuat(rawGrandparentWorldRest), normalizedParentDelta),
+      rawGrandparentWorldRest,
+    ),
+    rawParentLocalRest,
+  );
+  const animatedRawParentWorld = multiplyQuatArray(
+    rawGrandparentWorldRest,
+    animatedRawParentLocal,
+  );
+  const animatedRawChildLocal = multiplyQuatArray(
+    multiplyQuatArray(
+      multiplyQuatArray(invertQuat(rawParentWorldRest), normalizedChildDelta),
+      rawParentWorldRest,
+    ),
+    rawChildLocalRest,
+  );
+  const actualCanonicalChildWorld = multiplyQuatArray(
+    vrm0Alignment,
+    multiplyQuatArray(animatedRawParentWorld, animatedRawChildLocal),
+  );
+  const rawChildWorldRest = multiplyQuatArray(rawParentWorldRest, rawChildLocalRest);
+  const expectedCanonicalChildWorld = multiplyQuatArray(
+    canonicalParentDelta,
+    multiplyQuatArray(
+      canonicalChildDelta,
+      multiplyQuatArray(vrm0Alignment, rawChildWorldRest),
+    ),
+  );
+  assert.ok(quatsEquivalent(actualCanonicalChildWorld, expectedCanonicalChildWorld));
+});
+
+test("left and right terminal rotations remain mirrored without side-specific frame correction", () => {
+  for (const [label, leftDelta] of [
+    ["wrist/fingers", quatFromAxisAngle([0.8, 0.3, -0.2], Math.PI / 4)],
+    ["ankle/toes", quatFromAxisAngle([0.2, -0.7, 0.4], Math.PI / 5)],
+  ]) {
+    const leftParentRest = quatFromAxisAngle([0.4, 1, 0.2], Math.PI / 6);
+    const leftBoneRest = quatFromAxisAngle([-0.3, 0.2, 1], Math.PI / 8);
+    const rightDelta = mirrorQuatAcrossX(leftDelta);
+    const rightParentRest = mirrorQuatAcrossX(leftParentRest);
+    const rightBoneRest = mirrorQuatAcrossX(leftBoneRest);
+
+    const rawWorld = (delta, parentRest, boneRest) => {
+      const rawLocal = multiplyQuatArray(
+        multiplyQuatArray(
+          multiplyQuatArray(invertQuat(parentRest), normalizedLocalPoseRotation(delta)),
+          parentRest,
+        ),
+        boneRest,
+      );
+      return multiplyQuatArray(parentRest, rawLocal);
+    };
+    const leftWorld = rawWorld(leftDelta, leftParentRest, leftBoneRest);
+    const rightWorld = rawWorld(rightDelta, rightParentRest, rightBoneRest);
+    assert.ok(
+      quatsEquivalent(rightWorld, mirrorQuatAcrossX(leftWorld)),
+      `${label} lost left/right mirror symmetry`,
+    );
+  }
+});
+
 test("VRM normalized local rotations are conjugated exactly once into the aligned avatar frame", () => {
   const rawRest = {
     hips: [0, 0, 0],
@@ -64,11 +221,27 @@ test("VRM normalized local rotations are conjugated exactly once into the aligne
   const poseFunction = source.match(/function poseObjectFromFrame\(frame\) \{[\s\S]*?\n  \}/)?.[0] || "";
   assert.match(poseFunction, /normalizedLocalPoseRotation/);
   assert.match(poseFunction, /vrmWorldAlignment\?\.alignment_quaternion/);
+  assert.doesNotMatch(poseFunction, /vrmRestFrameCorrections|restFrameQuaternion/);
   assert.doesNotMatch(poseFunction, /conjugateQuatByBasis|alignBasis/);
   assert.doesNotMatch(source, /setRawPose/);
   assert.doesNotMatch(source, /VRMUtils\.rotateVRM0/);
   assert.match(source, /vrmSpecWorldAlignment\(vrm\.meta\?\.metaVersion\)/);
+  assert.doesNotMatch(source, /buildTerminalRestFrameCorrections|refreshVrmRestFrameCorrections/);
+  assert.match(source, /normalizedPoseAxisMode: "three-vrm-portable"/);
+  assert.match(source, /restFrameCorrectionCount: 0/);
   assert.match(source, /does not expose normalized humanoid pose application/);
+});
+
+test("real VRM QA waits for structured preview readiness instead of presentation copy", () => {
+  const source = readFileSync(new URL("../../scripts/qa_real_vrm.mjs", import.meta.url), "utf8");
+  assert.match(source, /__vireaShowcase\.loadSample/);
+  assert.match(source, /previewReady\?\.sampleId/);
+  assert.match(source, /previewReady\?\.frames/);
+  assert.match(source, /dataset\.hasVrmHumanoid === "true"/);
+  assert.doesNotMatch(source, /dataset\.anchorModes.*includes\("humanoid"\)/);
+  assert.match(source, /realDiagnostics\.normalizedPoseAxisMode !== "three-vrm-portable"/);
+  assert.match(source, /realDiagnostics\.restFrameCorrectionCount !== 0/);
+  assert.doesNotMatch(source, /startsWith\(["']Frames:/);
 });
 
 test("dataset-native sample text is never inserted as HTML", () => {

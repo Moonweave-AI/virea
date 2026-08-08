@@ -16,6 +16,11 @@ import {
   interpolatePositionFrame,
   partJointIndices,
 } from "./annotations.js";
+import {
+  continuityBreakFrames,
+  continuityReport,
+  frameBlendWithinContinuity,
+} from "./motion-continuity.js";
 
 const ROOT_NAMES = ["hips", "pelvis", "root"];
 const MAX_RENDER_HZ = 60;
@@ -466,11 +471,7 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
   }
 
   function frameBlend(frame, frameCount) {
-    const count = Math.max(1, Number(frameCount) || 1);
-    const value = Math.max(0, Math.min(Number(frame) || 0, count - 1));
-    const a = Math.floor(value);
-    const b = Math.min(a + 1, count - 1);
-    return { a, b, alpha: value - a };
+    return frameBlendWithinContinuity(state.payload, frameCount, frame);
   }
 
   function slerpQuatArrays(a, b, alpha) {
@@ -629,6 +630,15 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     resetView();
     if (!state.motion) {
       setStatus("Processed preview loaded, but no VRM motion payload is available.");
+    } else {
+      const report = continuityReport(payload);
+      const breaks = continuityBreakFrames(report, state.motion.frame_count);
+      if (breaks.length) {
+        setStatus(
+          `Motion has ${breaks.length} declared discontinuity boundary/boundaries before frame(s) ${breaks.join(", ")}. `
+          + "VRM playback holds the last source frame and never interpolates or smooths across a boundary.",
+        );
+      }
     }
   }
 
@@ -661,9 +671,12 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       textureCreateCount: state.textureCreateCount,
       anchorModes: [...new Set(state.markerSpecs.map((spec) => spec.anchorMode).filter(Boolean))],
       hasVrmHumanoid: Boolean(state.vrm?.humanoid),
+      normalizedPoseAxisMode: "three-vrm-portable",
+      restFrameCorrectionCount: 0,
       hasStaticGlbFallback: Boolean(state.staticScene),
       frame: state.frame,
       viewBounds: state.viewBounds,
+      continuityBreakFrames: continuityBreakFrames(state.payload, state.motion?.frame_count),
     };
   }
 
@@ -675,6 +688,8 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       diagnostics.textureCreateCount,
       diagnostics.anchorModes.join(","),
       diagnostics.hasVrmHumanoid,
+      diagnostics.normalizedPoseAxisMode,
+      diagnostics.restFrameCorrectionCount,
     ].join("|");
     if (signature === state.diagnosticsSignature) return;
     state.diagnosticsSignature = signature;
@@ -683,6 +698,8 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     canvas.dataset.textureCreateCount = String(diagnostics.textureCreateCount);
     canvas.dataset.anchorModes = diagnostics.anchorModes.join(",");
     canvas.dataset.hasVrmHumanoid = String(diagnostics.hasVrmHumanoid);
+    canvas.dataset.normalizedPoseAxisMode = diagnostics.normalizedPoseAxisMode;
+    canvas.dataset.restFrameCorrectionCount = String(diagnostics.restFrameCorrectionCount);
   }
 
   function setTheme(theme) {

@@ -43,27 +43,28 @@ page.on("pageerror", (error) => consoleErrors.push(error.message));
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle", timeout: 30_000 });
-  await page.selectOption("#dataSourceSelect", dataSource);
-  await page.selectOption("#datasetSelect", dataset);
-  await page.fill("#queryInput", sampleId);
-  await page.click("#searchButton");
-
-  const sample = page.locator(".sample-item").filter({ hasText: sampleId }).first();
-  await sample.waitFor({ state: "visible", timeout: 30_000 });
-  await sample.click();
   await page.waitForFunction(
-    (expected) => document.querySelector("#sampleTitle")?.textContent === expected,
-    sampleId,
-  );
-  await page.waitForFunction(
-    () => {
-      const raw = document.querySelector("#rawMeta")?.textContent || "";
-      const processed = document.querySelector("#processedMeta")?.textContent || "";
-      return raw.startsWith("Frames:") && processed.startsWith("Frames:");
-    },
-    null,
+    () => typeof window.__vireaShowcase?.loadSample === "function",
     { timeout: 30_000 },
   );
+  const sampleFacts = await page.evaluate(async ({ dataSource, dataset, sampleId }) => {
+    const params = new URLSearchParams({ data_source: dataSource, dataset, q: sampleId, limit: "80" });
+    const response = await fetch(`/api/samples?${params}`);
+    if (!response.ok) throw new Error(`sample catalog failed: HTTP ${response.status}`);
+    const payload = await response.json();
+    return payload.items?.find((item) => item.sample_id === sampleId) || null;
+  }, { dataSource, dataset, sampleId });
+  const previewFps = Number(sampleFacts?.fps || sampleFacts?.preview_fps_fallback);
+  if (!Number.isFinite(previewFps) || previewFps <= 0) {
+    throw new Error(`sample catalog has no native/profile FPS for ${sampleId}`);
+  }
+  const previewReady = await page.evaluate(
+    (payload) => window.__vireaShowcase.loadSample(payload),
+    { dataSource, dataset, sampleId, maxFrames: Math.ceil(15 * previewFps) },
+  );
+  if (previewReady?.sampleId !== sampleId || Number(previewReady?.frames) < 1) {
+    throw new Error(`preview did not reach structured ready state: ${JSON.stringify(previewReady)}`);
+  }
   const loadedSampleId = await page.textContent("#sampleTitle");
   if (loadedSampleId !== sampleId) {
     throw new Error(`stale sample response selected ${loadedSampleId}; expected ${sampleId}`);
@@ -76,7 +77,7 @@ try {
     { timeout: 30_000 },
   );
   await page.waitForFunction(
-    () => (document.querySelector("#modelCanvas")?.dataset.anchorModes || "").includes("humanoid"),
+    () => document.querySelector("#modelCanvas")?.dataset.hasVrmHumanoid === "true",
     null,
     { timeout: 15_000 },
   );
@@ -86,6 +87,9 @@ try {
     visibleMarkerCount: Number(canvas.dataset.visibleMarkerCount || 0),
     textureCreateCount: Number(canvas.dataset.textureCreateCount || 0),
     anchorModes: canvas.dataset.anchorModes || "",
+    hasVrmHumanoid: canvas.dataset.hasVrmHumanoid === "true",
+    normalizedPoseAxisMode: canvas.dataset.normalizedPoseAxisMode || "",
+    restFrameCorrectionCount: Number(canvas.dataset.restFrameCorrectionCount || 0),
   }));
   const realDesktopScreenshot = `${outputPrefix}-real-desktop.png`;
   await page.locator(".model-panel").screenshot({ path: realDesktopScreenshot });
@@ -276,7 +280,10 @@ try {
   console.log(JSON.stringify(result, null, 2));
 
   const failed = [
-    !diagnosticsAfter.anchorModes.includes("humanoid"),
+    !realDiagnostics.hasVrmHumanoid,
+    realDiagnostics.normalizedPoseAxisMode !== "three-vrm-portable",
+    realDiagnostics.restFrameCorrectionCount !== 0,
+    stressAnnotationCount > 0 && !diagnosticsAfter.anchorModes.includes("humanoid"),
     stressAnnotationCount > 0 && stressFixture.activeCount < stressAnnotationCount,
     stressAnnotationCount > 0 && diagnosticsBefore.markerPoolSize > 10,
     diagnosticsAfter.markerPoolSize !== diagnosticsBefore.markerPoolSize,
