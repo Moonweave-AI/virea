@@ -22,6 +22,20 @@ import {
   sequenceText,
   timeLabel,
 } from "./annotations.js";
+import {
+  correctedFrameLimitForActualFps,
+  explicitFrameLimit,
+  maxFramesForPreviewSeconds,
+  persistedArtifactFrameLimit,
+  previewCoverage,
+} from "./preview-time.js";
+import {
+  clampFrameInsideContinuitySegment,
+  continuityMarkers,
+  continuityReport,
+  resumeFrameAfterContinuityStop,
+  segmentForFrame,
+} from "./motion-continuity.js";
 
 const state = {
   dataSources: {},
@@ -39,6 +53,7 @@ const state = {
   playbackStartMs: 0,
   playbackStartTimeSec: 0,
   playbackNextRenderMs: Number.NEGATIVE_INFINITY,
+  continuityResumeFrame: null,
   showHands: false,
   showTrails: true,
   viewYaw: 0,
@@ -190,13 +205,31 @@ function renderQualityPanel(quality) {
 function metaSummary(payload) {
   if (!payload) return "";
   const q = payload.quality;
+  const coverage = previewCoverage(payload);
+  const timeLines = [
+    `Duration: ${coverage.durationSec.toFixed(3)} s (${coverage.frameCount} frames @ ${coverage.fps ?? "unknown"} FPS)`,
+  ];
+  if (coverage.truncated) {
+    timeLines.push(
+      `Preview crop: ${(coverage.coverageRatio * 100).toFixed(1)}% of ${coverage.originalDurationSec.toFixed(3)} s (${coverage.originalFrameCount ?? "?"} source frames)`,
+    );
+  } else if (coverage.coverageKnown) {
+    timeLines.push("Preview coverage: complete clip");
+  } else {
+    timeLines.push("Preview coverage: no crop recorded; original source length unavailable");
+  }
   if (q && (q.per_joint_errors || q.retarget_error || q.ground_contact)) {
-    return formatErrorTable(q);
+    return `${timeLines.join("\n")}\n${formatErrorTable(q)}`;
   }
   return JSON.stringify(
     {
       fps: payload.fps,
       frames: payload.frame_count,
+      duration_sec: coverage.durationSec,
+      preview_coverage: coverage.truncated
+        ? coverage.coverageRatio
+        : (coverage.coverageKnown ? "complete" : "source_length_unavailable"),
+      original_duration_sec: coverage.truncated ? coverage.originalDurationSec : undefined,
       joints: payload.skeleton?.joint_names?.length,
       quality: q,
     },
@@ -425,16 +458,19 @@ function attachFilterControls(container) {
 function renderTimelineInto(element, annotations) {
   if (!element) return;
   const duration = playbackDuration();
-  if (!annotations.length || !duration) {
+  const markers = continuityMarkers(state.processed, playbackFrameCount());
+  if ((!annotations.length && !markers.length) || !duration) {
     element.innerHTML = '<span class="annotation-empty">No annotation timeline is available.</span>';
     return;
   }
   const rows = buildTimelineRows(annotations, 8);
-  const signature = `${rows.map((row) => `${row.key}:${row.annotations.map((item) => item.id).join(",")}`).join("|")}:${duration}`;
+  const signature = `${rows.map((row) => `${row.key}:${row.annotations.map((item) => item.id).join(",")}`).join("|")}:${duration}:breaks=${markers.map((marker) => marker.frame).join(",")}`;
   if (element.dataset.signature !== signature) {
     element.dataset.signature = signature;
     element.innerHTML = `
       <div class="annotation-dom-cursor" data-annotation-cursor></div>
+      ${markers.map((marker) => `<button type="button" class="continuity-break-marker" data-continuity-jump="${marker.frame}" title="${escapeHtml(marker.label)}" aria-label="${escapeHtml(marker.label)}" style="left:calc(102px + (100% - 110px) * ${marker.ratio})"></button>`).join("")}
+      ${!rows.length ? '<div class="annotation-timeline-row"><strong>Continuity</strong><div class="annotation-timeline-track"></div></div>' : ""}
       ${rows.map((row) => `
         <div class="annotation-timeline-row">
           <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong>
@@ -453,7 +489,16 @@ function renderTimelineInto(element, annotations) {
     for (const button of element.querySelectorAll("[data-annotation-jump]")) {
       button.addEventListener("click", () => {
         stopPlayback();
+        state.continuityResumeFrame = null;
         state.frame = Math.max(0, Math.min(Number(button.dataset.annotationJump) || 0, Math.max(0, playbackFrameCount() - 1)));
+        renderPreview();
+      });
+    }
+    for (const button of element.querySelectorAll("[data-continuity-jump]")) {
+      button.addEventListener("click", () => {
+        stopPlayback();
+        state.continuityResumeFrame = null;
+        state.frame = Math.max(0, Math.min(Number(button.dataset.continuityJump) || 0, Math.max(0, playbackFrameCount() - 1)));
         renderPreview();
       });
     }
@@ -1191,26 +1236,33 @@ function renderPreview() {
   }
   vrmViewer?.setFrame?.(state.frame);
   renderQualityPanel(state.processed?.quality);
+  renderContinuityWarning();
   renderAnnotationPanels();
   renderModelAnnotationOverlay();
 }
 
-function previewParams(sample, fromArtifacts = true) {
+function previewParams(sample, fromArtifacts = true, maxFrames = null) {
   const params = new URLSearchParams({
     data_source: $("dataSourceSelect").value,
     dataset: $("datasetSelect").value,
     sample_id: sample.sample_id,
     from_artifacts: fromArtifacts ? "true" : "false",
   });
-  const maxFrames = $("maxFramesInput").value.trim();
-  if (maxFrames) params.set("max_frames", maxFrames);
+  if (maxFrames !== null) params.set("max_frames", String(maxFrames));
   return params;
 }
 
-async function loadPreview(sample, persist = false, requestId = ++state.previewRequest) {
+async function loadPreview(
+  sample,
+  persist = false,
+  requestId = ++state.previewRequest,
+  maxFramesOverride = null,
+) {
   const sampleId = sample.sample_id;
+  const explicitLimit = explicitFrameLimit(maxFramesOverride);
+  const previewSeconds = $("previewSecondsInput").value;
+  let maxFrames = explicitLimit ?? maxFramesForPreviewSeconds(previewSeconds, sample);
   if (persist) {
-    const maxFrames = $("maxFramesInput").value.trim();
     await api("/api/process", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1218,18 +1270,35 @@ async function loadPreview(sample, persist = false, requestId = ++state.previewR
         data_source: $("dataSourceSelect").value,
         dataset: $("datasetSelect").value,
         sample_id: sample.sample_id,
-        max_frames: maxFrames ? Number(maxFrames) : null,
+        // A formal persisted artifact must represent the complete source.  The
+        // 15-second viewer crop is an in-memory transport/performance policy.
+        max_frames: persistedArtifactFrameLimit(),
         persist: true,
         skip_existing: false,
       }),
     });
   }
 
-  const params = previewParams(sample, true);
-  const [raw, processed] = await Promise.all([
+  let params = previewParams(sample, true, maxFrames);
+  let [raw, processed] = await Promise.all([
     api(`/api/preview/source?${params.toString()}`),
     api(`/api/preview/processed?${params.toString()}`),
   ]);
+  if (explicitLimit === null && maxFrames !== null) {
+    const correctedMaxFrames = correctedFrameLimitForActualFps(
+      previewSeconds,
+      maxFrames,
+      processed || raw,
+    );
+    if (correctedMaxFrames !== null && correctedMaxFrames !== maxFrames) {
+      maxFrames = correctedMaxFrames;
+      params = previewParams(sample, true, maxFrames);
+      [raw, processed] = await Promise.all([
+        api(`/api/preview/source?${params.toString()}`),
+        api(`/api/preview/processed?${params.toString()}`),
+      ]);
+    }
+  }
   let motionPayload = processed;
   if (!processed?.motion) {
     try {
@@ -1249,6 +1318,7 @@ async function loadPreview(sample, persist = false, requestId = ++state.previewR
   state.channels = mergeChannels(normalizeChannels(processed || {}), normalizeChannels(raw || {}));
   state.annotationRevision += 1;
   state.frame = 0;
+  state.continuityResumeFrame = null;
   if (motionPayload?.motion) {
     vrmViewer?.setMotionPayload?.(motionPayload);
   } else {
@@ -1329,21 +1399,62 @@ function playbackFps() {
   return candidates[0] || 30;
 }
 
+function renderContinuityWarning() {
+  const report = continuityReport(state.processed);
+  const markers = continuityMarkers(report, playbackFrameCount());
+  const visible = report?.status === "discontinuous" && markers.length > 0;
+  const message = visible
+    ? `Motion discontinuity: ${markers.length} break(s) before frame(s) ${markers.map((marker) => marker.frame).join(", ")}. Playback stops at each half-open segment boundary; no position or rotation interpolation and no smoothing crosses a break.`
+    : "";
+  for (const id of ["continuityWarning", "modelContinuityWarning"]) {
+    const element = $(id);
+    if (!element) continue;
+    element.hidden = !visible;
+    if (element.textContent !== message) element.textContent = message;
+  }
+}
+
 function startPlayback() {
   if (state.playbackTimer) return;
+  const continuity = continuityReport(state.processed);
+  state.frame = resumeFrameAfterContinuityStop(
+    continuity,
+    playbackFrameCount(),
+    state.continuityResumeFrame,
+    state.frame,
+  );
+  state.continuityResumeFrame = null;
   state.playing = true;
   $("playButton").textContent = "Pause";
   $("modelPlayButton").textContent = "Pause";
   state.playbackStartMs = performance.now();
   state.playbackStartTimeSec = currentTimeSec();
   state.playbackNextRenderMs = Number.NEGATIVE_INFINITY;
+  const segment = continuity?.status === "discontinuous"
+    ? segmentForFrame(continuity, playbackFrameCount(), state.frame)
+    : null;
   const tick = (now) => {
     const duration = playbackDuration();
     const renderIntervalMs = 1000 / MAX_PLAYBACK_RENDER_HZ;
     if (duration > 0 && now >= state.playbackNextRenderMs - 1) {
       const elapsedSec = Math.max(0, (now - state.playbackStartMs) / 1000);
-      const timeSec = (state.playbackStartTimeSec + elapsedSec) % duration;
+      const absoluteTimeSec = state.playbackStartTimeSec + elapsedSec;
+      if (segment && absoluteTimeSec >= segment.end_frame / playbackFps()) {
+        state.frame = Math.max(segment.start_frame, segment.end_frame - 1);
+        state.continuityResumeFrame = segment.end_frame < playbackFrameCount()
+          ? segment.end_frame
+          : null;
+        renderPreview();
+        stopPlayback();
+        return;
+      }
+      const timeSec = segment ? absoluteTimeSec : absoluteTimeSec % duration;
       state.frame = timeSec * playbackFps();
+      state.frame = clampFrameInsideContinuitySegment(
+        continuity,
+        playbackFrameCount(),
+        state.frame,
+      );
       const scheduledNext = Number.isFinite(state.playbackNextRenderMs)
         ? state.playbackNextRenderMs + renderIntervalMs
         : now + renderIntervalMs;
@@ -1476,7 +1587,7 @@ async function init() {
     skeletonObserver.observe($("processedCanvas"));
   }
   window.__vireaShowcase = {
-    async loadSample({ dataSource = "demo", dataset, sampleId, maxFrames = "" }) {
+    async loadSample({ dataSource = "demo", dataset, sampleId, maxFrames = "", previewSeconds = "" }) {
       ++state.sampleListRequest;
       const requestId = ++state.previewRequest;
       stopPlayback();
@@ -1489,13 +1600,13 @@ async function init() {
         replaceOptions($("datasetSelect"), state.datasets.map((item) => ({ value: item.key, label: item.name })));
       }
       if (dataset) $("datasetSelect").value = dataset;
-      $("maxFramesInput").value = maxFrames ? String(maxFrames) : "";
+      $("previewSecondsInput").value = previewSeconds ? String(previewSeconds) : "";
       state.selected = { sample_id: sampleId };
       state.samples = [state.selected];
       $("sampleTitle").textContent = sampleId;
       $("sampleText").textContent = "";
       renderSamples();
-      await loadPreview(state.selected, false, requestId);
+      await loadPreview(state.selected, false, requestId, maxFrames);
       return {
         dataset: $("datasetSelect").value,
         sampleId,
@@ -1546,6 +1657,7 @@ $("queryInput").addEventListener("keydown", (event) => {
 });
 $("frameSlider").addEventListener("input", (event) => {
   stopPlayback();
+  state.continuityResumeFrame = null;
   state.frame = Number(event.target.value);
   renderPreview();
 });
@@ -1553,6 +1665,7 @@ $("playButton").addEventListener("click", togglePlayback);
 $("modelPlayButton").addEventListener("click", togglePlayback);
 $("modelFrameSlider").addEventListener("input", (event) => {
   stopPlayback();
+  state.continuityResumeFrame = null;
   state.frame = Number(event.target.value);
   renderPreview();
 });

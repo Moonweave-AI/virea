@@ -4,8 +4,8 @@
   "type": "module",
   "description": "Viewer runtime dependencies for VIREA.",
   "scripts": {
-    "check": "node --check apps/viewer-web/annotations.js && node --check apps/viewer-web/app.js && node --check apps/viewer-web/vrm-viewer.js && node --check scripts/render_showcase.mjs && node --check scripts/qa_real_vrm.mjs",
-    "test:viewer": "node --test apps/viewer-web/annotations.test.js",
+    "check": "node --check apps/viewer-web/annotations.js && node --check apps/viewer-web/preview-time.js && node --check apps/viewer-web/motion-continuity.js && node --check apps/viewer-web/app.js && node --check apps/viewer-web/vrm-viewer.js && node --check scripts/render_showcase.mjs && node --check scripts/qa_real_vrm.mjs",
+    "test:viewer": "node --test apps/viewer-web/annotations.test.js apps/viewer-web/preview-time.test.js apps/viewer-web/motion-continuity.test.js",
     "qa:vrm": "node scripts/qa_real_vrm.mjs"
   },
   "dependencies": {

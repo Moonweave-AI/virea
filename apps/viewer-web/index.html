@@ -46,9 +46,10 @@
           Search
           <input id="queryInput" placeholder="sample id, text, object..." />
         </label>
-        <label>
-          Max frames
-          <input id="maxFramesInput" type="number" min="1" max="1200" value="180" placeholder="preview limit (default 180)" />
+        <label title="Uses the sample FPS (or its dataset profile fallback). Leave blank to load the complete clip.">
+          Preview seconds
+          <input id="previewSecondsInput" type="number" min="0.1" step="0.5" value="15" placeholder="blank = complete clip" aria-describedby="previewSecondsHint" />
+          <small id="previewSecondsHint" class="control-hint">15 s viewer crop; blank loads the complete clip</small>
         </label>
         <label class="toggle">
           <span>Show trails</span>
@@ -81,6 +82,7 @@
               <label for="frameSlider">Frame <span id="frameLabel">0</span></label>
               <input id="frameSlider" type="range" min="0" max="0" value="0" />
               <button id="playButton" type="button">Play</button>
+              <div id="continuityWarning" class="continuity-warning" role="status" hidden></div>
             </div>
           </div>
 
@@ -188,6 +190,7 @@
           <label for="modelFrameSlider">VRM Frame <span id="modelFrameLabel">0</span></label>
           <input id="modelFrameSlider" type="range" min="0" max="0" value="0" />
           <button id="modelPlayButton" type="button">Play</button>
+          <div id="modelContinuityWarning" class="continuity-warning" role="status" hidden></div>
         </div>
         <section class="annotation-panel model-annotation-panel" id="modelAnnotationPanel" style="display:none">
           <div class="annotation-sequence">

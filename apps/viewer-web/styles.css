@@ -161,6 +161,15 @@ label {
   letter-spacing: 0.08em;
 }
 
+.control-hint {
+  min-height: 2.4em;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 select,
 input {
   width: 100%;
@@ -285,6 +294,21 @@ h2 {
   display: grid;
   align-content: center;
   gap: 10px;
+}
+
+.continuity-warning {
+  max-width: 620px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, #c84630, transparent 35%);
+  border-radius: 8px;
+  color: #a92f20;
+  background: color-mix(in srgb, #c84630, transparent 90%);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.continuity-warning[hidden] {
+  display: none;
 }
 
 .annotation-panel {
@@ -567,6 +591,28 @@ h2 {
   width: 2px;
   pointer-events: none;
   background: var(--accent-dark);
+}
+
+.continuity-break-marker {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 4;
+  width: 3px;
+  min-width: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: #c84630;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #c84630, transparent 55%);
+  cursor: pointer;
+}
+
+.continuity-break-marker:hover,
+.continuity-break-marker:focus-visible {
+  width: 5px;
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
 }
 
 .annotation-channel-summary {
@@ -966,6 +1012,11 @@ pre {
 
 .model-timeline label {
   align-self: center;
+}
+
+.model-timeline .continuity-warning {
+  grid-column: 1 / -1;
+  max-width: none;
 }
 
 .model-annotation-panel {
