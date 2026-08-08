@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/dataset_profile.schema.json",
+  "title": "VIREA Dataset Profile v1",
+  "type": "object",
+  "required": [
+    "schema_version", "key", "dataset", "source_representation", "joint_system",
+    "rotation_encoding", "rotation_space", "fps_fallback", "fps_fields", "world_basis",
+    "source_up", "source_forward", "handedness", "unit", "unit_scale_to_meter",
+    "validation_status", "root_rotation_semantics", "codec_source_profiles",
+    "rotation_6d_layout", "array_layout", "root_axes",
+    "translation_zeroed", "notes"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.dataset_profile.v1.0.0" },
+    "key": { "type": "string", "minLength": 1 },
+    "dataset": { "type": "string", "minLength": 1 },
+    "source_representation": { "type": "string" },
+    "joint_system": { "type": "string" },
+    "rotation_encoding": { "type": "string" },
+    "rotation_space": { "type": "string" },
+    "fps_fallback": { "type": "number", "exclusiveMinimum": 0 },
+    "fps_fields": { "type": "array", "items": { "type": "string" } },
+    "world_basis": { "type": "string" },
+    "source_up": { "type": "string" },
+    "source_forward": { "type": ["string", "null"] },
+    "handedness": { "enum": ["right", "left"] },
+    "unit": { "type": "string" },
+    "unit_scale_to_meter": { "type": "number", "exclusiveMinimum": 0 },
+    "validation_status": { "enum": ["draft", "source_verified", "regression_verified", "release_ready"] },
+    "root_rotation_semantics": { "enum": ["local_to_world", "world_operator", "not_applicable"] },
+    "codec_source_profiles": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "rotation_6d_layout": { "type": ["string", "null"] },
+    "array_layout": { "type": "object" },
+    "root_axes": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": { "type": "integer", "minimum": 0, "maximum": 2 }
+    },
+    "translation_zeroed": { "type": "boolean" },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

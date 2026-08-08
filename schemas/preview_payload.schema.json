@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/preview_payload.schema.json",
+  "title": "VIREA Preview Payload v1",
+  "type": "object",
+  "required": [
+    "schema_version", "stage", "dataset", "sample_id", "fps", "frame_count",
+    "duration_sec", "skeleton", "frames", "annotations", "channels",
+    "validation_warnings", "metadata", "quality", "files", "sample"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.preview_payload.v1.0.0" },
+    "stage": { "enum": ["raw", "processed"] },
+    "dataset": { "type": "string" },
+    "sample_id": { "type": "string" },
+    "fps": { "type": "number", "exclusiveMinimum": 0 },
+    "frame_count": { "type": "integer", "minimum": 0 },
+    "duration_sec": { "type": ["number", "null"], "minimum": 0 },
+    "skeleton": { "type": "object" },
+    "frames": { "type": "object" },
+    "annotations": {
+      "type": "array",
+      "items": { "$ref": "annotation.schema.json" }
+    },
+    "channels": {
+      "type": "array",
+      "items": { "$ref": "channel.schema.json" }
+    },
+    "validation_warnings": { "type": "array", "items": { "type": "string" } },
+    "metadata": { "type": "object" },
+    "quality": { "type": "object" },
+    "files": { "type": "object" },
+    "sample": {
+      "type": "object",
+      "required": [
+        "dataset", "sample_id", "source_path", "source_format", "codec_key",
+        "fps", "frame_count", "duration_sec", "text", "split", "related_paths", "metadata"
+      ]
+    },
+    "motion": { "type": "object" }
+  },
+  "additionalProperties": true
+}

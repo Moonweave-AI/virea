@@ -6,11 +6,13 @@ import numpy as np
 
 from virea.motion.canonical import CORE_BONES, CORE_INDEX, HAND_BONES, HAND_INDEX, identity_quats, pack_sequence
 from virea.motion.rotation import (
+    matrix_to_quat_xyzw,
     normalize_quat_xyzw,
     quat_apply_xyzw,
     quat_from_two_vectors_xyzw,
     quat_inverse_xyzw,
     quat_multiply_xyzw,
+    quat_to_matrix_xyzw,
 )
 from virea.motion.skeleton import (
     BODY_BONES,
@@ -20,7 +22,6 @@ from virea.motion.skeleton import (
     FK_BONES,
     forward_kinematics,
     forward_kinematics_from_sequence,
-    target_rest_offsets_map,
 )
 
 
@@ -109,9 +110,14 @@ WORLD_BASIS_UP_AXIS = {
 
 
 def _rest_offset(bone_name: str, offsets: dict[str, list[float] | np.ndarray] | None = None) -> np.ndarray:
-    target_offsets = target_rest_offsets_map()
-    source = offsets if offsets is not None else target_offsets
-    return np.asarray(source.get(bone_name, target_offsets.get(bone_name, DEFAULT_REST_OFFSETS.get(bone_name, [0.0, 0.0, 0.0]))), dtype=np.float32)
+    # Canonical retargeting must not depend on whichever VRM files happen to be
+    # installed on the processing machine.  Avatar-specific rest poses are
+    # applied by the viewer; persisted canonical artifacts use this fixed rest.
+    source = offsets if offsets is not None else DEFAULT_REST_OFFSETS
+    return np.asarray(
+        source.get(bone_name, DEFAULT_REST_OFFSETS.get(bone_name, [0.0, 0.0, 0.0])),
+        dtype=np.float32,
+    )
 
 
 def _target_scale_from_rest_offsets(source_rest_offsets: dict[str, list[float] | np.ndarray]) -> float:
@@ -159,38 +165,107 @@ def _broadcast_quat(quat: np.ndarray, frame_count: int) -> np.ndarray:
     return np.broadcast_to(np.asarray(quat, dtype=np.float32).reshape(1, 4), (frame_count, 4)).copy()
 
 
+def _validated_basis_matrix(value: Any) -> tuple[np.ndarray, float]:
+    matrix = np.asarray(value, dtype=np.float32)
+    if matrix.shape != (3, 3):
+        raise ValueError(f"world basis matrix must have shape (3, 3), got {matrix.shape}")
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("world basis matrix must contain only finite values")
+    if not np.allclose(matrix @ matrix.T, np.eye(3, dtype=np.float32), atol=1e-5):
+        raise ValueError("world basis matrix must be orthonormal")
+    determinant = float(np.linalg.det(matrix))
+    if not np.isclose(abs(determinant), 1.0, atol=1e-5):
+        raise ValueError(f"world basis determinant must be +1 or -1, got {determinant}")
+    return matrix, determinant
+
+
+def _basis_payload(matrix: np.ndarray, **metadata: Any) -> dict[str, Any]:
+    checked, determinant = _validated_basis_matrix(matrix)
+    payload: dict[str, Any] = {
+        **metadata,
+        "rotation_matrix": checked,
+        "determinant": determinant,
+        "vector_convention": "column",
+        "mapping_direction": "source_to_canonical",
+    }
+    # A reflection cannot be represented by a quaternion. A world-operator
+    # rotation can still use B R B^-1 in matrix space; a local-to-world root
+    # must fail closed because B R is then itself a reflection.
+    if determinant > 0.0:
+        payload["rotation_xyzw"] = matrix_to_quat_xyzw(checked)
+    return payload
+
+
 def resolve_world_basis(world_basis: str | np.ndarray | dict[str, Any]) -> dict[str, Any]:
     if isinstance(world_basis, str):
         key = world_basis.strip()
         if key not in WORLD_BASIS_MATRICES:
             raise ValueError(f"unsupported world basis: {world_basis}")
-        matrix = WORLD_BASIS_MATRICES[key]
-        return {
-            "rotation_matrix": matrix,
-            "rotation_xyzw": _quat_from_rotation_matrix(matrix),
-            "basis": key,
-            "basis_source": "declared",
-            "detected_up_source_axis": WORLD_BASIS_UP_AXIS.get(key),
-        }
+        return _basis_payload(
+            WORLD_BASIS_MATRICES[key],
+            basis=key,
+            basis_source="declared",
+            detected_up_source_axis=WORLD_BASIS_UP_AXIS.get(key),
+        )
     if isinstance(world_basis, dict):
         if "rotation_matrix" not in world_basis:
             raise ValueError("world basis dict must include rotation_matrix")
-        matrix = np.asarray(world_basis["rotation_matrix"], dtype=np.float32)
-        return {
-            **world_basis,
-            "rotation_matrix": matrix,
-            "rotation_xyzw": np.asarray(world_basis.get("rotation_xyzw", _quat_from_rotation_matrix(matrix)), dtype=np.float32),
-            "basis_source": world_basis.get("basis_source", "declared"),
-        }
-    matrix = np.asarray(world_basis, dtype=np.float32)
-    if matrix.shape != (3, 3):
-        raise ValueError(f"world basis matrix must have shape (3, 3), got {matrix.shape}")
-    return {
-        "rotation_matrix": matrix,
-        "rotation_xyzw": _quat_from_rotation_matrix(matrix),
-        "basis": "custom_matrix",
-        "basis_source": "declared",
-    }
+        metadata = {key: value for key, value in world_basis.items() if key not in {"rotation_matrix", "rotation_xyzw", "determinant"}}
+        metadata.setdefault("basis_source", "declared")
+        return _basis_payload(world_basis["rotation_matrix"], **metadata)
+    return _basis_payload(
+        world_basis,
+        basis="custom_matrix",
+        basis_source="declared",
+    )
+
+
+def conjugate_rotations_by_basis(quaternions_xyzw: np.ndarray, basis_matrix: np.ndarray) -> np.ndarray:
+    """Map world rotations with R_c = B R_s B^-1.
+
+    The matrix form is required for axis permutations/reflections.  Prefixing a
+    basis quaternion would rotate the pose in the old world instead of changing
+    its coordinate representation and caused the historical floor-to-wall bug.
+    """
+
+    basis, _ = _validated_basis_matrix(basis_matrix)
+    source_matrices = quat_to_matrix_xyzw(quaternions_xyzw)
+    canonical_matrices = np.einsum("ij,...jk,lk->...il", basis, source_matrices, basis)
+    return matrix_to_quat_xyzw(canonical_matrices)
+
+
+def map_root_rotations_by_basis(
+    quaternions_xyzw: np.ndarray,
+    basis_matrix: np.ndarray,
+    semantics: str = "local_to_world",
+) -> np.ndarray:
+    """Map a root rotation according to its declared source semantics.
+
+    SMPL-family ``global_orient`` rotates an unchanged body-local template into
+    the dataset world.  For that local-to-world map only the codomain changes,
+    so ``R_c = B R_s``.  A genuine rotation operator whose input and output are
+    both world-coordinate vectors instead uses ``R_c = B R_s B^-1``.
+
+    Keeping these cases explicit prevents the common floor-to-wall regression:
+    conjugating SMPL ``global_orient`` leaves its body-local domain in the wrong
+    basis.  A handedness reflection cannot be represented by the first case as
+    a proper quaternion and must be handled by a representation-specific codec.
+    """
+
+    basis, determinant = _validated_basis_matrix(basis_matrix)
+    source_matrices = quat_to_matrix_xyzw(quaternions_xyzw)
+    if semantics == "local_to_world":
+        if determinant < 0.0:
+            raise ValueError(
+                "local_to_world root rotation cannot use a reflecting basis; "
+                "decode handedness in the source codec first"
+            )
+        canonical_matrices = np.einsum("ij,...jk->...ik", basis, source_matrices)
+    elif semantics == "world_operator":
+        canonical_matrices = np.einsum("ij,...jk,lk->...il", basis, source_matrices, basis)
+    else:
+        raise ValueError(f"unsupported root rotation semantics: {semantics}")
+    return matrix_to_quat_xyzw(canonical_matrices)
 
 
 def retarget_named_quats_to_vrm(
@@ -202,6 +277,7 @@ def retarget_named_quats_to_vrm(
     source_hand_rest_offsets: dict[str, list[float] | np.ndarray] | None = None,
     normalize_world: bool = True,
     world_basis: str | np.ndarray | dict[str, Any] | None = None,
+    root_rotation_semantics: str = "local_to_world",
 ) -> dict[str, Any]:
     frame_count = int(np.asarray(root_translation).shape[0])
     scale = _target_scale_from_rest_offsets(source_body_rest_offsets)
@@ -220,10 +296,13 @@ def retarget_named_quats_to_vrm(
     if normalize_world:
         basis = resolve_world_basis(world_basis) if world_basis is not None else infer_clip_world_basis(source_positions)
         basis_matrix = basis["rotation_matrix"]
-        basis_quat = basis["rotation_xyzw"]
         target_root_translation = rotate_positions_by_matrix(target_root_translation[:, None, :], basis_matrix)[:, 0]
         source_positions = rotate_positions_by_matrix(source_positions, basis_matrix)
-        source_root_rotation = quat_multiply_xyzw(_broadcast_quat(basis_quat, frame_count), source_root_rotation)
+        source_root_rotation = map_root_rotations_by_basis(
+            source_root_rotation,
+            basis_matrix,
+            semantics=root_rotation_semantics,
+        )
 
     body_corrections = _corrections_from_rest_offsets(source_body_rest_offsets, CORE_BONES)
     root_rotation = source_root_rotation.copy()
@@ -274,7 +353,8 @@ def retarget_named_quats_to_vrm(
         "source_positions": source_positions,
         "scale": float(scale),
         "mode": "direct_local_quaternion_retarget",
-        "world_basis": {key: value for key, value in (basis or {}).items() if key not in {"rotation_matrix", "rotation_xyzw"}},
+        "world_basis": _serializable_basis(basis),
+        "root_rotation_semantics": root_rotation_semantics,
     }
 
 
@@ -360,12 +440,26 @@ def infer_clip_world_basis(source_positions: np.ndarray) -> dict[str, Any]:
     if forward_axis is None:
         forward_axis = np.array([0.0, 0.0, 1.0], dtype=np.float64)
     matrix = np.column_stack([left_axis, up_axis, forward_axis]).T.astype(np.float32)
-    return {
-        "rotation_matrix": matrix,
-        "rotation_xyzw": _quat_from_rotation_matrix(matrix),
-        "anchor_frame": anchor_frame,
-        "detected_up_source_axis": f"{'+' if axis_sign >= 0.0 else '-'}{'xyz'[axis_idx]}",
-    }
+    return _basis_payload(
+        matrix,
+        anchor_frame=anchor_frame,
+        detected_up_source_axis=f"{'+' if axis_sign >= 0.0 else '-'}{'xyz'[axis_idx]}",
+        basis_source="inferred",
+    )
+
+
+def _serializable_basis(basis: dict[str, Any] | None) -> dict[str, Any]:
+    if basis is None:
+        return {}
+    output: dict[str, Any] = {}
+    for key, value in basis.items():
+        if isinstance(value, np.ndarray):
+            output[key] = value.astype(np.float64).tolist()
+        elif isinstance(value, np.generic):
+            output[key] = value.item()
+        else:
+            output[key] = value
+    return output
 
 
 def rotate_positions_by_matrix(positions: np.ndarray, rotation_matrix: np.ndarray) -> np.ndarray:
@@ -431,7 +525,7 @@ def fit_positions_to_vrm(
         "source_positions": centered.astype(np.float32),
         "scale": float(scale),
         "mode": "position_fit_to_vrm",
-        "world_basis": {key: value for key, value in (basis or {}).items() if key not in {"rotation_matrix", "rotation_xyzw"}},
+        "world_basis": _serializable_basis(basis),
     }
 
 

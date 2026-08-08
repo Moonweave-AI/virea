@@ -11,6 +11,7 @@ from virea.motion.codecs import default_codecs
 from virea.motion.skeleton import control_rest_alignment_audit, forward_kinematics_from_sequence
 from virea.pipelines.processed_preview import ProcessedPreviewPipeline
 from virea.pipelines.raw_preview import RawPreviewPipeline
+from virea.reporting import portable_path_reference, sanitize_report_paths
 
 MM_THRESHOLD = 0.001
 MDEG_THRESHOLD = 0.01
@@ -81,10 +82,14 @@ def verify_dataset(data_source: str, dataset: str, max_frames: int = 120, persis
 
     persist_report: dict[str, Any] = {"applicable": False}
     if persist and processed_payload.files:
-        canonical_path = Path(str(processed_payload.files["canonical_motion"]))
-        saved = np.load(canonical_path, allow_pickle=True)
-        saved_positions = np.asarray(saved["positions"], dtype=np.float32)
-        saved_sequence = np.asarray(saved["sequence"], dtype=np.float32)
+        processed_root = registry.paths.processed_root.resolve()
+        canonical_reference = str(processed_payload.files["canonical_motion"])
+        canonical_path = Path(canonical_reference)
+        if not canonical_path.is_absolute():
+            canonical_path = processed_root / canonical_path
+        with np.load(canonical_path, allow_pickle=False) as saved:
+            saved_positions = np.asarray(saved["positions"], dtype=np.float32)
+            saved_sequence = np.asarray(saved["sequence"], dtype=np.float32)
         saved_fk_positions = forward_kinematics_from_sequence(saved_sequence)
         pos_error = position_error_mm(saved_positions, result.positions)
         fk_error = position_error_mm(saved_fk_positions, saved_positions)
@@ -92,7 +97,8 @@ def verify_dataset(data_source: str, dataset: str, max_frames: int = 120, persis
         quat_error = quat_error_mdeg(saved_sequence[:, 3:].reshape(saved_sequence.shape[0], -1, 4), result.sequence[:, 3:].reshape(result.sequence.shape[0], -1, 4))
         persist_report = {
             "applicable": True,
-            "canonical_path": str(canonical_path),
+            "canonical_path": portable_path_reference(canonical_path, base=processed_root),
+            "canonical_path_base": "processed_root",
             "max_saved_position_error_mm": pos_error,
             "max_saved_fk_reconstruction_error_mm": fk_error,
             "max_saved_root_translation_error_mm": trans_error,
@@ -105,6 +111,7 @@ def verify_dataset(data_source: str, dataset: str, max_frames: int = 120, persis
     rotation_report = _mapped_rotation_error(clip, result.sequence)
     position_report = _common_position_report(raw_payload, processed_payload)
     exact_pass = bool(persist_report.get("passed", True)) and bool(rotation_report.get("passed", True))
+    processed_root = registry.paths.processed_root.resolve()
     return {
         "data_source": data_source,
         "dataset": dataset,
@@ -118,14 +125,15 @@ def verify_dataset(data_source: str, dataset: str, max_frames: int = 120, persis
         },
         "retarget_delta_report": position_report,
         "quality": processed_payload.quality,
-        "files": processed_payload.files,
+        "files_path_base": "processed_root",
+        "files": sanitize_report_paths(processed_payload.files, relative_base=processed_root),
     }
 
 
 def verify_all(data_source: str, max_frames: int = 120, persist: bool = True) -> dict[str, Any]:
     registry = DatasetRegistry.default(data_source=data_source)
     reports = [verify_dataset(data_source, dataset, max_frames=max_frames, persist=persist) for dataset in registry.keys()]
-    rest_audit = control_rest_alignment_audit()
+    rest_audit = sanitize_report_paths(control_rest_alignment_audit())
     return {
         "schema_version": "virea.verification_report.v0.1.0",
         "data_source": data_source,
@@ -143,5 +151,6 @@ def verify_all(data_source: str, max_frames: int = 120, persist: bool = True) ->
 def write_verification_report(report: dict[str, Any], path: str | Path) -> Path:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    portable_report = sanitize_report_paths(report)
+    output.write_text(json.dumps(portable_report, ensure_ascii=False, indent=2), encoding="utf-8")
     return output

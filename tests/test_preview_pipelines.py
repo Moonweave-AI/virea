@@ -9,7 +9,9 @@ from virea.pipelines.raw_preview import RawPreviewPipeline
 
 
 @pytest.mark.parametrize("dataset", ["amass", "babel", "beat", "grab", "humanml3d", "motionx", "susuinteracts"])
-def test_first_sample_has_raw_and_processed_preview(dataset: str) -> None:
+def test_first_sample_has_raw_and_processed_preview(dataset: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    if dataset in {"grab", "susuinteracts"}:
+        monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     registry = DatasetRegistry.default()
     adapter = registry.adapter(dataset)
     if not adapter.exists():
@@ -31,3 +33,10 @@ def test_first_sample_has_raw_and_processed_preview(dataset: str) -> None:
     assert processed.positions.shape[0] <= 8
     assert raw.quality["status"] == "passed"
     assert processed.quality["status"] == "passed"
+    assert raw.annotations == processed.annotations
+    assert raw.channels == processed.channels
+    assert len({item["id"] for item in raw.annotations}) == len(raw.annotations)
+    assert all(item["schema_version"] == "virea.annotation.v1.0.0" for item in raw.annotations)
+    assert all(item["provenance"] in {"native", "derived", "fallback"} for item in raw.annotations)
+    assert all(item["schema_version"] == "virea.channel.v1.0.0" for item in raw.channels)
+    assert raw.sample.duration_sec == pytest.approx(raw.positions.shape[0] / raw.fps)

@@ -130,7 +130,7 @@ datasets:
       - susu_retarget_maya_6d_body_hands_m_npy
       - susu_chonglu_6d_body_hands_cm_positions_npy
       - arkit_51_face_npy
-      - wav_16khz
+      - wav_24khz_observed
       - chinese_dialogue_text
     modalities:
       body: true

@@ -1,264 +1,334 @@
-# Retarget 数学原理索引
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: VIREA v1 的统一坐标、时间、quaternion、FK、211 维和两条 Retarget 数学路径。
+canonical: doc/math-retarget/README.zh-CN.md
+related:
+  - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+  - ../engineering-design.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-本目录把 VIREA 当前代码中的 retarget pipeline 转写为数学公式。它不是重新设计，也不是理想化动画系统说明；所有推导都以本仓库实现为边界，尤其对应这些文件：
+# Retarget 数学共同层
 
-- `rotation.py`: 四元数、axis-angle、6D rotation、matrix-to-quat。
-- `canonical.py`: canonical sequence 的打包和解包。
-- `skeleton.py`: canonical parent map、rest offsets、forward kinematics。
-- `retarget.py`: world basis、scale、rest correction、direct quaternion retarget、position fitting。
-- `codecs.py`: 各源骨骼系统到两条 retarget 路径的接线逻辑。
+本目录解释当前 v1 契约的数学，并要求每条公式可追溯到当前分支函数、数组切片和 metadata。它不是论文式愿景：如果实现尚未满足公式，验证状态必须是未通过，而不是改文档迎合错误行为。
 
-## 统一符号
+## 1. 空间、索引与符号
 
-帧数记为 $T$，帧索引记为 $t$，其中 $0\le t<T$。VIREA 的目标骨骼不是 SMPL 参数体，而是面向 VRM/glTF humanoid 的 canonical skeleton。完整骨骼集合写作：
+全部三维向量使用列向量。先定义空间：
 
-$$
-F=\{\mathrm{hips}\}\cup C\cup H
-$$
+| 符号 | 维度 | 空间与单位 | 含义 |
+|---|---:|---|---|
+| $T$ | scalar | 无单位 | clip 帧数 |
+| $t$ | scalar | frame index | 帧索引，满足 $0\leq t<T$ |
+| $j$ | scalar/name | source 或 canonical skeleton | 当前 joint/bone |
+| $\pi(j)$ | scalar/name | 同一 skeleton | joint $j$ 的父节点 |
+| $\chi(j)$ | scalar/name | 同一 skeleton | 用于方向拟合的 primary child |
+| $p_{t,j}^{S}$ | 3 | source world，source unit | source joint position |
+| $p_{t,j}^{C}$ | 3 | canonical glTF world，meter | basis 与 unit 后的位置 |
+| $r_{t}^{S}$ | 3 | source world，source unit | source root translation |
+| $r_{t}^{T}$ | 3 | canonical target world，meter | target root translation |
+| $R_{t,j}^{S}$ | 3 x 3 | source parent-local，$j>0$ | source 非 root joint rotation matrix |
+| $R_{t,0}^{S}$ | 3 x 3 | 由 profile 声明 | source root rotation matrix；语义不能由字段名猜测 |
+| $R_{t,j}^{T}$ | 3 x 3 | target parent-local | target joint rotation matrix |
+| $q_{t,j}^{T}$ | 4 | target parent-local | 与 $R_{t,j}^{T}$ 等价的 `xyzw` quaternion |
+| $Q_{t,j}^{T}$ | 4 | target world | target FK 累积后的 world quaternion |
+| $o_{j}^{S}$ | 3 | source parent-local，meter | source rest offset |
+| $o_{j}^{T}$ | 3 | target parent-local，meter | canonical target rest offset |
+| $B$ | 3 x 3 | source world 到 canonical world | 正交 basis matrix |
+| $s$ | scalar | meter / source unit | source unit 到 meter 的比例 |
+| $\lambda$ | scalar | 无单位 | source skeleton 到 target rest scale 的比例 |
 
-这里 $F$ 是 forward kinematics 会输出的位置集合，$\mathrm{hips}$ 是根节点，$C$ 是 body/core bones，$H$ 是 hand bones。数量为：
+上标 $S$ 表示 source，上标 $C$ 表示 canonical world，上标 $T$ 表示 target skeleton。小写 $q$ 是 parent-local quaternion，大写 $Q$ 是 FK 累积后的 world quaternion。
 
-$$
-N_{C}=21,\qquad N_{H}=30,\qquad N_{F}=1+N_{C}+N_{H}=52
-$$
+Canonical world 遵循 glTF：右手系、`+Y` up、meter。Dataset Profile 必须声明 source axes、handedness、unit 和 $B$，不能从动作姿态“猜到看起来直立”后当作真值。
 
-常用索引和结构记号如下。
+## 2. Quaternion 约定
 
-| 符号 | 含义 |
-|---|---|
-| $j$ | 任意 body/core bone 名，通常满足 $j\in C$。 |
-| $k$ | 任意 hand bone 名，通常满足 $k\in H$。 |
-| $\pi(j)$ | bone $j$ 的父节点，对应代码里的 parent map。 |
-| $\chi(j)$ | bone $j$ 的 primary child，用来估计该骨骼的主要朝向。 |
-| $o_{j}^{T}$ | target/VRM rest offset，即目标骨架中 bone $j$ 相对父节点的静态偏移。 |
-| $o_{j}^{\mathrm{src}}$ | source rest offset，即源骨架中 bone $j$ 相对父节点的静态偏移。 |
-| $B$ | source world basis 到 VRM/glTF world basis 的旋转矩阵。 |
-| $\lambda$ | 源骨架尺度到目标 VRM 尺度的比例。 |
-| $R(q)$ | 四元数 $q$ 对应的 $3\times3$ 旋转矩阵。 |
-| $Rot(a\to b)$ | 把方向 $a$ 旋到方向 $b$ 的单位四元数，对应 `quat_from_two_vectors_xyzw()`。 |
-| $\widehat{q}$ | 四元数归一化结果，对应 `normalize_quat_xyzw()`。 |
-
-每一帧 canonical motion 都被打包成一个 $211$ 维向量：
-
-$$
-s_{t}=
-\left[
-r_{t},\ q_{t}^{\mathrm{root}},\ \{q_{t}^{j}\}_{j\in C},\ \{q_{t}^{k}\}_{k\in H}
-\right]\in\mathbb{R}^{211}
-$$
-
-这个公式的含义是：
-
-- $r_{t}\in\mathbb{R}^{3}$ 是第 $t$ 帧 root translation，也就是 $\mathrm{hips}$ 的位置。
-- $q_{t}^{\mathrm{root}}\in\mathbb{R}^{4}$ 是 root rotation。
-- $q_{t}^{j}$ 是 body/core bone $j$ 的父节点局部旋转。
-- $q_{t}^{k}$ 是 hand bone $k$ 的父节点局部旋转。
-- 维度来源是 $3+4+4N_{C}+4N_{H}=3+4+84+120=211$。
-
-所有四元数都使用 glTF/three.js/VIREA 一致的 `xyzw` 顺序：
+四元数顺序固定为：
 
 $$
-q=[x,y,z,w]
+q=[x,y,z,w].
 $$
 
-## 前向运动学
-
-给定一帧 $s_{t}$ 和一套 rest offsets，forward kinematics 输出每个骨骼的 world position $P_{t}(j)$ 和 world rotation $Q_{t}(j)$。根节点先定义为：
+其中前三项是向量部，$w$ 是标量部。写入 canonical 前先归一化：
 
 $$
-P_{t}(\mathrm{hips})=r_{t}
+\widehat{q}=\frac{q}{\max(\lVert q\rVert_2,\epsilon)}.
+$$
+
+$\epsilon$ 是防止除零的小正数。零长度 quaternion 是 validation error，不能用 identity 静默替换。由于 $q$ 和 $-q$ 表示同一旋转，相邻帧若点积小于零，则翻转当前帧符号：
+
+$$
+q_t\leftarrow -q_t \quad\text{if}\quad q_{t-1}^{\mathsf T}q_t<0.
+$$
+
+这样做不改变旋转，却让插值走同一半球并避免视觉跳变。
+
+设 $q_1=[x_1,y_1,z_1,w_1]$ 与 $q_2=[x_2,y_2,z_2,w_2]$，Hamilton 乘积的向量部 $v$ 和标量部 $u$ 为：
+
+$$
+v=w_1[x_2,y_2,z_2]+w_2[x_1,y_1,z_1]+[x_1,y_1,z_1]\times[x_2,y_2,z_2],
 $$
 
 $$
-Q_{t}(\mathrm{hips})=q_{t}^{\mathrm{root}}
+u=w_1w_2-[x_1,y_1,z_1]^{\mathsf T}[x_2,y_2,z_2].
 $$
 
-其中 $P_{t}(\mathrm{hips})$ 是 root 的世界位置，$Q_{t}(\mathrm{hips})$ 是 root 的世界旋转。对任意非 root 骨骼 $j$，代码按父节点递推：
+结果是 $[v_x,v_y,v_z,u]$。乘法顺序表示先应用右侧旋转，再应用左侧旋转；后面的 rest correction 和 FK 都依赖这一顺序。
+
+单位 quaternion 的逆为：
 
 $$
-P_{t}(j)=P_{t}(\pi(j))+R(Q_{t}(\pi(j)))o_{j}
+q^{-1}=[-x,-y,-z,w].
+$$
+
+## 3. Axis-angle 与 6D decode
+
+给定 axis-angle 向量 $a\in\mathbb R^3$，角度与单位轴分别为：
+
+$$
+\theta=\lVert a\rVert_2,\qquad u=\frac{a}{\max(\theta,\epsilon)}.
+$$
+
+对应 quaternion 是：
+
+$$
+q(a)=\left[u\sin\frac{\theta}{2},\cos\frac{\theta}{2}\right].
+$$
+
+$\theta$ 接近零时输出 identity。这个公式用于 AMASS/BABEL/BEAT/GRAB/Motion-X 的 local axis-angle blocks。
+
+给定 6D 向量 $d=[a_1,a_2]$，其中 $a_1,a_2\in\mathbb R^3$ 是候选的前两列，Zhou 等人的 Gram–Schmidt 重建为：
+
+$$
+b_1=\frac{a_1}{\lVert a_1\rVert_2},
 $$
 
 $$
-Q_{t}(j)=Q_{t}(\pi(j))q_{t}^{j}
+u_2=a_2-(b_1^{\mathsf T}a_2)b_1,
 $$
 
-这里 $o_{j}$ 是当前 FK 使用的 rest offset。如果在 VRM target 上做 FK，则 $o_{j}=o_{j}^{T}$；如果在 source preview 上做 FK，则 $o_{j}=o_{j}^{\mathrm{src}}$。第一条公式表示“父节点位置加上被父节点世界旋转带动后的骨骼静态偏移”；第二条公式表示“子节点世界旋转等于父节点世界旋转乘以子节点局部旋转”。
-
-## 两条核心 retarget 路径
-
-VIREA 当前代码最终只走两类输出路径：一种是直接把源局部四元数修正到 VRM 局部四元数，另一种是先有 body positions，再从 positions 拟合出 VRM 局部四元数。
-
-### 1. Direct Local Quaternion Retarget
-
-这条路径用于 SMPL-H/AMASS/BABEL、BVH-derived BEAT、SMPL-X/GRAB/Motion-X。输入已经是 parent-local pose，或被当前代码当作 parent-local pose：
-
 $$
-\left(r_{t}^{\mathrm{src}},q_{t}^{\mathrm{root,src}},\{q_{t}^{j,\mathrm{src}}\}_{j\in C}\right)
+b_2=\frac{u_2}{\lVert u_2\rVert_2},\qquad b_3=b_1\times b_2,
 $$
 
-其中 $r_{t}^{\mathrm{src}}$ 是源 root translation，$q_{t}^{\mathrm{root,src}}$ 是源 root rotation，$q_{t}^{j,\mathrm{src}}$ 是源骨骼 $j$ 的父节点局部旋转。SMPL-X 还会额外传入 hand quaternions；SMPL-H、BABEL、BEAT 当前主路径没有 hand 输入，hand 输出会保持单位四元数。
-
-核心函数是：
-
 $$
-retargetNamedQuatsToVrm
+R(d)=[b_1\ b_2\ b_3].
 $$
 
-第一步是 root translation 的尺度变换、首帧归零和 world basis 变换：
+把 $b_1,b_2,b_3$ 放成列，是因为 6D 定义保留 rotation matrix 的前两列。$a_1$ 或 $u_2$ 退化时必须 validation error。SuSu 官方 profile 使用 columns/local；旧 rows/global 不能与此公式混用。
+
+## 4. World basis 与单位
+
+设 $p_0^{S}$ 是 source clip 的 world origin，通常取首帧 hips。Position 的唯一变换是：
 
 $$
-r_{t}^{\mathrm{vrm}}=B\left(\lambda r_{t}^{\mathrm{src}}-\lambda r_{0}^{\mathrm{src}}\right)
+p_{t,j}^{C}=sB(p_{t,j}^{S}-p_0^{S}).
 $$
 
-这里 $\lambda$ 把 source skeleton 的长度尺度对齐到 target VRM skeleton，$r_{0}^{\mathrm{src}}$ 是第 $0$ 帧 root translation。减去首帧后，输出动作从原点附近开始；左乘 $B$ 则把 source world coordinate 转成 VRM/glTF coordinate。
+原因依次是：减去 $p_0^{S}$ 保留相对运动；$s$ 把 source unit 转成 meter；$B$ 只改变 world coordinate 表达。实现固定先 unit、再 origin、最后 basis，数学上与上式等价。
 
-第二步是 root rotation 的 basis 变换：
-
-$$
-q_{t}^{\mathrm{root,basis}}=q(B)q_{t}^{\mathrm{root,src}}
-$$
-
-这里 $q(B)$ 是矩阵 $B$ 对应的四元数。只有 root world rotation 需要被 world basis 直接左乘；body 局部四元数仍留在 parent-local 空间中，后面通过 rest correction 修正。
-
-第三步是 target/source rest pose 的方向修正。对有 primary child 的骨骼 $j$，定义：
+$B$ 必须正交：
 
 $$
-c_{j}=Rot(o_{\chi(j)}^{T}\to o_{\chi(j)}^{\mathrm{src}})
+B^{\mathsf T}B=I,\qquad |\det(B)|=1.
 $$
 
-其中 $o_{\chi(j)}^{T}$ 是 target 骨架中 child $\chi(j)$ 的 rest offset，$o_{\chi(j)}^{\mathrm{src}}$ 是 source 骨架中同名 child 的 rest offset。$c_{j}$ 的意义是：把 target rest pose 中骨骼 $j$ 指向 child 的方向，旋到 source rest pose 的对应方向。这样同一个局部 pose 可以从 source rest frame 转写到 target rest frame。
+Root rotation 不能只因字段名带有 “global” 就套同一公式。Dataset Profile 必须把 `root_rotation_semantics` 声明为 `local_to_world`、`world_operator` 或 `not_applicable`。
 
-第四步把每个 source local quaternion 写成 target local quaternion：
-
-$$
-q_{t}^{j,\mathrm{target}}=
-\widehat{c_{\pi(j)}^{-1}q_{t}^{j,\mathrm{src}}c_{j}}
-$$
-
-这个公式中，$c_{\pi(j)}^{-1}$ 抵消父节点 rest frame 差异，$c_{j}$ 注入当前骨骼 rest frame 差异，$\widehat{\cdot}$ 表示最后归一化。若某个 correction 在代码中不存在，就省略对应因子。root rotation 若存在 $c_{\mathrm{hips}}$，也会在 basis 变换后右乘该 correction。
-
-最后打包：
+对 SMPL-family 的 `global_orient`，$R_{t,0}^{S}$ 把未改变的 body-local template 向量映射到 source world，是 `local_to_world`。$B$ 只改变输出所在的 world 坐标，输入 body-local frame 没有换 basis，因此：
 
 $$
-s_{t}^{\mathrm{out}}=
-\left[
-r_{t}^{\mathrm{vrm}},
-q_{t}^{\mathrm{root,target}},
-\{q_{t}^{j,\mathrm{target}}\}_{j\in C},
-\{q_{t}^{k,\mathrm{target}}\}_{k\in H}
-\right]
+R_{t,0}^{C}=BR_{t,0}^{S}.
 $$
 
-这里 $s_{t}^{\mathrm{out}}$ 就是最终写入 canonical sequence 的第 $t$ 帧。若 hand 输入缺失，则 $q_{t}^{k,\mathrm{target}}=[0,0,0,1]$。
+这里左乘不是“在旧世界额外旋转”，而是把值域从 source world 送到 canonical world。真实 AMASS、BABEL 和 GRAB 回归证明，对这类值使用共轭会错误地改变 body-local 定义域，并把人体高度轴转入水平面。
 
-### 2. Position Fitting Retarget
-
-这条路径用于 HumanML3D 263D 解码结果、AMASS HumanAct12 positions、SuSu positions，以及 SuSu global rotations 先构造出的 positions。输入不是局部 pose，而是按 body bones 对齐后的关节位置：
+只有当 $R_{t,0}^{S}$ 本身是从 source-world vector 到 source-world vector 的 `world_operator` 时，输入和输出的 world basis 才同时改变，此时使用共轭：
 
 $$
-X\in\mathbb{R}^{T\times22\times3}
+R_{t,0}^{C}=BR_{t,0}^{S}B^{-1}.
 $$
 
-其中 $X_{t}(j)$ 表示第 $t$ 帧 body bone $j$ 的 source position。这里的 $22$ 对应 `BODY_BONES`，不包含 VRM hand bones。
+左侧 $B$ 更换算子的输出坐标，右侧 $B^{-1}$ 把 canonical-world 输入还原为 source-world 输入，所以该式不能用于 body-local 到 world 的 `global_orient`。
 
-核心函数是：
-
-$$
-fitPositionsToVrm
-$$
-
-第一步把 source positions 转到 VRM/glTF world basis：
+当 $\det(B)=-1$ 时，$B$ 含 reflection，本身不能表示成 quaternion。`world_operator` 的共轭仍可在 matrix space 执行，而且结果满足：
 
 $$
-X'_{t}(j)=BX_{t}(j)
+\det(R_{t,0}^{C})=1.
 $$
 
-这里 $B$ 的含义和 direct path 相同。第二步做尺度对齐：
+`local_to_world` 的左乘在 reflection basis 下却会得到 determinant 为负的 improper matrix，不能转成 rotation quaternion。实现必须 fail-closed，并要求 source Codec 先完成经过验证的 handedness decode；不得投影、取绝对值或静默改成共轭。
+
+Parent-local joint rotations不直接应用 $B$；它们通过下一节的 rest-frame correction 转到 target local space。
+
+## 5. Canonical 211 维契约
+
+每帧向量 $z_t\in\mathbb R^{211}$ 按以下顺序打包：
 
 $$
-X''_{t}(j)=\lambda X'_{t}(j)
+z_t=[r_t^{T},q_{t,0}^{T},q_{t,1:21}^{T},q_{t,22:51}^{T}].
 $$
 
-这里 $\lambda$ 是从 target rest lengths 和 source 第 $0$ 帧 positions 的骨骼长度估计出来的比例。
+这里：
 
-第三步从位置中取 root translation：
+- $r_t^{T}$ 是 3 维 root translation；
+- $q_{t,0}^{T}$ 是 4 维 root quaternion；
+- $q_{t,1:21}^{T}$ 表示 21 个 core quaternion，共 84 维；
+- $q_{t,22:51}^{T}$ 表示 30 个 hand quaternion，共 120 维。
 
-$$
-r_{t}=X''_{t}(\mathrm{hips})-X''_{0}(\mathrm{hips})
-$$
-
-这个公式表示：把第 $0$ 帧 hips 当作起点，后续 root translation 只保留相对位移。
-
-第四步拟合 root rotation。先用 spine 相对 hips 的方向作为 root 主方向：
+维数因此为：
 
 $$
-d_{t}^{\mathrm{spine}}=X''_{t}(\mathrm{spine})-X''_{t}(\mathrm{hips})
+3+4+21\times4+30\times4=211.
 $$
 
-然后令 target rest spine offset 旋到观测 spine 方向：
+Core 顺序固定为：`spine`, `chest`, `upperChest`, `neck`, `head`, `leftShoulder`, `leftUpperArm`, `leftLowerArm`, `leftHand`, `rightShoulder`, `rightUpperArm`, `rightLowerArm`, `rightHand`, `leftUpperLeg`, `leftLowerLeg`, `leftFoot`, `leftToes`, `rightUpperLeg`, `rightLowerLeg`, `rightFoot`, `rightToes`。
+
+Hand 顺序固定为左手 thumb/index/middle/ring/little 的 proximal/intermediate/distal，再以相同顺序排列右手，共 30 个。所有 quaternion 都是 `xyzw`。缺少真正输入时使用 identity `[0,0,0,1]`，同时 metadata 必须说明缺失，而不是假装静止手是真值。
+
+## 6. Forward kinematics
+
+设 $P_{t,j}^{T}$ 和 $Q_{t,j}^{T}$ 是 target joint 的 world position/quaternion。Root 为：
 
 $$
-q_{t}^{\mathrm{root}}=Rot(o_{\mathrm{spine}}^{T}\to d_{t}^{\mathrm{spine}})
+P_{t,0}^{T}=r_t^{T},\qquad Q_{t,0}^{T}=q_{t,0}^{T}.
 $$
 
-这里 $o_{\mathrm{spine}}^{T}$ 是 VRM target rest pose 中 spine 相对 hips 的 offset。若 $d_{t}^{\mathrm{spine}}$ 太短，代码保持单位 root rotation。
-
-第五步对每个 body/core bone $j$ 做方向拟合。先取 child 的世界方向：
+对非 root joint $j$：
 
 $$
-d_{t}^{\mathrm{world}}(j)=X''_{t}(\chi(j))-X''_{t}(j)
+P_{t,j}^{T}=P_{t,\pi(j)}^{T}+R(Q_{t,\pi(j)}^{T})o_j^{T},
 $$
 
-再用父节点世界旋转的逆把它转回父节点局部空间：
-
 $$
-d_{t}^{\mathrm{local}}(j)=R(Q_{t}(\pi(j))^{-1})d_{t}^{\mathrm{world}}(j)
+Q_{t,j}^{T}=Q_{t,\pi(j)}^{T}q_{t,j}^{T}.
 $$
 
-这里 $Q_{t}(\pi(j))$ 是已经递推出的父节点 world rotation。最后令 target rest child offset 旋到这个局部观测方向：
+第一式用父节点 world rotation 转动静态 rest offset，再加到父位置；第二式把当前 parent-local rotation 累积到 world。拓扑必须按父在子之前遍历。
+
+Canonical FK 默认使用仓库确定性的 `DEFAULT_REST_OFFSETS`。v0.2 artifact 必须保存实际 offsets 和 hash；Reader 不允许通过扫描本机 VRM 改变已持久化结果。具体 VRM 自身 rest pose 只在 runtime humanoid alignment 与视觉审计中使用。
+
+## 7. Direct local quaternion path
+
+这条路径用于 SMPL/SMPL-H body、SMPL-X family 和上游 BVH-derived body22。
+
+### 7.1 Scale 与 root
+
+用稳定骨链的 source/target rest length 估计 $\lambda$：
 
 $$
-q_{t}^{j}=Rot(o_{\chi(j)}^{T}\to d_{t}^{\mathrm{local}}(j))
+\lambda=\frac{\sum_{c}\sum_{j\in c}\lVert o_j^{T}\rVert_2}{\sum_{c}\sum_{j\in c}\lVert o_j^{S}\rVert_2}.
 $$
 
-得到 $q_{t}^{j}$ 后，代码继续用 $Q_{t}(j)=Q_{t}(\pi(j))q_{t}^{j}$ 递推子节点 world rotation。位置路径当前只拟合 swing direction，不单独求解 twist。
-
-位置路径不输出手指运动：
+$c$ 遍历躯干、双腿和双臂稳定链。求和比单根骨骼更抗个别 offset 噪声。Target root translation 为：
 
 $$
-q_{t}^{k,\mathrm{target}}=[0,0,0,1],\qquad k\in H
+r_t^{T}=\lambda sB(r_t^{S}-r_0^{S}).
 $$
 
-因此 HumanML3D、position sequence 和 SuSu 当前最终 sequence 的 hand quaternions 都是单位四元数。
+Root rotation 先由 profile 语义选择左乘或共轭，再应用 hips rest correction。当前 SMPL-family `global_orient` 使用 `local_to_world` 左乘；没有 rotation root 的 position source 使用 `not_applicable`。
 
-## 文档分组
+### 7.2 Rest-frame correction
 
-| 文档 | 覆盖数据集 | 代码入口 | 最终 retarget |
+设 $C_j$ 把 target joint $j$ 的 rest frame 映射到 source rest frame。它由 primary-child 的 target/source rest directions 构造。Target local matrix 为：
+
+$$
+R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
+$$
+
+为什么父 correction 取逆：source local rotation 的输入向量当前在 source parent rest frame，必须先回到 target parent frame。为什么右乘当前 correction：旋转的输出 frame 要从 target joint rest frame 送到 source joint rest frame，才能应用 source pose。缺少某个 correction 时只省略对应因子，并在 metadata 记录，不制造未知骨架方向。
+
+等价 quaternion 实现保持同一乘法顺序：父 correction inverse 在左，当前 correction 在右。Local quaternion 不再额外套 world basis。
+
+### 7.3 输出
+
+映射后的 root、21 core 与可用的 30 hand quaternions进入 211 维 pack。SMPL-X 可提供 hands；AMASS/BABEL/BEAT 主路径若未接手部，hands 为 identity 并带缺失说明。
+
+## 8. Position fitting path
+
+这条路径用于 HumanML3D 解码 positions、AMASS position 旁路和 SuSu positions/FK positions。输入 $X\in\mathbb R^{T\times N_B\times3}$，其中 $N_B=22$，joint order 与 canonical body skeleton 对齐。
+
+先应用唯一 world transform，并用第 0 帧稳定骨链估计 $\lambda$：
+
+$$
+X_{t,j}'=sB(X_{t,j}-X_{0,0}),
+$$
+
+$$
+X_{t,j}''=\lambda X_{t,j}'.
+$$
+
+Root translation 是 hips 轨迹：
+
+$$
+r_t^{T}=X_{t,0}''.
+$$
+
+设 $d_{t,j}^{W}=X_{t,\chi(j)}''-X_{t,j}''$ 是观测 child world direction，父节点已拟合的 world matrix为 $G_{t,\pi(j)}$。把方向转回 parent-local：
+
+$$
+d_{t,j}^{L}=G_{t,\pi(j)}^{-1}d_{t,j}^{W}.
+$$
+
+再构造把 target rest child offset 旋到该方向的最短弧 quaternion：
+
+$$
+q_{t,j}^{T}=q(o_{\chi(j)}^{T}\rightarrow d_{t,j}^{L}).
+$$
+
+这里 $q(a\rightarrow b)$ 表示把非零方向 $a$ 旋到 $b$ 的单位 quaternion。之所以先转到 parent-local，是因为 canonical slots 存的不是 world rotation。
+
+Positions 只约束骨骼轴的 swing；绕该轴的 twist 有无穷多个解。前臂、手腕、上臂和腿部质量因此受限，文档与质量报告不得宣称 position fitting 完整恢复原始 rotation。
+
+## 9. 真实时间与重采样
+
+设 source 帧数为 $T_s$、FPS 为 $f_s>0$，时长固定为：
+
+$$
+D=\frac{T_s}{f_s}.
+$$
+
+第 $k$ 帧采样时间为 $k/f_s$。若显式重采样到 $f_o$，输出帧数为：
+
+$$
+T_o=\left\lceil\frac{T_sf_o}{f_s}\right\rceil.
+$$
+
+输出第 $k$ 帧对应 source 浮点索引 $u=kf_s/f_o$。Root translation 对相邻帧线性插值。Quaternion 先归一化；若两端点积小于零，翻转第二个端点以走最短弧。设翻转后的点积为 $d$、插值比例为 $\alpha\in[0,1]$、$\theta=\arccos d$，则：
+
+$$
+q(\alpha)=\frac{\sin((1-\alpha)\theta)}{\sin\theta}q_0+\frac{\sin(\alpha\theta)}{\sin\theta}q_1.
+$$
+
+当 $d>0.9995$ 时使用 normalized linear interpolation，避免 $\sin\theta$ 的数值不稳定。离散 annotation/contact 使用 left-closed hold；连续 object/face translation 使用线性插值。
+
+没有重采样时 Viewer 仍按 elapsed time 计算 $u$，所以浏览器刷新率和动作 FPS 解耦。
+
+## 10. 五类 source 的接线
+
+| 文档 | Source decode | 共享数学 | Dataset-specific 边界 |
 |---|---|---|---|
-| [VRM/glTF 目标层](vrm-gltf-target.zh-CN.md) | 全部 | `rotation.py`, `canonical.py`, `skeleton.py`, `retarget.py` | 共同数学层 |
-| [SMPL-H 到 VRM](smplh-to-vrm.zh-CN.md) | AMASS、BABEL | `AxisAngleBody22Codec` | direct local quaternion |
-| [SMPL-X 到 VRM](smplx-to-vrm.zh-CN.md) | GRAB、Motion-X | `SMPLXFullposeCodec` | direct local quaternion + hands |
-| [BVH/BEAT 到 VRM](bvh-to-vrm.zh-CN.md) | BEAT | `beat_axis_angle_body22` | direct local quaternion |
-| [HumanML3D 263D 到 VRM](humanml3d-263d-to-vrm.zh-CN.md) | HumanML3D、position sequence | `HumanML3D263Codec`, `PositionSequenceCodec` | position fitting |
-| [SuSu 到 VRM](susu-to-vrm.zh-CN.md) | SuSuInterActs | `SuSu6DCodec` | position fitting |
+| [SMPL-H / body](smplh-to-vrm.zh-CN.md) | body axis-angle | direct path | AMASS/BABEL carrier、FPS、annotations |
+| [SMPL-X](smplx-to-vrm.zh-CN.md) | 55 fullpose 或 Motion-X 53 rotations 重组 | direct + hands | GRAB/Motion-X 独立 profile |
+| [BVH / BEAT](bvh-to-vrm.zh-CN.md) | 上游转换后的 body22 axis-angle | direct path | raw BVH 定义与 converted input 分层 |
+| [HumanML3D 263D](humanml3d-263d-to-vrm.zh-CN.md) | official root/RIC 到 positions | position fitting | caption/time 与 fail-fast |
+| [SuSu 6D](susu-to-vrm.zh-CN.md) | columns/local 或 native positions | position fitting + verified hands | 本地变体必须校准 |
 
-## 合并和拆分原则
+[VRM/glTF 目标层](vrm-gltf-target.zh-CN.md) 给出 pack、FK、target runtime 和代码对应表。[公式评审清单](review-checklist.zh-CN.md) 用于检查公式渲染和实现对码。
 
-AMASS 与 BABEL 合并，是因为 BABEL 的 motion carrier 仍是 AMASS/SMPL-H poses；BABEL annotation 只进入 text/metadata，不改变 pose tensor 的数学解释。
+## 11. 当前实现边界
 
-GRAB 与 Motion-X 放在同一篇 SMPL-X 文档，但 profile 分开，因为 GRAB 使用 $B_{\mathrm{GRAB}}=\mathrm{ZUpToYUp}$，Motion-X 使用 $B_{\mathrm{MotionX}}=\mathrm{IdentityYUp}$。
-
-BEAT 单独写，是因为虽然它进入同一个 `AxisAngleBody22Codec` 类，但配置是 $B_{\mathrm{BEAT}}=\mathrm{IdentityYUp}$，不能套用 AMASS/BABEL 的 Z-up 到 Y-up 变换。
-
-SuSu 单独写，是因为当前代码存在 profile、root axes、单位自动判定、6D rows 重建、global-to-local 中间计算和 position fitting 最终输出的多层逻辑。
-
-## 当前实现边界
-
-文档必须忠实保留这些边界：
-
-- VRM 是 glTF humanoid target，不是 SMPL-H/SMPL-X 参数化人体模型。
-- direct quaternion 路径会输出 body quats；SMPL-X 路径还输出 hand quats。
-- position fitting 路径只从 positions 拟合 body/core quats，hand quats 保持单位。
-- SuSu 当前虽然计算 hand local quats，但最终 sequence 来自 position fitting，因此 hand quats 没有进入 output。
-- HumanML3D fallback 只是 rest-pose 可运行保底，不代表真实动作解码。
+- VRM humanoid mapping 在 runtime 对具体 Avatar 生效，不能反向改变 canonical artifact。
+- Heuristic basis 只能用于诊断；发布 profile 必须显式且有回归样本。
+- Position fitting 不恢复唯一 twist。
+- Object/contact/face/audio 不进入 211 维 pose；它们与 motion 共用时间映射，但使用独立 channel descriptor。
+- 任何仍把 root rotation 一律共轭、把 local rotations做 world basis conjugation、让 Reader 扫描本机 VRM，或以 rest pose 兜底 HumanML3D 的分支都与 v1 契约不一致，必须在验证中失败。

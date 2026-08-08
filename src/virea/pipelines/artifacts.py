@@ -15,6 +15,7 @@ def motion_uid(dataset: str, sample_id: str, frame_count: int) -> str:
 class ArtifactPaths:
     source_snapshot: Path
     canonical_motion: Path
+    canonical_manifest: Path
     vrm_positions: Path
     quality_report: Path
     metadata: Path
@@ -23,6 +24,7 @@ class ArtifactPaths:
         return (
             self.source_snapshot,
             self.canonical_motion,
+            self.canonical_manifest,
             self.vrm_positions,
             self.quality_report,
             self.metadata,
@@ -46,6 +48,7 @@ def artifact_paths(
     return ArtifactPaths(
         source_snapshot=processed_root / "source" / version / "snapshot" / dataset / f"{stem}.npz",
         canonical_motion=processed_root / "canonical" / version / "motion" / dataset / f"{stem}.npz",
+        canonical_manifest=processed_root / "canonical" / version / "manifest" / dataset / f"{stem}.json",
         vrm_positions=processed_root / "vrm" / version / "positions" / dataset / f"{stem}.npz",
         quality_report=processed_root / "vrm" / version / "quality" / dataset / f"{stem}.json",
         metadata=processed_root / "canonical" / version / "metadata" / dataset / f"{stem}.json",

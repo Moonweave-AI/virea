@@ -41,10 +41,12 @@ def test_canonical_result_has_no_source_positions_field() -> None:
         "virea.motion.codecs.retarget_named_quats_to_vrm",
         return_value={
             "sequence": np.zeros((4, 100), dtype=np.float32),
-            "positions": np.zeros((4, 52, 3), dtype=np.float32),
-            "mode": "mock",
-            "scale": 1.0,
-        },
+                "positions": np.zeros((4, 52, 3), dtype=np.float32),
+                "mode": "mock",
+                "scale": 1.0,
+                "root_rotation_semantics": "local_to_world",
+                "world_basis": {"determinant": 1.0},
+            },
     ):
         result = codec.to_canonical(clip)
     assert isinstance(result, CanonicalResult)

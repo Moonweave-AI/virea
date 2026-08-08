@@ -1,26 +1,29 @@
-# VIREA 数据 Pipeline 说明
+---
+type: reference
+status: Deprecated
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 180
+summary: 保留旧数据 Pipeline 链接，并指向新的工程与操作事实源。
+canonical: doc/data-pipeline.zh-CN.md
+related:
+  - engineering-design.zh-CN.md
+  - pipeline.zh-CN.md
+supersedes: []
+superseded_by:
+  - engineering-design.zh-CN.md
+  - pipeline.zh-CN.md
+---
 
-本文是数据 pipeline 的兼容入口。完整运行步骤请读 [Pipeline 使用指南](pipeline.zh-CN.md)，数学转换细节请读 [Retarget 数学原理](math-retarget/README.zh-CN.md)，模块边界请读 [工程设计](engineering-design.zh-CN.md)。
+# 数据 Pipeline 兼容入口
 
-核心流程保持为：
+此页仅为旧链接保留，不再复制流程说明：
 
-```text
-raw dataset
-  -> DatasetAdapter
-  -> RawClip
-  -> MotionCodec.extract_source()
-  -> MotionCodec.to_canonical()
-  -> ProcessingPipeline artifacts
-  -> PreviewReader / FastAPI
-  -> viewer-web / real VRM avatar
-```
+- 模块边界、状态、Artifact 与失败模式：读 [Pipeline 工程设计](engineering-design.zh-CN.md)。
+- 安装、路径、CLI、重建与 Viewer：读 [Pipeline 使用指南](pipeline.zh-CN.md)。
+- 源表示与 Retarget：读 [数学共同层](math-retarget/README.zh-CN.md)。
+- 七数据集字段和验证状态：读 [数据集审计](dataset-audit.zh-CN.md)。
 
-其中：
-
-- `DatasetAdapter` 负责发现样本、读取 raw 文件、声明 `source_format`、`codec_key`、fps、metadata。
-- `MotionCodec.extract_source()` 生成 source/before preview，用于检查原始动作解释是否正确。
-- `MotionCodec.to_canonical()` 执行 retarget，输出 VRM-centered canonical sequence。
-- `ProcessingPipeline` 写入 source snapshot、canonical motion、VRM FK positions、quality report。
-- `PreviewReader` 和 server 只读 artifacts，不重新做数学转换。
-
-坐标约定统一为 glTF / VRM：`+Y` up、`+Z` forward、meter、quat `xyzw`。
+旧文档中任何“统一固定 FPS”“Reader 自动补语义”或“运行时扫描本机 VRM rest”的描述都已被 RFC-0001 替代。

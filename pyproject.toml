@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea"
-version = "0.1.0"
+version = "0.2.0"
 description = "VRM-native motion data infrastructure and preview pipelines."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "httpx2>=2.9",
+  "jsonschema>=4.21",
   "pytest>=8.0",
 ]
 
@@ -31,4 +33,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = [".", "src"]

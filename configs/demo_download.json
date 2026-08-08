@@ -1,0 +1,9 @@
+{
+  "schema_version": "virea.demo-download-config.v1",
+  "repo_id": "ChikaKomari/virea-demo",
+  "repo_type": "dataset",
+  "revision": "4dd5ff1d7a219133a5029a4525a9de0f3d2429dd",
+  "license_decision": "local-only",
+  "public_redistribution": false,
+  "license_evidence": "The pinned Hugging Face dataset card declares no machine-readable licence. Dataset-specific source terms must be reviewed before any redistribution."
+}

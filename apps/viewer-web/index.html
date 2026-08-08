@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
     <title>VIREA Dataset Motion Workbench</title>
     <link rel="stylesheet" href="/ui/styles.css" />
     <script type="importmap">
@@ -47,7 +48,7 @@
         </label>
         <label>
           Max frames
-          <input id="maxFramesInput" type="number" min="1" max="1200" placeholder="leave blank for full clip" />
+          <input id="maxFramesInput" type="number" min="1" max="1200" value="180" placeholder="preview limit (default 180)" />
         </label>
         <label class="toggle">
           <span>Show trails</span>
@@ -82,6 +83,25 @@
               <button id="playButton" type="button">Play</button>
             </div>
           </div>
+
+          <section class="annotation-panel" id="annotationPanel" style="display:none">
+            <div class="annotation-sequence">
+              <div class="panel-title">Sequence-Level</div>
+              <p id="annotationSequenceText"></p>
+              <small id="annotationSummary" class="annotation-summary"></small>
+            </div>
+            <div class="annotation-current">
+              <div class="panel-title">Current Frame</div>
+              <div class="annotation-chips" id="annotationActiveChips"></div>
+            </div>
+            <div class="annotation-tools">
+              <div class="panel-title">Filter by semantic level</div>
+              <div class="annotation-filters" id="annotationLevelFilters"></div>
+            </div>
+            <div class="annotation-timeline" id="annotationTimeline" aria-label="Annotation timeline"></div>
+            <div class="annotation-channel-summary" id="annotationChannelSummary"></div>
+            <div class="annotation-detail-list" id="annotationDetailList"></div>
+          </section>
 
           <div class="compare-grid">
             <article class="stage-card">
@@ -169,7 +189,28 @@
           <input id="modelFrameSlider" type="range" min="0" max="0" value="0" />
           <button id="modelPlayButton" type="button">Play</button>
         </div>
-        <canvas id="modelCanvas" width="1280" height="720"></canvas>
+        <section class="annotation-panel model-annotation-panel" id="modelAnnotationPanel" style="display:none">
+          <div class="annotation-sequence">
+            <div class="panel-title">Avatar Annotations</div>
+            <p id="modelAnnotationSequenceText"></p>
+            <small id="modelAnnotationSummary" class="annotation-summary"></small>
+          </div>
+          <div class="annotation-current">
+            <div class="panel-title">Current Avatar Frame</div>
+            <div class="annotation-chips" id="modelAnnotationActiveChips"></div>
+          </div>
+          <div class="annotation-tools">
+            <div class="panel-title">Filter by semantic level</div>
+            <div class="annotation-filters" id="modelAnnotationLevelFilters"></div>
+          </div>
+          <div class="annotation-timeline" id="modelAnnotationTimeline" aria-label="Avatar annotation timeline"></div>
+          <div class="annotation-channel-summary" id="modelAnnotationChannelSummary"></div>
+          <div class="annotation-detail-list" id="modelAnnotationDetailList"></div>
+        </section>
+        <div class="model-canvas-wrap">
+          <canvas id="modelCanvas" width="1280" height="720"></canvas>
+          <div id="modelAnnotationOverlay" class="model-annotation-overlay"></div>
+        </div>
         <pre id="modelStatus">No model loaded.</pre>
       </section>
     </main>

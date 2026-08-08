@@ -53,8 +53,11 @@ def _format_quality_table(quality: dict, sample_id: str = "") -> str:
         lines.append("  [Velocity]")
         lines.append(f"    Mean speed: {vel['mean_speed_m_s']:.3f} m/s | "
                      f"Max: {vel['max_speed_m_s']:.3f} m/s")
-        lines.append(f"    Mean accel: {vel['mean_accel_m_s2']:.3f} m/s2 | "
-                     f"Max: {vel['max_accel_m_s2']:.3f} m/s2")
+        if vel.get("mean_accel_m_s2") is not None:
+            lines.append(f"    Mean accel: {vel['mean_accel_m_s2']:.3f} m/s2 | "
+                         f"Max: {vel['max_accel_m_s2']:.3f} m/s2")
+        else:
+            lines.append("    Acceleration: insufficient frames (requires at least 3)")
         lines.append(f"    Jittery joints: {vel['jittery_joints']} "
                      f"(threshold: {vel['jitter_threshold_m_s']} m/s)")
 
@@ -266,6 +269,15 @@ def _cmd_process(args: argparse.Namespace) -> None:
     limit = args.limit_per_dataset if args.limit_per_dataset and args.limit_per_dataset > 0 else 1_000_000_000
     tasks = batch.collect_tasks(datasets=datasets_filter, query=args.query, limit_per_dataset=limit)
     workers = args.workers if args.workers > 0 else default_worker_count()
+
+    legacy_pickle_datasets = {task.dataset for task in tasks} & {"grab", "susuinteracts"}
+    if legacy_pickle_datasets and os.getenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "").strip() != "1":
+        names = ", ".join(sorted(legacy_pickle_datasets))
+        print(
+            f"\n  Safety: {names} uses legacy NumPy object containers, so loading is disabled by default.\n"
+            "  For locally verified data only, set VIREA_ALLOW_TRUSTED_RAW_PICKLE=1 and rerun;\n"
+            "  keep this disabled on public/remote services and migrate the data before distribution."
+        )
 
     total_tasks = len(tasks)
     print(f"\n  Tasks: {total_tasks} | Workers: {workers} | "

@@ -8,6 +8,17 @@ pytest-cache-files-*/
 .mypy_cache/
 .ruff_cache/
 
+# Local configuration and credentials. Commit only reviewed examples.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
 # Large or generated data must stay outside Git.
 /data/
 /demo/raw/
@@ -22,7 +33,21 @@ pytest-cache-files-*/
 *.npy
 *.parquet
 *.vrma
+*.vrm
+*.glb
+*.gltf
+*.pkl
+*.pickle
+*.wav
+*.mp3
 *.mp4
+
+# Showcase binaries are local-only until the publication policy is `allowed`.
+# Existing legacy files remain tracked for history; new/rebuilt media requires
+# an explicit reviewed `git add -f` after the IP gate passes.
+/doc/showcase/gifs/*.gif
+/doc/showcase/videos/*.webm
+/doc/showcase/screenshots/
 
 # Local server logs and caches.
 /logs/

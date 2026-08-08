@@ -8,6 +8,7 @@ from virea.data.registry import DatasetRegistry
 from virea.paths import AVAILABLE_DATA_SOURCES
 from virea.pipelines.processed_preview import ProcessedPreviewPipeline
 from virea.pipelines.raw_preview import RawPreviewPipeline
+from virea.reporting import sanitize_report_paths
 
 
 def smoke_source(data_source: str, max_frames: int, persist: bool) -> dict[str, Any]:
@@ -24,7 +25,7 @@ def smoke_source(data_source: str, max_frames: int, persist: bool) -> dict[str, 
                 {
                     "dataset": dataset,
                     "status": "failed",
-                    "reason": f"no sample found under {registry.paths.raw_root}",
+                    "reason": f"no sample found in configured {data_source} raw root",
                 }
             )
             continue
@@ -43,19 +44,25 @@ def smoke_source(data_source: str, max_frames: int, persist: bool) -> dict[str, 
                 "processed_shape": list(processed.positions.shape),
                 "raw_quality": raw.quality,
                 "processed_quality": processed.quality,
-                "files": processed.files,
+                "files_path_base": "configured_processed_root",
+                "files": sanitize_report_paths(
+                    processed.files,
+                    relative_base=registry.paths.processed_root,
+                ),
             }
         )
 
-    return {
+    return sanitize_report_paths({
         "data_source": data_source,
-        "raw_root": registry.paths.raw_root.as_posix(),
-        "processed_root": registry.paths.processed_root.as_posix(),
+        "raw_root": f"data-source/{data_source}/raw",
+        "raw_root_status": "configured" if registry.paths.raw_root.exists() else "missing",
+        "processed_root": f"data-source/{data_source}/processed",
+        "processed_root_status": "configured" if registry.paths.processed_root.exists() else "missing",
         "max_frames": max_frames,
         "persist": persist,
         "reports": reports,
         "passed": all(item.get("status") == "passed" for item in reports),
-    }
+    })
 
 
 def main() -> None:
@@ -71,7 +78,7 @@ def main() -> None:
         "sources": [smoke_source(source, max_frames=args.max_frames, persist=args.persist) for source in sources],
     }
     report["passed"] = all(source_report["passed"] for source_report in report["sources"])
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps(sanitize_report_paths(report), ensure_ascii=False, indent=2))
     if not report["passed"]:
         raise SystemExit(1)
 

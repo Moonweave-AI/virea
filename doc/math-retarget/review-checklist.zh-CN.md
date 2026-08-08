@@ -1,120 +1,112 @@
+---
+type: checklist
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: Retarget 文档的公式渲染、变量定义、代码对码、数据来源与边界审查清单。
+canonical: doc/math-retarget/review-checklist.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../validation.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+
 # Retarget 文档公式级评审清单
-
-本文用于审查 `doc/math-retarget/` 是否真的把代码逻辑转写为数学逻辑，而不是停留在概念介绍。
-
-## 覆盖矩阵
-
-| 骨骼系统 | 数据集 | 文档 | 必须覆盖 |
-|---|---|---|---|
-| VRM/glTF target | 全部 | `vrm-gltf-target.zh-CN.md` | quaternion、FK、basis、scale、correction、direct retarget、position fitting |
-| SMPL-H / SMPL body | AMASS、BABEL | `smplh-to-vrm.zh-CN.md` | `.npz` 读取、66 维切片、axis-angle、body22、basis、correction |
-| SMPL-X | GRAB、Motion-X | `smplx-to-vrm.zh-CN.md` | 165 维 fullpose、55 joints、hand index、GRAB/Motion-X profile |
-| BVH-derived body | BEAT | `bvh-to-vrm.zh-CN.md` | BVH 上游边界、BEAT `.npz`、identity basis、fps |
-| 263D/positions | HumanML3D | `humanml3d-263d-to-vrm.zh-CN.md` | parquet、decode/fallback、joint mapping、position fitting |
-| 自定义 6D | SuSuInterActs | `susu-to-vrm.zh-CN.md` | profile、root axes、unit auto rule、6D rows、global-to-local、positions output |
-
-## 公式格式要求
-
-段内符号必须使用 `$...$`，例如 $T$、$q=[x,y,z,w]$、$B$。
-
-段间公式必须使用：
-
-$$
-P_t(j)=P_t(\pi(j))+R(Q_t(\pi(j)))o_j
-$$
-
-不能用伪公式替代核心推导，例如只写“做 FK”“做归一化”是不够的。
 
 ## 每篇 source 文档必须回答
 
-- 原始文件或 tensor 从哪里读，shape 是什么。
-- adapter 输出的 `source_format` 与 `codec_key` 是什么。
-- fps 如何确定。
-- source skeleton 的关节数量和顺序如何映射。
-- rotation 表达如何转成 quaternion，或 positions 如何转成 rotations。
-- world basis 是什么，矩阵 $B$ 是什么。
-- scale $\lambda$ 如何计算。
-- root translation 为什么是 $r_t-r_0$。
-- source preview 和 processed preview 分别对应哪个公式。
-- metadata 中的 `retarget_mode` 和 `declared_world_basis` 与公式如何对应。
-- 哪些通道没有进入当前 VRM humanoid sequence。
+- [ ] 数据集、source family、raw 文件与项目实际输入分别是什么？
+- [ ] 上游已经完成哪些转换，当前仓库从哪一步开始？
+- [ ] 每个 tensor 的 shape、slice、joint order、unit、coordinate space 和 rotation space 是什么？
+- [ ] FPS 字段优先级、fallback provenance、duration 和 crop/resample 规则是什么？
+- [ ] source preview 怎样生成，为什么不复用 target FK？
+- [ ] 使用 direct local quaternion 还是 position fitting？
+- [ ] profile 的 basis 只作用在哪里，local rotation 为什么不重复做 world transform？
+- [ ] `root_rotation_semantics` 是 `local_to_world`、`world_operator` 还是 `not_applicable`，证据来自哪里？
+- [ ] hands、face、object、contact、audio 和 annotations 哪些进入 pose，哪些是 side channel？
+- [ ] fallback、缺字段、错误 shape 和未校准 profile 怎样 fail-fast/fail-closed？
+- [ ] 哪些结论是官方背景、上游 provenance、当前代码行为或仍未验证？
 
-## 必须和代码一致的关键点
+## 变量与公式
 
-四元数顺序：
-
-$$
-q=[x,y,z,w]
-$$
-
-axis-angle：
+- [ ] 每个变量首次出现时说明维度、单位、坐标/旋转空间、索引范围和工程来源。
+- [ ] 上标 source/canonical/target 与小写 local quaternion、大写 world quaternion 保持一致。
+- [ ] 每条公式后解释为什么这样写，而不只复述符号。
+- [ ] Basis 使用列向量约定：
 
 $$
-q(a)=
-\left[
-\frac{a}{\|a\|}\sin\frac{\|a\|}{2},
-\cos\frac{\|a\|}{2}
-\right]
+p^{C}=sB(p^{S}-p_0^{S}).
 $$
 
-6D rows：
+- [ ] Body-local 到 world 的 root rotation 只改变值域：
 
 $$
-R(d)=
-\begin{bmatrix}
-b_1^\top\\
-b_2^\top\\
-(b_1\times b_2)^\top
-\end{bmatrix}
+R_0^{C}=BR_0^{S}.
 $$
 
-global-to-local：
+- [ ] 只有 world-to-world rotation operator 才使用共轭：
 
 $$
-q_t^{j,\mathrm{local}}=
-\left(q_t^{\pi(j),\mathrm{global}}\right)^{-1}
-q_t^{j,\mathrm{global}}
+R_0^{C}=BR_0^{S}B^{-1}.
 $$
 
-rest correction：
+- [ ] determinant 为负时不把 $B$ 转成 quaternion；`local_to_world` 左乘遇 reflection 时 fail-closed。
+- [ ] Parent-local rest correction 的父 inverse 与当前右乘有解释：
 
 $$
-c_j=Rot(o_{\chi(j)}^{T}\to o_{\chi(j)}^{\mathrm{src}})
+R_j^{T}=C_{\pi(j)}^{-1}R_j^{S}C_j.
 $$
 
-$$
-q_t^{j,\mathrm{target}}=
-\widehat{c_{\pi(j)}^{-1}q_t^{j,\mathrm{src}}c_j}
-$$
+- [ ] FK 的 position/rotation递推使用 artifact 中实际 rest offsets。
+- [ ] Position fitting明确只约束 swing，不唯一恢复 twist。
+- [ ] 211 维分解、core/hand 顺序和 `xyzw` 明确。
+- [ ] 重采样帧数、linear/SLERP/left-closed hold 明确。
 
-position fitting：
+## 五类 source 特项
 
-$$
-q_t^j=
-Rot
-\left(
-o_{\chi(j)}^{T}
-\to
-R(Q_t(\pi(j))^{-1})(X_t(\chi(j))-X_t(j))
-\right)
-$$
+| Source | 必查项 |
+|---|---|
+| SMPL / SMPL-H | 66 body、可选 90 hands、AMASS/BABEL carrier、filename derived |
+| SMPL-X | fullpose55 与 Motion-X 322 重组、eye identity slots、hand index table |
+| BVH-derived BEAT | raw BVH 与 converted NPZ 分层、channel order、converted basis、ordinal score |
+| HumanML3D 263D | root4 + RIC63 official decode、20 FPS、fail-fast、caption sentinel |
+| SuSu 6D | columns/local、root/positions profile、body/hand topology压缩、两路 fitting + hands 合并 |
 
-SuSu 当前输出边界：
+## Markdown 数学规则
 
-$$
-S_{\mathrm{SuSu}}=fitPositionsToVrm(\cdot)
-$$
+- [ ] 段内公式只用 `$...$`。
+- [ ] Display 公式的 `$$` 各占一行并成对出现。
+- [ ] 标题中不放数学公式。
+- [ ] 不使用被目标渲染器拒绝的 `operatorname` 宏。
+- [ ] 不使用 `mathcal` 或集合基数花体写法；数量改用 $N_C$、$N_H$ 等短符号。
+- [ ] 不使用 double subscript；把复杂 index 合并到一个下标，如 $q_{t,j}$。
+- [ ] 精确代码名与 snake_case 只放正文反引号，不放数学模式。
+- [ ] `#`、路径、JSON 和数组 slice 不放数学模式。
+- [ ] Target rest offset 统一写 $o_j^{T}$，不用旧的带横线写法。
+- [ ] 函数概念使用短数学符号并在正文定义，不把长代码函数塞进公式。
 
-$$
-Q^{H,\mathrm{output}}=I^{H}
-$$
+## 代码对码
 
-## 禁止出现的错误
+- [ ] 数组 slice 与 Adapter 当前分支一致。
+- [ ] Joint mapping、hand order 与 constants 当前分支一致。
+- [ ] Basis matrix mapping direction 与 Profile snapshot 一致。
+- [ ] Root semantic 与 `map_root_rotations_by_basis` 的分支一致；SMPL-family `global_orient` 未被一律共轭。
+- [ ] 公式中的 quaternion 乘法顺序与实现一致。
+- [ ] SuSu 最终 mode 是 body position fitting 加 verified direct-local fingers。
+- [ ] HumanML3D 不存在 rest-pose/synthetic fallback。
+- [ ] Canonical FK 默认 deterministic，不扫描本机 VRM。
+- [ ] 任何暂未实现的 RFC 项明确标为未实现，而不是用将来时伪装当前事实。
 
-- 把 VRM 说成 SMPL-H/SMPL-X 一类参数化人体模型。
-- 把 HumanML3D 263D 当成 SMPL pose。
-- 把 BEAT 套用 AMASS 的 `z_up_to_y_up` basis。
-- 把 Motion-X 的 translation 单位保护省略。
-- 把 SuSu 6D 写成旧的列主序两列重建逻辑。
-- 声称 SuSu 当前最终 output 已经使用 hand local quats。
-- 把 face/audio/object/expression 混入 humanoid bone FK。
+## 自动与人工检查
+
+```bash
+python scripts/check_docs.py
+python -m pytest -q
+```
+
+自动检查覆盖禁用宏、delimiter、标题、local links、frontmatter 和 49 对媒体。人工检查仍必须覆盖公式含义、标准/代码边界、真实样本和真实 VRM；自动通过不等于数学审查通过。

@@ -1,412 +1,147 @@
-# SMPL-X 到 VRM 的 retarget 数学
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: GRAB 与 Motion-X 的 SMPL-X-family blocks、独立 profiles、hands 与多模态边界。
+canonical: doc/math-retarget/smplx-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-覆盖数据集：GRAB、Motion-X。对应代码：`GRABAdapter`、`MotionXAdapter`、`SMPLXFullposeCodec`、`retarget_named_quats_to_vrm()`。
+# SMPL-X family 到 VRM
 
-SMPL-X 路径和 SMPL-H 路径共享 direct local quaternion retarget，但输入是 $55$ joint fullpose，并额外映射 hands。数学主线是：
+GRAB 与 Motion-X 共享 55-joint mapping 和 direct local quaternion 数学，但绝不共享未验证的 FPS、basis、unit 或数组切片。
 
-$$
-\mathrm{SMPL{-}X\ fullpose}\in\mathbb{R}^{T\times165}
-\rightarrow
-Q^{55}\in\mathbb{R}^{T\times55\times4}
-\rightarrow
-\mathrm{body+hand\ VRM\ local\ quaternions}
-$$
-
-## 1. GRAB adapter 读取
-
-GRAB `.npz` 中：
-
-$$
-\mathrm{fullpose}=\mathrm{payload}[\mathrm{body}].\mathrm{item}()[\mathrm{params}][\mathrm{fullpose}]
-\in\mathbb{R}^{T\times D}
-$$
-
-$$
-\mathrm{translation}=
-\mathrm{payload}[\mathrm{body}].\mathrm{item}()[\mathrm{params}][\mathrm{transl}]
-\in\mathbb{R}^{T\times3}
-$$
-
-若 `transl` 缺失：
-
-$$
-\mathrm{translation}_t=[0,0,0]
-$$
-
-fps：
-
-$$
-f=
-\begin{cases}
-\mathrm{payload}[\mathrm{framerate}],&\mathrm{if\ present}\\
-120,&\mathrm{otherwise}
-\end{cases}
-$$
-
-metadata 显式写入：
-
-$$
-\mathrm{DeclaredWorldBasis}=\mathrm{ZUpToYUp}
-$$
-
-## 2. Motion-X adapter 读取
-
-Motion-X `.npy` 要求：
-
-$$
-A\in\mathbb{R}^{T\times322}
-$$
-
-若 $A$ 不是二维或第二维小于 $322$，代码报错。切片为：
-
-$$
-\mathrm{fullpose}=A_{[:,0:165]}
-$$
-
-$$
-\mathrm{FaceExpr}=A_{[:,159:209]}
-$$
-
-$$
-\mathrm{translation}^{\mathrm{raw}}=A_{[:,309:312]}
-$$
-
-translation 单位保护逻辑为：
-
-$$
-\Delta=ptp(\mathrm{translation}^{\mathrm{raw}},\mathrm{axis}=0)
-$$
-
-$$
-\eta=
-\begin{cases}
-0.01,&\max|\Delta|>20\ \mathrm{or}\ percentile_{95}(|\mathrm{translation}^{\mathrm{raw}}|)>20\\
-1.0,&\mathrm{otherwise}
-\end{cases}
-$$
-
-$$
-\mathrm{translation}=\eta\,\mathrm{translation}^{\mathrm{raw}}
-$$
-
-fps 固定为：
-
-$$
-f=30
-$$
-
-metadata 显式写入：
-
-$$
-\mathrm{DeclaredWorldBasis}=\mathrm{IdentityYUp}
-$$
-
-## 3. fullpose 到 55 个四元数
-
-`SMPLXFullposeCodec.to_canonical()` 要求：
-
-$$
-D\ge165
-$$
-
-取前 $165$ 维：
-
-$$
-A=reshape\left(\mathrm{fullpose}_{[:,0:165]},T,55,3\right)
-$$
-
-axis-angle 到 quaternion：
-
-$$
-Q^{55}_{t,i}=q(A_{t,i})
-$$
-
-其中 $q(\cdot)$ 是：
-
-$$
-q(a)=
-\left[
-\frac{a_x}{\|a\|}\sin\frac{\|a\|}{2},\
-\frac{a_y}{\|a\|}\sin\frac{\|a\|}{2},\
-\frac{a_z}{\|a\|}\sin\frac{\|a\|}{2},\
-\cos\frac{\|a\|}{2}
-\right]
-$$
-
-并带有 $\|a\|<10^{-8}$ 的单位四元数分支。
-
-## 4. body 映射
-
-前 $22$ 个 SMPL-X body joints 按 `CANONICAL_BODY_WITH_ROOT` 解释：
-
-$$
-q_t^{\mathrm{root,src}}=Q^{55}(t,I_B(\mathrm{hips}))
-$$
-
-$$
-q_t^{j,\mathrm{body,src}}=Q^{55}(t,I_B(j)),\qquad j\in B\setminus\{\mathrm{hips}\}
-$$
-
-代码还先创建了 `core`：
-
-$$
-Q^{C}_{\mathrm{raw}}(t,I_C(j))=Q^{55}(t,I_B(j))
-$$
-
-但真正传给 `retarget_named_quats_to_vrm()` 的 body 输入是：
+## 1. 目标 fullpose55
 
-$$
-\mathrm{LocalQuatsByName}=\{j\mapsto Q^{55}(:,I_B(j))\mid j\in B,j\neq\mathrm{hips}\}
-$$
-
-其中 $I_B$ 表示代码中的 `BODY_INDEX`，$I_C$ 表示代码中的 `CORE_INDEX`。
-
-## 5. hand 映射
-
-`SMPLX_HAND_INDEX` 定义从 SMPL-X fullpose index 到 canonical hand bone 的映射。记该映射为：
-
-$$
-\psi:H_{\mathrm{mapped}}\rightarrow\{25,\ldots,54\}
-$$
-
-例如：
-
-$$
-\psi(\mathrm{leftIndexProximal})=25,\quad
-\psi(\mathrm{leftIndexIntermediate})=26,\quad
-\psi(\mathrm{leftIndexDistal})=27
-$$
-
-$$
-\psi(\mathrm{rightThumbProximal})=52,\quad
-\psi(\mathrm{rightThumbIntermediate})=53,\quad
-\psi(\mathrm{rightThumbDistal})=54
-$$
-
-代码先初始化：
-
-$$
-Q_t^{k,\mathrm{hand,raw}}=[0,0,0,1],\qquad k\in H
-$$
-
-若 $\psi(k)<55$ 且 $k\in H$：
-
-$$
-Q_t^{k,\mathrm{hand,raw}}=Q^{55}_{t,\psi(k)}
-$$
-
-然后传入：
-
-$$
-\mathrm{HandQuatsByName}=\{k\mapsto Q^{k,\mathrm{hand,raw}}\mid k\in H\}
-$$
-
-## 6. basis 选择函数
-
-`_world_basis_for_clip()` 的逻辑可写为：
-
-$$
-b=
-\begin{cases}
-\mathrm{metadata}[\mathrm{DeclaredWorldBasis}],&\mathrm{if\ present}\\
-\mathrm{metadata}[\mathrm{WorldBasis}],&\mathrm{if\ present\ and\ string}\\
-\mathrm{ZUpToYUp},&\mathrm{dataset}=\mathrm{grab}\\
-\mathrm{IdentityYUp},&\mathrm{otherwise}
-\end{cases}
-$$
-
-因此：
-
-$$
-B_{\mathrm{GRAB}}=
-\begin{bmatrix}
-1&0&0\\
-0&0&1\\
-0&-1&0
-\end{bmatrix}
-$$
-
-$$
-B_{\mathrm{MotionX}}=
-\begin{bmatrix}
-1&0&0\\
-0&1&0\\
-0&0&1
-\end{bmatrix}
-$$
-
-这就是为什么同为 SMPL-X，GRAB 和 Motion-X 仍必须分开写 dataset profile。
-
-## 7. direct retarget 的完整公式
-
-SMPL-X 路径调用：
-
-$$
-retargetNamedQuatsToVrm
-\left(
-\mathrm{translation},
-q^{\mathrm{root,src}},
-\{q^{j,\mathrm{body,src}}\},
-o^{\mathrm{body,src}},
-\{q^{k,\mathrm{hand,raw}}\},
-o^{\mathrm{hand,src}},
-b
-\right)
-$$
-
-当前代码中：
-
-$$
-o^{\mathrm{body,src}}=\mathrm{DefaultRestOffsets}
-$$
-
-$$
-o^{\mathrm{hand,src}}=\mathrm{DefaultRestOffsets}
-$$
-
-scale：
-
-$$
-\lambda=
-\frac{\sum_{C\in K}\sum_{j\in C}\|o_j^{T}\|}
-{\sum_{C\in K}\sum_{j\in C}\|o_j^{\mathrm{src}}\|}
-$$
+Codec 接收 $(T,165)$ axis-angle block，并重排为 $(T,55,3)$。55 joints 分组：
 
-root：
-
-$$
-r_t^{\mathrm{vrm}}=B(\lambda\,\mathrm{translation}_t-\lambda\,\mathrm{translation}_0)
-$$
+| Index | 数量 | 语义 |
+|---:|---:|---|
+| 0 | 1 | root / pelvis |
+| 1–21 | 21 | body |
+| 22 | 1 | jaw |
+| 23–24 | 2 | eyes |
+| 25–39 | 15 | left hand |
+| 40–54 | 15 | right hand |
 
-root rotation：
+Axis-angle $a_{t,i}$ 转 quaternion：
 
 $$
-q_t^{\mathrm{root,basis}}=q(B)q_t^{\mathrm{root,src}}
+q_{t,i}^{S}=\left[\frac{a_{t,i}}{\max(\lVert a_{t,i}\rVert_2,\epsilon)}\sin\frac{\lVert a_{t,i}\rVert_2}{2},\cos\frac{\lVert a_{t,i}\rVert_2}{2}\right].
 $$
 
-body correction：
+Root 是把 body-local template 映射到 source world 的 `global_orient`；body/hands 是 parent-local。Jaw/eyes 当前不进入 211 维 pose，但 source fields 保留在 metadata/channel，不得混入 hands。
 
-$$
-c_j^{\mathrm{body}}=Rot(o_{\chi(j)}^{T}\to o_{\chi(j)}^{\mathrm{body,src}})
-$$
+## 2. GRAB 输入
 
-body target local quaternion：
+标准背景：GRAB 提供 120 FPS SMPL-X human motion、object rigid pose 和 contact。VIREA 的 `grab_smplx55` profile 独立声明：
 
-$$
-q_t^{j,\mathrm{target}}=
-\widehat{
-\left(c_{\pi(j)}^{\mathrm{body}}\right)^{-1}
-q_t^{j,\mathrm{body,src}}
-c_j^{\mathrm{body}}
-}
-$$
+- fullpose/translation 字段路径；
+- framerate 字段优先、fallback 120；
+- GRAB world basis 与 unit；
+- object/contact 的 timebase 与表示。
 
-缺失 correction 时相应因子省略。
+Adapter 必须验证 fullpose 至少 165 维、translation 与 frame count 对齐。Human motion进入 direct path；object pose 与 categorical contact进入独立 channels，不塞进 211 维。
 
-hand correction：
+GRAB contact 的 native 值是逐帧逐 object vertex 的 body-part category。任何 bool 或 heatmap 聚合都只能作为 derived side channel，并保留 native map。
 
-$$
-c_k^{\mathrm{hand}}=Rot(o^{T}_{\chi(k)}\to o_{\chi(k)}^{\mathrm{hand,src}})
-$$
+## 3. Motion-X 322 维切片
 
-hand target local quaternion 使用 body 与 hand correction 合并后的父 correction：
+官方 `(T,322)` 不是 `(T,165)` fullpose。Native 分块：
 
-$$
-q_t^{k,\mathrm{target}}=
-\widehat{
-\left(c_{\pi(k)}^{\mathrm{all}}\right)^{-1}
-q_t^{k,\mathrm{hand,raw}}
-c_k^{\mathrm{hand}}
-}
-$$
+| Slice | 维度 | 字段 |
+|---|---:|---|
+| `0:3` | 3 | root orientation |
+| `3:66` | 63 | body |
+| `66:156` | 90 | hands |
+| `156:159` | 3 | jaw |
+| `159:209` | 50 | expression |
+| `209:309` | 100 | face shape |
+| `309:312` | 3 | translation |
+| `312:322` | 10 | betas |
 
-其中：
+Motion-X 只有 53 个 native rotation joints。规范化 fullpose55 的顺序是：
 
-$$
-c^{\mathrm{all}}=c^{\mathrm{body}}\cup c^{\mathrm{hand}}
-$$
+```text
+root + body (66)
+  + jaw (3)
+  + left/right eye identity (6)
+  + left/right hands (90)
+  = 165
+```
 
-## 8. target FK 输出
+Eye identity 是明确的 normalization，不是 native truth。直接使用原数组 `0:165` 会把 jaw 和 expression 当成 hand/eye rotations，并把 hands 整体错位；这是严重形变的已知根因。
 
-打包：
+Expression `159:209` 进入 face channel，translation 用 `309:312`。Face shape 与 betas 是 metadata/shape，不绑定人体 annotation marker。
 
-$$
-S=pack
-\left(
-r^{\mathrm{vrm}},
-q^{\mathrm{root,target}},
-Q^{C,\mathrm{target}},
-Q^{H,\mathrm{target}}
-\right)
-$$
+## 4. Hand mapping
 
-target positions：
+SMPL-X hand order不是 canonical 的 thumb-first 顺序。Codec 使用显式 source index table：
 
-$$
-P^{\mathrm{target}}=FK(S,o^{T})
-$$
+- source 先 index、middle、little、ring、thumb；
+- canonical 先 thumb、index、middle、ring、little；
+- 每根手指按 proximal、intermediate、distal。
 
-metadata：
+Mapping 后得到 $h_{t,k}^{S}$，其中 $k$ 是 canonical hand slot。依赖顺序不能由字段名排序或数组遍历推断。
 
-$$
-\mathrm{codec}=\mathrm{SmplxFullpose}
-$$
+## 5. 两个独立 Dataset Profiles
 
-$$
-\mathrm{SourceProfile}=\mathrm{SmplxFullpose55}
-$$
+| 属性 | GRAB | Motion-X |
+|---|---|---|
+| FPS | 文件字段，fallback 120 | 官方 30 |
+| Native motion | fullpose55 | 322D 重组为 fullpose55 |
+| World basis | GRAB profile | 必须按 Motion-X sub-source profile |
+| Root semantic | `local_to_world` | `local_to_world`；sub-source 必须验证 |
+| Translation | GRAB 字段/unit | `309:312`；sub-source unit 单独校准 |
+| Extra channels | object/contact | text/face，部分子源 audio |
 
-$$
-\mathrm{RetargetMode}=\mathrm{DirectLocalQuaternionRetarget}
-$$
+当前 AIST translation `0.01` 规则属于项目 sub-source rule；它必须有 sample calibration 和 provenance。官方 Motion-X 统一 30 FPS，并不证明所有子源具有相同 world basis/unit。
 
-## 9. face、jaw、eyes、object 的边界
+## 6. Direct retarget
 
-Motion-X 中：
+Root position：
 
 $$
-\mathrm{FaceExpr}=A_{[:,159:209]}
+r_t^{T}=\lambda sB(r_t^{S}-r_0^{S}).
 $$
 
-GRAB 中：
+SMPL-X-family root 是 `local_to_world`，只改变 world 值域：
 
 $$
-\mathrm{ObjectName},\quad \mathrm{contact},\quad \mathrm{gender}
+R_{t,0}^{C}=BR_{t,0}^{S}.
 $$
 
-这些进入 `motion` 或 metadata/annotations，但不进入：
+Body 与 hands local rotation：
 
 $$
-S=[r,q^{\mathrm{root}},Q^{C},Q^{H}]
+R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
 $$
-
-即当前 VRM humanoid retarget 只覆盖 body + hands，不驱动 VRM expression、lookAt、jaw 或 object channel。
-
-## 10. source preview
 
-`extract_source()` 对 fullpose 执行同样的 $55$ joint axis-angle 解码，但只把 body 局部旋转传给 `source_fk_from_body_quats()`：
+这里 $B$ 取当前 dataset/sub-source profile；$C_j$ 取 source/target rest correction。Local body/hand rotation不做 world basis conjugation。若某个转换产物真的存 world-to-world rotation operator，必须拆出 `world_operator` profile，不能沿用 SMPL-X `global_orient` 的语义。
 
-$$
-\hat{P}^{\mathrm{src}}=
-FK
-\left(
-\lambda\mathrm{translation}-\lambda\mathrm{translation}_0,
-q^{\mathrm{root,src}},
-\{q^{j,\mathrm{body,src}}\},
-o^{\mathrm{src}}
-\right)
-$$
+映射后的 root、21 core 和 30 hands 打包到 211 维。Target FK 使用 artifact 中 fixed rest；具体 VRM rest 由 runtime normalized humanoid pose处理。
 
-再 basis：
+## 7. Annotation 与 channel 边界
 
-$$
-\hat{P}^{\mathrm{src,basis}}=B\hat{P}^{\mathrm{src}}
-$$
+GRAB：object name、action、contact context 是 native；只有真实 object pose/contact frames 时才画逐帧 marker/indicator。
 
-并以第一帧 hips 居中：
+Motion-X：sequence/body/hand/face text分别保留。源结构明确左右手时为 native；仅由文本推断左右时为 derived。Face expression channel不等于 VRM expression 已映射，除非存在 coefficient-to-expression mapping。
 
-$$
-\hat{P}_t(j)\leftarrow \hat{P}_t(j)-\hat{P}_0(\mathrm{hips})
-$$
+## 8. Stop-Ship 信号
 
-因此 source preview 当前不显示 SMPL-X hand FK，只显示 body source skeleton。processed preview 和真实 VRM avatar 则包含 hand quats。
+- Motion-X hands/jaw/expression slice 边界失败；
+- 地面接触被旋到墙面、root trajectory 单位爆炸；
+- GRAB/Motion-X 因共享 Codec 而共享同一 profile；
+- SMPL-X `global_orient` 被一律做 world-operator 共轭；
+- local rotations再次套 world basis；
+- GRAB contact 聚合覆盖 native categorical map；
+- face/shape/object 字段被写进 211 维或绑到错误人体关节。

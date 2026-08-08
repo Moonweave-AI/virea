@@ -190,7 +190,9 @@ def forward_kinematics(
 ) -> np.ndarray:
     names = joint_names or FK_BONES
     frame_count = int(np.asarray(root_translation).shape[0])
-    offsets = merged_offsets(target_rest_offsets_map() if rest_offsets is None else rest_offsets)
+    # Canonical FK is intentionally independent from locally installed avatars.
+    # A concrete VRM applies its own rest pose in the viewer/visual audit path.
+    offsets = merged_offsets(DEFAULT_REST_OFFSETS if rest_offsets is None else rest_offsets)
     world_pos: dict[str, np.ndarray] = {"hips": np.asarray(root_translation, dtype=np.float32)}
     world_rot: dict[str, np.ndarray] = {"hips": normalize_quat_xyzw(np.asarray(root_rotation_xyzw, dtype=np.float32))}
 
@@ -236,26 +238,20 @@ def _default_vrm_model_root() -> Path:
     return project_root / "assets" / "vrm"
 
 
-def _ensure_vrm_motion_import_path() -> None:
-    extra_path = os.getenv("VIREA_VRM_MOTION_PYTHONPATH")
-    if not extra_path:
-        return
-    import sys
-
-    candidate = Path(extra_path).expanduser()
-    if candidate.exists():
-        text = str(candidate)
-        if text not in sys.path:
-            sys.path.insert(0, text)
-
-
 @lru_cache(maxsize=1)
 def vrm_control_rest_source() -> dict[str, Any]:
-    root = _default_vrm_model_root()
+    descriptors = _inspect_vrm_descriptors()
     return {
         "mode": "vrm_control_rest_template" if vrm_control_rest_available() else "default_rest_template",
-        "vrm_model_root": str(root),
-        "inspected_vrm_count": len(_inspect_vrm_descriptors()),
+        "source_token": "local_vrm_control" if descriptors else "canonical_default",
+        "inspected_vrm_count": len(descriptors),
+        "models": [
+            {
+                "basename": descriptor.get("avatar_file"),
+                "sha256": descriptor.get("avatar_sha256"),
+            }
+            for descriptor in descriptors
+        ],
     }
 
 
@@ -265,18 +261,20 @@ def _inspect_vrm_descriptors() -> tuple[dict[str, Any], ...]:
     if not root.exists():
         return ()
     try:
-        from vrm_motion.data.vrm_inspector import inspect_vrm_avatar
+        from virea.motion.vrm_inspector import inspect_vrm_avatar
     except Exception:
-        _ensure_vrm_motion_import_path()
-        try:
-            from vrm_motion.data.vrm_inspector import inspect_vrm_avatar
-        except Exception:
-            return ()
+        return ()
 
     descriptors: list[dict[str, Any]] = []
-    for path in sorted(root.glob("*.vrm")):
+    try:
+        candidates = [root] if root.is_file() else [
+            path for path in root.iterdir() if path.is_file() and path.suffix.lower() == ".vrm"
+        ]
+    except OSError:
+        return ()
+    for path in sorted(candidates):
         try:
-            descriptors.append(inspect_vrm_avatar(path).to_dict())
+            descriptors.append(inspect_vrm_avatar(path))
         except Exception:
             continue
     return tuple(descriptors)
@@ -479,7 +477,8 @@ def control_rest_alignment_audit() -> dict[str, Any]:
         descriptor_reports.append(
             {
                 "avatar_id": descriptor.get("avatar_id"),
-                "avatar_path": descriptor.get("avatar_path"),
+                "avatar_file": descriptor.get("avatar_file"),
+                "avatar_sha256": descriptor.get("avatar_sha256"),
                 "status": "passed",
                 "fit_bone_count": len(fit_bones),
                 "available_humanoid_bones": len(graph),
@@ -517,7 +516,10 @@ def control_rest_alignment_audit() -> dict[str, Any]:
     }
 
 
-def forward_kinematics_from_sequence(sequence: np.ndarray) -> np.ndarray:
+def forward_kinematics_from_sequence(
+    sequence: np.ndarray,
+    rest_offsets: Mapping[str, list[float] | np.ndarray] | None = None,
+) -> np.ndarray:
     unpacked = unpack_sequence(sequence)
     local_quats = {}
     for index, name in enumerate(CORE_BONES):
@@ -528,6 +530,6 @@ def forward_kinematics_from_sequence(sequence: np.ndarray) -> np.ndarray:
         root_translation=unpacked["root_translation"],
         root_rotation_xyzw=unpacked["root_rotation_xyzw"],
         local_quats=local_quats,
-        rest_offsets=target_rest_offsets_map(),
+        rest_offsets=DEFAULT_REST_OFFSETS if rest_offsets is None else rest_offsets,
         joint_names=FK_BONES,
     )

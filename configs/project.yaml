@@ -1,6 +1,6 @@
 project:
   name: virea
-  schema_version: virea.project.v0.1.0
+  schema_version: virea.project.v0.2.0
 
 paths:
   data_root_env: VIREA_DATA_ROOT
@@ -41,6 +41,6 @@ data_sources:
 runtime:
   target_fps: 30
   preview_max_frames: 180
-  processing_version: v0.1.0
+  processing_version: v0.2.0
   batch_workers: 0
   batch_skip_existing: true

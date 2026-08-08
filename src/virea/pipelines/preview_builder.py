@@ -5,11 +5,17 @@ from typing import Any
 import numpy as np
 
 from virea.data.types import PreviewPayload, RawClip
-from virea.motion.canonical import CANONICAL_TO_VRM_BONE_NAME, CORE_BONES, HAND_BONES, unpack_sequence
+from virea.motion.canonical import (
+    CANONICAL_SCHEMA_VERSION,
+    CANONICAL_TO_VRM_BONE_NAME,
+    CORE_BONES,
+    HAND_BONES,
+    unpack_sequence,
+)
 from virea.motion.codecs import CanonicalResult
 from virea.motion.quality import preview_quality
 from virea.motion.snapshot import SourceSnapshot
-from virea.motion.skeleton import FK_BONES, target_rest_offsets_map, vrm_control_rest_source
+from virea.motion.skeleton import DEFAULT_REST_OFFSETS, FK_BONES
 
 
 class PreviewBuilder:
@@ -20,7 +26,8 @@ class PreviewBuilder:
         unpacked = unpack_sequence(sequence)
         frame_count = int(sequence.shape[0])
         return {
-            "schema_version": "virea.vrm_motion_payload.v0.1.0",
+            "schema_version": "virea.vrm_motion_payload.v1.0.0",
+            "canonical_schema_version": CANONICAL_SCHEMA_VERSION,
             "frame_count": frame_count,
             "coordinate_system": "gltf_y_up_z_forward",
             "unit": "meter",
@@ -32,8 +39,8 @@ class PreviewBuilder:
             "hand_quaternions": np.round(unpacked["hand_quats_xyzw"].astype(float), 6).tolist(),
             "canonical_to_vrm": dict(CANONICAL_TO_VRM_BONE_NAME),
             "rest_bones": list(FK_BONES),
-            "rest_offsets": {key: [float(v) for v in value] for key, value in target_rest_offsets_map().items()},
-            "rest_source": vrm_control_rest_source(),
+            "rest_offsets": {key: [float(v) for v in value] for key, value in DEFAULT_REST_OFFSETS.items()},
+            "rest_source": "virea_canonical_rest.v1",
         }
 
     def source_payload(
@@ -51,6 +58,8 @@ class PreviewBuilder:
             joint_names=source.joint_names,
             edges=source.edges,
             annotations=clip.annotations,
+            channels=clip.channels,
+            validation_warnings=clip.validation_warnings,
             metadata={
                 "source_format": clip.sample.source_format,
                 "coordinate_system": source.coordinate_system,
@@ -77,6 +86,8 @@ class PreviewBuilder:
             joint_names=canonical.joint_names,
             edges=canonical.edges,
             annotations=clip.annotations,
+            channels=clip.channels,
+            validation_warnings=clip.validation_warnings,
             metadata=canonical.metadata,
             quality=preview_quality(
                 canonical.positions, compare,

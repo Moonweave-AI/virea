@@ -12,6 +12,7 @@ from virea.data.types import SampleRef
 from virea.pipelines.artifacts import artifact_paths
 from virea.pipelines.artifacts import motion_uid
 from virea.pipelines.processing import ProcessingPipeline
+from virea.reporting import sanitize_report_paths
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ class BatchReport:
     items: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        return sanitize_report_paths({
             "schema_version": self.schema_version,
             "data_source": self.data_source,
             "processed_root": self.processed_root,
@@ -58,7 +59,7 @@ class BatchReport:
             "elapsed_sec": round(self.elapsed_sec, 3),
             "passed": self.failed == 0,
             "items": self.items,
-        }
+        })
 
 
 def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
@@ -87,21 +88,26 @@ def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
         uid = motion_uid(dataset, sample_id, frame_count)
         paths = artifact_paths(registry.paths.processed_root, registry.paths.processing_version, dataset, uid)
         if skip_existing and not force and paths.exists():
-            quality: dict[str, Any] = {}
-            if paths.quality_report.exists():
-                try:
-                    quality = json.loads(paths.quality_report.read_text(encoding="utf-8"))
-                except Exception:
-                    pass
-            return {
-                "dataset": dataset,
-                "sample_id": sample_id,
-                "status": "skipped",
-                "frame_count": frame_count,
-                "quality": quality,
-                "files": {"source_snapshot": paths.source_snapshot.as_posix()},
-                "elapsed_sec": 0.0,
-            }
+            valid, _errors = pipeline.validate_existing(clip, paths)
+            if valid:
+                quality: dict[str, Any] = {}
+                if paths.quality_report.exists():
+                    try:
+                        quality = json.loads(paths.quality_report.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                return {
+                    "dataset": dataset,
+                    "sample_id": sample_id,
+                    "status": "skipped",
+                    "frame_count": frame_count,
+                    "quality": quality,
+                    "files": {
+                        "source_snapshot": paths.source_snapshot.relative_to(registry.paths.processed_root).as_posix(),
+                        "canonical_manifest": paths.canonical_manifest.relative_to(registry.paths.processed_root).as_posix(),
+                    },
+                    "elapsed_sec": 0.0,
+                }
 
         start = perf_counter()
         output = pipeline.process(dataset, sample_id, max_frames=max_frames)
@@ -122,7 +128,7 @@ def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
             "dataset": dataset,
             "sample_id": sample_id,
             "status": "failed",
-            "error": str(exc),
+            "error": sanitize_report_paths(str(exc)),
             "elapsed_sec": 0.0,
         }
 
@@ -158,7 +164,7 @@ class BatchPipeline:
         start = perf_counter()
         report = BatchReport(
             data_source=self.registry.paths.data_source,
-            processed_root=self.registry.paths.processed_root.as_posix(),
+            processed_root=".",
             workers=max(1, workers),
             total=len(tasks),
         )

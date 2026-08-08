@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/channel.schema.json",
+  "title": "VIREA Multimodal Channel v1",
+  "type": "object",
+  "required": [
+    "schema_version", "id", "kind", "availability", "representation",
+    "timebase", "fps", "frame_count", "shape", "coordinate_system", "unit",
+    "source", "provenance", "reason_unavailable", "preview", "data_ref", "extras"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.channel.v1.0.0" },
+    "id": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+    "kind": { "type": "string", "minLength": 1 },
+    "availability": { "enum": ["missing", "metadata_only", "inline", "external"] },
+    "representation": { "type": ["string", "null"] },
+    "timebase": { "type": ["object", "string", "null"] },
+    "fps": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "frame_count": { "type": ["integer", "null"], "minimum": 0 },
+    "shape": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      ]
+    },
+    "coordinate_system": { "type": ["string", "null"] },
+    "unit": { "type": ["string", "null"] },
+    "source": { "type": ["string", "null"] },
+    "provenance": { "enum": ["native", "derived", "fallback"] },
+    "reason_unavailable": { "type": ["string", "null"] },
+    "preview": { "type": ["object", "null"] },
+    "data_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/dataReference" }
+      ]
+    },
+    "extras": {
+      "type": "object",
+      "x-virea-max-utf8-bytes": 65536,
+      "x-virea-max-depth": 8,
+      "x-virea-max-array-items": 512
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "availability": { "const": "missing" } } },
+      "then": { "properties": { "reason_unavailable": { "type": "string", "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "availability": { "const": "external" } } },
+      "then": { "properties": { "data_ref": { "$ref": "#/$defs/dataReference" } } }
+    }
+  ],
+  "$defs": {
+    "dataReference": {
+      "type": "object",
+      "required": ["path", "sha256", "byte_length", "media_type", "encoding", "read_api"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "byte_length": { "type": "integer", "minimum": 0 },
+        "media_type": { "type": "string", "minLength": 1 },
+        "encoding": { "type": "string", "minLength": 1 },
+        "read_api": { "type": "string", "pattern": "^/api/" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

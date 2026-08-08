@@ -4,6 +4,7 @@ from collections import Counter
 from pathlib import Path
 
 from virea.data.registry import DatasetRegistry
+from virea.reporting import sanitize_report_paths
 
 
 class CatalogPipeline:
@@ -11,6 +12,9 @@ class CatalogPipeline:
         self.registry = registry
 
     def summary(self) -> dict:
+        data_source = str(self.registry.paths.data_source)
+        raw_root_token = f"data-source/{data_source}/raw"
+        processed_root_token = f"data-source/{data_source}/processed"
         datasets = []
         for record in self.registry.iter_records():
             root = self.registry.paths.raw_root / record.raw_dir
@@ -30,15 +34,19 @@ class CatalogPipeline:
             datasets.append(
                 {
                     **record.to_dict(),
-                    "raw_root": root.as_posix(),
+                    "raw_root": Path(record.raw_dir).as_posix(),
+                    "raw_path_base": raw_root_token,
                     "exists": root.exists(),
                     "file_count": file_count,
                     "extensions": dict(extensions.most_common(16)),
                     "top_dirs": dict(top_dirs.most_common(16)),
                 }
             )
-        return {
-            "raw_root": self.registry.paths.raw_root.as_posix(),
-            "processed_root": self.registry.paths.processed_root.as_posix(),
+        return sanitize_report_paths({
+            "data_source": data_source,
+            "raw_root": raw_root_token,
+            "raw_root_status": "configured" if self.registry.paths.raw_root.exists() else "missing",
+            "processed_root": processed_root_token,
+            "processed_root_status": "configured" if self.registry.paths.processed_root.exists() else "missing",
             "datasets": datasets,
-        }
+        })

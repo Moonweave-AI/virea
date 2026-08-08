@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/annotation.schema.json",
+  "title": "VIREA Annotation v1",
+  "type": "object",
+  "required": [
+    "schema_version", "id", "level", "type", "text", "bodypart",
+    "start_sec", "end_sec", "start_frame", "end_frame", "confidence",
+    "source", "provenance", "reasoning", "original", "clipped", "extras"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.annotation.v1.0.0" },
+    "id": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+    "level": { "enum": ["sequence", "action", "part", "context", "metadata"] },
+    "type": { "type": "string", "minLength": 1 },
+    "text": { "type": ["string", "null"] },
+    "bodypart": { "type": ["string", "null"] },
+    "start_sec": { "type": ["number", "null"], "minimum": 0, "description": "Paired with end_sec; runtime validation enforces end_sec >= start_sec." },
+    "end_sec": { "type": ["number", "null"], "minimum": 0, "description": "Exclusive endpoint; runtime validation enforces end_sec >= start_sec." },
+    "start_frame": { "type": ["integer", "null"], "minimum": 0, "description": "Paired with end_frame; runtime validation enforces end_frame >= start_frame." },
+    "end_frame": { "type": ["integer", "null"], "minimum": 0, "description": "Exclusive endpoint; runtime validation enforces end_frame >= start_frame." },
+    "confidence": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["value", "min", "max", "unit"],
+          "properties": {
+            "value": { "type": "number" },
+            "min": { "type": ["number", "null"] },
+            "max": { "type": ["number", "null"] },
+            "unit": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "source": { "type": ["string", "null"] },
+    "provenance": { "enum": ["native", "derived", "fallback"] },
+    "reasoning": { "type": ["string", "null"] },
+    "original": { "type": ["object", "null"] },
+    "clipped": { "type": "boolean" },
+    "extras": {
+      "type": "object",
+      "description": "Bounded by the Python contract to 64 KiB, depth 8 and 512 array items; larger values become sidecar references.",
+      "x-virea-max-utf8-bytes": 65536,
+      "x-virea-max-depth": 8,
+      "x-virea-max-array-items": 512
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "provenance": { "enum": ["derived", "fallback"] } } },
+      "then": { "properties": { "reasoning": { "type": "string", "minLength": 1 } } }
+    },
+    {
+      "oneOf": [
+        { "properties": { "start_sec": { "type": "null" }, "end_sec": { "type": "null" } } },
+        { "properties": { "start_sec": { "type": "number" }, "end_sec": { "type": "number" } } }
+      ]
+    },
+    {
+      "oneOf": [
+        { "properties": { "start_frame": { "type": "null" }, "end_frame": { "type": "null" } } },
+        { "properties": { "start_frame": { "type": "integer" }, "end_frame": { "type": "integer" } } }
+      ]
+    },
+    {
+      "if": { "properties": { "level": { "const": "metadata" } } },
+      "then": { "properties": { "bodypart": { "enum": [null, "object", "audio", "face", "interaction"] } } }
+    }
+  ],
+  "additionalProperties": false
+}

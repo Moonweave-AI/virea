@@ -146,14 +146,25 @@ def _velocity_analysis(positions: np.ndarray, fps: float = 30.0) -> dict[str, An
     accel_mag = np.linalg.norm(accel, axis=-1)
     jitter_threshold = 10.0
     jittery_joints = int((speed.max(axis=0) > jitter_threshold).sum())
-    return {
+    report = {
         "mean_speed_m_s": round(float(speed.mean()), 4),
         "max_speed_m_s": round(float(speed.max()), 4),
-        "mean_accel_m_s2": round(float(accel_mag.mean()), 4),
-        "max_accel_m_s2": round(float(accel_mag.max()), 4),
         "jittery_joints": jittery_joints,
         "jitter_threshold_m_s": jitter_threshold,
     }
+    if accel_mag.size:
+        report.update({
+            "mean_accel_m_s2": round(float(accel_mag.mean()), 4),
+            "max_accel_m_s2": round(float(accel_mag.max()), 4),
+            "acceleration_status": "available",
+        })
+    else:
+        report.update({
+            "mean_accel_m_s2": None,
+            "max_accel_m_s2": None,
+            "acceleration_status": "insufficient_frames",
+        })
+    return report
 
 
 def _align_by_name(

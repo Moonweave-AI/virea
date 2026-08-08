@@ -1,690 +1,174 @@
-# SuSuInterActs 到 VRM 的 retarget 数学
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 30
+summary: SuSuInterActs official columns/local 6D、positions 两路、body fitting 与 native finger 合并数学。
+canonical: doc/math-retarget/susu-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../susu-pipeline-audit.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-覆盖数据集：SuSuInterActs。对应代码：`SuSuInterActsAdapter`、`SuSu6DCodec`、`sixd_rows_to_quat_xyzw()`、`positions_from_global_rotations()`、`fit_positions_to_vrm()`。
+# SuSuInterActs 到 VRM
 
-SuSu 是当前项目中最特殊的路径。它不是 SMPL-H、SMPL-X，也不是标准 BVH。当前代码的真实输出逻辑是：
+SuSu 有独立的 body/hand 6D 和可选 positions。v1 以 SentiAvatar 官方公开实现为基线：前两列、parent-local、20 FPS。最终 body 始终来自 position fitting；经过同一 profile 修正的 native hand local quaternions再合入 30 hand slots。
 
-$$
-\mathrm{SuSu\ body/positions}
-\rightarrow
-\mathrm{BodyBones\ positions}
-\rightarrow
-fitPositionsToVrm
-\rightarrow
-\mathrm{VRM\ body\ sequence}
-$$
-
-代码确实会把 SuSu body/hands 的 6D rotation 转为 global quaternions，并计算 global-to-local quaternions；但当前 `to_canonical()` 最终返回的是 `fit_positions_to_vrm()` 的 sequence，手部局部四元数没有写入最终 output sequence。也就是说：
-
-$$
-Q^{H,\mathrm{output}}=I^{H}
-$$
-
-除非未来代码改成把 `hand` 合并进 `retarget["sequence"]`。
-
-## 1. adapter 读取
-
-motion 文件：
-
-$$
-\mathrm{path}=\mathrm{RawRoot}/\mathrm{MotionData}/(\mathrm{SampleId}+\mathrm{.npy})
-$$
-
-加载后要求是 dict。代码只保留键集合：
-
-$$
-K_{\mathrm{motion}}=\{\mathrm{body},\mathrm{left},\mathrm{right},\mathrm{positions}\}
-$$
-
-每个存在的值转为 `float32`：
-
-$$
-M_k=float32(\mathrm{data}[k]),\qquad k\in K_{\mathrm{motion}}
-$$
-
-若存在 `body` 且 $T>1$，做 frozen 检查：
-
-$$
-\max_d std_t(\mathrm{body}_{t,d}) < 10^{-6}
-\Rightarrow \mathrm{ValueError}
-$$
-
-fps 固定：
-
-$$
-f=20
-$$
-
-face/audio/text：
-
-$$
-\mathrm{face}\leftarrow \mathrm{ArkitData}/(\mathrm{SampleId}+\mathrm{.npy})
-$$
-
-$$
-\mathrm{audio}\leftarrow \mathrm{WavData}/(\mathrm{SampleId}+\mathrm{.wav})
-$$
-
-$$
-\mathrm{text}\leftarrow \mathrm{TextData}/\mathrm{motion2text.json}
-$$
-
-这些进入 motion metadata 或 annotations，不进入当前 body retarget 的数学输出。
-
-## 2. profile 选择
-
-adapter 的 source format/codec key：
-
-$$
-\mathrm{SampleId}\ \mathrm{starts\ with}\ \mathrm{FbxToJsonDataSusuRetargetMaya/}
-\Rightarrow
-\begin{cases}
-\mathrm{SourceFormat}=\mathrm{SusuRetargetMaya6dBodyHandsMNpy}\\
-\mathrm{CodecKey}=\mathrm{SusuRetargetMaya6dBodyHands}
-\end{cases}
-$$
-
-$$
-\mathrm{SampleId}\ \mathrm{starts\ with}\ \mathrm{FbxToJsonDataSusuChonglu/}
-\ \mathrm{or}\ \mathrm{positions}\in M
-\Rightarrow
-\begin{cases}
-\mathrm{SourceFormat}=\mathrm{SusuChonglu6dBodyHandsCmPositionsNpy}\\
-\mathrm{CodecKey}=\mathrm{SusuChonglu6dBodyHandsCm}
-\end{cases}
-$$
-
-否则：
-
-$$
-\mathrm{CodecKey}=\mathrm{Susu6dBodyHands}
-$$
-
-codec 内部 `_select_profile()` 再做一次 profile 决策。若构造器传入固定 profile，则直接使用。否则：
-
-$$
-\mathrm{profile}=
-\begin{cases}
-\mathrm{RetargetMaya},&\mathrm{SampleId\ starts\ with\ RETARGETMAYA.pathToken}\\
-\mathrm{CHONGLU},&\mathrm{SampleId\ starts\ with\ CHONGLU.pathToken}\\
-\mathrm{CHONGLU},&\mathrm{HasPositions}\\
-\mathrm{RetargetMaya},&\mathrm{otherwise}
-\end{cases}
-$$
-
-## 3. profile 参数
-
-`SuSuProfile` 参数记为：
-
-$$
-\rho=(\mathrm{name},\tau_{\mathrm{path}},\alpha_{\mathrm{pos}},\alpha_{\mathrm{root}},b_{\mathrm{pos}},a_{\mathrm{root}},m_{\mathrm{root}})
-$$
-
-其中：
-
-$$
-a_{\mathrm{root}}=(0,2,1)
-$$
-
-retarget-maya：
-
-$$
-\alpha_{\mathrm{pos}}=0.01,\qquad
-\alpha_{\mathrm{root}}=1.0,\qquad
-b_{\mathrm{pos}}=\mathrm{NegZUpToYUp}
-$$
-
-chonglu：
-
-$$
-\alpha_{\mathrm{pos}}=0.01,\qquad
-\alpha_{\mathrm{root}}=0.01,\qquad
-b_{\mathrm{pos}}=\mathrm{IdentityYUp}
-$$
-
-## 4. root translation
-
-`_root_translation(body, profile)` 对 body 前三维按 `root_axes` 重排：
-
-$$
-u_t=
-\left[
-\mathrm{body}_{t,0},\
-\mathrm{body}_{t,2},\
-\mathrm{body}_{t,1}
-\right]
-$$
-
-初始 scale：
-
-$$
-\gamma=\alpha_{\mathrm{root}}
-$$
-
-若 profile 是 retarget-maya，代码做自动单位判断：
-
-$$
-h_{\mathrm{med}}=median_t(|u_{t,y}|)
-$$
-
-$$
-m_{\max}=\max_{t,d}|u_{t,d}|
-$$
-
-$$
-\gamma=
-\begin{cases}
-0.01,&h_{\mathrm{med}}>5\ \mathrm{or}\ m_{\max}>20\\
-1.0,&\mathrm{otherwise}
-\end{cases}
-$$
-
-unit metadata：
-
-$$
-\mathrm{unit}=
-\begin{cases}
-\mathrm{cm},&\gamma=0.01\ \mathrm{by\ retarget{-}maya\ auto\ rule}\\
-\mathrm{m},&\gamma=1.0\ \mathrm{by\ retarget{-}maya\ auto\ rule}\\
-\mathrm{profile},&\mathrm{non\ retarget{-}maya}
-\end{cases}
-$$
-
-root 输出：
-
-$$
-r_t^0=\gamma u_t
-$$
-
-$$
-r_t=r_t^0-r_0^0
-$$
-
-注意这里没有速度积分。代码将 body 前三维解释为绝对 root，并做首帧归零。
-
-## 5. 6D body rotation 重建
-
-body rotation 切片：
-
-$$
-D^{\mathrm{body}}=
-reshape(\mathrm{body}_{[:,3:]},T,25,6)
-$$
-
-每个 6D 向量 $d$ 通过 `sixd_rows_to_quat_xyzw()`：
-
-$$
-a_1=d_{0:3},\qquad a_2=d_{3:6}
-$$
-
-$$
-b_1=\frac{a_1}{\max(\|a_1\|,10^{-8})}
-$$
-
-$$
-b_2=\frac{a_2-(b_1^\top a_2)b_1}{\max(\|a_2-(b_1^\top a_2)b_1\|,10^{-8})}
-$$
-
-$$
-b_3=b_1\times b_2
-$$
-
-row-major matrix：
-
-$$
-R(d)=
-\begin{bmatrix}
-b_1^\top\\
-b_2^\top\\
-b_3^\top
-\end{bmatrix}
-$$
-
-quaternion：
-
-$$
-q(d)=matrixToQuatXyzw(R(d))
-$$
-
-得到：
-
-$$
-Q^{\mathrm{body,global}}\in\mathbb{R}^{T\times25\times4}
-$$
-
-## 6. SuSu body source names 到 canonical names
-
-source body names：
-
-$$
-S_{\mathrm{body}}=[
-\mathrm{pelvis},\mathrm{ThighR},\mathrm{CalfR},\ldots,\mathrm{HandR}
-]
-$$
-
-映射 $g_{\mathrm{susu}}$ 由 `SUSU_BODY_TO_CANONICAL` 定义，例如：
-
-$$
-g_{\mathrm{susu}}(\mathrm{pelvis})=\mathrm{hips}
-$$
-
-$$
-g_{\mathrm{susu}}(\mathrm{ThighL})=\mathrm{leftUpperLeg},\qquad
-g_{\mathrm{susu}}(\mathrm{ThighR})=\mathrm{rightUpperLeg}
-$$
-
-$$
-g_{\mathrm{susu}}(\mathrm{Spine01})=\mathrm{spine},\quad
-g_{\mathrm{susu}}(\mathrm{Spine03})=\mathrm{chest},\quad
-g_{\mathrm{susu}}(\mathrm{Spine05})=\mathrm{upperChest}
-$$
-
-`_susu_body_global_to_local()` 遍历 source index $i$，若 $g_{\mathrm{susu}}(s_i)$ 存在且未写过，则：
-
-$$
-Q_t^{\mathrm{global}}(g_{\mathrm{susu}}(s_i))=
-Q_{t,i}^{\mathrm{body,global}}
-$$
-
-root global：
-
-$$
-q_t^{\mathrm{root,global}}=
-\begin{cases}
-Q_t^{\mathrm{global}}(\mathrm{hips}),&\mathrm{if\ exists}\\
-[0,0,0,1],&\mathrm{otherwise}
-\end{cases}
-$$
-
-## 7. global-to-local body quaternions
-
-对每个 canonical body bone $j\neq\mathrm{hips}$，若父节点 global rotation 存在：
-
-$$
-q_t^{j,\mathrm{local}}=
-\left(Q_t^{\mathrm{global}}(\pi(j))\right)^{-1}
-Q_t^{\mathrm{global}}(j)
-$$
-
-否则代码退化为：
-
-$$
-q_t^{j,\mathrm{local}}=Q_t^{\mathrm{global}}(j)
-$$
-
-这些值被写入临时 `core`：
-
-$$
-Q_t^{C,\mathrm{temp}}(I_C(j))=q_t^{j,\mathrm{local}}
-$$
-
-其中 $I_C$ 表示代码中的 `CORE_INDEX`。
-
-但当前 `to_canonical()` 后面没有把这个 `core` 传入最终 `pack_sequence()`；最终 sequence 来自 `fit_positions_to_vrm()`。
-
-## 8. hand 6D 和 global-to-local
-
-若存在 `left` 或 `right`：
-
-$$
-D^{\mathrm{hand}}=
-reshape(\mathrm{motion}[\mathrm{side}],T,20,6)
-$$
-
-每个 6D 重建为 global quaternion：
-
-$$
-Q^{\mathrm{hand,global}}\in\mathbb{R}^{T\times20\times4}
-$$
-
-手指 source index 到 canonical finger name 的映射 $\psi_{\mathrm{side}}$ 来自 `_susu_hand_map()`，例如左手：
-
-$$
-\psi_{\mathrm{left}}(0)=\mathrm{leftIndexProximal},\quad
-\psi_{\mathrm{left}}(1)=\mathrm{leftIndexIntermediate}
-$$
-
-$$
-\psi_{\mathrm{left}}(16)=\mathrm{leftThumbProximal}
-$$
-
-对每个 finger bone $k$，若 hand parent global 存在：
-
-$$
-q_t^{k,\mathrm{local}}=
-\left(Q_t^{\mathrm{hand,global}}(\pi(k))\right)^{-1}
-Q_t^{\mathrm{hand,global}}(k)
-$$
-
-否则若 body parent global 存在：
-
-$$
-q_t^{k,\mathrm{local}}=
-\left(Q_t^{\mathrm{body,global}}(\pi(k))\right)^{-1}
-Q_t^{\mathrm{hand,global}}(k)
-$$
-
-否则：
-
-$$
-q_t^{k,\mathrm{local}}=Q_t^{\mathrm{hand,global}}(k)
-$$
-
-这些值被写入临时 `hand`，但和 body `core` 一样，当前不进入最终 `retarget["sequence"]`。
-
-## 9. positions 可用时的主路径
-
-`_positions_from_available_data()` 条件是：
-
-$$
-\mathrm{positions}\in\mathrm{clip.motion}
-\quad\mathrm{and}\quad
-ndim(\mathrm{positions})=3
-$$
-
-若成立：
-
-$$
-X^{\mathrm{native}}=\alpha_{\mathrm{pos}}\mathrm{positions}
-$$
-
-接着 `_canonical_body_from_source_positions()` 只取前 $25$ 个 source body joints：
-
-$$
-X^{\mathrm{body}}=X^{\mathrm{native}}_{[:,0:\min(25,J),:]}
-$$
-
-按 `SUSU_BODY_TO_CANONICAL` 映射到 canonical names。若映射到 $m$ 个 canonical joints：
-
-$$
-Y\in\mathbb{R}^{T\times m\times3}
-$$
-
-然后：
-
-$$
-B_{\mathrm{pos}}=
-bodyPositionsFromFkPositions(Y,M)
-\in\mathbb{R}^{T\times22\times3}
-$$
-
-调用：
-
-$$
-fitPositionsToVrm
-\left(
-B_{\mathrm{pos}},
-\mathrm{WorldBasis}=b_{\mathrm{pos}}
-\right)
-$$
-
-其中：
+## 1. 输入契约
 
-$$
-b_{\mathrm{pos}}=
-\begin{cases}
-\mathrm{NegZUpToYUp},&\mathrm{retarget{-}maya}\\
-\mathrm{IdentityYUp},&\mathrm{chonglu}
-\end{cases}
-$$
-
-position fitting 展开为：
-
-$$
-X'_t(j)=B(b_{\mathrm{pos}})B_{\mathrm{pos},t}(j)
-$$
-
-$$
-X''_t(j)=\lambda_{\mathrm{pos}}X'_t(j)
-$$
-
-$$
-r_t=X''_t(\mathrm{hips})-X''_0(\mathrm{hips})
-$$
-
-$$
-q_t^{\mathrm{root}}=Rot(o_{\mathrm{spine}}^{T}\to X''_t(\mathrm{spine})-X''_t(\mathrm{hips}))
-$$
-
-对 core bone：
-
-$$
-q_t^j=
-Rot
-\left(
-o_{\chi(j)}^{T}
-\to
-R(Q_t(\pi(j))^{-1})(X''_t(\chi(j))-X''_t(j))
-\right)
-$$
+| 数组 | shape | 解释 |
+|---|---:|---|
+| body | $(T,153)$ | root translation 3 + 25 x 6D body rotations |
+| left | $(T,120)$ | 20 x 6D left-hand rotations |
+| right | $(T,120)$ | 20 x 6D right-hand rotations |
+| positions | 可选 $(T,J,3)$ | source joint positions，$J$ 随导出变体验证 |
 
-最终：
+所有 arrays 必须有相同 $T$。Body 的前三维是 absolute root position，不是每帧 velocity；首帧归零后保留相对轨迹。
 
-$$
-S=pack(r,q^{\mathrm{root}},Q^{C},I^{H})
-$$
-
-## 10. positions 不可用时的路径
-
-如果没有 `positions`，代码用 global body rotations 构造 positions：
+## 2. 6D columns/local decode
 
-$$
-X=positionsFromGlobalRotations
-\left(
-r,
-Q^{\mathrm{body,global}},
-\mathrm{FixedAimAxes}=\{\}
-\right)
-$$
+把 body 的 `3:153` 重排为 $D^{B}\in\mathbb R^{T\times25\times6}$，hand 各自重排为 $D^{H}\in\mathbb R^{T\times20\times6}$。
 
-注意当前 `use_fixed_axes=False`，所以即使定义了 `SUSU_MAYA_AIM_AXES`，也不会传入。
+对任意 6D $d=[a_1,a_2]$：
 
-### 10.1 aim axis 推断
-
-候选本地轴集合：
-
 $$
-A=\{[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]\}
+b_1=\frac{a_1}{\lVert a_1\rVert_2},
 $$
-
-对 child bone $j$，期望解剖方向为 $e_j$，来自 `_ANATOMICAL_WORLD_DIRECTIONS`，归一化：
 
 $$
-\hat{e}_j=\frac{e_j}{\|e_j\|}
+b_2=\frac{a_2-(b_1^{\mathsf T}a_2)b_1}{\lVert a_2-(b_1^{\mathsf T}a_2)b_1\rVert_2},
 $$
 
-父节点 global rotation 为 $Q_t(\pi(j))$。每个候选轴 $a\in A$ 的得分：
-
 $$
-score(a)=
-\frac{1}{T}\sum_{t=0}^{T-1}
-\left(R(Q_t(\pi(j)))a\right)^\top\hat{e}_j
+b_3=b_1\times b_2,\qquad R(d)=[b_1\ b_2\ b_3].
 $$
 
-选择：
+矩阵再转换为 `xyzw` quaternion。官方 profile 把这些 matrices 当 parent-local；因此不做 global-to-local。只有经独立标定的 legacy global profile 才使用：
 
 $$
-a_j^\*=argmax_{a\in A} score(a)
+R_{t,j}^{L}=(R_{t,\pi(j)}^{G})^{-1}R_{t,j}^{G}.
 $$
 
-### 10.2 从 global rotation 构造 positions
+这里 $R^G$ 是 source global rotation，$R^L$ 是 parent-local。未标定 rows/global 变体保持 draft。
 
-初始化：
+本仓库还复现了官方 BVH exporter 实际执行的 local quaternion 坐标变换，而不是只复现理想化的 6D 论文公式。若 decode 后以 `xyzw` 存储的 local quaternion 是 $q=(x,y,z,w)$，body/hand 的模板局部旋转先变为
 
 $$
-X_t(\mathrm{hips})=r_t-r_0
+q^{M}=(-x,y,-z,w).
 $$
 
-对每个非 root bone $j$：
+Pelvis 还按官方 `process_batch_data` 的历史 `wxyz`/`xyzw` 分量重排与固定 correction 分支处理。该分支记录为 `sentiavatar_process_batch_data.local_bvh.v1`；不能用一次普通 basis 共轭替代。实现证据来自官方 `motion_generation/utils/rotation_utils.py`、`tools/visualize_motion.py` 和 `motion_generation/actions/postprocess.py`。
 
-若父节点 global rotation 不存在：
+## 3. Body topology 压缩
 
-$$
-X_t(j)=X_t(\pi(j))
-$$
+SuSu body 有 5 段 spine 和 2 段 neck，canonical core 更少。相邻 source local rotations 需要按拓扑顺序相乘，而不是丢弃中间关节。
 
-否则取 target/default rest offset 长度：
+例如 source spine indices 10 与 11 合并为 canonical chest：
 
 $$
-\ell_j=\|\mathrm{DefaultRestOffsets}[j]\|
+q_{t,\mathrm{chest}}^{S}=q_{t,10}^{S}q_{t,11}^{S}.
 $$
 
-若 $\ell_j<10^{-6}$：
-
-$$
-X_t(j)=X_t(\pi(j))
-$$
+Source indices 12 与 13 合并为 upperChest；15 与 16 合并为 head。乘法顺序是父段在左、子段在右，与 FK 顺序一致。双腿、肩臂、手腕使用显式 index chains。
 
-否则：
+## 4. Hand topology 压缩
 
-$$
-d_t(j)=R(Q_t^{\mathrm{global}}(\pi(j)))a_j^\*
-$$
+每只手的 source index 0 重复 body wrist，不进入 finger slots。四根非拇指各有 metacarpal + 三个 phalanges，而 canonical 每指只有三 nodes；因此把 metacarpal 与第一 phalanx合并到 proximal。
 
-$$
-\hat{d}_t(j)=\frac{d_t(j)}{\max(\|d_t(j)\|,10^{-8})}
-$$
+以 index finger 为例：
 
 $$
-X_t(j)=X_t(\pi(j))+\ell_j\hat{d}_t(j)
+q_{t,\mathrm{prox}}^{S}=q_{t,1}^{S}q_{t,2}^{S},
 $$
 
-随后调用：
-
 $$
-fitPositionsToVrm
-\left(
-X,
-\mathrm{WorldBasis}=\mathrm{IdentityYUp}
-\right)
+q_{t,\mathrm{inter}}^{S}=q_{t,3}^{S},\qquad q_{t,\mathrm{dist}}^{S}=q_{t,4}^{S}.
 $$
-
-也就是说，无 positions 时，6D/global rotations 并不是直接输出到 VRM，而是先转成 body positions，再走 position fitting。
 
-## 11. 最终输出和 metadata
+Middle 使用 indices 5–8，ring 使用 9–12，little 使用 13–16。Thumb 只有 17、18、19，直接映射 proximal/intermediate/distal。左右手使用相同 index pattern 与不同 canonical prefix。
 
-两条路径最终都返回 `fit_positions_to_vrm()` 的结果：
+## 5. Root 与 local profiles
 
-$$
-S_{\mathrm{output}}=S_{\mathrm{PositionFit}}
-$$
+Root 变换由 profile 声明 axis reorder、unit 和 world basis。设 axes permutation matrix 为 $A$，unit scale 为 $s$，raw root 为 $u_t$：
 
 $$
-P^{\mathrm{target}}=FK(S_{\mathrm{output}},o^{T})
+r_t^{S}=sA(u_t-u_0).
 $$
 
-metadata 记录：
+官方 profile 是 meter、Y-up、columns/local。Root 6D 把 root-local frame 映射到 source world，因此 `root_rotation_semantics` 是 `local_to_world`；其他 body/hand rotations 是 parent-local。两个本地变体当前都是 draft：
 
-$$
-\mathrm{RetargetMode}=\mathrm{PositionFitToVrm}
-$$
-
-$$
-\mathrm{Rotation6dLayout}=\mathrm{RowMajorFirstTwoRows}
-$$
+| Profile | Root/unit 线索 | Positions basis | 发布状态 |
+|---|---|---|---|
+| `susu_retarget_maya` | X/Z/Y reorder；文件可能混 meter/cm | negative-Z-up 到 Y-up | draft，需同帧校准 |
+| `susu_chonglu` | X/Z/Y reorder；cm 到 m | identity Y-up | draft，positions 暂作权威 |
 
-$$
-\mathrm{RotationSpace}=\mathrm{Global6dConvertedToParentLocalQuaternions}
-$$
+数值阈值自动判断单位只能产生 derived diagnostics；没有 calibration sample/hash 时不能把 profile 提升为 release-ready。若 draft profile 的 basis 含 reflection，不能把它与 root rotation 左乘后硬转 quaternion；需要 source-specific handedness decode，或只在明确的 positions 路径完成 world 映射，否则 fail-closed。
 
-最后一个字段描述了中间计算；当前 output sequence 仍以 positions fitting 为准。
+## 6. 有 positions 的路径
 
-hand 输出：
+先用 profile scale 与 basis 处理 native positions：
 
 $$
-Q^{H,\mathrm{output}}=I^{H}
+X_{t,j}^{C}=s_pB_p(X_{t,j}^{S}-X_{0,0}^{S}).
 $$
-
-这是当前实现边界，后续若要让 SuSu 手指驱动 VRM，需要在 `fit_positions_to_vrm()` 输出 sequence 后重新注入 `hand` quaternions 或另写 direct body/hand retarget。
-
-## 12. source preview
-
-`extract_source()` 也分两条。
 
-若有 positions：
+$s_p$ 是 positions unit scale，$B_p$ 是 positions world basis。Source joints按显式 name/index mapping压到 canonical body22，然后进入 position fitting：
 
 $$
-X^{\mathrm{native}}=\alpha_{\mathrm{pos}}\mathrm{positions}
+q_{t,j}^{F}=q(o_{\chi(j)}^{T}\rightarrow d_{t,j}^{L}).
 $$
 
-$$
-B_{\mathrm{pos}}=bodyPositionsFromFkPositions(X^{\mathrm{native}},M)
-$$
+$q_{t,j}^{F}$ 是 fitted body local quaternion，$d_{t,j}^{L}$ 是观测 child direction在 parent-local 的表达。它只恢复 swing，不唯一恢复 twist。
 
-调用 `source_positions_normalized()`：
+## 7. 无 positions 的路径
 
-$$
-\hat{X}=B(b_{\mathrm{pos}})B_{\mathrm{pos}}
-$$
+Official local rotations先在 source rest skeleton做 FK。当前 rotation-only 路径使用官方 `motion_generation/meta/mta63joints/template_susu_retarget_63nodes.bvh` 的前 25 个 body joints 拓扑与 rest offsets，禁止退回 canonical `DEFAULT_REST_OFFSETS` 伪装 source skeleton。设 source local quaternion为 $q_{t,j}^{S}$：
 
 $$
-\hat{X}'=\lambda_{\mathrm{pos}}\hat{X}
+Q_{t,j}^{S}=Q_{t,\pi(j)}^{S}q_{t,j}^{S},
 $$
 
 $$
-\hat{X}'_t(j)\leftarrow
-\hat{X}'_t(j)-\hat{X}'_0(\mathrm{hips})
+P_{t,j}^{S}=P_{t,\pi(j)}^{S}+R(Q_{t,\pi(j)}^{S})o_j^{S}.
 $$
-
-若无 positions：
 
-$$
-X=positionsFromGlobalRotations(r,Q^{\mathrm{body,global}})
-$$
+该 source FK 先在 source world 完成，再对 reconstructed positions 应用一次 profile world basis；随后 positions 以 identity basis进入同一 position fitting，避免重复旋转。最终 body root quaternion 来自 fitting，不把中间 root 6D 当作 world operator 共轭。
 
-然后只做 source preview scale 和 root center：
+固定真实回归样本 `fbx_to_json_data_susu_retarget_maya/20250905/Human_0904_152-8_01` 已与官方 exporter 生成的 BVH 做同帧对照。此前错误地使用 canonical rest offsets 时 source preview 出现右脚高于头；复现官方 local swizzle、pelvis correction 和 Maya template offsets 后，前 32 帧的 source preview 中 head 的中位 Y 为约 `+0.471 m`，左右脚约为 `-0.684 m`、`-0.797 m`，脚相对头的最大高度差为 `-1.359 m`。这条倒置回归已关闭，但单一样本不能把整个 `retarget_maya` profile 提升为 release-ready。
 
-$$
-\hat{X}=\lambda_{\mathrm{pos}}X
-$$
+如果某个经校准 profile 明确声明 rotations 是 global，则先用 global rotations、fixed bone length 和 calibrated aim axes重建 positions，再 fitting。未经校准的本地 global/rows 猜测禁止正式写入。
 
-$$
-\hat{X}_t(j)\leftarrow \hat{X}_t(j)-\hat{X}_0(\mathrm{hips})
-$$
+## 8. Native fingers 合入最终 sequence
 
-这条 source preview 不再额外做 world basis 旋转，metadata 中写：
+Body 无论来自 native positions 还是 reconstructed positions，都使用 fitted root/core。另行把同一 source hand locals走 direct rest correction，得到 $q_{t,k}^{D}$。最终 pack：
 
 $$
-\mathrm{DeclaredWorldBasis}=\mathrm{IdentityYUp}
+z_t=[r_t^{F},q_{t,0}^{F},\{q_{t,j}^{F}\}_{j=1}^{21},\{q_{t,k}^{D}\}_{k=1}^{30}].
 $$
-
-## 13. 当前实现的风险边界
-
-严格按代码，SuSu 当前需要重点审计：
-
-1. root 是绝对位置而非速度积分：
 
-$$
-r_t=\gamma\,\mathrm{body}_{t,(0,2,1)}-\gamma\,\mathrm{body}_{0,(0,2,1)}
-$$
+这样 body保留 position fitting 的方向，hands 不再被 identity 覆盖。当前 metadata mode 为 `position_fit_body_plus_direct_local_6d_fingers`，并记录 rotation layout/space、profile status、positions availability、effective root unit 和 twist 边界。
 
-2. retarget-maya 自动单位规则可能改变 $\gamma$：
+这不自动证明手指正确：仍需验证 wrist parent continuity、source-to-target finger rest correction、左右 finger order 和真实 VRM 30/30 nodes。
 
-$$
-\gamma\in\{1.0,0.01\}
-$$
+## 9. Source preview
 
-3. 6D layout 是 row-major first-two-rows：
+- 有 positions：直接映射/归一化 positions，不能用最终 target FK 伪装 source。
+- 无 positions：用 decoded local rotations与 source rest FK 生成 positions。
 
-$$
-R(d)=
-\begin{bmatrix}
-b_1^\top\\
-b_2^\top\\
-(b_1\times b_2)^\top
-\end{bmatrix}
-$$
+两路 source preview 都必须先于 VRM 检查。若 source 已出现脚高于头、左右翻转、单位爆炸或地面变墙面，停止在 Adapter/Codec/Profile 层排查。
 
-4. 当前 output sequence 不是直接使用 SuSu hand local quats：
+当前 rotation-only 倒置反例已经通过官方 BVH 对照；profile 仍保持 `draft`，因为还缺多 actor、多动作、root trajectory、手腕连续性和真实 VRM 全身/手指视觉回归。
 
-$$
-Q^{H,\mathrm{output}}=I^{H}
-$$
+## 10. Annotation 与多模态边界
 
-5. 有 positions 时，positions 优先级高于 6D rotation：
+- 中文对话通常是无精确时间的 context，靠近 head，但不制造字幕时间轴。
+- Face/audio 文件存在只说明 availability；逐帧 weights/waveform/timebase 存在时才画曲线。
+- Unknown fields保留在 extras/sidecar，不从文本补造 bodypart。
 
-$$
-\mathrm{positions}\ \mathrm{available}
-\Rightarrow
-S_{\mathrm{output}}=fitPositionsToVrm(\mathrm{positions})
-$$
+完整 fail-closed 条件见 [SuSu 专项审计](../susu-pipeline-audit.zh-CN.md)。

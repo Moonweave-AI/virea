@@ -1,0 +1,27 @@
+{
+  "schema_version": "virea.showcase_publication.v1",
+  "decision": "local-only",
+  "public_embed_allowed": false,
+  "reviewed_at": "2026-08-08",
+  "reason": "The audited VRM has no license URL and the dataset redistribution decisions are not all allowed.",
+  "vrm": {
+    "sha256": "f7c947ef380b9478db166db0366cec1dc3ceebaefe76a1b986fe104e793d998",
+    "license_url": null,
+    "decision": "local-only"
+  },
+  "datasets": {
+    "amass": "unknown",
+    "babel": "unknown",
+    "beat": "unknown",
+    "grab": "unknown",
+    "humanml3d": "unknown",
+    "motionx": "unknown",
+    "susuinteracts": "unknown"
+  },
+  "legacy_media": {
+    "decision": "local-only",
+    "expected_pair_count": 49,
+    "pipeline_version": "v0.1",
+    "public_links_allowed": false
+  }
+}

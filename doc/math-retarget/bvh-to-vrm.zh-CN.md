@@ -1,294 +1,121 @@
-# BVH / BEAT 到 VRM 的 retarget 数学
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: BEAT 官方 BVH、上游 body22 conversion 与 VIREA direct retarget 的分层数学。
+canonical: doc/math-retarget/bvh-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-覆盖数据集：BEAT。对应代码：`BEATAdapter`、`AxisAngleBody22Codec(source_profile="beat_bvh_body22", world_basis="identity_y_up")`。
+# BVH-derived BEAT 到 VRM
 
-BEAT 在 VIREA 中并不直接解析 `.bvh` 文本。当前读取的是上游整理后的 BVH-derived `.npz`，其中 body pose 已经表示为 $22$ joint axis-angle。因此数学上它复用 `AxisAngleBody22Codec`，但不能复用 AMASS/BABEL 的 basis。
+BEAT 必须分成“官方 raw BVH”“上游 conversion”“VIREA 当前输入”三层。当前 Adapter 不解析 BVH text，不能把上游已完成步骤写成仓库代码。
 
-## 1. BVH 一般数学背景
+## 1. 官方 raw 层
 
-标准 BVH 给出一棵层级树。对 root：
+BEAT 官方 motion 是 120 FPS BVH，右手系、Z-up、Y-forward。BVH hierarchy 为每个 joint 提供 parent 与 rest offset，并为 frame 声明 root translation 和按特定顺序排列的 Euler rotation channels。
 
-$$
-\mathrm{channels}_{\mathrm{root}}=
-[p_x,p_y,p_z,\alpha_1,\alpha_2,\alpha_3]
-$$
-
-对普通 joint：
-
-$$
-\mathrm{channels}_{j}=[\alpha_1,\alpha_2,\alpha_3]
-$$
-
-如果 rotation order 是 $(a,b,c)$，对应局部旋转矩阵通常是：
-
-$$
-R_j=R_a(\alpha_a)R_b(\alpha_b)R_c(\alpha_c)
-$$
-
-不同 BVH 文件的 rotation order 会改变 $R_j$。但 BEAT adapter 当前读取的不是原始 channels，而是：
-
-$$
-\mathrm{poses}\in\mathbb{R}^{T\times D},\qquad D\ge66
-$$
-
-也就是说，BVH Euler/channel 到 axis-angle 的步骤已经在上游完成。VIREA 从这里开始：
-
-$$
-\mathrm{BVH\ channels}\rightarrow_{\mathrm{upstream}}\mathrm{axis{-}angle\ body22}
-\rightarrow_{\mathrm{VIREA}}\mathrm{VRM}
-$$
-
-## 2. BEAT adapter 读取
-
-读取路径：
-
-$$
-\mathrm{PosePath}=\mathrm{RawRoot}/\mathrm{pose}/\mathrm{speaker}/\mathrm{sample}.npz
-$$
-
-文本路径：
-
-$$
-\mathrm{TextPath}=\mathrm{RawRoot}/\mathrm{hf}/\mathrm{speaker}/\mathrm{sample}.txt
-$$
-
-动作张量：
-
-$$
-\mathrm{poses}\in\mathbb{R}^{T\times D},\qquad
-\mathrm{trans}\in\mathbb{R}^{T\times3}
-$$
-
-若 `trans` 缺失：
-
-$$
-\mathrm{trans}_t=[0,0,0]
-$$
-
-fps：
-
-$$
-f=
-\begin{cases}
-\mathrm{payload}[\mathrm{fps}],&\mathrm{if\ present}\\
-30,&\mathrm{otherwise}
-\end{cases}
-$$
-
-adapter 输出：
-
-$$
-\mathrm{SourceFormat}=\mathrm{BeatBvhAxisAngleNpz}
-$$
-
-$$
-\mathrm{CodecKey}=\mathrm{BeatAxisAngleBody22}
-$$
-
-文本 annotations 只进入：
-
-$$
-\mathrm{annotations},\quad \mathrm{text},\quad \mathrm{metadata}
-$$
-
-不参与 body FK。
-
-## 3. codec 配置
-
-`default_codecs()` 注册：
-
-$$
-\mathrm{BeatAxisAngleBody22}
-=
-AxisAngleBody22Codec
-\left(
-o^{\mathrm{src}}=\mathrm{DefaultRestOffsets},
-\mathrm{SourceProfile}=\mathrm{BeatBvhBody22},
-\mathrm{WorldBasis}=\mathrm{IdentityYUp}
-\right)
-$$
-
-与 AMASS/BABEL 的差异是：
-
-$$
-\mathrm{BEAT}:\ B=I
-$$
-
-$$
-\mathrm{AMASS/BABEL}:\ B=
-\begin{bmatrix}
-1&0&0\\
-0&0&1\\
-0&-1&0
-\end{bmatrix}
-$$
-
-如果误把 BEAT 套用 AMASS/BABEL 的 $B$，数学上会变成：
-
-$$
-P_t'(j)=B_{\mathrm{ZUpToYUp}}P_t(j)
-$$
-
-这会把已经 Y-up 的对话手势整体旋转到错误平面。
-
-## 4. axis-angle 切片与四元数
-
-和 `AxisAngleBody22Codec._body_quats()` 一致：
-
-$$
-A=reshape\left(\mathrm{poses}_{[:,0:66]},T,22,3\right)
-$$
-
-对每个 $A_{t,i}$：
-
-$$
-\theta_{t,i}=\|A_{t,i}\|_2
-$$
-
-$$
-q_{t,i}=
-\left[
-\frac{A_{t,i,x}}{\max(\theta_{t,i},10^{-8})}\sin\frac{\theta_{t,i}}{2},\
-\frac{A_{t,i,y}}{\max(\theta_{t,i},10^{-8})}\sin\frac{\theta_{t,i}}{2},\
-\frac{A_{t,i,z}}{\max(\theta_{t,i},10^{-8})}\sin\frac{\theta_{t,i}}{2},\
-\cos\frac{\theta_{t,i}}{2}
-\right]
-$$
-
-若 $\theta_{t,i}<10^{-8}$：
-
-$$
-q_{t,i}=[0,0,0,1]
-$$
-
-## 5. body 映射
-
-BEAT 的 `.npz` 已被当前项目按 $22$ body order 解释：
-
-$$
-q_t^{\mathrm{root,src}}=q(t,I_B(\mathrm{hips}))
-$$
-
-$$
-q_t^{j,\mathrm{src}}=q(t,I_B(j)),\qquad j\in B\setminus\{\mathrm{hips}\}
-$$
-
-其中 $B=B_{\mathrm{body}}$，$I_B$ 表示代码中的 `BODY_INDEX`。
-
-## 6. direct quaternion retarget
+设 joint $j$ 的三个 Euler angles 是 $\alpha_{t,j}$、$\beta_{t,j}$、$\gamma_{t,j}$，文件 channel order 指定轴 $a,b,c$。Local rotation matrix 是：
 
-BEAT 调用和 SMPL-H 同一个函数：
-
 $$
-retargetNamedQuatsToVrm
-\left(
-\mathrm{trans},
-q^{\mathrm{root,src}},
-\{q^{j,\mathrm{src}}\},
-o^{\mathrm{src}},
-\mathrm{WorldBasis}=\mathrm{IdentityYUp}
-\right)
+R_{t,j}^{S}=R_a(\alpha_{t,j})R_b(\beta_{t,j})R_c(\gamma_{t,j}).
 $$
 
-scale：
-
-$$
-\lambda=
-\frac{\sum_{C\in K}\sum_{j\in C}\|o_j^{T}\|}
-{\sum_{C\in K}\sum_{j\in C}\|o_j^{\mathrm{src}}\|}
-$$
+乘法顺序必须跟 BVH channel order；交换任意两项通常得到不同旋转。Root translation 的单位与轴也必须从上游 conversion manifest 记录。
 
-root：
+## 2. 上游 conversion 层
 
-$$
-r_t^{\mathrm{vrm}}=I(\lambda\mathrm{trans}_t-\lambda\mathrm{trans}_0)
-=\lambda(\mathrm{trans}_t-\mathrm{trans}_0)
-$$
+项目收到的 `.npz` 已把 raw BVH hierarchy/channels 转成 body22 local axis-angle。理想的上游过程是：
 
-root rotation basis：
+```text
+BVH hierarchy + offsets + channel order
+  -> local Euler matrices
+  -> body joint selection / mapping
+  -> local axis-angle body22
+  -> converted translation / basis / FPS metadata
+```
 
-$$
-q_t^{\mathrm{root,basis}}=q(I)q_t^{\mathrm{root,src}}=q_t^{\mathrm{root,src}}
-$$
+这个 conversion 不在 VIREA 当前 Adapter 内，所以 artifact/profile 必须记录 converter/version、输出 basis、unit、joint order 和是否重采样。缺失 provenance 时最多 `source_verified`，不能宣称 raw-to-output 全链可复现。
 
-rest correction：
+## 3. VIREA 输入
 
-$$
-c_j=Rot(o_{\chi(j)}^{T}\to o_{\chi(j)}^{\mathrm{src}})
-$$
+当前 motion arrays：
 
-$$
-q_t^{j,\mathrm{target}}=
-\widehat{
-c_{\pi(j)}^{-1}q_t^{j,\mathrm{src}}c_j
-}
-$$
+| 值 | shape | 解释 |
+|---|---:|---|
+| poses | $(T,P)$，$P\geq66$ | 前 66 维是 22 local axis-angle |
+| translation | $(T,3)$ | converted root translation |
+| fps | scalar | converted clip FPS |
 
-缺失 correction 时省略对应因子。hand 未传入，所以：
+令前 66 维重排为 $A\in\mathbb R^{T\times22\times3}$。第 $i$ 个 body joint 的 quaternion 为：
 
 $$
-q_t^{k,\mathrm{hand}}=[0,0,0,1],\qquad k\in H
+q_{t,i}^{S}=\left[\frac{A_{t,i}}{\max(\lVert A_{t,i}\rVert_2,\epsilon)}\sin\frac{\lVert A_{t,i}\rVert_2}{2},\cos\frac{\lVert A_{t,i}\rVert_2}{2}\right].
 $$
 
-## 7. 输出和 fps 语义
+Index 0 是 converted root orientation，其他 joints 按 canonical body22 mapping进入 core slots。若上游保持 BVH root 的常规 active orientation，它把 root-local frame 映射到 converted world，profile 必须声明 `local_to_world`；converter manifest 若声明了别的语义，必须拆 profile。
 
-输出 sequence：
+## 4. 为什么当前 profile 是 converted Y-up
 
-$$
-S=pack
-\left(
-r^{\mathrm{vrm}},
-q^{\mathrm{root,target}},
-Q^{C,\mathrm{target}},
-I^{H}
-\right)
-$$
+官方 raw 是 Z-up，但项目 NPZ 已完成坐标转换。`beat_body22_converted` profile 对当前 arrays 声明 canonical Y-up，因此 Retarget 不再应用一次 raw Z-up 到 Y-up。
 
-processed positions：
+如果没有上游 manifest 证明转换后的 basis，这个声明必须通过 source preview 与 raw BVH 同帧回归。把 AMASS 的 basis直接套到 converted BEAT 会重复旋转，是 Stop-Ship。
 
-$$
-P^{\mathrm{target}}=FK(S,o^{T})
-$$
+## 5. Direct retarget
 
-fps 保存在 `RawClip.motion["fps"]` 和 `SampleRef.fps` 中。播放时间应满足：
+Root translation：
 
 $$
-t_{\mathrm{sec}}(n)=\frac{n}{f}
+r_t^{T}=\lambda sB(r_t^{S}-r_0^{S}).
 $$
 
-而不能固定为：
+这里 $B$ 是 converted-array profile 的 basis，通常是 identity；不是 raw BVH 的 basis。当前 `beat_body22_converted` profile 把 root 声明为 `local_to_world`，所以只改变输出 world 坐标：
 
 $$
-t_{\mathrm{sec}}(n)=\frac{n}{30}
+R_{t,0}^{C}=BR_{t,0}^{S}.
 $$
 
-除非 $f=30$。BEAT 是语音手势数据，错误 fps 会破坏 gesture 和 text/audio annotation 的时间关系。
+若 converter 产出的是 world-to-world operator，才可在独立 `world_operator` profile 中使用共轭。缺少 converter/version 或同帧 raw BVH 证据时，不得仅凭动作“看起来直立”改变 semantic。
 
-## 8. source preview
+非 root local rotations只做 rest correction：
 
-`extract_source()` 同样执行 source FK：
-
 $$
-\hat{P}^{\mathrm{src}}=
-FK
-\left(
-\lambda\mathrm{trans}-\lambda\mathrm{trans}_0,
-q^{\mathrm{root,src}},
-\{q^{j,\mathrm{src}}\},
-o^{\mathrm{src}}
-\right)
+R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
 $$
-
-因为 $B=I$：
 
-$$
-\hat{P}^{\mathrm{src,basis}}=\hat{P}^{\mathrm{src}}
-$$
+最后 pack 211 维并做 target FK。由于无 native hands，finger rotations 不得从 gesture label 推断。
 
-最后以第一帧 hips 居中：
+## 6. Semantic TSV 与媒体
 
-$$
-\hat{P}_t(j)\leftarrow \hat{P}_t(j)-\hat{P}_0(\mathrm{hips})
-$$
+TSV annotation 与 motion 并行：
 
-这说明 BEAT before preview 是 BVH-derived body skeleton 的解释结果；after preview 是 VRM target skeleton 的执行结果。
+- gesture/semantic label 是 native action text；
+- start/end/duration 规范为 `[start,end)` 并保留 original；
+- semantic relevancy score 保持 0–10 ordinal，不除以 10 冒充 probability；
+- keywords 和未知列进入 `extras`；
+- 没有 bodypart 真值时 bodypart 为 `null`。
+
+Official audio/face 文件存在说明 channel availability。只有拿到 waveform sample rate、face weights/timebase 或字幕区间后，Viewer 才画相应逐帧内容。
+
+## 7. Source preview 与验收
+
+Source preview 从 converted body22 local quaternions做 source FK，再应用 converted profile basis；它不能复用 target FK。至少抽查：
+
+- raw BVH 与 converted source preview 同帧方向；
+- 120 FPS raw 与 converted FPS/duration；
+- root translation unit；
+- converted root rotation semantic；
+- left/right limbs 与 gesture timing；
+- semantic score 原量纲；
+- audio/face availability 与真实逐帧数据的区别。
+
+在 converter/version/同帧回归缺失时，文档只可声明“VIREA 从 converted body22 开始”，不可声明完整 raw BVH conversion 已由本仓库验证。

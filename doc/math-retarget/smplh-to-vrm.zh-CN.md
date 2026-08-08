@@ -1,402 +1,130 @@
-# SMPL-H / SMPL body 到 VRM 的 retarget 数学
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: AMASS/BABEL 的 SMPL/SMPL-H axis-angle carrier 到 canonical/VRM 的代码对应数学。
+canonical: doc/math-retarget/smplh-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-覆盖数据集：AMASS、BABEL。对应代码：`AMASSAdapter`、`BABELAdapter`、`AxisAngleBody22Codec`、`retarget_named_quats_to_vrm()`。
+# SMPL / SMPL-H body 到 VRM
 
-AMASS 和 BABEL 在 VIREA 中共享同一个数学主路径。BABEL 的 annotation 只改变 text/metadata，不改变 pose tensor 的解释。主路径是：
+覆盖 AMASS 与 BABEL。BABEL 只增加 annotation，motion carrier 仍由 AMASS family 文件提供，因此共享 source decode 与 direct path；两者保留独立 Adapter、carrier 和时间语义。
 
-$$
-\mathrm{SMPL/SMPL{-}H\ axis{-}angle}\rightarrow
-\mathrm{22\ body\ local\ quaternions}\rightarrow
-\mathrm{rest\ corrected\ VRM\ local\ quaternions}
-$$
-
-## 1. adapter 读取与输入张量
-
-AMASS `.npz` 读取：
-
-$$
-\mathrm{poses}\in\mathbb{R}^{T\times D},\qquad
-\mathrm{trans}\in\mathbb{R}^{T\times3}
-$$
-
-若 `trans` 缺失，代码置零：
-
-$$
-\mathrm{trans}_t=[0,0,0]
-$$
-
-fps 读取为：
-
-$$
-f=
-\begin{cases}
-\mathrm{MocapFramerate},&\mathrm{if\ present}\\
-\mathrm{MocapFrameRate},&\mathrm{if\ present}\\
-60,&\mathrm{otherwise}
-\end{cases}
-$$
-
-BABEL 如果 sample id 来自 `babel-teach/{split}/{key}`，先通过 `feat_p` 定位 carrier motion：
-
-$$
-\mathrm{path}=
-\begin{cases}
-\mathrm{RawRoot}/\mathrm{FeatP},&\mathrm{exists}\\
-\mathrm{RawRoot.parent}/\mathrm{amass}/\mathrm{FeatP},&\mathrm{fallback}
-\end{cases}
-$$
-
-然后读取同样的 $\mathrm{poses}$、$\mathrm{trans}$、$f$。annotation record $A$ 只进入：
-
-$$
-\mathrm{annotations},\quad \mathrm{text},\quad \mathrm{metadata}
-$$
-
-不参与下面任何旋转或 FK 计算。
-
-## 2. body pose 切片
-
-`AxisAngleBody22Codec._body_quats()` 要求：
-
-$$
-D\ge 22\cdot3=66
-$$
-
-代码只取前 $66$ 维：
-
-$$
-A=reshape\left(\mathrm{poses}_{[:,0:66]},T,22,3\right)
-$$
-
-其中 $A_{t,i}\in\mathbb{R}^3$ 是第 $t$ 帧第 $i$ 个 body joint 的 axis-angle。
-
-若 $\mathrm{poses}$ 不是二维或 $D<66$，代码抛出错误：
-
-$$
-\mathrm{ValueError}(\mathrm{expected\ body\ axis{-}angle\ block})
-$$
-
-## 3. axis-angle 转 body quaternions
-
-对每个 $A_{t,i}$：
-
-$$
-\theta_{t,i}=\|A_{t,i}\|_2
-$$
-
-$$
-u_{t,i}=\frac{A_{t,i}}{\max(\theta_{t,i},10^{-8})}
-$$
-
-$$
-q_{t,i}=
-\left[
-u_x\sin\frac{\theta_{t,i}}{2},\
-u_y\sin\frac{\theta_{t,i}}{2},\
-u_z\sin\frac{\theta_{t,i}}{2},\
-\cos\frac{\theta_{t,i}}{2}
-\right]
-$$
-
-若 $\theta_{t,i}<10^{-8}$：
-
-$$
-q_{t,i}=[0,0,0,1]
-$$
-
-最终得到：
-
-$$
-Q^{\mathrm{body}}\in\mathbb{R}^{T\times22\times4}
-$$
-
-## 4. 22 joint 顺序到 VIREA body bones
-
-`BODY_BONES` 与 `CANONICAL_BODY_WITH_ROOT` 的顺序为：
-
-$$
-B=[
-\mathrm{hips},\mathrm{leftUpperLeg},\mathrm{rightUpperLeg},\mathrm{spine},
-\ldots,\mathrm{leftHand},\mathrm{rightHand}
-]
-$$
-
-因此索引映射是直接按位置：
-
-$$
-\phi(i)=B_i,\qquad i=0,\ldots,21
-$$
-
-root rotation：
-
-$$
-q_t^{\mathrm{root,src}}=Q^{\mathrm{body}}(t,I_B(\mathrm{hips}))
-$$
-
-非 root 局部旋转：
-
-$$
-q_t^{j,\mathrm{src}}=
-Q^{\mathrm{body}}(t,I_B(j)),\qquad j\in B\setminus\{\mathrm{hips}\}
-$$
-
-其中 $I_B$ 表示代码中的 `BODY_INDEX`。这些值被传入 `local_quats_by_name`。
-
-## 5. source profile 与 basis
-
-AMASS/BABEL 进入默认 `AxisAngleBody22Codec()`：
-
-$$
-\mathrm{SourceProfile}=\mathrm{SmplhBody22}
-$$
-
-$$
-\mathrm{WorldBasis}=\mathrm{ZUpToYUp}
-$$
-
-source rest offsets 在当前构造中是 `DEFAULT_REST_OFFSETS`，记作 $o_j^{\mathrm{src}}$。target rest offsets 为 $o_j^{T}$，可能来自 VRM rest inspection，也可能是默认模板。
-
-basis 矩阵：
-
-$$
-B=
-\begin{bmatrix}
-1&0&0\\
-0&0&1\\
-0&-1&0
-\end{bmatrix}
-$$
-
-## 6. root translation 的尺度和归零
-
-`retarget_named_quats_to_vrm()` 先计算 rest scale：
+## 1. 标准背景与项目输入
 
-$$
-\lambda=
-\frac{\sum_{C\in K}\sum_{j\in C}\|o_j^{T}\|_2}
-{\sum_{C\in K}\sum_{j\in C}\|o_j^{\mathrm{src}}\|_2}
-$$
-
-然后：
-
-$$
-r_t^0=\lambda\,\mathrm{trans}_t
-$$
-
-$$
-r_t^1=r_t^0-r_0^0
-$$
-
-basis 后 root translation：
-
-$$
-r_t^{\mathrm{vrm}}=B r_t^1
-$$
-
-这对应代码：
-
-$$
-\mathrm{TargetRootTranslation = rootTranslation * scale}
-$$
-
-$$
-\mathrm{TargetRootTranslation -= targetRootTranslation[:1]}
-$$
-
-$$
-\mathrm{TargetRootTranslation = rotatePositionsByMatrix(..., B)}
-$$
-
-## 7. source FK 与 basis 后 source positions
-
-代码先用 source rest offsets 做一次 FK，目的是生成 `source_positions` 供质量报告和 before/after 对齐分析：
-
-$$
-P_t^{\mathrm{src}}(\mathrm{hips})=r_t^1
-$$
-
-$$
-Q_t^{\mathrm{src}}(\mathrm{hips})=q_t^{\mathrm{root,src}}
-$$
-
-$$
-P_t^{\mathrm{src}}(j)=
-P_t^{\mathrm{src}}(\pi(j))+
-R(Q_t^{\mathrm{src}}(\pi(j)))\,o_j^{\mathrm{src}}
-$$
-
-$$
-Q_t^{\mathrm{src}}(j)=
-Q_t^{\mathrm{src}}(\pi(j))q_t^{j,\mathrm{src}}
-$$
-
-basis 后：
-
-$$
-P_t^{\mathrm{src,basis}}(j)=B P_t^{\mathrm{src}}(j)
-$$
-
-## 8. root rotation 的 basis 变换
-
-根旋转从 source basis 转到 VRM basis：
-
-$$
-q_t^{\mathrm{root,basis}}=q(B)\,q_t^{\mathrm{root,src}}
-$$
-
-这里 $q(B)$ 由 `_quat_from_rotation_matrix(B)` 计算。局部 joint quaternions 不左乘 $q(B)$，因为它们不是世界旋转，而是 parent-local rotation。
-
-## 9. rest correction 推导
-
-对每个有 primary child 的骨骼 $j$，代码取 child $\chi(j)$。source child offset：
-
-$$
-u_j=o_{\chi(j)}^{\mathrm{src}}
-$$
-
-target child offset：
-
-$$
-v_j=o_{\chi(j)}^{T}
-$$
+AMASS `.npz` 常见字段：
 
-correction：
+| 字段 | shape | 项目解释 |
+|---|---:|---|
+| `poses` | $(T,P)$ | axis-angle pose blocks；$P$ 随 model/source 变化 |
+| `trans` | $(T,3)$ | source world root translation |
+| `mocap_framerate` 或 `mocap_frame_rate` | scalar | source FPS |
 
-$$
-c_j=Rot(v_j\to u_j)
-$$
-
-root：
-
-$$
-q_t^{\mathrm{root,target}}=
-\begin{cases}
-q_t^{\mathrm{root,basis}}c_{\mathrm{hips}},&c_{\mathrm{hips}}\ \mathrm{exists}\\
-q_t^{\mathrm{root,basis}},&\mathrm{otherwise}
-\end{cases}
-$$
+Adapter 不因 $P>66$ 就默认 SMPL-X。当前选择规则：
 
-每个 core bone $j\in C$：
+- $P=156$：root/body 66 + 两手 90，使用 SMPL-H body+hands；
+- $P\geq165$ 且模型 metadata 明确包含 SMPL-X token：使用 SMPL-X Codec；
+- 其他：只解释前 66 维 body22，避免把 DMPL/未知尾部误当 hands。
 
-$$
-\tilde{q}_t^j=\widehat{q_t^{j,\mathrm{src}}}
-$$
+如果 translation 缺失，调试路径可使用零数组，但必须在 metadata/warning 标明缺失；不能声称这是 native static root。
 
-若 $c_{\pi(j)}$ 存在：
+## 2. Body22 decode
 
-$$
-\tilde{q}_t^j\leftarrow c_{\pi(j)}^{-1}\tilde{q}_t^j
-$$
+把 `poses` 前 66 维重排为 $A\in\mathbb R^{T\times22\times3}$。$A_{t,i}$ 是第 $t$ 帧第 $i$ 个 joint 的 axis-angle。Joint order 与 canonical body22 对齐：hips、双上腿、spine、双下腿、chest、双脚、upperChest、双 toes、neck、双 shoulder、head、双 upper arm、双 lower arm、双 hand。
 
-若 $c_j$ 存在：
+对每个 $A_{t,i}$，令：
 
 $$
-\tilde{q}_t^j\leftarrow \tilde{q}_t^j c_j
+\theta_{t,i}=\lVert A_{t,i}\rVert_2,
 $$
 
-最终：
-
 $$
-q_t^{j,\mathrm{target}}=\widehat{\tilde{q}_t^j}
+u_{t,i}=\frac{A_{t,i}}{\max(\theta_{t,i},\epsilon)}.
 $$
 
-这就是代码中：
+Local quaternion 为：
 
 $$
-\mathrm{mapped = inverse(parentCorrection) * mapped}
+q_{t,i}^{S}=\left[u_{t,i}\sin\frac{\theta_{t,i}}{2},\cos\frac{\theta_{t,i}}{2}\right].
 $$
-
-和：
 
-$$
-\mathrm{mapped = mapped * correction}
-$$
+Index 0 是把 body-local template 映射到 source world 的 `global_orient`；其余 21 个是 parent-local rotations。Profile 因此把 root 声明为 `local_to_world`，不能把它误作 world-to-world operator。
 
-的数学形式。
+## 3. SMPL-H hands
 
-## 10. hand 输出
+$P=156$ 时，`poses` 的 `66:156` 是 30 个 hand axis-angle，shape 重排为 $(T,30,3)$，再用同一公式转 quaternion。
 
-AMASS/BABEL 当前主路径没有传入 `hand_quats_by_name`，所以：
+Source hand 顺序来自 SMPL-H/SMPL-X family 的两手 15 joints。Codec 用显式 index table映射到 canonical 30 slots，而不是依赖字典遍历。没有这 90 维时，hand slots 是 identity，并记录 channel 缺失。
 
-$$
-q_t^{k,\mathrm{hand}}=[0,0,0,1],\qquad k\in H
-$$
+## 4. Dataset Profile
 
-也就是 `identity_quats(T, len(HAND_BONES))`。
+`amass_smplh` profile 当前声明：
 
-## 11. canonical 输出
+- framerate 字段优先，fallback 60 只在缺失时使用并标 provenance；
+- source local rotation 为 axis-angle；
+- world basis 由 profile 的 Z-up 到 canonical Y-up matrix 给出；
+- `root_rotation_semantics` 为 `local_to_world`；
+- translation 单位与 scale 规则进入 resolved profile。
 
-最终：
+这是当前工程 profile，不等于所有 AMASS sub-dataset 已通过真实回归。Sub-source 出现不同 axis/unit 时必须拆 profile，不能改一个全局 magic value。
 
-$$
-S=pack
-\left(
-r^{\mathrm{vrm}},
-q^{\mathrm{root,target}},
-\{q^{j,\mathrm{target}}\}_{j\in C},
-I^{H}
-\right)
-$$
+## 5. Direct retarget
 
-target positions：
+先用 source/target rest 稳定骨链估计 $\lambda$。Root translation：
 
 $$
-P^{\mathrm{target}}=FK(S,o^{T})
+r_t^{T}=\lambda sB(r_t^{S}-r_0^{S}).
 $$
 
-`CanonicalResult` 中：
-
-$$
-\mathrm{RetargetMode}=\mathrm{DirectLocalQuaternionRetarget}
-$$
+$s$ 是 source unit 到 meter，$B$ 是 source world 到 canonical world，$\lambda$ 对齐 skeleton rest length。
 
-$$
-\mathrm{RetargetScale}=\lambda
-$$
+Root 的输入仍是 body-local template，只有输出 world basis 改变，所以：
 
 $$
-\mathrm{DeclaredWorldBasis}=\mathrm{ZUpToYUp}
+R_{t,0}^{C}=BR_{t,0}^{S}.
 $$
 
-## 12. source preview 的数学
+旧实现使用共轭，等价于错误地把 body-local 输入也换了 basis；真实 AMASS、BABEL 和 GRAB 样本会出现高度轴横倒。若 $B$ 含 reflection，这个 `local_to_world` 左乘不再是 proper rotation，Codec 必须先完成明确的 handedness decode，否则 fail-closed。
 
-`extract_source()` 调用 `source_fk_from_body_quats()`。它与上面共享 axis-angle 解码，但输出 source skeleton positions：
+对 body/hand local joint $j$，只做 rest-frame correction：
 
 $$
-\hat{r}_t=\lambda\mathrm{trans}_t-\lambda\mathrm{trans}_0
+R_{t,j}^{T}=C_{\pi(j)}^{-1}R_{t,j}^{S}C_j.
 $$
 
-$$
-\hat{P}^{\mathrm{src}}=FK(\hat{r},q^{\mathrm{root,src}},q^{j,\mathrm{src}},o^{\mathrm{src}})
-$$
-
-若启用 basis：
-
-$$
-\hat{P}^{\mathrm{src,basis}}=B\hat{P}^{\mathrm{src}}
-$$
+父 correction inverse 把输入 frame 从 source parent rest frame 拉回 target parent；右侧当前 correction把 target joint rest frame 送入 source joint frame。Local rotation 不再套 $B$。
 
-最后再以第一帧 hips 居中：
+最后按 root 3+4、core 21x4、hands 30x4 打包 211 维，并用 fixed target rest 做 FK。
 
-$$
-\hat{P}_t(j)\leftarrow
-\hat{P}_t(j)-\hat{P}_0(\mathrm{hips})
-$$
+## 6. BABEL carrier 与 annotations
 
-这解释了 before preview 的语义：它是源骨架解释结果，不是 VRM target FK。
+BABEL record 的 `seq_ann` 是 whole-sequence，`frame_ann` 是秒区间 action；不改变 pose tensor。Adapter 必须：
 
-## 13. AMASS 的 HumanAct12 旁路
+1. 从 record 的 carrier reference 定位 AMASS 文件；
+2. 读取 carrier 自身 framerate；
+3. 验证 `frame_count / fps` 与 BABEL `dur` 在半帧容差内；
+4. 不一致时产生 validation error，而不是改 annotation 时间迎合错误 carrier。
 
-`AMASSAdapter` 还支持 `humanact12/*.npy`。这不是 SMPL-H direct quaternion path，而是：
+`_poses.npz` 与 `_stageii.npz` 可能帧率不同，文件名相似不构成可替换证据。BABEL action 不强制 bodypart。
 
-$$
-\mathrm{positions}\in\mathbb{R}^{T\times J\times3}
-$$
+## 7. Source preview
 
-并设置：
+Source preview 用同一 body/hand decode 和 source rest FK，随后只做 profile 声明的 world position normalization。它不使用 target FK positions。这样 source 已畸形时问题定位在 Adapter/Codec/Profile，而不是被 VRM rest correction 掩盖。
 
-$$
-\mathrm{CodecKey}=\mathrm{PositionSequence},\qquad f=20
-$$
+## 8. 当前边界与验证
 
-它走 [HumanML3D/position fitting](humanml3d-263d-to-vrm.zh-CN.md) 中描述的 `PositionSequenceCodec` 逻辑，而不是本文的 axis-angle 逻辑。
+- AMASS 文件名动作词是 derived，不是 native annotation。
+- Body22 文件不能凭尾部宽度猜 hands。
+- SMPL-H hands 是否真实进入最终 sequence 要用非 identity fixture 和真实 VRM finger检查。
+- BABEL carrier resolver 和 duration mismatch 是正式发布门禁。
+- AMASS HumanAct12 positions 旁路属于 [position fitting](README.zh-CN.md#8-position-fitting-path)，不是本文 direct axis-angle 主路径。

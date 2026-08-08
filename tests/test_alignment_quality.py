@@ -67,8 +67,12 @@ def _assert_processed_is_true_vrm_fk(payload) -> None:
 
 
 def _max_foot_above_head(payload) -> float:
-    head = payload.positions[:, FK_INDEX["head"], 1]
-    feet = np.maximum(payload.positions[:, FK_INDEX["leftFoot"], 1], payload.positions[:, FK_INDEX["rightFoot"], 1])
+    names = payload.joint_names
+    head = payload.positions[:, names.index("head"), 1]
+    feet = np.maximum(
+        payload.positions[:, names.index("leftFoot"), 1],
+        payload.positions[:, names.index("rightFoot"), 1],
+    )
     return float(np.max(feet - head))
 
 
@@ -81,7 +85,9 @@ def _mean_delta(payload, parent: str, child: str) -> np.ndarray:
 
 
 @pytest.mark.parametrize("dataset", ["amass", "babel", "beat", "grab", "humanml3d", "motionx", "susuinteracts"])
-def test_processed_preview_is_vrm_fk_not_a_raw_copy(dataset: str) -> None:
+def test_processed_preview_is_vrm_fk_not_a_raw_copy(dataset: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    if dataset in {"grab", "susuinteracts"}:
+        monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     registry = _full_registry_or_skip()
     adapter = registry.adapter(dataset)
     if not adapter.exists():
@@ -103,7 +109,10 @@ def test_processed_preview_is_vrm_fk_not_a_raw_copy(dataset: str) -> None:
     assert processed.joint_names != raw.joint_names or processed.positions.shape != raw.positions.shape
 
 
-def test_susu_retarget_maya_uses_safe_body_order_and_no_foot_flip() -> None:
+def test_susu_retarget_maya_rotation_only_is_explicitly_draft_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     registry = _full_registry_or_skip()
     adapter = registry.adapter("susuinteracts")
     assert adapter._profile_for("fbx_to_json_data_susu_retarget_maya/example", has_positions=True)[1] == "susu_retarget_maya_6d_body_hands"
@@ -120,10 +129,16 @@ def test_susu_retarget_maya_uses_safe_body_order_and_no_foot_flip() -> None:
     _assert_finite_payload(raw)
     _assert_finite_payload(processed)
     _assert_processed_is_true_vrm_fk(processed)
-    assert _max_foot_above_head(processed) < 0.05
+    assert processed.metadata["dataset_profile"] == "susu_retarget_maya_rotation_only"
+    assert processed.metadata["profile_status"] == "draft"
+    assert any("DRAFT PROFILE" in warning for warning in processed.validation_warnings)
+    # Rotation-only source FK follows the official SentiAvatar template,
+    # quaternion swizzle and pelvis correction. The profile remains draft until
+    # broader actor/VRM visual coverage is complete, so persistence still fails
+    # closed even though this known inversion is corrected.
     assert processed.metadata["root_translation"] == "absolute_xzy_zeroed_auto_units"
-    assert processed.metadata["rotation_space"] == "global_6d_converted_to_parent_local_quaternions"
-    assert processed.metadata["rotation_6d_layout"] == "row_major_first_two_rows"
+    assert processed.metadata["rotation_space"] == "parent_local"
+    assert processed.metadata["rotation_6d_layout"] == "first_two_columns"
     hips = raw.positions[:, raw.joint_names.index("hips")]
     root_steps = np.linalg.norm(np.diff(hips, axis=0), axis=1)
     assert float(np.max(root_steps)) < 0.05
@@ -133,8 +148,10 @@ def test_susu_retarget_maya_uses_safe_body_order_and_no_foot_flip() -> None:
     right_hand = raw.positions[:, names.index("rightHand")] - hips
     left_upper_arm = raw.positions[:, names.index("leftUpperArm")] - hips
     right_upper_arm = raw.positions[:, names.index("rightUpperArm")] - hips
-    assert float(np.median(left_hand[:, 0] - right_hand[:, 0])) > 0.25
-    assert float(np.median(left_upper_arm[:, 0] - right_upper_arm[:, 0])) > 0.05
+    assert _max_foot_above_head(raw) < 0.05
+    assert _max_foot_above_head(processed) < 0.05
+    assert float(np.median(left_hand[:, 0] - right_hand[:, 0])) > 0.03
+    assert float(np.median(left_upper_arm[:, 0] - right_upper_arm[:, 0])) > 0.10
 
 
 def test_prone_and_inverted_motions_are_not_rotated_upright() -> None:
@@ -163,7 +180,7 @@ def test_prone_and_inverted_motions_are_not_rotated_upright() -> None:
     assert float(np.median(feet_y)) > float(np.median(handstand.positions[:, names.index("head"), 1]))
 
 
-def test_amass_crawl_keeps_body_horizontal_after_z_up_conversion() -> None:
+def test_amass_stageii_crawl_uses_its_explicit_identity_y_up_profile() -> None:
     registry = _full_registry_or_skip()
     adapter = registry.adapter("amass")
     sample_id = "ACCAD/Female1General_c3d/A11_-_crawl_forward_stageii"
@@ -174,10 +191,14 @@ def test_amass_crawl_keeps_body_horizontal_after_z_up_conversion() -> None:
     head_delta = _mean_delta(processed, "hips", "head")
     assert abs(float(head_delta[1])) < 0.18
     assert abs(float(head_delta[0])) > 0.45
-    assert processed.metadata["declared_world_basis"] == "z_up_to_y_up"
+    assert processed.metadata["declared_world_basis"] == "identity_y_up"
+    assert processed.metadata["dataset_profile"] == "amass_smplx_stageii165"
 
 
-def test_susu_position_samples_use_declared_basis_without_left_right_flip() -> None:
+def test_susu_position_samples_use_declared_basis_without_left_right_flip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     registry = _full_registry_or_skip()
     adapter = registry.adapter("susuinteracts")
     sample_id = "fbx_to_json_data_susu_retarget_maya/20251106/Human_0916_183_0_4_01_XG"
@@ -190,7 +211,7 @@ def test_susu_position_samples_use_declared_basis_without_left_right_flip() -> N
     assert float(raw.positions[0, names.index("leftUpperArm"), 0] - raw.positions[0, names.index("rightUpperArm"), 0]) > 0.05
 
 
-def test_processed_target_rest_comes_from_real_vrm_control_template() -> None:
+def test_real_vrm_control_template_is_audited_without_changing_canonical_payload() -> None:
     audit = control_rest_alignment_audit()
     if audit["source"]["mode"] != "vrm_control_rest_template":
         pytest.skip("real VRM control template is not configured; set VIREA_VRM_MODEL_ROOT")
@@ -208,5 +229,9 @@ def test_processed_target_rest_comes_from_real_vrm_control_template() -> None:
     samples = adapter.discover(limit=1)
     assert samples
     processed = ProcessedPreviewPipeline(registry).preview("amass", samples[0].sample_id, max_frames=4)
-    assert processed.motion["rest_source"]["mode"] == "vrm_control_rest_template"
-    assert processed.motion["rest_offsets"]["leftUpperArm"] == target_offsets["leftUpperArm"]
+    # Persisted/preview canonical motion is deterministic and must not change
+    # with whichever avatar files happen to be installed on this machine. The
+    # real VRM control rest is audited above and aligned only at Viewer runtime.
+    assert processed.motion["rest_source"] == "virea_canonical_rest.v1"
+    assert processed.motion["rest_offsets"]["leftUpperArm"] == DEFAULT_REST_OFFSETS["leftUpperArm"]
+    assert processed.motion["rest_offsets"]["leftUpperArm"] != target_offsets["leftUpperArm"]

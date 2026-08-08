@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Joker-of-Gotham/virea/schemas/canonical_artifact.schema.json",
+  "title": "VIREA Canonical Artifact v1",
+  "type": "object",
+  "required": [
+    "schema_version", "processing_version", "profile", "profile_sha256", "time",
+    "motion_uid", "source_fingerprint", "sample", "canonical", "rest", "transform", "annotations", "channels",
+    "sidecars", "redactions", "arrays", "validation_warnings", "manifest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.canonical_artifact.v1.0.0" },
+    "processing_version": { "type": "string" },
+    "motion_uid": { "type": "string", "minLength": 1 },
+    "source_fingerprint": {
+      "type": "object",
+      "required": ["locator", "sha256", "byte_length"],
+      "properties": {
+        "locator": { "type": "string" },
+        "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "byte_length": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "sample": { "type": "object" },
+    "profile": { "$ref": "dataset_profile.schema.json" },
+    "profile_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "time": {
+      "type": "object",
+      "required": ["source_fps", "effective_fps", "source_frames", "effective_frames", "interval"],
+      "properties": {
+        "source_fps": { "type": "number", "exclusiveMinimum": 0 },
+        "effective_fps": { "type": "number", "exclusiveMinimum": 0 },
+        "source_frames": { "type": "integer", "minimum": 0 },
+        "effective_frames": { "type": "integer", "minimum": 0 },
+        "interval": { "const": "half_open" }
+      },
+      "additionalProperties": true
+    },
+    "canonical": {
+      "type": "object",
+      "required": ["frame_dim", "dtype", "quaternion_order", "core_bones", "hand_bones"],
+      "properties": {
+        "frame_dim": { "const": 211 },
+        "dtype": { "const": "<f4" },
+        "quaternion_order": { "const": "xyzw" },
+        "core_bones": { "type": "array", "minItems": 21, "maxItems": 21, "items": { "type": "string" } },
+        "hand_bones": { "type": "array", "minItems": 30, "maxItems": 30, "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "rest": {
+      "type": "object",
+      "required": ["source", "offsets", "sha256"],
+      "properties": {
+        "source": { "type": "string" },
+        "offsets": { "type": "object" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": true
+    },
+    "transform": {
+      "type": "object",
+      "required": ["basis_name", "basis", "basis_determinant", "root_rotation_semantics", "unit_scale_to_meter", "root_axes", "translation_zeroed", "crop_resample_map"],
+      "properties": {
+        "basis_determinant": {
+          "type": "number",
+          "anyOf": [
+            { "minimum": 0.99999, "maximum": 1.00001 },
+            { "minimum": -1.00001, "maximum": -0.99999 }
+          ]
+        },
+        "root_rotation_semantics": { "enum": ["local_to_world", "world_operator", "not_applicable"] }
+      },
+      "additionalProperties": true
+    },
+    "annotations": { "type": "array", "items": { "$ref": "annotation.schema.json" } },
+    "channels": { "type": "array", "items": { "$ref": "channel.schema.json" } },
+    "sidecars": { "type": "array", "items": { "$ref": "#/$defs/dataReference" } },
+    "redactions": { "type": "array", "items": { "$ref": "#/$defs/redaction" } },
+    "arrays": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/arrayDescriptor" }
+    },
+    "validation_warnings": { "type": "array", "items": { "type": "string" } },
+    "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "dataReference": {
+      "type": "object",
+      "required": ["path", "sha256", "byte_length", "media_type", "encoding"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "byte_length": { "type": "integer", "minimum": 0 },
+        "media_type": { "type": "string" },
+        "encoding": { "type": "string" },
+        "read_api": { "type": "string", "pattern": "^/api/" }
+      },
+      "additionalProperties": false
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["key_path", "reason", "value_sha256"],
+      "properties": {
+        "key_path": { "type": "string" },
+        "reason": { "type": "string" },
+        "value_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "arrayDescriptor": {
+      "type": "object",
+      "required": ["dtype", "shape", "byte_length", "sha256"],
+      "properties": {
+        "dtype": { "type": "string" },
+        "shape": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "byte_length": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

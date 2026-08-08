@@ -3,10 +3,15 @@
   "$id": "https://github.com/Joker-of-Gotham/virea/schemas/motion_sample.schema.json",
   "title": "VIREA MotionSample",
   "type": "object",
-  "required": ["schema_version", "motion_uid", "source", "time", "skeleton", "files", "quality"],
+  "required": ["schema_version", "artifact_schema_version", "motion_uid", "manifest_sha256", "array_sha256", "source_fingerprint", "sample", "source", "time", "skeleton", "annotations", "channels", "validation_warnings", "sidecars", "redactions", "canonical_artifact", "files", "quality", "processing"],
   "properties": {
-    "schema_version": { "const": "virea.motion_sample.v0.1.0" },
+    "schema_version": { "const": "virea.motion_sample.v1.0.0" },
+    "artifact_schema_version": { "const": "virea.canonical_artifact.v1.0.0" },
     "motion_uid": { "type": "string" },
+    "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "array_sha256": { "type": "object" },
+    "source_fingerprint": { "type": "object" },
+    "sample": { "type": "object" },
     "source": {
       "type": "object",
       "required": ["dataset", "source_id", "source_path", "source_format"],
@@ -37,7 +42,7 @@
       "required": ["canonical_skeleton", "target_skeleton", "coordinate_system", "rotation_format", "unit"],
       "properties": {
         "source_skeleton": { "type": ["string", "null"] },
-        "canonical_skeleton": { "type": "string" },
+        "canonical_skeleton": { "const": "virea_canonical_skeleton.v1" },
         "target_skeleton": { "type": "string" },
         "coordinate_system": { "type": "string" },
         "rotation_format": { "type": "string" },
@@ -45,13 +50,23 @@
       },
       "additionalProperties": true
     },
-    "annotations": { "type": "array", "items": { "type": "object" } },
+    "annotations": { "type": "array", "items": { "$ref": "annotation.schema.json" } },
+    "channels": { "type": "array", "items": { "$ref": "channel.schema.json" } },
+    "validation_warnings": { "type": "array", "items": { "type": "string" } },
+    "sidecars": { "type": "array" },
+    "redactions": { "type": "array" },
+    "canonical_artifact": {
+      "type": "object",
+      "required": ["schema_version", "manifest", "manifest_sha256"]
+    },
     "files": {
       "type": "object",
-      "required": ["canonical_motion", "vrm_motion", "quality_report", "metadata"],
+      "required": ["source_snapshot", "canonical_motion", "canonical_manifest", "vrm_positions", "quality_report", "metadata"],
       "properties": {
         "canonical_motion": { "type": "string" },
-        "vrm_motion": { "type": "string" },
+        "canonical_manifest": { "type": "string" },
+        "source_snapshot": { "type": "string" },
+        "vrm_positions": { "type": "string" },
         "quality_report": { "type": "string" },
         "metadata": { "type": "string" }
       },

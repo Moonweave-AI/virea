@@ -1,199 +1,147 @@
-﻿# VIREA
+---
+type: readme
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 30
+summary: VIREA 的项目入口、状态、最短运行路径和文档导航。
+canonical: README.md
+related:
+  - doc/README.zh-CN.md
+  - doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+  - doc/adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md
+supersedes: []
+superseded_by: []
+---
 
-VIREA is a VRM-native motion data infrastructure project. Its core idea is simple:
+# VIREA
+
+VIREA 把异构人体动作、文本标注和多模态上下文转换成可验证、可回放的 VRM/glTF humanoid motion。
 
 ```text
-heterogeneous human motion datasets
-  -> explicit source adapters
-  -> canonical / VRM humanoid motion
-  -> quality reports
-  -> real avatar preview
-  -> future text-to-VRM and dialogue-to-motion models
+七类数据集
+  -> Adapter 保留源事实
+  -> Dataset Profile 解释 FPS / basis / unit / rotation / root semantic
+  -> Codec 解码源运动
+  -> Retarget 生成 canonical motion
+  -> Artifact 固化数学与语义
+  -> Viewer 对照 source / processed / real VRM
 ```
 
-The current repository focuses on the data and playback substrate, not on a final
-generation model. The important result is that AMASS, BABEL, BEAT, GRAB,
-HumanML3D, Motion-X, and SuSuInterActs can be inspected through one pipeline and
-previewed on a real VRM avatar.
+VRM 不是 SMPL-X pose vector。SMPL、SMPL-H、SMPL-X、BVH、263D 和 6D rotation 是源运动表示；VRM 是建立在 glTF node、skin 和 humanoid bone mapping 上的 Avatar 规范。
 
-## Result Board
+## 状态
 
-The following 7 x 7 board was rendered from `demo` processed clips with the real
-VRM model supplied through `VIREA_SHOWCASE_VRM`. The VRM file itself is not
-committed. GitHub-renderable animated GIF previews are committed under
-`doc/showcase/gifs/`, and each preview links to the original WebM under
-`doc/showcase/videos/`.
+项目正在执行 [RFC-0001](doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md) 定义的 Major-refactor，目标产物版本为 `v0.2.0`。当前边界如下：
 
-<details open>
-<summary>49 real VRM motion previews</summary>
+- `v0.1.0` 产物只能只读兼容；缺失的标注、profile、rest 或 channel 不会被猜测补齐。
+- 新语义必须从 raw 数据重新构建，不能从历史 metadata 凭空恢复。
+- Dataset Profile 按 `draft -> source_verified -> regression_verified -> release_ready` 推进；未验证 profile 不进入正式批处理或公开看板。
+- 仓库中的旧 Showcase 媒体只证明文件存在，不自动证明 v0.2 数学、真实 VRM 对齐或再分发许可已通过。当前证据状态见 [Showcase 说明](doc/showcase/README.md)。
 
-### amass
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_amass_accad_female1running_c3d_c7_run_backwards_stageii.gif)](doc/showcase/videos/01_amass_accad_female1running_c3d_c7_run_backwards_stageii.webm)<br><sub>1. `C7 run backwards`</sub> | [![VRM preview](doc/showcase/gifs/02_amass_accad_female1running_c3d_c26_run_to_crouch_stageii.gif)](doc/showcase/videos/02_amass_accad_female1running_c3d_c26_run_to_crouch_stageii.webm)<br><sub>2. `C26 run to crouch`</sub> | [![VRM preview](doc/showcase/gifs/03_amass_accad_female1running_c3d_c8_run_backwards_to_stand_stageii.gif)](doc/showcase/videos/03_amass_accad_female1running_c3d_c8_run_backwards_to_stand_stageii.webm)<br><sub>3. `C8 back to stand`</sub> | [![VRM preview](doc/showcase/gifs/04_amass_accad_female1running_c3d_c4_run_to_walk1_stageii.gif)](doc/showcase/videos/04_amass_accad_female1running_c3d_c4_run_to_walk1_stageii.webm)<br><sub>4. `C4 run to walk`</sub> | [![VRM preview](doc/showcase/gifs/05_amass_accad_female1walking_c3d_b25_crouch_to_walk1_stageii.gif)](doc/showcase/videos/05_amass_accad_female1walking_c3d_b25_crouch_to_walk1_stageii.webm)<br><sub>5. `B25 crouch to walk`</sub> | [![VRM preview](doc/showcase/gifs/06_amass_accad_female1general_c3d_a10_lie_to_crouch_stageii.gif)](doc/showcase/videos/06_amass_accad_female1general_c3d_a10_lie_to_crouch_stageii.webm)<br><sub>6. `A10 lie to crouch`</sub> | [![VRM preview](doc/showcase/gifs/07_amass_accad_female1walking_c3d_b2_walk_to_stand_t2_stageii.gif)](doc/showcase/videos/07_amass_accad_female1walking_c3d_b2_walk_to_stand_t2_stageii.webm)<br><sub>7. `B2 walk to stand`</sub> |
+## 支持范围
 
-### babel
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_babel_accad_female1running_c3d_c7_run_backwards_stageii.gif)](doc/showcase/videos/01_babel_accad_female1running_c3d_c7_run_backwards_stageii.webm)<br><sub>1. `C7 run backwards`</sub> | [![VRM preview](doc/showcase/gifs/02_babel_accad_female1running_c3d_c26_run_to_crouch_stageii.gif)](doc/showcase/videos/02_babel_accad_female1running_c3d_c26_run_to_crouch_stageii.webm)<br><sub>2. `C26 run to crouch`</sub> | [![VRM preview](doc/showcase/gifs/03_babel_accad_female1running_c3d_c8_run_backwards_to_stand_stageii.gif)](doc/showcase/videos/03_babel_accad_female1running_c3d_c8_run_backwards_to_stand_stageii.webm)<br><sub>3. `C8 back to stand`</sub> | [![VRM preview](doc/showcase/gifs/04_babel_accad_female1running_c3d_c4_run_to_walk1_stageii.gif)](doc/showcase/videos/04_babel_accad_female1running_c3d_c4_run_to_walk1_stageii.webm)<br><sub>4. `C4 run to walk`</sub> | [![VRM preview](doc/showcase/gifs/05_babel_accad_female1walking_c3d_b25_crouch_to_walk1_stageii.gif)](doc/showcase/videos/05_babel_accad_female1walking_c3d_b25_crouch_to_walk1_stageii.webm)<br><sub>5. `B25 crouch to walk`</sub> | [![VRM preview](doc/showcase/gifs/06_babel_accad_female1general_c3d_a10_lie_to_crouch_stageii.gif)](doc/showcase/videos/06_babel_accad_female1general_c3d_a10_lie_to_crouch_stageii.webm)<br><sub>6. `A10 lie to crouch`</sub> | [![VRM preview](doc/showcase/gifs/07_babel_accad_female1walking_c3d_b2_walk_to_stand_t2_stageii.gif)](doc/showcase/videos/07_babel_accad_female1walking_c3d_b2_walk_to_stand_t2_stageii.webm)<br><sub>7. `B2 walk to stand`</sub> |
+| 数据集 | 源运动主路径 | 主要语义 |
+|---|---|---|
+| AMASS | SMPL/SMPL-H body axis-angle | 通常无原生动作文本；文件名只能作为推导信息 |
+| BABEL | AMASS carrier motion | sequence 与时间区间动作标注 |
+| BEAT | 上游 BVH 转换后的 body22 axis-angle | gesture、语义区间、原始 ordinal score、音频/表情可用性 |
+| GRAB | SMPL-X 55-joint fullpose | 交互物体、动作上下文、逐帧接触 |
+| HumanML3D | 263D feature 到 22-joint positions | caption 与可选时间区间 |
+| Motion-X | 322D SMPL-X-derived array | sequence/body/hand/face text 与表情通道 |
+| SuSuInterActs | body/hand 6D rotation 与可选 positions | 中文对话、face/audio channel |
 
-### beat
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_beat_pose_1_1_wayne_0_28_28.gif)](doc/showcase/videos/01_beat_pose_1_1_wayne_0_28_28.webm)<br><sub>1. `wayne 28`</sub> | [![VRM preview](doc/showcase/gifs/02_beat_pose_1_1_wayne_0_35_35.gif)](doc/showcase/videos/02_beat_pose_1_1_wayne_0_35_35.webm)<br><sub>2. `wayne 35`</sub> | [![VRM preview](doc/showcase/gifs/03_beat_pose_1_1_wayne_0_1_1.gif)](doc/showcase/videos/03_beat_pose_1_1_wayne_0_1_1.webm)<br><sub>3. `wayne 1`</sub> | [![VRM preview](doc/showcase/gifs/04_beat_pose_1_1_wayne_0_65_65.gif)](doc/showcase/videos/04_beat_pose_1_1_wayne_0_65_65.webm)<br><sub>4. `wayne 65`</sub> | [![VRM preview](doc/showcase/gifs/05_beat_pose_1_1_wayne_0_114_114.gif)](doc/showcase/videos/05_beat_pose_1_1_wayne_0_114_114.webm)<br><sub>5. `wayne 114`</sub> | [![VRM preview](doc/showcase/gifs/06_beat_pose_1_1_wayne_0_68_68.gif)](doc/showcase/videos/06_beat_pose_1_1_wayne_0_68_68.webm)<br><sub>6. `wayne 68`</sub> | [![VRM preview](doc/showcase/gifs/07_beat_pose_1_1_wayne_0_7_7.gif)](doc/showcase/videos/07_beat_pose_1_1_wayne_0_7_7.webm)<br><sub>7. `wayne 7`</sub> |
+逐数据集的原生事实、上游转换和仓库边界见 [数据集审计](doc/dataset-audit.zh-CN.md)。
 
-### grab
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_grab_s1_bowl_drink_1.gif)](doc/showcase/videos/01_grab_s1_bowl_drink_1.webm)<br><sub>1. `bowl drink`</sub> | [![VRM preview](doc/showcase/gifs/02_grab_s1_banana_offhand_1.gif)](doc/showcase/videos/02_grab_s1_banana_offhand_1.webm)<br><sub>2. `banana offhand`</sub> | [![VRM preview](doc/showcase/gifs/03_grab_s1_binoculars_see_1.gif)](doc/showcase/videos/03_grab_s1_binoculars_see_1.webm)<br><sub>3. `binoculars`</sub> | [![VRM preview](doc/showcase/gifs/04_grab_s1_duck_offhand_1.gif)](doc/showcase/videos/04_grab_s1_duck_offhand_1.webm)<br><sub>4. `duck offhand`</sub> | [![VRM preview](doc/showcase/gifs/05_grab_s1_eyeglasses_clean_1.gif)](doc/showcase/videos/05_grab_s1_eyeglasses_clean_1.webm)<br><sub>5. `clean glasses`</sub> | [![VRM preview](doc/showcase/gifs/06_grab_s1_cylindermedium_offhand_1.gif)](doc/showcase/videos/06_grab_s1_cylindermedium_offhand_1.webm)<br><sub>6. `cylinder`</sub> | [![VRM preview](doc/showcase/gifs/07_grab_s1_eyeglasses_offhand_1.gif)](doc/showcase/videos/07_grab_s1_eyeglasses_offhand_1.webm)<br><sub>7. `glasses offhand`</sub> |
+## Quick start
 
-### humanml3d
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_humanml3d_test_test_00000_of_00002_2.gif)](doc/showcase/videos/01_humanml3d_test_test_00000_of_00002_2.webm)<br><sub>1. `row 2`</sub> | [![VRM preview](doc/showcase/gifs/02_humanml3d_test_test_00000_of_00002_45.gif)](doc/showcase/videos/02_humanml3d_test_test_00000_of_00002_45.webm)<br><sub>2. `row 45`</sub> | [![VRM preview](doc/showcase/gifs/03_humanml3d_test_test_00000_of_00002_3.gif)](doc/showcase/videos/03_humanml3d_test_test_00000_of_00002_3.webm)<br><sub>3. `row 3`</sub> | [![VRM preview](doc/showcase/gifs/04_humanml3d_test_test_00000_of_00002_99.gif)](doc/showcase/videos/04_humanml3d_test_test_00000_of_00002_99.webm)<br><sub>4. `row 99`</sub> | [![VRM preview](doc/showcase/gifs/05_humanml3d_test_test_00000_of_00002_24.gif)](doc/showcase/videos/05_humanml3d_test_test_00000_of_00002_24.webm)<br><sub>5. `row 24`</sub> | [![VRM preview](doc/showcase/gifs/06_humanml3d_test_test_00000_of_00002_11.gif)](doc/showcase/videos/06_humanml3d_test_test_00000_of_00002_11.webm)<br><sub>6. `row 11`</sub> | [![VRM preview](doc/showcase/gifs/07_humanml3d_test_test_00000_of_00002_96.gif)](doc/showcase/videos/07_humanml3d_test_test_00000_of_00002_96.webm)<br><sub>7. `row 96`</sub> |
+要求：Python 3.10+、Node.js 20+。大型数据集与 `.vrm` 保持在仓库外。仓库提交
+`uv.lock`；需要逐包一致的环境时使用 `uv sync --extra dev`，下面的 venv/pip 路径
+用于没有 uv 的系统。
 
-### motionx
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_3_step_clip_3.gif)](doc/showcase/videos/01_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_3_step_clip_3.webm)<br><sub>1. `break 3 step`</sub> | [![VRM preview](doc/showcase/gifs/02_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_back_cc.gif)](doc/showcase/videos/02_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_back_cc.webm)<br><sub>2. `break back cc`</sub> | [![VRM preview](doc/showcase/gifs/03_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_6_step_clip_8.gif)](doc/showcase/videos/03_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_6_step_clip_8.webm)<br><sub>3. `break 6 step`</sub> | [![VRM preview](doc/showcase/gifs/04_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_3_step_clip_4.gif)](doc/showcase/videos/04_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_3_step_clip_4.webm)<br><sub>4. `break clip 4`</sub> | [![VRM preview](doc/showcase/gifs/05_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_14.gif)](doc/showcase/videos/05_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_14.webm)<br><sub>5. `battle rock 14`</sub> | [![VRM preview](doc/showcase/gifs/06_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_15.gif)](doc/showcase/videos/06_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_15.webm)<br><sub>6. `battle rock 15`</sub> | [![VRM preview](doc/showcase/gifs/07_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_13.gif)](doc/showcase/videos/07_motionx_motion_data_smplx_322_aist_subset_0000_dance_break_battle_rock_clip_13.webm)<br><sub>7. `battle rock 13`</sub> |
-
-### susuinteracts
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![VRM preview](doc/showcase/gifs/01_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250806_human_susu_250804_150_6_02.gif)](doc/showcase/videos/01_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250806_human_susu_250804_150_6_02.webm)<br><sub>1. `susu 150-6`</sub> | [![VRM preview](doc/showcase/gifs/02_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250930_human_0916_138_4_5_01.gif)](doc/showcase/videos/02_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250930_human_0916_138_4_5_01.webm)<br><sub>2. `0916 138`</sub> | [![VRM preview](doc/showcase/gifs/03_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251111_human_1021_292_2_2_02_xg.gif)](doc/showcase/videos/03_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251111_human_1021_292_2_2_02_xg.webm)<br><sub>3. `1021 292`</sub> | [![VRM preview](doc/showcase/gifs/04_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251016_human_0916_273_3_5_01.gif)](doc/showcase/videos/04_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251016_human_0916_273_3_5_01.webm)<br><sub>4. `0916 273`</sub> | [![VRM preview](doc/showcase/gifs/05_susuinteracts_fbx_to_json_data_susu_chonglu_20260119_human_351_96_01_a.gif)](doc/showcase/videos/05_susuinteracts_fbx_to_json_data_susu_chonglu_20260119_human_351_96_01_a.webm)<br><sub>5. `chonglu 351`</sub> | [![VRM preview](doc/showcase/gifs/06_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251104_human_0916_153_1_1_01_xc.gif)](doc/showcase/videos/06_susuinteracts_fbx_to_json_data_susu_retarget_maya_20251104_human_0916_153_1_1_01_xc.webm)<br><sub>6. `0916 153`</sub> | [![VRM preview](doc/showcase/gifs/07_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250923_human_0916_34_2_9_01.gif)](doc/showcase/videos/07_susuinteracts_fbx_to_json_data_susu_retarget_maya_20250923_human_0916_34_2_9_01.webm)<br><sub>7. `0916 34`</sub> |
-
-</details>
-
-The selection metadata is in
-[`doc/showcase/showcase-samples.json`](doc/showcase/showcase-samples.json), and
-the renderer is [`scripts/render_showcase.mjs`](scripts/render_showcase.mjs).
-
-## Quick Start
-
-### 1. Clone and install
-
-Windows PowerShell:
+Windows PowerShell：
 
 ```powershell
-git clone git@github.com:Joker-of-Gotham/virea.git
-cd virea
+git clone git@github.com:Moonweave-AI/virea.git
+Set-Location virea
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-npm install
-```
-
-macOS / Linux:
-
-```bash
-git clone git@github.com:Joker-of-Gotham/virea.git
-cd virea
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-npm install
-```
-
-### 2. Download demo data
-
-Demo data (raw + processed) is hosted on HuggingFace:
-https://huggingface.co/datasets/ChikaKomari/virea-demo
-
-```bash
-# Download all demo data (raw + processed, ~4 GB)
-python scripts/download_demo.py
-
-# Or download only raw (re-process locally)
-python scripts/download_demo.py --raw-only
-```
-
-The script places files into `demo/raw/` and `demo/processed/` automatically.
-
-### 3. Process and preview
-
-```bash
-# Process demo data (skip if you downloaded processed/)
-python -m virea process --data-source demo --workers 8 --force
-
-# Launch the viewer
+python -m pip install -e ".[dev]"
+npm ci
 python -m virea serve --data-source demo
 ```
 
-Open the server URL printed by the CLI, load a `.vrm`, choose a sample, then
-compare source, processed, and real avatar playback.
+macOS / Linux：
 
-### 4. Full dataset (optional)
+```bash
+git clone git@github.com:Moonweave-AI/virea.git
+cd virea
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+npm ci
+python -m virea serve --data-source demo
+```
 
-To use the full external dataset, set the environment variable:
+页面若提示 Three.js 或 VRM runtime 不可用，先确认 `npm ci` 成功，再重启服务。完整数据准备、环境变量和处理命令见 [Pipeline 使用指南](doc/pipeline.zh-CN.md)。
+
+## 使用外部数据与 VRM
+
+路径通过 CLI 或环境变量传入，不写入代码或文档。示例只使用占位符：
 
 ```powershell
-$env:VIREA_RAW_ROOT = "<path-to-full-raw-datasets>"
+$env:VIREA_RAW_ROOT = "<full-raw-root>"
+$env:VIREA_PROCESSED_ROOT = "<processed-v0.2-root>"
+python -m virea process --data-source full --workers 8 --force
 ```
 
 ```bash
-export VIREA_RAW_ROOT="<path-to-full-raw-datasets>"
+export VIREA_RAW_ROOT="<full-raw-root>"
+export VIREA_PROCESSED_ROOT="<processed-v0.2-root>"
+python -m virea process --data-source full --workers 8 --force
 ```
 
-## Pipeline
+GRAB 与 SuSuInterActs 的既有公开容器包含 NumPy object/pickle。VIREA 默认拒绝读取，
+因为仅查看预览也可能触发任意代码执行。只有在本地核验过来源与哈希后，才可为该次
+离线会话显式设置 `VIREA_ALLOW_TRUSTED_RAW_PICKLE=1` 并重启；公开或远程服务不得开启，
+分发前应迁移为不含 object dtype 的数组格式。AMASS、BABEL、BEAT、HumanML3D 与
+Motion-X 的数值入口始终使用 `allow_pickle=False`。
 
-```text
-DatasetAdapter
-  -> RawClip
-  -> MotionCodec.extract_source()      # before preview
-  -> MotionCodec.to_canonical()        # canonical / VRM motion
-  -> ProcessingPipeline                # persisted artifacts
-  -> PreviewReader / FastAPI           # read-only serving
-  -> viewer-web + real VRM avatar
-```
+Viewer 从本地文件选择器加载 `.vrm`。Showcase renderer 也支持 `--vrm <path>` 或 `VIREA_SHOWCASE_VRM`；模型绝对路径和模型文件本身都不得提交。
 
-Key conventions:
-
-- world coordinates are normalized to glTF / VRM `+Y` up, `+Z` forward
-- FPS is preserved per clip during playback
-- source preview and processed preview are intentionally separate
-- retargeting records provenance, coordinate basis, scale, and quality metrics
-- large third-party raw datasets stay outside Git; lightweight showcase videos
-  and metadata can be committed
-
-## Configuration
-
-Machine-specific paths must be supplied through environment variables, never
-committed into source or docs:
-
-- `VIREA_RAW_ROOT`: full raw dataset root
-- `VIREA_PROCESSED_ROOT`: optional processed artifact root
-- `VIREA_VRM_MODEL_ROOT`: optional VRM rest-template inspection root
-- `VIREA_VRM_MOTION_PYTHONPATH`: optional external `vrm_motion` Python package path
-- `VIREA_TMR_SRC`: optional HumanML3D/TMR decoder source path
-- `VIREA_THREE_ROOT` and `VIREA_THREE_VRM_ROOT`: optional viewer runtime packages;
-  normally `npm install` is enough
-- `VIREA_SHOWCASE_SERVER` and `VIREA_SHOWCASE_VRM`: showcase renderer inputs
-- `VIREA_SERVE_HOST` and `VIREA_SERVE_PORT`: optional server bind settings
-
-## Documentation
-
-- [Documentation index](doc/README.zh-CN.md)
-- [Theory and scope](doc/theory.zh-CN.md)
-- [Retarget mathematics](doc/math-retarget/README.zh-CN.md)
-- [Engineering design](doc/engineering-design.zh-CN.md)
-- [Pipeline guide](doc/pipeline.zh-CN.md)
-- [Showcase generation](doc/showcase/README.md)
-- [Reference baseline](doc/references.zh-CN.md)
-- [SuSu audit notes](doc/susu-pipeline-audit.zh-CN.md)
-
-## Checks
+## 验证
 
 ```bash
 python -m compileall -q src
 python -m pytest -q
 npm run check
+npm run test:viewer
+python scripts/check_docs.py
 python scripts/smoke_pipeline.py --data-source demo --max-frames 8
-python scripts/smoke_pipeline.py --data-source full --max-frames 8
 ```
 
-## License Note
+这些命令只验证其实际覆盖的层。只有 [分层验收清单](doc/validation.zh-CN.md) 中 source decode、basis、canonical、target FK、真实 VRM、真实时间播放、媒体与许可门禁全部有证据时，才可以声明某个数据集 `release_ready`。
 
-Dataset licenses are source-specific. This repository does not grant permission
-to redistribute third-party raw datasets. Use the original terms for AMASS,
-BABEL, BEAT, GRAB, HumanML3D, Motion-X, SuSuInterActs, and any VRM model used
-for rendering.
+## 文档
+
+建议按以下顺序阅读：
+
+1. [Pipeline 工程设计](doc/engineering-design.zh-CN.md)
+2. [Annotation 与 Viewer 契约](doc/annotation-viewer.zh-CN.md)
+3. [Retarget 数学共同层](doc/math-retarget/README.zh-CN.md)
+4. [五类 source retarget](doc/README.zh-CN.md#五类-source-retarget)
+5. [七数据集审计](doc/dataset-audit.zh-CN.md)
+6. [分层验收清单](doc/validation.zh-CN.md)
+
+完整导航见 [文档索引](doc/README.zh-CN.md)，权威资料见 [参考基线](doc/references.zh-CN.md)。
+
+## Security、许可与贡献
+
+- Raw dataset、对话、音频、人脸通道和 VRM 都视为不可信或受限资产；Viewer 不返回 raw 绝对路径，也不把未知外部 URL 自动变成链接。
+- 公开提交模型、raw 数据或派生 GIF/视频前，必须在 Showcase manifest 中得到明确的 `allowed` 决定；`local-only`、`blocked`、缺失或未知都 fail-closed。
+- 本仓库尚未声明代码 LICENSE，也未提供覆盖第三方数据、模型与 attribution 的 NOTICE。各数据集和 VRM 继续受各自条款约束；仓库内容不授予再分发权限，公开 Release 保持 No-Go，直到 Owner 与 IP reviewer 明确决定。
+- 贡献应保持 Adapter / Codec / Retarget / Artifact / Viewer 边界，并同步更新 schema、测试、文档和真实样本证据。涉及公共 schema、坐标约定或处理版本的修改先更新 RFC/ADR。
+
+Owner：`@Joker-of-Gotham`。文档和实现均需人工复核；自动检查通过不等于发布批准。
