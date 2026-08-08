@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 import virea.server.app as server_app
 from virea.data.annotations import cache_data_sidecar
+from virea.data.types import SampleRef
+from virea.paths import ProjectPaths
 
 
 def test_server_is_local_first_and_write_api_is_fail_closed(monkeypatch) -> None:
@@ -48,20 +50,23 @@ def test_server_is_local_first_and_write_api_is_fail_closed(monkeypatch) -> None
     assert "private source path" not in blocked_pickle.detail
 
 
-def test_preview_default_limit_and_absolute_path_redaction(tmp_path, monkeypatch) -> None:
+def test_preview_default_preserves_full_clip_and_absolute_path_redaction(tmp_path, monkeypatch) -> None:
     raw_root = tmp_path / "raw"
     processed_root = tmp_path / "processed"
     fake_registry = SimpleNamespace(
         paths=SimpleNamespace(
             raw_root=raw_root,
             processed_root=processed_root,
-            preview_max_frames=180,
+            preview_max_frames=None,
         )
     )
     monkeypatch.setattr(server_app, "_registry_for", lambda _source: fake_registry)
 
     result = server_app._preview_query_params(None, "amass", "sample", None, True)
-    assert result[4] == 180
+    assert result[4] is None
+
+    explicit = server_app._preview_query_params(None, "amass", "sample", 1800, True)
+    assert explicit[4] == 1800
 
     public = server_app._public_payload(
         {
@@ -82,6 +87,36 @@ def test_preview_default_limit_and_absolute_path_redaction(tmp_path, monkeypatch
     assert error.status_code == 404
     assert "C:/" not in str(error.detail)
     assert "Users" not in str(error.detail)
+
+
+def test_project_preview_limit_supports_full_or_explicit_configuration(tmp_path) -> None:
+    base = {
+        "paths": {},
+        "data_sources": {"full": {"raw_root": str(tmp_path / "raw")}},
+    }
+    assert ProjectPaths(config={**base, "runtime": {"preview_max_frames": None}}).preview_max_frames is None
+    assert ProjectPaths(config={**base, "runtime": {"preview_max_frames": 1800}}).preview_max_frames == 1800
+
+
+def test_sample_catalog_exposes_profile_fps_without_claiming_native_fps(tmp_path) -> None:
+    raw_root = tmp_path / "raw"
+    registry = SimpleNamespace(
+        paths=SimpleNamespace(raw_root=raw_root, processed_root=tmp_path / "processed")
+    )
+    sample = SampleRef(
+        dataset="beat",
+        sample_id="pose/1/clip",
+        source_path=raw_root / "beat" / "pose" / "1" / "clip.bvh",
+        source_format="beat_bvh",
+        codec_key="beat_axis_angle_body22",
+        fps=None,
+        metadata={"dataset_profile": "beat_bvh_full75_runtime"},
+    )
+    payload = server_app._public_sample_payload(sample, registry)
+    assert payload["fps"] is None
+    assert payload["preview_fps_fallback"] == 120.0
+    assert payload["preview_fps_provenance"] == "dataset_profile:beat_bvh_full75_runtime"
+    assert payload["source_path"] == "raw/beat/pose/1/clip.bvh"
 
 
 def test_sidecar_read_is_content_addressed_contained_and_nosniff(tmp_path, monkeypatch) -> None:

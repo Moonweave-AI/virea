@@ -22,6 +22,48 @@ from virea.pipelines.artifact_manifest import (
 )
 
 
+def _positive_number(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if np.isfinite(number) and number > 0.0 else None
+
+
+def _artifact_completeness(
+    sample: dict[str, Any],
+    time_record: dict[str, Any],
+    frame_count: int,
+) -> bool | None:
+    """Return whether an artifact covers the source duration, or None if unknown."""
+    sample_metadata = sample.get("metadata") if isinstance(sample.get("metadata"), dict) else {}
+    original_time = (
+        sample_metadata.get("original_time")
+        if isinstance(sample_metadata.get("original_time"), dict)
+        else {}
+    )
+    effective_fps = _positive_number(
+        time_record.get("effective_fps")
+        or time_record.get("fps")
+        or sample.get("fps")
+    )
+    source_fps = _positive_number(
+        time_record.get("source_fps")
+        or original_time.get("fps")
+        or effective_fps
+    )
+    source_frames = _positive_number(
+        time_record.get("source_frames")
+        or original_time.get("frame_count")
+    )
+    if effective_fps is None or source_fps is None or source_frames is None:
+        return None
+    source_duration = source_frames / source_fps
+    effective_duration = frame_count / effective_fps
+    rounding_tolerance = max(0.5 / effective_fps, 0.5 / source_fps)
+    return effective_duration + rounding_tolerance >= source_duration
+
+
 class PreviewReader:
     """Read-only access to persisted pipeline artifacts. No conversion or retargeting."""
 
@@ -369,6 +411,7 @@ class PreviewReader:
                 {
                     "sample_id": source_id,
                     "frame_count": frame_count,
+                    "complete": _artifact_completeness(sample, time_record, frame_count),
                     "motion_uid": str(record.get("motion_uid") or meta_path.stem),
                     "metadata_path": meta_path,
                 }
@@ -381,18 +424,32 @@ class PreviewReader:
         dataset: str,
         sample_id: str,
         max_frames: int | None,
+        *,
+        allow_incomplete: bool = False,
     ) -> tuple[ArtifactPaths, Path] | None:
         matches = [item for item in self._indexed_artifacts(dataset) if item["sample_id"] == sample_id]
         if not matches:
             return None
         if max_frames is None:
-            selected = max(matches, key=lambda item: (item["frame_count"], item["metadata_path"].name))
+            complete = [item for item in matches if item["complete"] is True]
+            candidates = complete or (matches if allow_incomplete else [])
+            if not candidates:
+                raise FileNotFoundError(
+                    f"persisted preview for {dataset}/{sample_id} is cropped or has unknown completeness"
+                )
+            selected = max(candidates, key=lambda item: (item["frame_count"], item["metadata_path"].name))
         else:
             sufficient = [item for item in matches if item["frame_count"] >= max_frames]
             if sufficient:
                 selected = min(sufficient, key=lambda item: (item["frame_count"], item["metadata_path"].name))
             else:
-                selected = max(matches, key=lambda item: (item["frame_count"], item["metadata_path"].name))
+                complete = [item for item in matches if item["complete"] is True]
+                candidates = complete or (matches if allow_incomplete else [])
+                if not candidates:
+                    raise FileNotFoundError(
+                        f"persisted preview for {dataset}/{sample_id} has fewer than {max_frames} frames"
+                    )
+                selected = max(candidates, key=lambda item: (item["frame_count"], item["metadata_path"].name))
         root = self.registry.paths.processed_root
         # The metadata filename is the authoritative artifact stem.  This also
         # supports trusted legacy records whose embedded UID was not canonical.
@@ -550,7 +607,7 @@ class PreviewReader:
         return preview.motion
 
     def read_quality_report(self, dataset: str, sample_id: str) -> dict[str, Any]:
-        selected = self._select_persisted_paths(dataset, sample_id, None)
+        selected = self._select_persisted_paths(dataset, sample_id, None, allow_incomplete=True)
         if selected is None:
             frame_count = self._guess_frame_count(dataset, sample_id)
             paths, _ = self._resolve_paths(dataset, sample_id, frame_count)

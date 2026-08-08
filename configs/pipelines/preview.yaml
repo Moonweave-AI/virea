@@ -1,7 +1,10 @@
 pipeline:
   schema_version: virea.preview_pipeline.v0.2.0
   target_fps: 30
-  max_preview_frames: 180
+  # API default: null preserves the complete sequence.  The web viewer uses a
+  # separate 15-second in-memory crop based on native/profile FPS.
+  max_preview_frames: null
+  viewer_default_preview_seconds: 15
   persist_processed_by_default: false
   default_workers: 0
   skip_existing_by_default: true

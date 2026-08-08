@@ -120,5 +120,11 @@ class ProjectPaths:
         return float(self.config.get("runtime", {}).get("target_fps", 30.0))
 
     @property
-    def preview_max_frames(self) -> int:
-        return int(self.config.get("runtime", {}).get("preview_max_frames", 180))
+    def preview_max_frames(self) -> int | None:
+        value = self.config.get("runtime", {}).get("preview_max_frames")
+        if value in (None, "", 0, "0"):
+            return None
+        max_frames = int(value)
+        if max_frames < 1:
+            raise ValueError("runtime.preview_max_frames must be null or a positive integer")
+        return max_frames

@@ -86,6 +86,20 @@ class PreviewBuilder:
             compare = None
             compare_names = None
         fps = float(clip.motion.get("fps", clip.sample.fps or 30.0))
+        quality = preview_quality(
+            canonical.positions, compare,
+            joint_names=canonical.joint_names[:canonical.positions.shape[1]],
+            source_joint_names=compare_names,
+            fps=fps,
+            retarget_mode=str(
+                canonical.metadata.get("retarget_mode")
+                or canonical.metadata.get("position_to_rotation")
+                or ""
+            ),
+        )
+        continuity = canonical.metadata.get("continuity")
+        if isinstance(continuity, dict):
+            quality["continuity"] = continuity
         return PreviewPayload(
             stage="processed",
             sample=clip.sample,
@@ -97,17 +111,7 @@ class PreviewBuilder:
             channels=clip.channels,
             validation_warnings=clip.validation_warnings,
             metadata=canonical.metadata,
-            quality=preview_quality(
-                canonical.positions, compare,
-                joint_names=canonical.joint_names[:canonical.positions.shape[1]],
-                source_joint_names=compare_names,
-                fps=fps,
-                retarget_mode=str(
-                    canonical.metadata.get("retarget_mode")
-                    or canonical.metadata.get("position_to_rotation")
-                    or ""
-                ),
-            ),
+            quality=quality,
             files=files or {},
             motion=self.motion_dict_from_sequence(canonical.sequence),
         )

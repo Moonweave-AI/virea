@@ -71,7 +71,7 @@ def test_preview_reader_restores_persisted_annotations(tmp_path: Path) -> None:
         """{
           "motion_uid": "virea:beat:sample:000000:000010:test",
           "source": {"dataset": "beat", "source_id": "sample", "source_format": "beat_bvh_axis_angle_npz"},
-          "time": {"fps": 20.0, "num_frames": 10, "duration_sec": 0.5},
+          "time": {"fps": 20.0, "source_fps": 20.0, "source_frames": 10, "num_frames": 10, "duration_sec": 0.5},
           "annotations": [{"type": "gesture_or_semantic", "bodypart": "action", "text": "wave", "start_sec": 0.0, "end_sec": 0.5}]
         }""",
         encoding="utf-8",
@@ -221,7 +221,13 @@ def test_preview_reader_deterministically_selects_full_or_sufficient_crop(tmp_pa
                 {
                     "motion_uid": uid,
                     "source": {"dataset": "beat", "source_id": "sample", "source_format": "legacy"},
-                    "time": {"fps": 20.0, "num_frames": frame_count, "effective_frames": frame_count},
+                    "time": {
+                        "fps": 20.0,
+                        "source_fps": 20.0,
+                        "source_frames": 10,
+                        "num_frames": frame_count,
+                        "effective_frames": frame_count,
+                    },
                 }
             ),
             encoding="utf-8",
@@ -244,6 +250,54 @@ def test_preview_reader_deterministically_selects_full_or_sufficient_crop(tmp_pa
     assert np.all(exact_crop.positions == 5.0)
     assert larger_request.positions.shape[0] == 8
     assert np.all(larger_request.positions == 10.0)
+
+
+def test_preview_reader_rejects_known_truncated_artifact_as_full_clip(tmp_path: Path) -> None:
+    frame_count = 5
+    uid = motion_uid("beat", "cropped", frame_count)
+    paths = artifact_paths(tmp_path, "v0.2.0", "beat", uid)
+    for path in (paths.vrm_positions, paths.quality_report, paths.metadata):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        paths.vrm_positions,
+        positions=np.zeros((frame_count, 1, 3), dtype=np.float32),
+        joint_names=np.asarray(["hips"], dtype=np.str_),
+        edges=np.zeros((0, 2), dtype=np.int32),
+        fps=np.float32(20.0),
+        coordinate_system=np.asarray(["gltf_y_up_z_forward"], dtype=np.str_),
+    )
+    paths.quality_report.write_text('{"status":"cropped"}', encoding="utf-8")
+    paths.metadata.write_text(
+        json.dumps(
+            {
+                "motion_uid": uid,
+                "source": {"dataset": "beat", "source_id": "cropped", "source_format": "legacy"},
+                "time": {
+                    "fps": 20.0,
+                    "source_fps": 20.0,
+                    "source_frames": 10,
+                    "num_frames": frame_count,
+                    "effective_frames": frame_count,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class _Paths:
+        processed_root = tmp_path
+        processing_version = "v0.2.0"
+
+    class _Registry:
+        paths = _Paths()
+
+    reader = PreviewReader(_Registry())
+    assert reader._select_persisted_paths("beat", "cropped", 5) is not None
+    with pytest.raises(FileNotFoundError, match="cropped or has unknown completeness"):
+        reader._select_persisted_paths("beat", "cropped", None)
+    with pytest.raises(FileNotFoundError, match="fewer than 8 frames"):
+        reader._select_persisted_paths("beat", "cropped", 8)
+    assert reader.read_quality_report("beat", "cropped") == {"status": "cropped"}
 
 
 def test_persist_uses_effective_motion_fps_and_verifiable_profile_manifest(

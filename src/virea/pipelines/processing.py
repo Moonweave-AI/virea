@@ -20,6 +20,7 @@ from virea.data.profiles import DatasetProfile, profile_for_sample, profile_key_
 from virea.data.types import RawClip
 from virea.motion.canonical import CANONICAL_SKELETON_ID, CORE_BONES, HAND_BONES
 from virea.motion.codecs import CanonicalResult, MotionCodec, default_codecs
+from virea.motion.continuity import analyze_canonical_continuity, continuity_warning
 from virea.motion.quality import preview_quality
 from virea.motion.skeleton import DEFAULT_REST_OFFSETS
 from virea.motion.snapshot import SourceSnapshot
@@ -252,6 +253,24 @@ class ProcessingPipeline:
                 *clip.validation_warnings,
                 f"Dataset profile {profile.key} is draft; release-grade spatial verification is unavailable.",
             ]))
+        fps = float(clip.motion.get("fps", clip.sample.fps or 30.0))
+        continuity = analyze_canonical_continuity(
+            canonical.sequence,
+            fps=fps,
+            positions=canonical.positions,
+            joint_names=canonical.joint_names[: canonical.positions.shape[1]],
+            profile_key=profile.key,
+        )
+        canonical.metadata = {
+            **dict(canonical.metadata),
+            "continuity": continuity,
+        }
+        warning = continuity_warning(continuity)
+        if warning is not None:
+            clip.validation_warnings = list(dict.fromkeys([
+                *clip.validation_warnings,
+                warning,
+            ]))
         return source, canonical
 
     def process(self, dataset: str, sample_id: str, max_frames: int | None = None) -> ProcessingOutput:
@@ -286,6 +305,7 @@ class ProcessingPipeline:
                 or ""
             ),
         )
+        quality["continuity"] = canonical.metadata["continuity"]
         return ProcessingOutput(
             clip=clip,
             source=source,
@@ -638,6 +658,7 @@ class ProcessingPipeline:
                 "sha256": rest_sha256,
             },
             "transform": transform_record,
+            "continuity": json_value(result.metadata.get("continuity", {})),
             "annotations": annotations,
             "channels": channels,
             "sidecars": security["sidecars"],
@@ -697,6 +718,7 @@ class ProcessingPipeline:
                 "metadata": paths.metadata.relative_to(root).as_posix(),
             },
             "quality": output.quality,
+            "continuity": json_value(result.metadata.get("continuity", {})),
             "processing": {
                 "version": version,
                 "codec": result.metadata.get("codec"),

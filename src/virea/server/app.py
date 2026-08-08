@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from virea.data.registry import DatasetRegistry
 from virea.data.annotations import resolve_cached_sidecar, sidecar_cache_health
+from virea.data.profiles import profile_for_sample
 from virea.paths import AVAILABLE_DATA_SOURCES, ProjectPaths, repo_root
 from virea.pipelines.batch import BatchPipeline, default_worker_count
 from virea.pipelines.catalog import CatalogPipeline
@@ -29,6 +30,7 @@ from virea.server.binary_codec import pack_positions_binary
 
 
 LOGGER = logging.getLogger(__name__)
+MAX_EXPLICIT_PREVIEW_FRAMES = 1_000_000
 
 
 class ProcessRequest(BaseModel):
@@ -150,6 +152,20 @@ def _public_payload(value, registry: DatasetRegistry):
     if isinstance(value, str) and Path(value).is_absolute():
         return _public_path(value, registry)
     return value
+
+
+def _public_sample_payload(sample, registry: DatasetRegistry) -> dict:
+    """Return a catalog sample plus the profile FPS used only for preview sizing."""
+    payload = sample.to_dict()
+    explicit_profile = str(sample.metadata.get("dataset_profile") or "") or None
+    try:
+        profile = profile_for_sample(sample.dataset, sample.sample_id, explicit_profile)
+    except KeyError:
+        profile = None
+    if profile is not None:
+        payload["preview_fps_fallback"] = float(profile.fps_fallback)
+        payload["preview_fps_provenance"] = f"dataset_profile:{profile.key}"
+    return _public_payload(payload, registry)
 
 
 def _public_data_sources() -> dict[str, dict]:
@@ -331,7 +347,7 @@ def create_app() -> FastAPI:
         return {
             "data_source": resolved_source,
             "dataset": dataset,
-            "items": [_public_payload(item.to_dict(), registry) for item in items],
+            "items": [_public_sample_payload(item, registry) for item in items],
         }
 
     @app.get("/api/preview/source")
@@ -339,7 +355,7 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
@@ -365,7 +381,7 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
@@ -393,7 +409,7 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
@@ -471,7 +487,7 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> Response:
         try:
@@ -494,7 +510,7 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> Response:
         try:
@@ -518,7 +534,7 @@ def create_app() -> FastAPI:
         dataset: str = Query(...),
         sample_id: str = Query(...),
         stage: Literal["raw", "processed"] = "processed",
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         persist: bool = False,
     ) -> dict:
         """Compute preview in memory without requiring persisted artifacts."""
@@ -545,7 +561,7 @@ def create_app() -> FastAPI:
         dataset: str = Query(...),
         sample_id: str = Query(...),
         stage: Literal["raw", "processed"] = "processed",
-        max_frames: int | None = Query(default=None, ge=1, le=1200),
+        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
         persist: bool = False,
         from_artifacts: bool = Query(default=False, alias="from_artifacts"),
     ) -> dict:
