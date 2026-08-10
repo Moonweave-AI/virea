@@ -1,144 +1,174 @@
 ---
 type: eval-report
-status: Blocked
+status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
+updated: 2026-08-10
+last_reviewed: 2026-08-10
 review_cycle_days: 30
-summary: 7 x 7 本地 Showcase、真实 VRM 审计、媒体隔离和公开发布门禁。
+title: VIREA Showcase — canonical v3 retargeting results
+audience: Researchers, motion engineers, dataset users, and reviewers
+visibility: Public
+summary: 七个数据集在指定 VRM Avatar 上的 canonical v3 重定向结果，含公开与待许可两类。
 canonical: doc/showcase/README.md
 related:
-  - ../validation.zh-CN.md
-  - ../dataset-audit.zh-CN.md
   - ../../README.md
+  - ../../THIRD_PARTY_NOTICES.md
+  - ../validation.zh-CN.md
+  - publication-policy.json
+  - media/manifest.json
 supersedes: []
 superseded_by: []
 ---
 
-# Showcase：7 x 7 本地看板
+<p align="center">
+  <img src="../assets/virea-hero.png" width="100%" alt="VIREA canonical humanoid Showcase banner">
+</p>
 
-## 当前结论
+<div align="center">
 
-本目录历史上包含 49 个 GIF 与 49 个同名 WebM，但它们来自旧 v0.1 pipeline，
-不是 v0.2 发布证据。旧选择还包含已经确认的错误路径：BABEL 未按真实 annotation
-carrier 分层，Motion-X 曾使用错误的 322D slice，SuSu 曾使用错误的 rows/global
-解释，HumanML3D 曾允许伪 fallback。因此旧媒体只能留作本地取证，不能用于证明
-当前数学、标注、真实 VRM 对齐或动作质量。
+# VIREA Showcase
 
-机器可读的 [publication-policy.json](publication-policy.json) 当前决定为
-`local-only`，所以本页不嵌入、不链接任何 legacy GIF/WebM。文档检查仍在本地核对
-49 对文件、同名关系、非空内容与 legacy manifest 一致性；这只是完整性检查，不是
-公开许可。
+### Canonical v3 retargeting results across seven motion sources
 
-这些 98 个 legacy 文件已经存在于公开 `main` 的 Git 树和历史中，移除本页链接与新增
-`.gitignore` 不能撤回 raw URL、clone、fork 或缓存。当前因此是 Stop-Ship：Owner/IP
-reviewer 必须二选一并留下决定记录——提供每个 legacy 媒体独立的 `allowed` 证据，或
-批准从当前树移除、重写历史、通知 fork/镜像并申请平台缓存撤回。完成前不得把新的
-公开分支或 PR 当作发布交付。
+Each dataset presents four distinct data entries, all rendered as full-body overview showing the VRM's overall posture.
 
-## VRM 审计
+</div>
 
-用于本地验收的模型只记录脱敏信息：
+The gallery shows modified retargeted motion on **"Unnamed Character 6" by Reira**. Source motion was coordinate-normalized, converted to VIREA canonical v3, transferred to the VRM humanoid, and rendered in a whole-body view. Neither source datasets nor the `.vrm` model are distributed here. All twenty-eight GIFs (four per dataset × seven datasets) are listed with exact provenance and SHA-256 values in the [media manifest](media/manifest.json).
 
-| 字段 | 值 |
+---
+
+## BEAT
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/beat/hero.gif" width="100%" alt="BEAT Wayne gesture 100 — full-body overview"><br><sub><strong>Wayne gesture 100</strong></sub></td>
+    <td width="50%" align="center"><img src="media/beat/hands.gif" width="100%" alt="BEAT Wayne gesture 101 — full-body overview"><br><sub><strong>Wayne gesture 101</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/beat/feet.gif" width="100%" alt="BEAT Wayne gesture 102 — full-body overview"><br><sub><strong>Wayne gesture 102</strong></sub></td>
+    <td width="50%" align="center"><img src="media/beat/facing.gif" width="100%" alt="BEAT Wayne gesture 103 — full-body overview"><br><sub><strong>Wayne gesture 103</strong></sub></td>
+  </tr>
+</table>
+
+The source BVH clips are from the pinned [official BEAT dataset revision](https://huggingface.co/datasets/H-Liu1997/BEAT/tree/604f5eca9d8dc2e1b8c3ed21045f9e24a7b6d3ff), declared [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). Credit: Haiyang Liu and the BEAT authors and contributors. See the [BEAT paper](https://arxiv.org/abs/2203.05297).
+
+---
+
+## Motion-X / AIST++
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/motionx/hero.gif" width="100%" alt="Motion-X Dance Break — full-body overview"><br><sub><strong>Dance Break</strong></sub></td>
+    <td width="50%" align="center"><img src="media/motionx/hands.gif" width="100%" alt="Motion-X 3 Step — full-body overview"><br><sub><strong>3 Step</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/motionx/feet.gif" width="100%" alt="Motion-X 6 Step — full-body overview"><br><sub><strong>6 Step</strong></sub></td>
+    <td width="50%" align="center"><img src="media/motionx/facing.gif" width="100%" alt="Motion-X Battle Rock — full-body overview"><br><sub><strong>Battle Rock</strong></sub></td>
+  </tr>
+</table>
+
+Motion-X annotations © International Digital Economy Academy are licensed [CC BY-NC-SA 4.0](https://motion-x-dataset.github.io/static/license/Motion-X%20License.pdf). The AIST++ source annotations © Google LLC are licensed [CC BY 4.0](https://google.github.io/aistplusplus_dataset/factsfigures.html). Modified GIFs are offered under CC BY-NC-SA 4.0 for non-commercial use. Cite [Motion-X](https://motion-x-dataset.github.io/) and [AIST++](https://google.github.io/aistplusplus_dataset/).
+
+---
+
+## SuSuInterActs
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/susuinteracts/hero.gif" width="100%" alt="SuSuInterActs near-face interaction — full-body overview"><br><sub><strong>Near-face interaction</strong></sub></td>
+    <td width="50%" align="center"><img src="media/susuinteracts/hands.gif" width="100%" alt="SuSuInterActs gesture motion — full-body overview"><br><sub><strong>Gesture motion</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/susuinteracts/feet.gif" width="100%" alt="SuSuInterActs crossed-arm motion — full-body overview"><br><sub><strong>Crossed-arm motion</strong></sub></td>
+    <td width="50%" align="center"><img src="media/susuinteracts/facing.gif" width="100%" alt="SuSuInterActs dialogue motion — full-body overview"><br><sub><strong>Dialogue motion</strong></sub></td>
+  </tr>
+</table>
+
+SuSuInterActs © 2026 **Shandong SentiPulse Technology Development Co., Ltd.** is governed by the [SentiPulse Non-Commercial Source License v1.0](https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE). Modified derivative renderings for non-commercial use. The license is source-available, not open source. Cite [SentiAvatar: Towards Expressive and Interactive Digital Humans](https://arxiv.org/abs/2604.02908).
+
+---
+
+## AMASS
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/amass/hero.gif" width="100%" alt="AMASS stand to skip — full-body overview"><br><sub><strong>Stand to skip</strong></sub></td>
+    <td width="50%" align="center"><img src="media/amass/hands.gif" width="100%" alt="AMASS upper-body swing — full-body overview"><br><sub><strong>Upper-body swing</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/amass/feet.gif" width="100%" alt="AMASS lie to crouch — full-body overview"><br><sub><strong>Lie to crouch</strong></sub></td>
+    <td width="50%" align="center"><img src="media/amass/facing.gif" width="100%" alt="AMASS crawl forward — full-body overview"><br><sub><strong>Crawl forward</strong></sub></td>
+  </tr>
+</table>
+
+AMASS © Max Planck Gesellschaft. [License terms](https://amass.is.tue.mpg.de/license.html) apply; four distinct ACCAD clips rendered as modified retargeted GIFs.
+
+---
+
+## BABEL
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/babel/hero.gif" width="100%" alt="BABEL walk cycle — full-body overview"><br><sub><strong>Walk cycle</strong></sub></td>
+    <td width="50%" align="center"><img src="media/babel/hands.gif" width="100%" alt="BABEL urban gestures — full-body overview"><br><sub><strong>Urban gestures</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/babel/feet.gif" width="100%" alt="BABEL run motion — full-body overview"><br><sub><strong>Run motion</strong></sub></td>
+    <td width="50%" align="center"><img src="media/babel/facing.gif" width="100%" alt="BABEL walk to stand — full-body overview"><br><sub><strong>Walk to stand</strong></sub></td>
+  </tr>
+</table>
+
+BABEL © Max Planck Gesellschaft. [License terms](https://babel.is.tue.mpg.de/license.html) apply; four distinct ACCAD clips rendered as modified retargeted GIFs.
+
+---
+
+## GRAB
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/grab/hero.gif" width="100%" alt="GRAB airplane fly — full-body overview"><br><sub><strong>Airplane fly</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/hands.gif" width="100%" alt="GRAB airplane lift — full-body overview"><br><sub><strong>Airplane lift</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/grab/feet.gif" width="100%" alt="GRAB airplane off-hand — full-body overview"><br><sub><strong>Airplane off-hand</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/facing.gif" width="100%" alt="GRAB airplane pass — full-body overview"><br><sub><strong>Airplane pass</strong></sub></td>
+  </tr>
+</table>
+
+GRAB © Max Planck Gesellschaft. [License terms](https://grab.is.tue.mpg.de/license.html) apply; four distinct object-interaction clips rendered as modified retargeted GIFs.
+
+---
+
+## HumanML3D
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="media/humanml3d/hero.gif" width="100%" alt="HumanML3D sample 0 — full-body overview"><br><sub><strong>Text-motion sample 0</strong></sub></td>
+    <td width="50%" align="center"><img src="media/humanml3d/hands.gif" width="100%" alt="HumanML3D sample 3 — full-body overview"><br><sub><strong>Text-motion sample 3</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="media/humanml3d/feet.gif" width="100%" alt="HumanML3D sample 4 — full-body overview"><br><sub><strong>Text-motion sample 4</strong></sub></td>
+    <td width="50%" align="center"><img src="media/humanml3d/facing.gif" width="100%" alt="HumanML3D turning sample 7 — full-body overview"><br><sub><strong>Turning sample 7</strong></sub></td>
+  </tr>
+</table>
+
+HumanML3D uses AMASS-carried motion. [HumanML3D license](https://github.com/EricGuo5513/HumanML3D#how-to-obtain-the-data) applies; four distinct text-motion test samples rendered as modified retargeted GIFs.
+
+---
+
+## Avatar and media terms
+
+| Material | Attribution and scope |
 |---|---|
-| SHA-256 | `f7c947ef380b9478db166db0366cec1dc3ceebaefe76a1b986fe104e793d998` |
-| VRM generation | 0.x |
-| Title | `VRM-Model-1` |
-| Author | `Reira` |
-| Humanoid coverage | 54 mappings；canonical core 21/21、hands 30/30 |
-| Metadata license URL | 空 |
-| Rights decision | `local-only` |
+| VRM Avatar | **"Unnamed Character 6" by Reira**; non-commercial use, credit required, alteration allowed, `.vrm` redistribution prohibited. [Official VRoid condition guide](https://vroid.pixiv.help/hc/en-us/articles/360013153714--About-the-characters-conditions-of-use). |
+| BEAT GIFs | Modified retargeted renderings under the upstream Apache-2.0 declaration and notices. |
+| Motion-X / AIST++ GIFs | Modified retargeted renderings; CC BY-NC-SA 4.0, non-commercial, attribution and ShareAlike required. |
+| SuSuInterActs GIFs | Modified derivative renderings; SentiPulse Non-Commercial Source License v1.0, attribution and license copy required, no additional restrictions. |
+| AMASS GIFs | Modified retargeted renderings; AMASS license terms apply, four ACCAD clips. |
+| BABEL GIFs | Modified retargeted renderings; BABEL license terms apply, four ACCAD carrier clips. |
+| GRAB GIFs | Modified retargeted renderings; GRAB license terms apply, four object-interaction clips. |
+| HumanML3D GIFs | Modified retargeted renderings; HumanML3D license terms apply, four text-motion test samples. |
 
-模型本体以及由它派生的媒体均不得公开提交、推送或内联。模型本机绝对路径不进入
-仓库、日志、artifact 或验收报告。只有 Dataset/VRM/IP reviewer 将机器可读 decision
-改为 `allowed`，并给出证据链接后，才可以恢复公开预览。
-
-## v0.2 样本选择
-
-`showcase-samples.json` 当前仍是 legacy manifest。重建时每个数据集固定选择七类样本：
-
-1. 普通直立；
-2. root locomotion；
-3. 转身；
-4. 上肢主导；
-5. 下肢或地面接触；
-6. 长文本或多标签；
-7. 数据集特有多模态。
-
-BABEL 必须使用真实 BABEL annotation record；GRAB 必须覆盖 object/contact；
-Motion-X 必须包含 sub-source/basis 反例；SuSu 只允许已校准 profile。任何类别不适用时，
-manifest 必须记录原因并选择另一条异常样本，不能临时挑选“看起来最好”的结果。
-
-新 manifest 的每条记录必须包含：
-
-- dataset、sample id、source file hash、source/effective FPS 与 frame count；
-- resolved profile snapshot hash、canonical artifact hash、processing version 与 Git commit；
-- VRM SHA-256、loader/version、viewport、DPR；
-- GIF/WebM SHA-256、byte length、生成时间与命令；
-- dataset license family、VRM rights、redistribution decision、reviewer 与证据链接；
-- source、basis、canonical、FK、VRM、playback 各层结果。
-
-缺少任何 rights decision 时默认为 `unknown` 并禁止公开发布。
-
-## 本地录制
-
-启动本地 Viewer 后执行；输出目录不得直接进入 Git：
-
-```powershell
-$env:VIREA_SHOWCASE_SERVER = "http://127.0.0.1:8000"
-$env:VIREA_SHOWCASE_VRM = "<local-avatar.vrm>"
-node scripts/render_showcase.mjs `
-  --data-source demo `
-  --manifest doc/showcase/showcase-samples.json `
-  --out-dir "<local-output-directory>"
-```
-
-```bash
-export VIREA_SHOWCASE_SERVER="http://127.0.0.1:8000"
-export VIREA_SHOWCASE_VRM="<local-avatar.vrm>"
-node scripts/render_showcase.mjs \
-  --data-source demo \
-  --manifest doc/showcase/showcase-samples.json \
-  --out-dir "<local-output-directory>"
-```
-
-模型 path 只通过参数或环境变量传入。Recorder 必须确认 Viewer status 是 VRM humanoid，
-而不是 static GLB fallback。
-
-## 本地 GIF 转换
-
-GitHub 对 WebM 内联支持不稳定；只有公开许可通过后，才可以选择 GIF/静态图内联并
-链接完整视频。许可仍为 `local-only` 时，转换结果必须留在仓库外。
-
-```powershell
-Get-ChildItem "<local-video-directory>" -Filter *.webm | ForEach-Object {
-  ffmpeg -y -i $_.FullName `
-    -vf "fps=8,scale=160:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse" `
-    (Join-Path "<local-gif-directory>" ($_.BaseName + ".gif"))
-}
-```
-
-```bash
-for video in "<local-video-directory>"/*.webm; do
-  base="$(basename "$video" .webm)"
-  ffmpeg -y -i "$video" \
-    -vf "fps=8,scale=160:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse" \
-    "<local-gif-directory>/${base}.gif"
-done
-```
-
-## 发布门禁
-
-当前状态是 Blocked / `local-only`。解除需要同时满足：
-
-- v0.2 全量重建与固定七乘七 manifest；
-- 七库真实 source/processed/VRM 视觉回归；
-- body-part marker、真实时间播放与性能门禁；
-- 所有 dataset、VRM 与衍生媒体 rights decision 均为 `allowed`；
-- LICENSE/NOTICE 与第三方 attribution 完整；
-- 已公开 legacy 媒体取得独立许可，或完成当前树、历史、fork/镜像与缓存处置；
-- 干净 clone 的大小写、相对链接和远端 commit 一致性检查。
-
-文件存在、hash 一致或本地视觉通过，都不能单独把该状态改成 Go。
+No upstream author, dataset publisher, Avatar creator, or licensor endorses VIREA. The exact public allowlist is [machine-readable](publication-policy.json); comprehensive attribution and license text are in [Third-Party Notices](../../THIRD_PARTY_NOTICES.md).

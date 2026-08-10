@@ -3,145 +3,304 @@ type: readme
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
+updated: 2026-08-10
+last_reviewed: 2026-08-10
 review_cycle_days: 30
-summary: VIREA 的项目入口、状态、最短运行路径和文档导航。
+title: VIREA — Verifiable Retargeting for Expressive Avatars
+audience: Researchers, motion engineers, dataset integrators, and reviewers
+visibility: Public
+summary: VIREA 的能力、结果、数据源、架构、使用方式与验证边界。
 canonical: README.md
 related:
   - doc/README.zh-CN.md
-  - doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-  - doc/adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md
+  - doc/getting-started.zh-CN.md
+  - doc/engineering-design.zh-CN.md
+  - doc/validation.zh-CN.md
+  - doc/showcase/README.md
 supersedes: []
 superseded_by: []
 ---
 
+<p align="center">
+  <img src="doc/assets/virea-flow-v3.gif" width="100%" alt="Seven motion sources processed through VIREA profile, solver, and replay contract to drive humanoid animation">
+</p>
+
+<div align="center">
+
 # VIREA
 
-VIREA 把异构人体动作、文本标注和多模态上下文转换成可验证、可回放的 VRM/glTF humanoid motion。
+### Verifiable Retargeting for Expressive Avatars
 
-```text
-七类数据集
-  -> Adapter 保留源事实
-  -> Dataset Profile 解释 FPS / basis / unit / rotation / root semantic
-  -> Codec 解码源运动
-  -> Retarget 生成 canonical motion
-  -> Artifact 固化数学与语义
-  -> Viewer 对照 source / processed / real VRM
-```
+**Turn heterogeneous human motion into one auditable VRM/glTF humanoid contract.**
 
-VRM 不是 SMPL-X pose vector。SMPL、SMPL-H、SMPL-X、BVH、263D 和 6D rotation 是源运动表示；VRM 是建立在 glTF node、skin 和 humanoid bone mapping 上的 Avatar 规范。
+[![Status: research preview](https://img.shields.io/badge/status-research_preview-6957d8)](#status)
+[![Processing: v0.4](https://img.shields.io/badge/processing-v0.4-167d73)](doc/engineering-design.zh-CN.md)
+[![Canonical: v3](https://img.shields.io/badge/canonical-v3-3456a4)](doc/math-retarget/README.zh-CN.md)
+[![Sources: 7](https://img.shields.io/badge/sources-7-9f6a2e)](#supported-motion-sources)
+[![Python: 3.10+](https://img.shields.io/badge/python-3.10%2B-3776ab)](pyproject.toml)
+[![Viewer: VRM](https://img.shields.io/badge/viewer-VRM_humanoid-20293f)](doc/annotation-viewer.zh-CN.md)
 
-## 状态
+[Quick Start](#quick-start) · [Results](#retargeting-results) · [Sources](#supported-motion-sources) · [Architecture](#architecture) · [Validation](#validation) · [Docs](doc/README.zh-CN.md)
 
-项目正在执行 [RFC-0001](doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md) 定义的 Major-refactor，目标产物版本为 `v0.2.0`。当前边界如下：
+</div>
 
-- `v0.1.0` 产物只能只读兼容；缺失的标注、profile、rest 或 channel 不会被猜测补齐。
-- 新语义必须从 raw 数据重新构建，不能从历史 metadata 凭空恢复。
-- Dataset Profile 按 `draft -> source_verified -> regression_verified -> release_ready` 推进；未验证 profile 不进入正式批处理或公开看板。
-- 仓库中的旧 Showcase 媒体只证明文件存在，不自动证明 v0.2 数学、真实 VRM 对齐或再分发许可已通过。当前证据状态见 [Showcase 说明](doc/showcase/README.md)。
+<br>
 
-## 支持范围
+## What VIREA delivers
 
-| 数据集 | 源运动主路径 | 主要语义 |
-|---|---|---|
-| AMASS | SMPL/SMPL-H body axis-angle | 通常无原生动作文本；文件名只能作为推导信息 |
-| BABEL | AMASS carrier motion | sequence 与时间区间动作标注 |
-| BEAT | 原始 75-joint BVH，运行时解码为 body22 + hands30 | gesture、语义区间、原始 ordinal score、音频/表情可用性 |
-| GRAB | SMPL-X 55-joint fullpose | 交互物体、动作上下文、逐帧接触 |
-| HumanML3D | 263D feature 到 22-joint positions | caption 与可选时间区间 |
-| Motion-X | 322D SMPL-X-derived array | sequence/body/hand/face text 与表情通道 |
-| SuSuInterActs | body/hand 6D rotation 与可选 positions | 中文对话、face/audio channel |
+<table>
+  <tr>
+    <td width="50%"><strong>One canonical motion format</strong><br>Root translation and rotation, 21 core-bone quaternions, 30 hand-bone quaternions, canonical rest geometry, seconds-based timing, and discontinuity segments — all in a single <code>T × 211</code> tensor.</td>
+    <td width="50%"><strong>Mechanism-level retargeting</strong><br>Root, body, ankle, and hand orientation are resolved before playback through a unified constraint solver that covers all 30 VRM hand bones without dataset-specific Viewer repairs.</td>
+  </tr>
+  <tr>
+    <td><strong>Replay-verifiable artifacts</strong><br>Canonical v3 artifacts bind source evidence, pre-solver hands, solver policy, quality metrics, content hashes, and deterministic certificates. Reader replay rejects altered or incomplete artifacts.</td>
+    <td><strong>Portable VRM playback</strong><br>The Viewer consumes normalized humanoid motion, validates the payload it receives, and applies no dataset-specific hand, ankle, or rest-pose correction. Zero pose mutation is contractual.</td>
+  </tr>
+</table>
 
-逐数据集的原生事实、上游转换和仓库边界见 [数据集审计](doc/dataset-audit.zh-CN.md)。
+<br>
+
+## Retargeting results
+
+All animations below show source motion retargeted to **"Unnamed Character 6" by Reira**. Each dataset presents four distinct data entries in full-body overview: source motion was coordinate-normalized, retargeted to the VIREA canonical v3 humanoid contract, transferred to the credited VRM Avatar, and rendered as a whole-body view. Raw datasets and the Avatar model are not included. Licensing conditions are summarized per dataset and detailed in [Third-Party Notices](THIRD_PARTY_NOTICES.md).
+
+---
+
+### BEAT · conversational gesture
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/beat/hero.gif" width="100%" alt="BEAT Wayne gesture 100 — full-body overview"><br><sub><strong>Wayne gesture 100</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/beat/hands.gif" width="100%" alt="BEAT Wayne gesture 101 — full-body overview"><br><sub><strong>Wayne gesture 101</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/beat/feet.gif" width="100%" alt="BEAT Wayne gesture 102 — full-body overview"><br><sub><strong>Wayne gesture 102</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/beat/facing.gif" width="100%" alt="BEAT Wayne gesture 103 — full-body overview"><br><sub><strong>Wayne gesture 103</strong></sub></td>
+  </tr>
+</table>
+
+BEAT motion © its authors and contributors, declared [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) at the pinned [official dataset revision](https://huggingface.co/datasets/H-Liu1997/BEAT/tree/604f5eca9d8dc2e1b8c3ed21045f9e24a7b6d3ff). Four distinct clips rendered as modified retargeted GIFs.
+
+---
+
+### Motion-X / AIST++ · dance
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/motionx/hero.gif" width="100%" alt="Motion-X Dance Break — full-body overview"><br><sub><strong>Dance Break</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/motionx/hands.gif" width="100%" alt="Motion-X 3 Step — full-body overview"><br><sub><strong>3 Step</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/motionx/feet.gif" width="100%" alt="Motion-X 6 Step — full-body overview"><br><sub><strong>6 Step</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/motionx/facing.gif" width="100%" alt="Motion-X Battle Rock — full-body overview"><br><sub><strong>Battle Rock</strong></sub></td>
+  </tr>
+</table>
+
+Motion-X annotations © International Digital Economy Academy, licensed [CC BY-NC-SA 4.0](https://motion-x-dataset.github.io/static/license/Motion-X%20License.pdf); the AIST++ source annotations © Google LLC are [CC BY 4.0](https://google.github.io/aistplusplus_dataset/factsfigures.html). Modified GIFs are offered under CC BY-NC-SA 4.0 for non-commercial use.
+
+---
+
+### SuSuInterActs · expressive interaction
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/susuinteracts/hero.gif" width="100%" alt="SuSuInterActs near-face interaction — full-body overview"><br><sub><strong>Near-face interaction</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/susuinteracts/hands.gif" width="100%" alt="SuSuInterActs gesture motion — full-body overview"><br><sub><strong>Gesture motion</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/susuinteracts/feet.gif" width="100%" alt="SuSuInterActs crossed-arm motion — full-body overview"><br><sub><strong>Crossed-arm motion</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/susuinteracts/facing.gif" width="100%" alt="SuSuInterActs dialogue motion — full-body overview"><br><sub><strong>Dialogue motion</strong></sub></td>
+  </tr>
+</table>
+
+SuSuInterActs © 2026 **Shandong SentiPulse Technology Development Co., Ltd.**, licensed under the [SentiPulse Non-Commercial Source License v1.0](https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE). Modified derivative renderings for non-commercial use; the license is source-available, not open source.
+
+---
+
+### AMASS · large-scale mocap archive
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/amass/hero.gif" width="100%" alt="AMASS stand to skip — full-body overview"><br><sub><strong>Stand to skip</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/amass/hands.gif" width="100%" alt="AMASS upper-body swing — full-body overview"><br><sub><strong>Upper-body swing</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/amass/feet.gif" width="100%" alt="AMASS lie to crouch — full-body overview"><br><sub><strong>Lie to crouch</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/amass/facing.gif" width="100%" alt="AMASS crawl forward — full-body overview"><br><sub><strong>Crawl forward</strong></sub></td>
+  </tr>
+</table>
+
+AMASS © Max Planck Gesellschaft. [License terms](https://amass.is.tue.mpg.de/license.html) apply; four distinct ACCAD Female1 clips rendered as modified retargeted GIFs.
+
+---
+
+### BABEL · annotated motion segments
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/babel/hero.gif" width="100%" alt="BABEL walk cycle — full-body overview"><br><sub><strong>Walk cycle</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/babel/hands.gif" width="100%" alt="BABEL urban gestures — full-body overview"><br><sub><strong>Urban gestures</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/babel/feet.gif" width="100%" alt="BABEL run motion — full-body overview"><br><sub><strong>Run motion</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/babel/facing.gif" width="100%" alt="BABEL walk to stand — full-body overview"><br><sub><strong>Walk to stand</strong></sub></td>
+  </tr>
+</table>
+
+BABEL © Max Planck Gesellschaft. [License terms](https://babel.is.tue.mpg.de/license.html) apply; BABEL annotation intervals overlay AMASS carriers. Four distinct ACCAD clips rendered as modified retargeted GIFs.
+
+---
+
+### GRAB · object interaction
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/grab/hero.gif" width="100%" alt="GRAB airplane fly — full-body overview"><br><sub><strong>Airplane fly</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/grab/hands.gif" width="100%" alt="GRAB airplane lift — full-body overview"><br><sub><strong>Airplane lift</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/grab/feet.gif" width="100%" alt="GRAB airplane off-hand — full-body overview"><br><sub><strong>Airplane off-hand</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/grab/facing.gif" width="100%" alt="GRAB airplane pass — full-body overview"><br><sub><strong>Airplane pass</strong></sub></td>
+  </tr>
+</table>
+
+GRAB © Max Planck Gesellschaft. [License terms](https://grab.is.tue.mpg.de/license.html) apply; four distinct object-interaction clips rendered as modified retargeted GIFs.
+
+---
+
+### HumanML3D · text-motion pairs
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/humanml3d/hero.gif" width="100%" alt="HumanML3D sample 0 — full-body overview"><br><sub><strong>Text-motion sample 0</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/humanml3d/hands.gif" width="100%" alt="HumanML3D sample 3 — full-body overview"><br><sub><strong>Text-motion sample 3</strong></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="doc/showcase/media/humanml3d/feet.gif" width="100%" alt="HumanML3D sample 4 — full-body overview"><br><sub><strong>Text-motion sample 4</strong></sub></td>
+    <td width="50%" align="center"><img src="doc/showcase/media/humanml3d/facing.gif" width="100%" alt="HumanML3D turning sample 7 — full-body overview"><br><sub><strong>Turning sample 7</strong></sub></td>
+  </tr>
+</table>
+
+HumanML3D uses AMASS-carried motion. [HumanML3D license](https://github.com/EricGuo5513/HumanML3D#how-to-obtain-the-data) applies; four distinct text-motion test samples rendered as modified retargeted GIFs.
+
+---
+
+<sub><strong>Avatar credit:</strong> "Unnamed Character 6" by Reira — non-commercial display allowed; credit required; <code>.vrm</code> redistribution prohibited. See the <a href="https://vroid.pixiv.help/hc/en-us/articles/360013153714--About-the-characters-conditions-of-use">official VRoid usage-condition guide</a>, the <a href="doc/showcase/media/manifest.json">media manifest</a>, and the <a href="doc/showcase/publication-policy.json">publication policy</a>.</sub>
+
+<br>
+
+## Canonical v3 at a glance
+
+| Contract | Specification |
+|---|---|
+| Motion tensor | `T × 211` float32 |
+| Layout | root position `3` + root quaternion `4` + core quaternions `21 × 4` + hand quaternions `30 × 4` |
+| Rotation convention | right-handed, `+Y` up, `+Z` forward, `xyzw`, rest-relative normalized local deltas |
+| Time | explicit FPS, seconds-based preview duration, half-open continuity segments |
+| Hand safety | 30-bone solver policy, evidence coverage, constraint residuals, postconditions, deterministic certificate |
+| Target | VRM 0.x / VRM 1 normalized humanoid through `three-vrm` |
+
+## Supported motion sources
+
+VIREA resolves source representation, coordinate basis, units, timing, rotation semantics, and hand evidence per profile.
+
+| Source | Motion carrier | Canonical result | Profile status |
+|---|---|---|---|
+| **AMASS** | SMPL / SMPL-H / Stage-II SMPL-X | Body rotation retargeting; verified SMPL-H path; uncalibrated hand frames remain neutral | Regression-verified core; Stage-II draft |
+| **BABEL** | BABEL annotations over AMASS motion | Annotation intervals aligned with the AMASS carrier; annotations never replace motion arrays | Source-verified SMPL/SMPL-H carriers |
+| **BEAT** | Raw 75-joint BVH | Full hierarchy decode, skipped-joint composition, 30-hand mapping, joint-centre evidence | Source-verified |
+| **GRAB** | SMPL-X 55-joint full pose | Body motion retained; object/contact context preserved; uncalibrated hand frames remain neutral | Source-verified |
+| **HumanML3D** | 263D root + RIC positions | Official RIC geometry drives the body; child-edge 6D is not misread as glTF node-local; hands explicitly neutral | Source-verified |
+| **Motion-X** | 322D SMPL-X-derived arrays | Sub-source-specific translation and basis policy; hand evidence neutral until frame calibration | Draft |
+| **SuSuInterActs** | Body/hand 6D with optional 63-joint positions | MTA63 joint-centre evidence drives the canonical hand solver; official columns/local profile verified | Official verified; local variants draft |
+
+See [Dataset Audit](doc/dataset-audit.zh-CN.md) for exact slices, frame rates, units, basis transforms, authority links, and unresolved profile-level claims.
 
 ## Quick start
 
-要求：Python 3.10+、Node.js 20+。大型数据集与 `.vrm` 保持在仓库外。仓库提交
-`uv.lock`；需要逐包一致的环境时使用 `uv sync --extra dev`，下面的 venv/pip 路径
-用于没有 uv 的系统。
-
-Windows PowerShell：
-
-```powershell
-git clone git@github.com:Moonweave-AI/virea.git
-Set-Location virea
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-npm ci
-python -m virea serve --data-source demo
-```
-
-macOS / Linux：
+Requirements: Python 3.10+, Node.js 20+, and `uv`.
 
 ```bash
 git clone git@github.com:Moonweave-AI/virea.git
 cd virea
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
+uv sync --extra dev
 npm ci
-python -m virea serve --data-source demo
+uv run python -m virea serve --data-source demo
 ```
 
-页面若提示 Three.js 或 VRM runtime 不可用，先确认 `npm ci` 成功，再重启服务。完整数据准备、环境变量和处理命令见 [Pipeline 使用指南](doc/pipeline.zh-CN.md)。
+Open `http://127.0.0.1:8000/`. Motion datasets are not bundled; connect data that you are licensed to use. See [Getting Started](doc/getting-started.zh-CN.md).
 
-## 使用外部数据与 VRM
+## Architecture
 
-路径通过 CLI 或环境变量传入，不写入代码或文档。示例只使用占位符：
-
-```powershell
-$env:VIREA_RAW_ROOT = "<full-raw-root>"
-$env:VIREA_PROCESSED_ROOT = "<processed-v0.2-root>"
-python -m virea process --data-source full --workers 8 --force
+```mermaid
+flowchart LR
+    A["Motion source"] --> B["Adapter"]
+    B --> C["Dataset profile"]
+    C --> D["Codec + retarget"]
+    D --> E["HandEvidence + solver"]
+    E --> F["Canonical v3 artifact"]
+    F --> G["Reader replay"]
+    G --> H["VRM Viewer"]
 ```
+
+The boundary is deliberate:
+
+- **Adapters** preserve source facts and provenance.
+- **Profiles** define basis, units, timing, rotation semantics, and evidence policy.
+- **Codecs and retargeting** produce pre-solver canonical motion.
+- **The hand solver** produces the only final canonical hand track.
+- **Artifacts and Reader replay** make the result independently checkable.
+- **The Viewer** verifies and renders; it does not repair poses.
+
+## Validation
+
+VIREA uses separate gates so that one passing layer cannot hide a failure in another.
+
+| Gate | What is checked |
+|---|---|
+| Source fidelity | Official layouts, joint order, basis, units, hierarchy collapse, and source FK or position evidence |
+| Retarget quality | Root/core invariants plus complete observable hand-edge coverage; missing or degenerate edges fail closed |
+| Hand constraints | Convergence, observation coverage, anatomical residuals, continuity segmentation, and solver certificate |
+| Artifact integrity | Array hashes, schema, canonical FK, quality replay, solver replay, and tamper rejection |
+| Viewer contract | Exact v3 mapping/rest contract, payload hand hash, normalized humanoid transfer, and zero pose mutation |
+| Real-data QA | Representative samples from all seven source families, long sequences, discontinuities, hand articulation, ankle alignment, and global facing |
+
+Run the local contract suite:
 
 ```bash
-export VIREA_RAW_ROOT="<full-raw-root>"
-export VIREA_PROCESSED_ROOT="<processed-v0.2-root>"
-python -m virea process --data-source full --workers 8 --force
-```
-
-GRAB 与 SuSuInterActs 的既有公开容器包含 NumPy object/pickle。VIREA 默认拒绝读取，
-因为仅查看预览也可能触发任意代码执行。只有在本地核验过来源与哈希后，才可为该次
-离线会话显式设置 `VIREA_ALLOW_TRUSTED_RAW_PICKLE=1` 并重启；公开或远程服务不得开启，
-分发前应迁移为不含 object dtype 的数组格式。AMASS、BABEL、BEAT、HumanML3D 与
-Motion-X 的数值入口始终使用 `allow_pickle=False`。
-
-Viewer 从本地文件选择器加载 `.vrm`。Showcase renderer 也支持 `--vrm <path>` 或 `VIREA_SHOWCASE_VRM`；模型绝对路径和模型文件本身都不得提交。
-
-## 验证
-
-```bash
-python -m compileall -q src
-python -m pytest -q
+uv run python -m pytest -q
 npm run check
 npm run test:viewer
-python scripts/check_docs.py
-python scripts/smoke_pipeline.py --data-source demo --max-frames 8
+uv run python scripts/check_docs.py
 ```
 
-这些命令只验证其实际覆盖的层。只有 [分层验收清单](doc/validation.zh-CN.md) 中 source decode、basis、canonical、target FK、真实 VRM、真实时间播放、媒体与许可门禁全部有证据时，才可以声明某个数据集 `release_ready`。
+Current dated evidence, thresholds, skips, and known limitations are listed in [Validation](doc/validation.zh-CN.md).
 
-## 文档
+## Status
 
-建议按以下顺序阅读：
+**Research preview.** Processing v0.4 and canonical v3 are implemented; profiles marked `draft` remain experimental and are identified in the source matrix above.
 
-1. [Pipeline 工程设计](doc/engineering-design.zh-CN.md)
-2. [Annotation 与 Viewer 契约](doc/annotation-viewer.zh-CN.md)
-3. [Retarget 数学共同层](doc/math-retarget/README.zh-CN.md)
-4. [五类 source retarget](doc/README.zh-CN.md#五类-source-retarget)
-5. [七数据集审计](doc/dataset-audit.zh-CN.md)
-6. [分层验收清单](doc/validation.zh-CN.md)
+The public gallery contains twenty-eight dataset-derived GIFs — four per dataset across all seven sources — listed in the hash-bound [media manifest](doc/showcase/media/manifest.json). The repository does not yet include a code license; public visibility does not grant permission to copy, modify, or redistribute VIREA code. See [Showcase](doc/showcase/README.md) and [Third-Party Notices](THIRD_PARTY_NOTICES.md).
 
-完整导航见 [文档索引](doc/README.zh-CN.md)，权威资料见 [参考基线](doc/references.zh-CN.md)。
+## Documentation
 
-## Security、许可与贡献
+| Goal | Start here |
+|---|---|
+| Install and open the Viewer | [Getting Started](doc/getting-started.zh-CN.md) |
+| Integrate or process a dataset | [Pipeline Guide](doc/pipeline.zh-CN.md) |
+| Understand coordinates, FK, 211D, and hand constraints | [Retarget Mathematics](doc/math-retarget/README.zh-CN.md) |
+| Implement or inspect v3 artifacts | [Engineering Design](doc/engineering-design.zh-CN.md) · [Schemas](schemas) |
+| Review dataset-specific evidence | [Dataset Audit](doc/dataset-audit.zh-CN.md) |
+| Review quality claims and open risks | [Validation](doc/validation.zh-CN.md) |
+| Inspect decisions and proposed contracts | [RFC-0002](doc/rfcs/0002-constraint-aware-hand-retarget-v1.zh-CN.md) · [ADR-0002](doc/adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md) |
 
-- Raw dataset、对话、音频、人脸通道和 VRM 都视为不可信或受限资产；Viewer 不返回 raw 绝对路径，也不把未知外部 URL 自动变成链接。
-- 公开提交模型、raw 数据或派生 GIF/视频前，必须在 Showcase manifest 中得到明确的 `allowed` 决定；`local-only`、`blocked`、缺失或未知都 fail-closed。
-- 本仓库尚未声明代码 LICENSE，也未提供覆盖第三方数据、模型与 attribution 的 NOTICE。各数据集和 VRM 继续受各自条款约束；仓库内容不授予再分发权限，公开 Release 保持 No-Go，直到 Owner 与 IP reviewer 明确决定。
-- 贡献应保持 Adapter / Codec / Retarget / Artifact / Viewer 边界，并同步更新 schema、测试、文档和真实样本证据。涉及公共 schema、坐标约定或处理版本的修改先更新 RFC/ADR。
+The complete documentation map — tutorials, how-tos, references, explanations, decision records, and evidence — is in the [Documentation Hub](doc/README.zh-CN.md).
 
-Owner：`@Joker-of-Gotham`。文档和实现均需人工复核；自动检查通过不等于发布批准。
+## Contributing and security
+
+- Contributions must update code, contracts, tests, and evidence together. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- Treat raw datasets, object containers, annotations, audio, face channels, VRM files, and external URLs as untrusted or restricted assets. See [SECURITY.md](SECURITY.md).
+- Embedded third-party material and non-commercial constraints are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Owner: `@Joker-of-Gotham`
