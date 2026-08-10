@@ -29,6 +29,8 @@ id_ed25519*
 /demo/vrm-control-rest-audit.json
 /runtime/
 /outputs/
+/.virea-runtime/
+/.virea-pytest/
 *.npz
 *.npy
 *.parquet
@@ -42,12 +44,14 @@ id_ed25519*
 *.mp3
 *.mp4
 
-# Showcase binaries are local-only until the publication policy is `allowed`.
-# Existing legacy files remain tracked for history; new/rebuilt media requires
-# an explicit reviewed `git add -f` after the IP gate passes.
+# Dataset/VRM-derived showcase binaries remain local-only until each asset has
+# an explicit reviewed publication decision. Historical v0.1 binaries were
+# removed from the current tree; new media still requires deliberate promotion.
 /doc/showcase/gifs/*.gif
 /doc/showcase/videos/*.webm
 /doc/showcase/screenshots/
+/doc/showcase/render-output/
+/doc/showcase/v3-output/
 
 # Local server logs and caches.
 /logs/

@@ -1,0 +1,320 @@
+{
+  "schema_version": "virea.showcase_gallery.v2",
+  "purpose": "Local-only presentation selection for the current processing v0.4/canonical v3 pipeline. Historical v0.1 media are not current-tree QA artifacts.",
+  "layout": {
+    "dataset_count": 7,
+    "items_per_dataset": 4,
+    "roles": [
+      "hero",
+      "hands",
+      "feet",
+      "facing"
+    ],
+    "presentation": "four equal full-body overview GIFs from distinct data entries"
+  },
+  "generation": {
+    "data_source": "full",
+    "processing_version": "v0.4.0",
+    "canonical_motion_schema": "virea.canonical_motion.v3.0.0",
+    "vrm_motion_payload_schema": "virea.vrm_motion_payload.v3.0.0",
+    "preview_seconds": 15,
+    "record_seconds": 4.5,
+    "output_root": "caller-selected project-local directory"
+  },
+  "datasets": {
+    "amass": [
+      {
+        "dataset": "amass",
+        "role": "hero",
+        "label": "Stand to skip",
+        "sample_id": "ACCAD/Female1General_c3d/A14_-_stand_to_skip_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Whole-body transition with a readable root trajectory."
+      },
+      {
+        "dataset": "amass",
+        "role": "hands",
+        "label": "Upper-body swing",
+        "sample_id": "ACCAD/Female1General_c3d/A3_-_Swing_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of an upper-body swing action."
+      },
+      {
+        "dataset": "amass",
+        "role": "feet",
+        "label": "Lie to crouch",
+        "sample_id": "ACCAD/Female1General_c3d/A10_-_lie_to_crouch_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a large postural change."
+      },
+      {
+        "dataset": "amass",
+        "role": "facing",
+        "label": "Crawl forward",
+        "sample_id": "ACCAD/Female1General_c3d/A11_-_crawl_forward_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a low-posture forward crawl."
+      }
+    ],
+    "babel": [
+      {
+        "dataset": "babel",
+        "role": "hero",
+        "label": "Walk cycle",
+        "sample_id": "ACCAD/Female1Walking_c3d/B3_-_walk1_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a steady-state walk cycle on an AMASS carrier."
+      },
+      {
+        "dataset": "babel",
+        "role": "hands",
+        "label": "Urban gestures",
+        "sample_id": "ACCAD/Female1Gestures_c3d/D1_-_Urban_1_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a gesture-heavy BABEL-annotated carrier."
+      },
+      {
+        "dataset": "babel",
+        "role": "feet",
+        "label": "Run motion",
+        "sample_id": "ACCAD/Female1Running_c3d/C3_-_Run_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a running motion under BABEL annotation."
+      },
+      {
+        "dataset": "babel",
+        "role": "facing",
+        "label": "Walk to stand",
+        "sample_id": "ACCAD/Female1Walking_c3d/B2_-_walk_to_stand_stageii",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a walk-to-stand deceleration."
+      }
+    ],
+    "beat": [
+      {
+        "dataset": "beat",
+        "role": "hero",
+        "label": "Wayne gesture 100",
+        "sample_id": "pose/1/1_wayne_0_100_100",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a 120 FPS speech gesture."
+      },
+      {
+        "dataset": "beat",
+        "role": "hands",
+        "label": "Wayne gesture 101",
+        "sample_id": "pose/1/1_wayne_0_101_101",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a second speech gesture clip."
+      },
+      {
+        "dataset": "beat",
+        "role": "feet",
+        "label": "Wayne gesture 102",
+        "sample_id": "pose/1/1_wayne_0_102_102",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a third speech gesture clip."
+      },
+      {
+        "dataset": "beat",
+        "role": "facing",
+        "label": "Wayne gesture 103",
+        "sample_id": "pose/1/1_wayne_0_103_103",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a fourth speech gesture clip."
+      }
+    ],
+    "grab": [
+      {
+        "dataset": "grab",
+        "role": "hero",
+        "label": "Airplane fly",
+        "sample_id": "s1/airplane_fly_1",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of an airplane-fly interaction."
+      },
+      {
+        "dataset": "grab",
+        "role": "hands",
+        "label": "Airplane lift",
+        "sample_id": "s1/airplane_lift",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of an airplane-lift interaction."
+      },
+      {
+        "dataset": "grab",
+        "role": "feet",
+        "label": "Airplane off-hand",
+        "sample_id": "s1/airplane_offhand_1",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of an off-hand interaction."
+      },
+      {
+        "dataset": "grab",
+        "role": "facing",
+        "label": "Airplane pass",
+        "sample_id": "s1/airplane_pass_1",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a cross-body pass."
+      }
+    ],
+    "humanml3d": [
+      {
+        "dataset": "humanml3d",
+        "role": "hero",
+        "label": "Text-motion sample 0",
+        "sample_id": "test/test-00000-of-00002/0",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of an RIC position-decoded motion."
+      },
+      {
+        "dataset": "humanml3d",
+        "role": "hands",
+        "label": "Text-motion sample 3",
+        "sample_id": "test/test-00000-of-00002/3",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a second text-motion pair."
+      },
+      {
+        "dataset": "humanml3d",
+        "role": "feet",
+        "label": "Text-motion sample 4",
+        "sample_id": "test/test-00000-of-00002/4",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a third text-motion pair."
+      },
+      {
+        "dataset": "humanml3d",
+        "role": "facing",
+        "label": "Turning sample 7",
+        "sample_id": "test/test-00000-of-00002/7",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a high-yaw turning motion."
+      }
+    ],
+    "motionx": [
+      {
+        "dataset": "motionx",
+        "role": "hero",
+        "label": "Dance Break",
+        "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a Dance Break sequence."
+      },
+      {
+        "dataset": "motionx",
+        "role": "hands",
+        "label": "3 Step",
+        "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_3_Step",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a 3-Step dance."
+      },
+      {
+        "dataset": "motionx",
+        "role": "feet",
+        "label": "6 Step",
+        "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_6_Step",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a 6-Step dance."
+      },
+      {
+        "dataset": "motionx",
+        "role": "facing",
+        "label": "Battle Rock",
+        "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_Battle_Rock",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a Battle Rock dance."
+      }
+    ],
+    "susuinteracts": [
+      {
+        "dataset": "susuinteracts",
+        "role": "hero",
+        "label": "Near-face interaction",
+        "sample_id": "fbx_to_json_data_susu_retarget_maya/20250905/Human_0905_6-5_01",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a near-face interaction."
+      },
+      {
+        "dataset": "susuinteracts",
+        "role": "hands",
+        "label": "Gesture motion",
+        "sample_id": "fbx_to_json_data_susu_retarget_maya/20250905/Human_0904_170-3_01",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a gesture interaction."
+      },
+      {
+        "dataset": "susuinteracts",
+        "role": "feet",
+        "label": "Crossed-arm motion",
+        "sample_id": "fbx_to_json_data_susu_retarget_maya/20251106/Human_0916_183_0_4_01_XG",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a crossed-arm interaction."
+      },
+      {
+        "dataset": "susuinteracts",
+        "role": "facing",
+        "label": "Dialogue motion",
+        "sample_id": "fbx_to_json_data_susu_retarget_maya/20251119/Human_0916_320_1_12_01_XG",
+        "focus_bone": "hips",
+        "focus_distance_scale": 1.7,
+        "start_ratio": 0.1,
+        "rationale": "Full-body overview of a dialogue interaction."
+      }
+    ]
+  }
+}

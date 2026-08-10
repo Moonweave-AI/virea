@@ -1,0 +1,177 @@
+{
+  "schema_version": "virea.showcase_media_manifest.v3",
+  "canonical_version": "v3.0.0",
+  "processing_version": "v0.4.0",
+  "total_entries": 28,
+  "datasets": ["amass", "babel", "beat", "grab", "humanml3d", "motionx", "susuinteracts"],
+  "entries": [
+    {
+      "dataset": "amass", "role": "hero",
+      "sample_id": "ACCAD/Female1General_c3d/A14_-_stand_to_skip_stageii",
+      "source": "AMASS", "license": "AMASS non-commercial research", "label": "Stand to skip",
+      "media": { "path": "amass/hero.gif", "sha256": "bd7a9e3581bbf8c6232a086a1e06ee55e78b0375beb2ecd76372961da7d6e0bd", "width": 480, "height": 233, "bytes": 1192544 }
+    },
+    {
+      "dataset": "amass", "role": "hands",
+      "sample_id": "ACCAD/Female1General_c3d/A3_-_Swing_stageii",
+      "source": "AMASS", "license": "AMASS non-commercial research", "label": "Upper-body swing",
+      "media": { "path": "amass/hands.gif", "sha256": "eae5289b081f51b6ee8a41e04e1cb7413c3cd907fdf7c5ee78f026f63edea84d", "width": 480, "height": 233, "bytes": 901126 }
+    },
+    {
+      "dataset": "amass", "role": "feet",
+      "sample_id": "ACCAD/Female1General_c3d/A10_-_lie_to_crouch_stageii",
+      "source": "AMASS", "license": "AMASS non-commercial research", "label": "Lie to crouch",
+      "media": { "path": "amass/feet.gif", "sha256": "8051d251abc4d9ff37698750b36dc44e3dd99ecca09ccbe5c4506496bb6cd5fc", "width": 480, "height": 233, "bytes": 829517 }
+    },
+    {
+      "dataset": "amass", "role": "facing",
+      "sample_id": "ACCAD/Female1General_c3d/A11_-_crawl_forward_stageii",
+      "source": "AMASS", "license": "AMASS non-commercial research", "label": "Crawl forward",
+      "media": { "path": "amass/facing.gif", "sha256": "544a1432c089fcc4bd5ca2755527b1dfeef381542f670bb14b626f443e8edfee", "width": 480, "height": 233, "bytes": 1008302 }
+    },
+    {
+      "dataset": "babel", "role": "hero",
+      "sample_id": "ACCAD/Female1Walking_c3d/B3_-_walk1_stageii",
+      "source": "BABEL", "license": "BABEL non-commercial research", "label": "Walk cycle",
+      "media": { "path": "babel/hero.gif", "sha256": "38caefed5b5f375610373e1f3bf3d9bba38a48d4e2e22a636c7cade868fb4884", "width": 480, "height": 233, "bytes": 1254440 }
+    },
+    {
+      "dataset": "babel", "role": "hands",
+      "sample_id": "ACCAD/Female1Gestures_c3d/D1_-_Urban_1_stageii",
+      "source": "BABEL", "license": "BABEL non-commercial research", "label": "Urban gestures",
+      "media": { "path": "babel/hands.gif", "sha256": "6d2419d01e55d8e2c1974c123d197823f2a4a9339f1ac4e8a0591bedee720733", "width": 480, "height": 233, "bytes": 1129028 }
+    },
+    {
+      "dataset": "babel", "role": "feet",
+      "sample_id": "ACCAD/Female1Running_c3d/C3_-_Run_stageii",
+      "source": "BABEL", "license": "BABEL non-commercial research", "label": "Run motion",
+      "media": { "path": "babel/feet.gif", "sha256": "ac0ffac01782161f24d3689e7244544602545214ae5d3d22ef59c310d5aedb7e", "width": 480, "height": 233, "bytes": 1292744 }
+    },
+    {
+      "dataset": "babel", "role": "facing",
+      "sample_id": "ACCAD/Female1Walking_c3d/B2_-_walk_to_stand_stageii",
+      "source": "BABEL", "license": "BABEL non-commercial research", "label": "Walk to stand",
+      "media": { "path": "babel/facing.gif", "sha256": "8b4bf96ce043a6609aa33711d6dad606d8d0b19a381b9b1e0e734fd39e82e26f", "width": 480, "height": 233, "bytes": 1128675 }
+    },
+    {
+      "dataset": "beat", "role": "hero",
+      "sample_id": "pose/1/1_wayne_0_100_100",
+      "source": "BEAT", "license": "BEAT research", "label": "Wayne gesture 100",
+      "media": { "path": "beat/hero.gif", "sha256": "12b24cf310328d12bdf48b77a595e1610bf2ef44cc5fca89ca279a7e62a5a76f", "width": 480, "height": 233, "bytes": 1455634 }
+    },
+    {
+      "dataset": "beat", "role": "hands",
+      "sample_id": "pose/1/1_wayne_0_101_101",
+      "source": "BEAT", "license": "BEAT research", "label": "Wayne gesture 101",
+      "media": { "path": "beat/hands.gif", "sha256": "768f79f14b737d195da991f9cf72227cfcfbc62b0de9552eae701e0baf1c52c9", "width": 480, "height": 233, "bytes": 2828553 }
+    },
+    {
+      "dataset": "beat", "role": "feet",
+      "sample_id": "pose/1/1_wayne_0_102_102",
+      "source": "BEAT", "license": "BEAT research", "label": "Wayne gesture 102",
+      "media": { "path": "beat/feet.gif", "sha256": "7a6e2962c6b8a4707e5d0545ab04c2d46cf7dbec9d2ec90491cd456eb0cf6e1e", "width": 480, "height": 233, "bytes": 1668632 }
+    },
+    {
+      "dataset": "beat", "role": "facing",
+      "sample_id": "pose/1/1_wayne_0_103_103",
+      "source": "BEAT", "license": "BEAT research", "label": "Wayne gesture 103",
+      "media": { "path": "beat/facing.gif", "sha256": "eb3598c308a27320c66be054d9b6931706222c2f0b75c5ba7e90f90f08c8e03d", "width": 480, "height": 233, "bytes": 1637221 }
+    },
+    {
+      "dataset": "grab", "role": "hero",
+      "sample_id": "s1/airplane_fly_1",
+      "source": "GRAB", "license": "GRAB non-commercial research", "label": "Airplane fly",
+      "media": { "path": "grab/hero.gif", "sha256": "6e54c863826166195eca4c94c1e2c0a727b61784b70bce476845ec6113f513fa", "width": 480, "height": 233, "bytes": 908428 }
+    },
+    {
+      "dataset": "grab", "role": "hands",
+      "sample_id": "s1/airplane_lift",
+      "source": "GRAB", "license": "GRAB non-commercial research", "label": "Airplane lift",
+      "media": { "path": "grab/hands.gif", "sha256": "d4b5a7e5738ecf6dfea1bd6bf064af0c64e3ad007203dc3db054c3e47ad8661f", "width": 480, "height": 233, "bytes": 827848 }
+    },
+    {
+      "dataset": "grab", "role": "feet",
+      "sample_id": "s1/airplane_offhand_1",
+      "source": "GRAB", "license": "GRAB non-commercial research", "label": "Airplane off-hand",
+      "media": { "path": "grab/feet.gif", "sha256": "0dfaefcb0a61bc5d5ad90d25e385d3821e5f5e99773b72dfa53166663a3d4fa2", "width": 480, "height": 233, "bytes": 1023137 }
+    },
+    {
+      "dataset": "grab", "role": "facing",
+      "sample_id": "s1/airplane_pass_1",
+      "source": "GRAB", "license": "GRAB non-commercial research", "label": "Airplane pass",
+      "media": { "path": "grab/facing.gif", "sha256": "392c4889e9f06016f4c528cfb4b52387cab2b25a044fc655cc939169550d82bd", "width": 480, "height": 233, "bytes": 1056101 }
+    },
+    {
+      "dataset": "humanml3d", "role": "hero",
+      "sample_id": "test/test-00000-of-00002/0",
+      "source": "HUMANML3D", "license": "HumanML3D research", "label": "Text-motion sample 0",
+      "media": { "path": "humanml3d/hero.gif", "sha256": "17d0bade1cae2a4ae879d41e915ebefdeb75783a66a0778fea74db2a223c28cb", "width": 480, "height": 233, "bytes": 1161927 }
+    },
+    {
+      "dataset": "humanml3d", "role": "hands",
+      "sample_id": "test/test-00000-of-00002/3",
+      "source": "HUMANML3D", "license": "HumanML3D research", "label": "Text-motion sample 3",
+      "media": { "path": "humanml3d/hands.gif", "sha256": "22549015db31bd4e8e3c6f390202df0fb60efeea7c8992a6e90be3184f4c6a8d", "width": 480, "height": 233, "bytes": 1143789 }
+    },
+    {
+      "dataset": "humanml3d", "role": "feet",
+      "sample_id": "test/test-00000-of-00002/4",
+      "source": "HUMANML3D", "license": "HumanML3D research", "label": "Text-motion sample 4",
+      "media": { "path": "humanml3d/feet.gif", "sha256": "6fa09205ea2cd259e567654750d3859afde7400cc5aea1efc3ac22a4e2e1aa30", "width": 480, "height": 233, "bytes": 762826 }
+    },
+    {
+      "dataset": "humanml3d", "role": "facing",
+      "sample_id": "test/test-00000-of-00002/7",
+      "source": "HUMANML3D", "license": "HumanML3D research", "label": "Turning sample 7",
+      "media": { "path": "humanml3d/facing.gif", "sha256": "d04856ce4a5058d36606cb741af88e36611f6cea8920284408b41e1043372148", "width": 480, "height": 233, "bytes": 1182735 }
+    },
+    {
+      "dataset": "motionx", "role": "hero",
+      "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break",
+      "source": "MOTIONX", "license": "Motion-X research", "label": "Dance Break",
+      "media": { "path": "motionx/hero.gif", "sha256": "c9d4e4c17d9fcb98b06e60a3365602010958787625b9a24d7af8dfc845210eb4", "width": 480, "height": 233, "bytes": 1234049 }
+    },
+    {
+      "dataset": "motionx", "role": "hands",
+      "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_3_Step",
+      "source": "MOTIONX", "license": "Motion-X research", "label": "3 Step",
+      "media": { "path": "motionx/hands.gif", "sha256": "05b086219140f73a93dcc8372d6f90825c3d018bc636839a01dcbbfcc074a059", "width": 480, "height": 233, "bytes": 1233188 }
+    },
+    {
+      "dataset": "motionx", "role": "feet",
+      "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_6_Step",
+      "source": "MOTIONX", "license": "Motion-X research", "label": "6 Step",
+      "media": { "path": "motionx/feet.gif", "sha256": "3b4c1a83b24eb7229cc3bebbe87176b4648cf14c136d0b076fe64b4cfbb1ae47", "width": 480, "height": 233, "bytes": 1121984 }
+    },
+    {
+      "dataset": "motionx", "role": "facing",
+      "sample_id": "motion_data/smplx_322/aist/subset_0000/Dance_Break_Battle_Rock",
+      "source": "MOTIONX", "license": "Motion-X research", "label": "Battle Rock",
+      "media": { "path": "motionx/facing.gif", "sha256": "44ae1c699582dab272cc1edfe01f5de57f2aab2d1ef11e8301d4102d2f9df506", "width": 480, "height": 233, "bytes": 1287110 }
+    },
+    {
+      "dataset": "susuinteracts", "role": "hero",
+      "sample_id": "fbx_to_json_data_susu_retarget_maya/20250905/Human_0905_6-5_01",
+      "source": "SuSuInterActs", "license": "CC BY-NC 4.0", "label": "Near-face interaction",
+      "media": { "path": "susuinteracts/hero.gif", "sha256": "4028ee797b4c47b02a1561f9b766cf37f4f8e8d84073bb1b24a1c61122fe47f5", "width": 480, "height": 233, "bytes": 993319 }
+    },
+    {
+      "dataset": "susuinteracts", "role": "hands",
+      "sample_id": "fbx_to_json_data_susu_retarget_maya/20250905/Human_0904_170-3_01",
+      "source": "SuSuInterActs", "license": "CC BY-NC 4.0", "label": "Gesture motion",
+      "media": { "path": "susuinteracts/hands.gif", "sha256": "844624b597026cfdd52bafd9bbcd3869efae0e72b06f5338dc8f6f6576bc75a7", "width": 480, "height": 233, "bytes": 1115764 }
+    },
+    {
+      "dataset": "susuinteracts", "role": "feet",
+      "sample_id": "fbx_to_json_data_susu_retarget_maya/20251106/Human_0916_183_0_4_01_XG",
+      "source": "SuSuInterActs", "license": "CC BY-NC 4.0", "label": "Crossed-arm motion",
+      "media": { "path": "susuinteracts/feet.gif", "sha256": "37a3395766496e52af5d31fef8316172f593c6d56a644598ce3243ab0b892a26", "width": 480, "height": 233, "bytes": 970380 }
+    },
+    {
+      "dataset": "susuinteracts", "role": "facing",
+      "sample_id": "fbx_to_json_data_susu_retarget_maya/20251119/Human_0916_320_1_12_01_XG",
+      "source": "SuSuInterActs", "license": "CC BY-NC 4.0", "label": "Dialogue motion",
+      "media": { "path": "susuinteracts/facing.gif", "sha256": "50ba6efe339e0f2ee0add0d6b38c9e7cb95984571bb06e854ae562260842477e", "width": 480, "height": 233, "bytes": 1102962 }
+    }
+  ]
+}
