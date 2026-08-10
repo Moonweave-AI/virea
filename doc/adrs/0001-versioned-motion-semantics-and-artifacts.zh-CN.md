@@ -1,30 +1,11 @@
----
-type: adr
-status: Accepted
-owner: "@Joker-of-Gotham"
-decision_owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 180
-summary: 采用版本化语义契约、显式 dataset profiles 和自包含 canonical artifacts，Viewer 只消费规范化结果。
-canonical: doc/adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md
-related:
-  - doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-  - schemas/annotation.schema.json
-  - schemas/dataset_profile.schema.json
-  - schemas/canonical_artifact.schema.json
-  - schemas/preview_payload.schema.json
-supersedes: []
-superseded_by: []
----
-
 # ADR-0001：版本化动作语义与自包含产物
 
 ## 状态
 
 Accepted。Decision Owner 于 2026-08-08 确认 Major-refactor 流程；RFC-0001 经独立审查、
-两轮 Request Changes 修订后通过复审。
+两轮 Request Changes 修订后通过复审。2026-08-09 的兼容性修订把 canonical rest/pose
+契约提升到 v2，并把对应 processing writer 提升到 `v0.3.0`；该修订收紧旧产物读取，
+不放宽发布门禁。
 
 ## 上下文
 
@@ -35,8 +16,10 @@ artifact 又没有固化实际 rest/profile。结果是在线与缓存不一致�
 
 ## 决策
 
-1. `annotation.v1`、`dataset-profile.v1`、`canonical-motion.v1` 和 `preview-payload.v1` 使用
-   独立 JSON Schema 与相同 major compatibility family。
+1. `annotation.v1`、`dataset-profile.v1` 与 `preview-payload.v1` 保持各自契约；canonical
+   motion、canonical artifact、skeleton 与 rest 提升到 v2。各 JSON Schema 使用稳定的
+   版本化 `urn:virea:schema:*` identifier，跨 schema reference 只通过仓库内 registry
+   离线解析，不把 GitHub 页面 URL 当作可获取 schema。
 2. Adapter 只读取、裁剪并保留源事实；任何文件名/文本推断都显式标为 `derived`，最后兜底
    标为 `fallback`。未知字段进入有限制、可 sidecar 的 `extras`。
 3. Dataset/sub-source profile 是 FPS、basis、unit、rotation layout/space、字段切片和上游
@@ -45,13 +28,17 @@ artifact 又没有固化实际 rest/profile。结果是在线与缓存不一致�
    crop/resample 映射写入 artifact。
 5. Codec 负责 source representation decode，Retarget 负责 basis/rest/scale/position fitting，
    Canonical 负责 211 维输出验证，Viewer 不包含 dataset-specific motion conversion。
-6. v0.2 artifact 嵌入 resolved profile snapshot、target rest offsets、transform map、annotation、
-   channels 和 hash。Reader 禁止在读取时重新扫描本机 VRM 或补造缺失语义。
-7. canonical target rest 使用仓库定义的确定性模板；指定 VRM 仅用于 runtime humanoid alignment
+6. Processing `v0.3.0` 写出 canonical artifact v2，嵌入 resolved profile snapshot、
+   canonical v2 rest offsets、transform map、annotation、channels 和 hash。Reader 禁止在
+   读取时重新扫描本机 VRM 或补造缺失语义。
+7. canonical v2 保存 `rest_relative_normalized_pose_delta`；四指的中立 phalange chain
+   不再把 curl 写进 identity。指定 VRM 仅用于 runtime humanoid alignment
    和视觉验收，其路径不写入仓库，模型本体受许可门禁控制。
 8. Avatar annotation marker 使用真实 `vrm.humanoid` bone nodes；marker/sprite 池化，播放帧只
    更新 transform。无 humanoid 的 GLB 只显示降级说明和独立详情面板。
-9. v0.1 保持只读兼容；v0.2 写入新目录，旧产物不原地迁移或覆盖。
+9. Legacy v0.1/v0.2 保持几何与已有语义的只读迁移能力；若没有当前 v2
+   manifest/rest/rotation 契约，Reader 不把 legacy canonical sequence 送入 v2 Viewer。
+   Processing v0.3 写入新目录，旧产物不原地迁移或覆盖。
 
 ## 正面后果
 
@@ -84,7 +71,34 @@ artifact 又没有固化实际 rest/profile。结果是在线与缓存不一致�
 
 ## 实施与迁移
 
-- 创建四份 schema、Python models/normalizer、dataset profile registry 和 v0.1 reader adapter。
+- 创建版本化 schema、Python models/normalizer、dataset profile registry 和 legacy reader adapter。
 - 先完成 schema/profile/artifact 和普通 Viewer，再启用真实 VRM marker feature。
-- 使用 `v0.2.0` processed root 重建；v0.1 保留以便回滚。
+- 使用 processing `v0.3.0` processed root 从 raw 重建；旧 v0.1 demo 与 pre-v2 缓存保留
+  以便对照，但不提供 Avatar motion fallback。
+- CI 使用本地 schema registry 对真实持久化的 canonical manifest 与 motion metadata 做
+  全量离线验证，禁止网络 retrieval。
 - 每个阶段按 RFC-0001 的 contract、真实样本、真实 VRM、IP 和性能门禁验收。
+
+
+<!--
+---
+type: adr
+status: Accepted
+owner: "@Joker-of-Gotham"
+decision_owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-09
+last_reviewed: 2026-08-09
+review_cycle_days: 180
+summary: 采用版本化语义契约、显式 dataset profiles 和自包含 canonical artifacts，Viewer 只消费规范化结果。
+canonical: doc/adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md
+related:
+  - doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+  - schemas/annotation.schema.json
+  - schemas/dataset_profile.schema.json
+  - schemas/canonical_artifact.schema.json
+  - schemas/preview_payload.schema.json
+supersedes: []
+superseded_by: []
+---
+-->

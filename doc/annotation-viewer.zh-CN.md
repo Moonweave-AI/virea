@@ -1,21 +1,3 @@
----
-type: reference
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 60
-summary: Annotation v1、多模态 channel 与 2D/3D Viewer 的语义、时间和空间展示契约。
-canonical: doc/annotation-viewer.zh-CN.md
-related:
-  - rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-  - engineering-design.zh-CN.md
-  - dataset-audit.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # Annotation 与 Viewer 契约
 
 Viewer 的目标不是把任意对象堆到页面顶部，而是同时回答：这条信息是什么、来自哪里、何时生效、应靠近哪里、缺少了什么。
@@ -110,3 +92,24 @@ BABEL、BEAT 和 HumanML3D 的一般动作文本没有精确身体部位时，�
 3D marker、sprite、material 和 texture 使用对象池。帧更新只修改 transform 和 visibility；active set、文本或主题不变时不得新建 CanvasTexture。极端样本以聚合限制同时 active 的空间标签，但完整数据仍在详情。
 
 具体性能门槛和真实 VRM marker 像素误差见 [分层验收清单](validation.zh-CN.md)。
+
+
+<!--
+---
+type: reference
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: Annotation v1、多模态 channel 与 2D/3D Viewer 的语义、时间和空间展示契约。
+canonical: doc/annotation-viewer.zh-CN.md
+related:
+  - rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+  - engineering-design.zh-CN.md
+  - dataset-audit.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

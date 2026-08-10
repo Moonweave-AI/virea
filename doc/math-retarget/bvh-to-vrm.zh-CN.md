@@ -1,22 +1,3 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 30
-summary: BEAT 原始 75-joint BVH 的安全流式解码、欧拉顺序、层级压缩、手指映射与 VRM direct retarget 数学。
-canonical: doc/math-retarget/bvh-to-vrm.zh-CN.md
-related:
-  - README.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-  - ../references.zh-CN.md
-  - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # BEAT 原始 BVH 到 VRM
 
 VIREA 当前直接读取 BEAT 的原始 75-joint BVH，不再把旧 body22 NPZ 当作解码事实源。旧 NPZ 已丢失 Spine2、Neck1、ForeFoot 和手指等旋转，只作为带 legacy 标记的相关文件展示；缺少旧 NPZ 不影响样本发现或处理。
@@ -146,3 +127,25 @@ Decoder 按帧流式读取并分块计算 75-joint local/world matrices，默认
 - 把 offset direction 当成 joint rest frame correction；
 - 用 reduced position误差否定已经由 source world-rotation oracle证明正确的 direct quaternion；
 - declared frame count 大于 payload 时补造帧或隐瞒 early EOF。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 30
+summary: BEAT 原始 75-joint BVH 的安全流式解码、欧拉顺序、层级压缩、手指映射与 VRM direct retarget 数学。
+canonical: doc/math-retarget/bvh-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+  - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

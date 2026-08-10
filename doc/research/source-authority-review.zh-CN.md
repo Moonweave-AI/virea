@@ -1,22 +1,3 @@
----
-type: research-log
-status: Superseded
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 90
-summary: 对七数据集、6D rotation、glTF/VRM 与当前代码边界的一手资料审查及负面结果。
-canonical: doc/research/source-authority-review.zh-CN.md
-related:
-  - ../references.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-  - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-supersedes: []
-superseded_by:
-  - pose-retarget-validation-2026-08-08.zh-CN.md
----
-
 # Source Authority Review 研究日志
 
 ## Research question
@@ -81,3 +62,25 @@ superseded_by:
 ## 决策
 
 本记录已由 [姿态重定向真实核验](pose-retarget-validation-2026-08-08.zh-CN.md) 取代。其仍有效的 versioned profile、HumanML fail-fast、Motion-X 322 重组和 SuSu columns/local 结论已进入 RFC；BEAT converted-NPZ 假设不再有效。研究本身不批准 Release。
+
+
+<!--
+---
+type: research-log
+status: Superseded
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 90
+summary: 对七数据集、6D rotation、glTF/VRM 与当前代码边界的一手资料审查及负面结果。
+canonical: doc/research/source-authority-review.zh-CN.md
+related:
+  - ../references.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+supersedes: []
+superseded_by:
+  - pose-retarget-validation-2026-08-08.zh-CN.md
+---
+-->

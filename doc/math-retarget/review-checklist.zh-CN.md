@@ -1,21 +1,3 @@
----
-type: checklist
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 60
-summary: Retarget 文档的公式渲染、变量定义、代码对码、数据来源与边界审查清单。
-canonical: doc/math-retarget/review-checklist.zh-CN.md
-related:
-  - README.zh-CN.md
-  - ../validation.zh-CN.md
-  - ../references.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # Retarget 文档公式级评审清单
 
 ## 每篇 source 文档必须回答
@@ -109,4 +91,25 @@ python scripts/check_docs.py
 python -m pytest -q
 ```
 
-自动检查覆盖禁用宏、delimiter、标题、local links、frontmatter 和 49 对媒体。人工检查仍必须覆盖公式含义、标准/代码边界、真实样本和真实 VRM；自动通过不等于数学审查通过。
+自动检查覆盖禁用宏、delimiter、标题、local links、frontmatter、退役媒体缺席与公开媒体白名单。人工检查仍必须覆盖公式含义、标准/代码边界、真实样本和真实 VRM；自动通过不等于数学审查通过。
+
+
+<!--
+---
+type: checklist
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: Retarget 文档的公式渲染、变量定义、代码对码、数据来源与边界审查清单。
+canonical: doc/math-retarget/review-checklist.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../validation.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

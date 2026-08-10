@@ -1,33 +1,10 @@
----
-type: rfc
-status: Accepted
-owner: "@Joker-of-Gotham"
-champion: "@Joker-of-Gotham"
-decision_owner: "@Joker-of-Gotham"
-sponsor: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 90
-summary: 为异构动作标注、时间基准、数据集 profile、可复现 canonical 产物和 VRM 可视化建立 v1 契约。
-canonical: doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-related:
-  - schemas/motion_sample.schema.json
-  - schemas/annotation.schema.json
-  - schemas/dataset_profile.schema.json
-  - schemas/canonical_artifact.schema.json
-  - schemas/preview_payload.schema.json
-  - doc/engineering-design.zh-CN.md
-  - doc/math-retarget/README.zh-CN.md
-supersedes: []
-superseded_by: []
-required_reviewers:
-  - "Codex /root/authority_research — source and RFC reviewer"
-  - "Codex /root/real_data_audit — data pipeline reviewer"
-  - "@Joker-of-Gotham — Viewer, VRM and IP decision"
----
-
 # RFC-0001：Annotation、时间与 Retarget v1
+
+> 2026-08-09 implementation amendment：本RFC保留最初Accepted proposal中的
+> `canonical-motion.v1`与processing `v0.2.0`文字作为决策历史；当前生效契约已由
+> [ADR-0001](../adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md)收紧为
+> canonical motion/artifact/skeleton/rest v2和processing `v0.3.0`。无当前v2 manifest的
+> legacy sequence不得送入Avatar。Annotation/profile/preview仍按各自v1契约演进。
 
 ## 摘要
 
@@ -382,3 +359,35 @@ B 段失败关闭 `vrm_annotations_v1` feature flag，普通骨架与详情仍�
   Owner 已在本次任务中确认按 Major-refactor 流程执行。
 - FCP 窗口：本次 Codex task 的 RFC/ADR 阶段；Data Pipeline、Viewer/VRM、Dataset/IP 三类
   review evidence 必须在 Release Gate 前全部附上。RFC 接受只批准架构方向，不等于许可媒体发布。
+
+
+<!--
+---
+type: rfc
+status: Accepted
+owner: "@Joker-of-Gotham"
+champion: "@Joker-of-Gotham"
+decision_owner: "@Joker-of-Gotham"
+sponsor: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-09
+last_reviewed: 2026-08-09
+review_cycle_days: 90
+summary: 为异构动作标注、时间基准、数据集 profile、可复现 canonical 产物和 VRM 可视化建立 v1 契约。
+canonical: doc/rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+related:
+  - schemas/motion_sample.schema.json
+  - schemas/annotation.schema.json
+  - schemas/dataset_profile.schema.json
+  - schemas/canonical_artifact.schema.json
+  - schemas/preview_payload.schema.json
+  - doc/engineering-design.zh-CN.md
+  - doc/math-retarget/README.zh-CN.md
+supersedes: []
+superseded_by: []
+required_reviewers:
+  - "Codex /root/authority_research — source and RFC reviewer"
+  - "Codex /root/real_data_audit — data pipeline reviewer"
+  - "@Joker-of-Gotham — Viewer, VRM and IP decision"
+---
+-->

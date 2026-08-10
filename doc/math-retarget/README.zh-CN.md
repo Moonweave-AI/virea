@@ -1,24 +1,6 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 60
-summary: VIREA v1 的统一坐标、时间、quaternion、FK、211 维和两条 Retarget 数学路径。
-canonical: doc/math-retarget/README.zh-CN.md
-related:
-  - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
-  - ../engineering-design.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # Retarget 数学共同层
 
-本目录解释当前 v1 契约的数学，并要求每条公式可追溯到当前分支函数、数组切片和 metadata。它不是论文式愿景：如果实现尚未满足公式，验证状态必须是未通过，而不是改文档迎合错误行为。
+本目录解释当前 canonical v3 数学契约，并要求每条公式可追溯到当前分支函数、数组切片和 metadata。RFC-0002/ADR-0002 仍为 `Proposed`，这里记录 working tree 中已实施的数学，不把实施冒充为治理批准。如果实现尚未满足公式，验证状态必须是未通过，而不是改文档迎合错误行为。
 
 ## 1. 空间、索引与符号
 
@@ -215,11 +197,11 @@ $$
 
 第一式用父节点 world rotation 转动静态 rest offset，再加到父位置；第二式把当前 parent-local rotation 累积到 world。拓扑必须按父在子之前遍历。
 
-Canonical FK 默认使用仓库确定性的 `DEFAULT_REST_OFFSETS`。v0.2 artifact 必须保存实际 offsets 和 hash；Reader 不允许通过扫描本机 VRM 改变已持久化结果。具体 VRM 自身 rest pose 只在 runtime humanoid alignment 与视觉审计中使用。
+Canonical FK 默认使用仓库确定性的 v3 `DEFAULT_REST_OFFSETS`。Processing v0.4/canonical artifact v3 必须保存实际 offsets、rest ID 和 hash；Reader 不允许通过扫描本机 VRM 改变已持久化结果，也不把无 v3 manifest/hand replay 的 legacy sequence 按 v3 rest 解释。具体 VRM 自身 rest pose 只在 runtime humanoid alignment 与视觉审计中使用。
 
-## 7. Direct local quaternion path
+## 7. Direct local quaternion decode path
 
-这条路径用于 SMPL/SMPL-H body、SMPL-X family，以及由仓库内 BEAT BVH decoder 按完整层级生成的 body22 + hands30。
+这条路径用于 SMPL/SMPL-H body、SMPL-X family，以及由仓库内 BEAT BVH decoder 按完整层级生成的 body22 + hands30。它负责 source decode 与预求解 canonical，不意味所有 raw hand local quaternion 都有资格直接进入 final canonical v3。手部必须再通过 profile-selected evidence 与统一 solver。
 
 ### 7.1 Scale 与 root
 
@@ -249,11 +231,11 @@ $$
 
 等价 quaternion 实现保持同一乘法顺序：父 correction inverse 在左，当前 correction 在右。Local quaternion 不再额外套 world basis。
 
-### 7.3 输出
+### 7.3 预求解输出与手部资格
 
-映射后的 root、21 core 与可用的 30 hand quaternions进入 211 维 pack。SMPL-X 与当前 BEAT raw-BVH 路径可提供 hands；AMASS/BABEL 主路径若未接手部，hands 为 identity 并带缺失说明。
+映射后的 root、21 core 与预求解 30 hand quaternions 可进入 211 维 pack。但 final hand slots 只能来自后述公共 solver。只有 source-rest hand frames 已经独立标定时，profile 才能将 direct hands 声明为 `parent_local_rotations`。当前 BEAT 选择 joint-centre evidence；GRAB、Motion-X 和 AMASS/SMPL-H 中未标定或静态手 block 都保留为 immutable source evidence，canonical 使用显式 `identity_neutral`，不将其直接嫁接到 target frame。
 
-## 8. Position fitting path
+## 8. Position decode/fitting path
 
 这条路径用于 HumanML3D 解码 positions、AMASS position 旁路和 SuSu positions/FK positions。输入 $X\in\mathbb R^{T\times N\times3}$；HumanML/AMASS常为 22 joints，SuSu authoritative positions可为 63 joints，并通过显式 name/index map对齐 canonical body与hands。
 
@@ -287,9 +269,41 @@ $$
 
 这里 $q(a\rightarrow b)$ 表示把非零方向 $a$ 旋到 $b$ 的单位 quaternion。之所以先转到 parent-local，是因为 canonical slots 存的不是 world rotation。
 
-单条 positions edge只约束骨骼轴的 swing；绕该轴的 twist有无穷多个解。多条非共线 edges可以恢复分叉 frame，但单子节点与 distal axial twist仍不可观测。文档与质量报告不得把 position fitting 的几何一致性宣称为完整原始 rotation真值。
+单条 positions edge只约束骨骼轴的 swing；绕该轴的 twist 有无穷多个解。多条非共线 edges 可以恢复分叉 frame，但单子节点与 distal axial twist 仍不可观测。对 v3 手部 solver，position mode 必须提供固定顺序的 32 个 joint centres，但这些 points 仅使 90 个手部 DOF 中的 32 个可观测。文档与质量报告不得把 position fitting 的几何一致性宣称为完整原始 rotation 真值。
 
-## 9. 真实时间与重采样
+## 9. 单一机制层全手 solver
+
+所有 dataset 在 Codec/Retarget 完成后、continuity/quality/persist 之前进入同一个 `virea.constraint_aware_hand_retarget.v1` solver。设预求解手部局部四元数为
+
+$$
+H^{pre}\in\mathbb R^{T\times30\times4}.
+$$
+
+Solver 要求 float32、finite、unit quaternion，并要求连续段是完整覆盖 $[0,T)$ 的有序、无空洞、不重叠左闭右开区间。180 度时序退化只在同一声明段内检查，不跨 discontinuity 虚构连续性。
+
+每个 bone 的 flexion、abduction、twist 都必须标记为 `observed`、`inferred` 或 `unobservable`。当前 profile 只能选择：
+
+- `parent_local_rotations`：仅用于 source-rest hand frame 已被独立标定的 direct evidence；
+- `joint_positions`：需要 $(T,32,3)$ evidence，顺序是左右 wrist 加 30 个 hand joints；
+- `identity_neutral`：没有可用手动作证据或 evidence 未标定时的显式 neutral 输出。
+
+Position mode 中，每只手的 index/middle/ring/little proximal 与 intermediate 各有两个可观测 swing 坐标，因此全部可观测量为
+
+$$
+2\text{ hands}\times4\text{ fingers}\times2\text{ bones}\times2\text{ swing DOF}=32.
+$$
+
+全手 30 骨段共有 $30\times3=90$ DOF，所以 position evidence 的可观测边界是 `32/90`。剩余 58 个 DOF 包含六个 thumb bones 的全部 18 DOF、16 个已观测骨段的 axial twist，以及八个非拇指 distal leaves 的 24 DOF。它们在 `neutral` 策略下精确输出 identity；若 profile 选择 `reject`，solver fail-closed。特别是，非拇指的 palm-plane frame 不能套用到 thumb CMC/opposition，否则会把拇指系统性旋转约 90 度。
+
+`32/90` 只描述 position evidence 的拓扑上限。对任一 PIP，若两段弯曲幅度小于 `0.5°`，叉积不能稳定给出 signed flexion 或 bend plane，因此该帧相应 swing 也标记为 unobservable。Solver 以 float64 执行 geometry analysis，并按 policy 使用 `neutral_zero_swing`；`0.5°` 阈值、resolution 和逐骨骼左闭右开帧区间进入 policy hash 与 certificate。它们不是 Viewer 容错，也不是对 source pose 的改写。
+
+对 observed DOF，solver 在 versioned anatomical frame 中将旋转投影到约束包络，重建 parent-local quaternion 并验证 finite、unit、连续性、角度包络与 neutral postconditions。临床 ROM 只作为版本化 safety policy 的证据之一，不是数据集 native label、不是每个人的解剖真值，也不证明 mesh contact 正确。Raw/source arrays 保持不变，输出 $H^{out}$ 是 derived canonical。
+
+Report 记录 input/output/evidence/policy hashes、逐骨骼可观测性、夹角/中性化计数、changed frames/bones、postconditions 和 certificate。Processing v0.4 artifact 同时保存 $H^{pre}$ 与 position evidence/空哨兵；Reader 必须重放纯 solver 并精确比较 $H^{out}$ 与 report，不仅信任 manifest 自报 hash。Viewer 只消费通过的 v3 payload，不再修正手部 pose。
+
+质量评估不混合目标：`pre_solver_source_fidelity` 比较预求解 FK 与 immutable source；`hand_constraint_gate` 验证证书、root/core 未改、postconditions 和 final FK；`hand_constraint_source_residual` 仅记录约束后对 source 的有意偏离。最后一项是 diagnostic，不能用来偷换前两个 gate。
+
+## 10. 真实时间与重采样
 
 设 source 帧数为 $T_s$、FPS 为 $f_s>0$，时长固定为：
 
@@ -313,22 +327,48 @@ $$
 
 没有重采样时 Viewer 仍按 elapsed time 计算 $u$，所以浏览器刷新率和动作 FPS 解耦。
 
-## 10. 五类 source 的接线
+## 11. 五类 source 的接线
 
 | 文档 | Source decode | 共享数学 | Dataset-specific 边界 |
 |---|---|---|---|
-| [SMPL-H / body](smplh-to-vrm.zh-CN.md) | body axis-angle | direct path | AMASS/BABEL carrier、FPS、annotations |
-| [SMPL-X](smplx-to-vrm.zh-CN.md) | 55 fullpose 或 Motion-X 53 rotations 重组 | direct + hands | GRAB/Motion-X 独立 profile |
-| [BVH / BEAT](bvh-to-vrm.zh-CN.md) | 原始 75-joint BVH | 层级压缩后 direct body + hands | 选中端点世界朝向精确，删减链位置为近似 |
-| [HumanML3D 263D](humanml3d-263d-to-vrm.zh-CN.md) | official root/RIC 到 positions | position fitting | caption/time 与 fail-fast |
-| [SuSu 6D](susu-to-vrm.zh-CN.md) | columns/local 与可选 63-joint positions | positions拟合 body/wrist/fingers；rotation-only fingers unverified | 本地变体保持 draft |
+| [SMPL-H / body](smplh-to-vrm.zh-CN.md) | body axis-angle | direct body + `identity_neutral` hands | AMASS/BABEL carrier、FPS、annotations；静态/未标定 hand block 不直接使用 |
+| [SMPL-X](smplx-to-vrm.zh-CN.md) | 55 fullpose 或 Motion-X 53 rotations 重组 | direct body + `identity_neutral` hands | GRAB/Motion-X 独立 profile；hand source-rest frame 未标定 |
+| [BVH / BEAT](bvh-to-vrm.zh-CN.md) | 原始 75-joint BVH | direct body + joint-centre hand evidence | 选中端点世界朝向精确，删减链位置为近似 |
+| [HumanML3D 263D](humanml3d-263d-to-vrm.zh-CN.md) | official root/RIC 到 positions | body position fitting + `identity_neutral` hands | caption/time 与 fail-fast |
+| [SuSu 6D](susu-to-vrm.zh-CN.md) | columns/local 与可选 63-joint positions | joint-centre hand evidence + common solver | 本地变体保持 draft；position mode 只观测 32/90 DOF |
 
 [VRM/glTF 目标层](vrm-gltf-target.zh-CN.md) 给出 pack、FK、target runtime 和代码对应表。[公式评审清单](review-checklist.zh-CN.md) 用于检查公式渲染和实现对码。
 
-## 11. 当前实现边界
+## 12. 当前实现边界
 
 - VRM humanoid mapping 在 runtime 对具体 Avatar 生效，不能反向改变 canonical artifact。
+- 手部安全输出只在 mechanism/retargeting 层生成；Viewer 必须保持 pose mutation count 为零。
 - Heuristic basis 只能用于诊断；发布 profile 必须显式且有回归样本。
-- Position fitting 不恢复唯一 twist。
+- Position fitting 不恢复唯一 twist、thumb opposition 或 distal leaf；当前按 neutral 策略处理，不宣称 source 真值。
+- 未标定 GRAB/Motion-X/AMASS 手通道不得从 `identity_neutral` 改为 direct，除非新的 source-rest frame oracle 与 profile review 通过。
 - Object/contact/face/audio 不进入 211 维 pose；它们与 motion 共用时间映射，但使用独立 channel descriptor。
-- 任何仍把 root rotation 一律共轭、把 local rotations做 world basis conjugation、让 Reader 扫描本机 VRM，或以 rest pose 兜底 HumanML3D 的分支都与 v1 契约不一致，必须在验证中失败。
+- 任何仍把 root rotation 一律共轭、把 local rotations 做 world basis conjugation、让 Reader 扫描本机 VRM、以 rest pose 兜底 HumanML3D、绕过 hand replay，或让 Viewer 修正 fingers 的分支都与 v3 契约不一致，必须在验证中失败。
+- 当前证据不允许宣称“任意 mesh 必然无穿插”、“所有 source twist 已恢复”或“七库已全部 release-ready”。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-10
+last_reviewed: 2026-08-10
+review_cycle_days: 60
+summary: VIREA canonical v3 的统一坐标、时间、quaternion、FK、211 维、手部可观测性和单一约束求解轨道。
+canonical: doc/math-retarget/README.zh-CN.md
+related:
+  - ../rfcs/0001-annotation-time-retarget-v1.zh-CN.md
+  - ../engineering-design.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../rfcs/0002-constraint-aware-hand-retarget-v1.zh-CN.md
+  - ../adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

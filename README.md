@@ -1,25 +1,6 @@
----
-type: readme
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-10
-last_reviewed: 2026-08-10
-review_cycle_days: 30
-title: VIREA — Verifiable Retargeting for Expressive Avatars
-audience: Researchers, motion engineers, dataset integrators, and reviewers
-visibility: Public
-summary: VIREA 的能力、结果、数据源、架构、使用方式与验证边界。
-canonical: README.md
-related:
-  - doc/README.zh-CN.md
-  - doc/getting-started.zh-CN.md
-  - doc/engineering-design.zh-CN.md
-  - doc/validation.zh-CN.md
-  - doc/showcase/README.md
-supersedes: []
-superseded_by: []
----
+<p align="center">
+  <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA — Verifiable Retargeting for Expressive Avatars">
+</p>
 
 <p align="center">
   <img src="doc/assets/virea-flow-v3.gif" width="100%" alt="Seven motion sources processed through VIREA profile, solver, and replay contract to drive humanoid animation">
@@ -304,3 +285,26 @@ The complete documentation map — tutorials, how-tos, references, explanations,
 - Embedded third-party material and non-commercial constraints are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Owner: `@Joker-of-Gotham`
+
+<!--
+type: readme
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-10
+last_reviewed: 2026-08-10
+review_cycle_days: 30
+title: VIREA — Verifiable Retargeting for Expressive Avatars
+audience: Researchers, motion engineers, dataset integrators, and reviewers
+visibility: Public
+summary: VIREA 的能力、结果、数据源、架构、使用方式与验证边界。
+canonical: README.md
+related:
+  - doc/README.zh-CN.md
+  - doc/getting-started.zh-CN.md
+  - doc/engineering-design.zh-CN.md
+  - doc/validation.zh-CN.md
+  - doc/showcase/README.md
+supersedes: []
+superseded_by: []
+-->

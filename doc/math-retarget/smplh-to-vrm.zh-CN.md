@@ -1,21 +1,3 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 60
-summary: AMASS/BABEL 的 SMPL/SMPL-H axis-angle carrier 到 canonical/VRM 的代码对应数学。
-canonical: doc/math-retarget/smplh-to-vrm.zh-CN.md
-related:
-  - README.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-  - ../references.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # SMPL / SMPL-H body 到 VRM
 
 覆盖 AMASS 与 BABEL。BABEL 只增加 annotation，motion carrier 仍由 AMASS family 文件提供，因此共享 source decode 与 direct path；两者保留独立 Adapter、carrier 和时间语义。
@@ -128,3 +110,24 @@ Source preview 用同一 body/hand decode 和 source rest FK，随后只做 prof
 - SMPL-H hands 是否真实进入最终 sequence 要用非 identity fixture 和真实 VRM finger检查。
 - BABEL carrier resolver 和 duration mismatch 是正式发布门禁。
 - AMASS HumanAct12 positions 旁路属于 [position fitting](README.zh-CN.md#8-position-fitting-path)，不是本文 direct axis-angle 主路径。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: AMASS/BABEL 的 SMPL/SMPL-H axis-angle carrier 到 canonical/VRM 的代码对应数学。
+canonical: doc/math-retarget/smplh-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

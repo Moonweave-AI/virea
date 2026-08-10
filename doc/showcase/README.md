@@ -1,26 +1,3 @@
----
-type: eval-report
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-10
-last_reviewed: 2026-08-10
-review_cycle_days: 30
-title: VIREA Showcase — canonical v3 retargeting results
-audience: Researchers, motion engineers, dataset users, and reviewers
-visibility: Public
-summary: 七个数据集在指定 VRM Avatar 上的 canonical v3 重定向结果，含公开与待许可两类。
-canonical: doc/showcase/README.md
-related:
-  - ../../README.md
-  - ../../THIRD_PARTY_NOTICES.md
-  - ../validation.zh-CN.md
-  - publication-policy.json
-  - media/manifest.json
-supersedes: []
-superseded_by: []
----
-
 <p align="center">
   <img src="../assets/virea-hero.png" width="100%" alt="VIREA canonical humanoid Showcase banner">
 </p>
@@ -172,3 +149,26 @@ HumanML3D uses AMASS-carried motion. [HumanML3D license](https://github.com/Eric
 | HumanML3D GIFs | Modified retargeted renderings; HumanML3D license terms apply, four text-motion test samples. |
 
 No upstream author, dataset publisher, Avatar creator, or licensor endorses VIREA. The exact public allowlist is [machine-readable](publication-policy.json); comprehensive attribution and license text are in [Third-Party Notices](../../THIRD_PARTY_NOTICES.md).
+
+<!--
+type: eval-report
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-10
+last_reviewed: 2026-08-10
+review_cycle_days: 30
+title: VIREA Showcase — canonical v3 retargeting results
+audience: Researchers, motion engineers, dataset users, and reviewers
+visibility: Public
+summary: 七个数据集在指定 VRM Avatar 上的 canonical v3 重定向结果，含公开与待许可两类。
+canonical: doc/showcase/README.md
+related:
+  - ../../README.md
+  - ../../THIRD_PARTY_NOTICES.md
+  - ../validation.zh-CN.md
+  - publication-policy.json
+  - media/manifest.json
+supersedes: []
+superseded_by: []
+-->

@@ -1,21 +1,3 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 180
-summary: 解释 VIREA 为什么以可执行 humanoid motion 为目标，以及 VRM 与源人体模型的边界。
-canonical: doc/theory.zh-CN.md
-related:
-  - ../README.md
-  - engineering-design.zh-CN.md
-  - math-retarget/README.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # 理论与目标边界
 
 VIREA 先解决“异构人体动作怎样成为可检查、可执行的 Avatar motion”，再为 text-to-motion、对话驱动动作或实时数字人提供数据底座。
@@ -57,3 +39,24 @@ VIREA 先解决“异构人体动作怎样成为可检查、可执行的 Avatar 
 - 不连接机器人或物理执行器；当前 Avatar 仅在屏幕中运行。
 
 长期方向可以是 `dialogue + emotion + intent -> motion planning/generation -> streaming VRM control`，但它不能绕过当前的时间、空间、语义和来源契约。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 180
+summary: 解释 VIREA 为什么以可执行 humanoid motion 为目标，以及 VRM 与源人体模型的边界。
+canonical: doc/theory.zh-CN.md
+related:
+  - ../README.md
+  - engineering-design.zh-CN.md
+  - math-retarget/README.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

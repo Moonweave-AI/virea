@@ -1,22 +1,3 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 30
-summary: HumanML3D 263D 的 official RIC 解码、6D edge-frame 语义、位置拟合和不可观测旋转边界。
-canonical: doc/math-retarget/humanml3d-263d-to-vrm.zh-CN.md
-related:
-  - README.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-  - ../references.zh-CN.md
-  - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # HumanML3D 263D 到 VRM
 
 HumanML3D 的 263D row 不是 SMPL pose，也不能把其中 126D rotation直接当作 VRM node-local quaternion。当前可信主路径严格复现作者 `recover_from_ric`：先恢复 22-joint positions，再进行 position fitting；失败时 fail-fast，不生成 rest-pose 或直线轨迹兜底。
@@ -109,3 +90,25 @@ Caption 保留 native text，不从自然语言生成 bodypart 真值。文本�
 - identity hands 与 twist-unobservable 在 metadata/UI 中可见。
 
 下列状态必须拒绝：把 126D 按同名 VRM locals使用、把逐帧增量当每秒速度、用 AMASS Z-up basis重复旋转、decode 失败后输出伪动作，或仅凭 position FK 自洽宣称完整身体 twist 已恢复。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 30
+summary: HumanML3D 263D 的 official RIC 解码、6D edge-frame 语义、位置拟合和不可观测旋转边界。
+canonical: doc/math-retarget/humanml3d-263d-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+  - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

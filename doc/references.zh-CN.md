@@ -1,22 +1,3 @@
----
-type: reference
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 90
-summary: 影响 VIREA schema、source decode、retarget、VRM runtime 与许可判断的一手资料。
-canonical: doc/references.zh-CN.md
-related:
-  - dataset-audit.zh-CN.md
-  - math-retarget/README.zh-CN.md
-  - validation.zh-CN.md
-  - research/source-authority-review.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # 权威资料与设计基线
 
 只列官方规范、作者仓库、项目主页或论文原文。外部资料定义标准背景；它不证明本仓库已经正确执行，也不覆盖本地数据变体。
@@ -67,3 +48,25 @@ superseded_by: []
 - “当前仓库边界”：由当前 Adapter/Codec/Retarget 分支与测试支持。
 
 三类证据冲突时不自动选一个继续发布，而是把 profile 降为 draft、保留原始字段并加入 validation error。许可条款也必须回到各数据集与 VRM 的原始入口复核；本页链接不是再分发授权。
+
+
+<!--
+---
+type: reference
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 90
+summary: 影响 VIREA schema、source decode、retarget、VRM runtime 与许可判断的一手资料。
+canonical: doc/references.zh-CN.md
+related:
+  - dataset-audit.zh-CN.md
+  - math-retarget/README.zh-CN.md
+  - validation.zh-CN.md
+  - research/source-authority-review.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->

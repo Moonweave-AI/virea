@@ -1,26 +1,7 @@
----
-type: research-log
-status: InReview
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 30
-summary: 七数据集与指定 VRM 的方向、坐标轴、rotation 表示、FK 和不可观测边界的真实姿态重定向核验。
-canonical: doc/research/pose-retarget-validation-2026-08-08.zh-CN.md
-related:
-  - ../dataset-audit.zh-CN.md
-  - ../math-retarget/README.zh-CN.md
-  - ../math-retarget/bvh-to-vrm.zh-CN.md
-  - ../math-retarget/humanml3d-263d-to-vrm.zh-CN.md
-  - ../validation.zh-CN.md
-  - ../references.zh-CN.md
-supersedes:
-  - source-authority-review.zh-CN.md
-superseded_by: []
----
+# 姿态重定向真实核验记录（Historical）
 
-# 姿态重定向真实核验记录
+> [!WARNING]
+> 本记录固定 2026-08-08 的 pre-v3 分支、样本与证据，用于解释后续修复的来路。测试数量、SuSu 手部机制和 artifact 契约已经被 current canonical v3 实现取代；当前状态与发布判断只看[验收清单](../validation.zh-CN.md)和[手指根因研究](finger-retarget-root-cause-2026-08-09.zh-CN.md)。不得引用本页作为当前完成证据。
 
 ## 研究问题
 
@@ -177,3 +158,30 @@ Direct quaternion路径以 source mapped global rotations经 basis/frame契约�
 ## 当前裁决
 
 方向、basis、axis-angle/6D/BVH Euler转换和真实 VRM normalized-local 数学的已知确定性错误已修复并建立分层 oracle。BEAT 可判 source rotation链闭环；AMASS/BABEL常规 direct、GRAB 与 HumanML RIC path有真实回归证据。Motion-X、SuSu rotation-only 与 AMASS/BABEL Stage-II更广覆盖仍不能提升为 release-ready，所以“七库每条动作完全正确”仍是 No-Go，而不是被测试数量替代的声明。
+
+
+<!--
+---
+type: research-log
+status: Historical
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-10
+review_cycle_days: 30
+summary: canonical v3 之前对七数据集与指定 VRM 的方向、坐标轴、rotation、FK 和不可观测边界所做的历史核验。
+canonical: doc/research/pose-retarget-validation-2026-08-08.zh-CN.md
+related:
+  - ../dataset-audit.zh-CN.md
+  - ../math-retarget/README.zh-CN.md
+  - ../math-retarget/bvh-to-vrm.zh-CN.md
+  - ../math-retarget/humanml3d-263d-to-vrm.zh-CN.md
+  - ../validation.zh-CN.md
+  - ../references.zh-CN.md
+supersedes:
+  - source-authority-review.zh-CN.md
+superseded_by:
+  - ../validation.zh-CN.md
+  - finger-retarget-root-cause-2026-08-09.zh-CN.md
+---
+-->

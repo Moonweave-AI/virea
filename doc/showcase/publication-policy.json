@@ -1,27 +1,166 @@
 {
-  "schema_version": "virea.showcase_publication.v1",
-  "decision": "local-only",
-  "public_embed_allowed": false,
-  "reviewed_at": "2026-08-08",
-  "reason": "The audited VRM has no license URL and the dataset redistribution decisions are not all allowed.",
+  "schema_version": "virea.showcase_publication.v2",
+  "decision": "selective-allowlist",
+  "public_embed_allowed": true,
+  "reviewed_at": "2026-08-10",
+  "scope": "Only files listed in public_media_allowlist may be embedded or linked as local public media.",
+  "public_media_manifest": "doc/showcase/media/manifest.json",
   "vrm": {
-    "sha256": "f7c947ef380b9478db166db0366cec1dc3ceebaefe76a1b986fe104e793d998",
-    "license_url": null,
-    "decision": "local-only"
+    "sha256": "f7c947ef380b9478db166db0366cec1dc3ceebafecf76a1b986fe104e793d998",
+    "title": "Unnamed Character 6",
+    "author": "Reira",
+    "decision": "allowed-noncommercial-with-credit",
+    "public_rendering_allowed": true,
+    "model_redistribution_allowed": false,
+    "permission_url": "https://hub.vroid.com/license?allowed_to_use_user=everyone&characterization_allowed_user=everyone&corporate_commercial_use=disallow&credit=necessary&modification=allow&personal_commercial_use=disallow&redistribution=disallow&sexual_expression=disallow&version=1&violent_expression=allow",
+    "terms_reference_url": "https://vroid.pixiv.help/hc/en-us/articles/360013153714--About-the-characters-conditions-of-use"
   },
   "datasets": {
-    "amass": "unknown",
-    "babel": "unknown",
-    "beat": "unknown",
-    "grab": "unknown",
-    "humanml3d": "unknown",
-    "motionx": "unknown",
-    "susuinteracts": "unknown"
+    "amass": {
+      "decision": "permission-required",
+      "public_media_allowed": false,
+      "license_url": "https://amass.is.tue.mpg.de/license.html"
+    },
+    "babel": {
+      "decision": "permission-required",
+      "public_media_allowed": false,
+      "license_url": "https://babel.is.tue.mpg.de/license.html"
+    },
+    "beat": {
+      "decision": "allowed-with-attribution",
+      "public_media_allowed": true,
+      "license": "Apache-2.0",
+      "source_revision": "604f5eca9d8dc2e1b8c3ed21045f9e24a7b6d3ff",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "source_url": "https://huggingface.co/datasets/H-Liu1997/BEAT/tree/604f5eca9d8dc2e1b8c3ed21045f9e24a7b6d3ff"
+    },
+    "grab": {
+      "decision": "permission-required",
+      "public_media_allowed": false,
+      "license_url": "https://grab.is.tue.mpg.de/license.html"
+    },
+    "humanml3d": {
+      "decision": "permission-required",
+      "public_media_allowed": false,
+      "reason": "The selected samples are carried by AMASS sources.",
+      "source_url": "https://github.com/EricGuo5513/HumanML3D#how-to-obtain-the-data"
+    },
+    "motionx": {
+      "decision": "allowed-noncommercial-attribution-sharealike",
+      "public_media_allowed": true,
+      "license": "CC-BY-NC-SA-4.0 with AIST++ CC-BY-4.0 upstream attribution",
+      "license_url": "https://motion-x-dataset.github.io/static/license/Motion-X%20License.pdf",
+      "upstream_license_url": "https://google.github.io/aistplusplus_dataset/factsfigures.html"
+    },
+    "susuinteracts": {
+      "decision": "allowed-noncommercial-with-attribution",
+      "public_media_allowed": true,
+      "license": "SentiPulse Non-Commercial Source License v1.0",
+      "license_url": "https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE",
+      "conditions": [
+        "non-commercial-use-only",
+        "licensor-attribution-required",
+        "modifications-must-be-stated",
+        "license-copy-required",
+        "no-additional-legal-or-technical-restrictions",
+        "not-open-source"
+      ]
+    }
   },
-  "legacy_media": {
-    "decision": "local-only",
-    "expected_pair_count": 49,
-    "pipeline_version": "v0.1",
-    "public_links_allowed": false
+  "public_media_allowlist": {
+    "doc/assets/virea-flow-v3.gif": {
+      "kind": "project-owned-synthetic-animation",
+      "sha256": "7043f4a4e2cb226bd3ad0ffb5813a3337b0976755b172dd82c1af26d673e2aac",
+      "public_embed_allowed": true
+    },
+    "doc/assets/virea-hero.png": {
+      "kind": "project-owned-illustration",
+      "sha256": "5b1d2012f04045b2558c70d9296e77588255de2e5420d96583946ee2ac46d36d",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/beat/hero.gif": {
+      "kind": "retarget-result",
+      "dataset": "beat",
+      "role": "hero",
+      "sha256": "cf82dc53129415cd9fa4bd7dc47e45a11dbf157992f40605fedb59e412659bee",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/beat/hands.gif": {
+      "kind": "retarget-result",
+      "dataset": "beat",
+      "role": "hands",
+      "sha256": "3c2ae9ee9912c7607eced961c7934c746eaf338f44e0123b73d24514ac46ee77",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/beat/feet.gif": {
+      "kind": "retarget-result",
+      "dataset": "beat",
+      "role": "feet",
+      "sha256": "81055d49f1a1fe71c351acccc800f3b7588b4f62b09338d40120053c91e6784b",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/beat/facing.gif": {
+      "kind": "retarget-result",
+      "dataset": "beat",
+      "role": "facing",
+      "sha256": "51b60e9a68ee9f2b4da8e12059d5c27748ee7589860632f2cf1e99013c0e8b03",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/motionx/hero.gif": {
+      "kind": "retarget-result",
+      "dataset": "motionx",
+      "role": "hero",
+      "sha256": "f4f12c0df231eb65cef833f59a6749af7bee7c381f854c2c28baeab6753fd516",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/motionx/hands.gif": {
+      "kind": "retarget-result",
+      "dataset": "motionx",
+      "role": "hands",
+      "sha256": "0a696bd9cd3fa2a57330f9ad90d75591d23ed4cedab67ff809b58c09a76dc8c8",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/motionx/feet.gif": {
+      "kind": "retarget-result",
+      "dataset": "motionx",
+      "role": "feet",
+      "sha256": "c622a3cf088829439c6b388513b806f7babb1417ae414de4e355bcba1697694d",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/motionx/facing.gif": {
+      "kind": "retarget-result",
+      "dataset": "motionx",
+      "role": "facing",
+      "sha256": "8d18927058b65409dc55b2e59da74a29681523acc9e2a825a86a48508f918a3c",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/susuinteracts/hero.gif": {
+      "kind": "retarget-result",
+      "dataset": "susuinteracts",
+      "role": "hero",
+      "sha256": "5a02f1ced1e92d2606e85a4c5eb3390371538b4b3325be0b21865142368d79c2",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/susuinteracts/hands.gif": {
+      "kind": "retarget-result",
+      "dataset": "susuinteracts",
+      "role": "hands",
+      "sha256": "8db601c8bf802719059938d5171c1819448f7006e51a6b84ff7d1cff4c462a57",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/susuinteracts/feet.gif": {
+      "kind": "retarget-result",
+      "dataset": "susuinteracts",
+      "role": "feet",
+      "sha256": "577994e635b8b540d5f0a597b6a06b74e0f09849e217ef5ef11a4c5b08d8b351",
+      "public_embed_allowed": true
+    },
+    "doc/showcase/media/susuinteracts/facing.gif": {
+      "kind": "retarget-result",
+      "dataset": "susuinteracts",
+      "role": "facing",
+      "sha256": "eb579d8c866ad305479b40fa35c1be1c969977fe9ecefe2b9254f6dce5c3e465",
+      "public_embed_allowed": true
+    }
   }
 }

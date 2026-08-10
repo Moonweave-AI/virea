@@ -1,21 +1,3 @@
----
-type: explanation
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
-review_cycle_days: 60
-summary: GRAB 与 Motion-X 的 SMPL-X-family blocks、独立 profiles、hands 与多模态边界。
-canonical: doc/math-retarget/smplx-to-vrm.zh-CN.md
-related:
-  - README.zh-CN.md
-  - ../dataset-audit.zh-CN.md
-  - ../references.zh-CN.md
-supersedes: []
-superseded_by: []
----
-
 # SMPL-X family 到 VRM
 
 GRAB 与 Motion-X 共享 55-joint mapping 和 direct local quaternion 数学，但绝不共享未验证的 FPS、basis、unit 或数组切片。
@@ -145,3 +127,24 @@ Motion-X：sequence/body/hand/face text分别保留。源结构明确左右手�
 - local rotations再次套 world basis；
 - GRAB contact 聚合覆盖 native categorical map；
 - face/shape/object 字段被写进 211 维或绑到错误人体关节。
+
+
+<!--
+---
+type: explanation
+status: Active
+owner: "@Joker-of-Gotham"
+created: 2026-08-08
+updated: 2026-08-08
+last_reviewed: 2026-08-08
+review_cycle_days: 60
+summary: GRAB 与 Motion-X 的 SMPL-X-family blocks、独立 profiles、hands 与多模态边界。
+canonical: doc/math-retarget/smplx-to-vrm.zh-CN.md
+related:
+  - README.zh-CN.md
+  - ../dataset-audit.zh-CN.md
+  - ../references.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+-->
