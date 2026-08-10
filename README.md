@@ -2,10 +2,6 @@
   <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA — Verifiable Retargeting for Expressive Avatars">
 </p>
 
-<p align="center">
-  <img src="doc/assets/virea-flow-v3.gif" width="100%" alt="Seven motion sources processed through VIREA profile, solver, and replay contract to drive humanoid animation">
-</p>
-
 <div align="center">
 
 # VIREA
@@ -45,6 +41,10 @@
 ## Retargeting results
 
 All animations below show source motion retargeted to **"Unnamed Character 6" by Reira**. Each dataset presents four distinct data entries in full-body overview: source motion was coordinate-normalized, retargeted to the VIREA canonical v3 humanoid contract, transferred to the credited VRM Avatar, and rendered as a whole-body view. Raw datasets and the Avatar model are not included. Licensing conditions are summarized per dataset and detailed in [Third-Party Notices](THIRD_PARTY_NOTICES.md).
+
+<p align="center">
+  <img src="doc/assets/virea-flow-v3.gif" width="100%" alt="Seven motion sources processed through VIREA profile, solver, and replay contract to drive humanoid animation">
+</p>
 
 ---
 
