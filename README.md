@@ -63,6 +63,23 @@ All animations below show source motion retargeted to **"Unnamed Character 6" by
 
 BEAT motion © its authors and contributors, declared [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) at the pinned [official dataset revision](https://huggingface.co/datasets/H-Liu1997/BEAT/tree/604f5eca9d8dc2e1b8c3ed21045f9e24a7b6d3ff). Four distinct clips rendered as modified retargeted GIFs.
 
+<details>
+<summary><strong>Sample schema — Wayne gesture 100</strong>&ensp;<code>pose/1/1_wayne_0_100_100</code>&ensp;6 840 frames · 120 FPS · 57.0 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>75-joint BVH, 120 FPS, axis-angle, Y-up/Z-forward</td><td>Body / gesture motion generation</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>30 VRM hand bones collapsed from BVH finger hierarchy</td><td>Finger articulation, gesture detail</td></tr>
+<tr><td>Facial blendshapes</td><td>Yes</td><td>Per-frame</td><td>~52D ARKit coefficients, JSON with timestamps</td><td>Talking-face, expression synthesis</td></tr>
+<tr><td>Speech audio</td><td>Yes</td><td>Continuous</td><td>16 kHz WAV, lossless PCM</td><td>Speech-to-gesture, audio-conditioned motion</td></tr>
+<tr><td>Text transcript</td><td>Yes</td><td>Time-aligned</td><td>Tab-separated intervals, e.g. <code>13.87–14.87 s "huge"</code></td><td>Text-motion alignment, semantic conditioning</td></tr>
+<tr><td>Gesture semantics</td><td>Yes</td><td>Per-interval</td><td><code>07_iconic_h</code>, relevancy score <code>0.7</code></td><td>Semantic gesture classification / matching</td></tr>
+<tr><td>Speaker identity</td><td>Yes</td><td>Sequence</td><td><code>wayne</code> (speaker 1 of 3)</td><td>Speaker-specific style transfer</td></tr>
+<tr><td>Object interaction</td><td>No</td><td>—</td><td>—</td><td>Not available for object-aware training</td></tr>
+<tr><td>Scene context</td><td>No</td><td>—</td><td>—</td><td>Not available for scene-aware training</td></tr>
+</table>
+</details>
+
 ---
 
 ### Motion-X / AIST++ · dance
@@ -79,6 +96,23 @@ BEAT motion © its authors and contributors, declared [Apache-2.0](https://www.a
 </table>
 
 Motion-X annotations © International Digital Economy Academy, licensed [CC BY-NC-SA 4.0](https://motion-x-dataset.github.io/static/license/Motion-X%20License.pdf); the AIST++ source annotations © Google LLC are [CC BY 4.0](https://google.github.io/aistplusplus_dataset/factsfigures.html). Modified GIFs are offered under CC BY-NC-SA 4.0 for non-commercial use.
+
+<details>
+<summary><strong>Sample schema — Dance Break</strong>&ensp;<code>motion_data/smplx_322/aist/subset_0000/Dance_Break</code>&ensp;300 frames · 30 FPS · 10.0 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>SMPL-X 322D <code>.npy</code>: root+body 66D axis-angle, 30 FPS, Y-up</td><td>Dance / full-body motion generation</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>90D hand axis-angle (15 joints x 2 sides x 3)</td><td>Hand pose during dance</td></tr>
+<tr><td>Facial expression</td><td>Yes</td><td>Per-frame</td><td>50D expression coefficients + 100D face shape</td><td>Expression-conditioned motion</td></tr>
+<tr><td>Body shape</td><td>Yes</td><td>Per-frame</td><td>10D SMPL-X betas</td><td>Body-shape-aware generation</td></tr>
+<tr><td>Translation</td><td>Yes</td><td>Per-frame</td><td>3D root position (AIST: <code>/94 + Z-flip</code>)</td><td>Locomotion, spatial trajectory</td></tr>
+<tr><td>Text caption</td><td>Yes</td><td>Sequence</td><td><code>"The boy dances during the break."</code></td><td>Text-to-motion generation</td></tr>
+<tr><td>Per-frame text</td><td>Partial</td><td>Per-frame</td><td>Body/hand/face text JSON (not all sub-sources)</td><td>Fine-grained text-motion pairing</td></tr>
+<tr><td>Audio</td><td>No</td><td>—</td><td>—</td><td>Not available for audio-conditioned training</td></tr>
+<tr><td>Object interaction</td><td>No</td><td>—</td><td>—</td><td>Not available for object-aware training</td></tr>
+</table>
+</details>
 
 ---
 
@@ -97,6 +131,22 @@ Motion-X annotations © International Digital Economy Academy, licensed [CC BY-N
 
 SuSuInterActs © 2026 **Shandong SentiPulse Technology Development Co., Ltd.**, licensed under the [SentiPulse Non-Commercial Source License v1.0](https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE). Modified derivative renderings for non-commercial use; the license is source-available, not open source.
 
+<details>
+<summary><strong>Sample schema — Near-face interaction</strong>&ensp;<code>fbx_to_json_data_susu_retarget_maya/20250905/Human_0905_6-5_01</code>&ensp;139 frames · 20 FPS · 6.95 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>25 joints x 6D rotation, <code>.npy</code> dict, 20 FPS</td><td>Interaction / expressive body motion</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>Left 20 + Right 20 joints x 6D (240D total)</td><td>Detailed hand articulation, near-face gesture</td></tr>
+<tr><td>Facial blendshapes</td><td>Yes</td><td>Per-frame</td><td>51D ARKit coefficients, <code>arkit_data/</code> <code>.npy</code></td><td>Talking-face, expression during interaction</td></tr>
+<tr><td>Speech audio</td><td>Yes</td><td>Continuous</td><td>24 kHz WAV, mono, 16-bit PCM (6.95 s)</td><td>Speech-driven gesture, audio-motion pairing</td></tr>
+<tr><td>Dialogue text</td><td>Partial</td><td>Sequence</td><td><code>text_data/motion2text.json</code> (varies by sample)</td><td>Text-conditioned motion generation</td></tr>
+<tr><td>Joint positions</td><td>Partial</td><td>Per-frame</td><td>63-joint 3D positions (some profiles only)</td><td>Position-supervised training, IK targets</td></tr>
+<tr><td>Object interaction</td><td>No</td><td>—</td><td>—</td><td>Not available for object-aware training</td></tr>
+<tr><td>Scene context</td><td>No</td><td>—</td><td>—</td><td>Not available for scene-aware training</td></tr>
+</table>
+</details>
+
 ---
 
 ### AMASS · large-scale mocap archive
@@ -113,6 +163,23 @@ SuSuInterActs © 2026 **Shandong SentiPulse Technology Development Co., Ltd.**, 
 </table>
 
 AMASS © Max Planck Gesellschaft. [License terms](https://amass.is.tue.mpg.de/license.html) apply; four distinct ACCAD Female1 clips rendered as modified retargeted GIFs.
+
+<details>
+<summary><strong>Sample schema — Stand to skip</strong>&ensp;<code>ACCAD/Female1General_c3d/A14_-_stand_to_skip_stageii</code>&ensp;618 frames · 120 FPS · 5.15 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>SMPL-X 165D axis-angle <code>.npz</code>: root 3 + body 63 + hands 90 + jaw 3 + eyes 6, 120 FPS, Z-up</td><td>High-FPS full-body motion generation</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>90D (30 joints x 3) in <code>pose_hand</code> / <code>poses[66:156]</code></td><td>Hand pose (uncalibrated for most AMASS subsets)</td></tr>
+<tr><td>Root translation</td><td>Yes</td><td>Per-frame</td><td>3D position in meters, Z-up: <code>[-0.08, 0.34, 0.97]</code></td><td>Locomotion, spatial trajectory</td></tr>
+<tr><td>Body shape</td><td>Yes</td><td>Sequence</td><td>16D SMPL-X betas + gender (<code>female</code>)</td><td>Shape-aware generation, body diversity</td></tr>
+<tr><td>Mocap markers</td><td>Yes</td><td>Per-frame</td><td>41 labeled markers (LFHD, RFHD, C7, ...) x 3D</td><td>Marker-supervised training, motion reconstruction</td></tr>
+<tr><td>Action label</td><td>Derived</td><td>Sequence</td><td><code>"A14 stand to skip stageii"</code> (from filename)</td><td>Coarse action classification (no official label)</td></tr>
+<tr><td>Audio / text</td><td>No</td><td>—</td><td>—</td><td>Not available for multimodal training</td></tr>
+<tr><td>Facial expression</td><td>Minimal</td><td>Per-frame</td><td>Jaw 3D + eyes 6D (all zeros in this clip)</td><td>Jaw/eye only; no blendshapes</td></tr>
+<tr><td>Object interaction</td><td>No</td><td>—</td><td>—</td><td>Not available for object-aware training</td></tr>
+</table>
+</details>
 
 ---
 
@@ -131,6 +198,24 @@ AMASS © Max Planck Gesellschaft. [License terms](https://amass.is.tue.mpg.de/li
 
 BABEL © Max Planck Gesellschaft. [License terms](https://babel.is.tue.mpg.de/license.html) apply; BABEL annotation intervals overlay AMASS carriers. Four distinct ACCAD clips rendered as modified retargeted GIFs.
 
+<details>
+<summary><strong>Sample schema — Walk cycle</strong>&ensp;<code>ACCAD/Female1Walking_c3d/B3_-_walk1_stageii</code>&ensp;915 frames · 120 FPS · 7.63 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>SMPL-X 165D axis-angle <code>.npz</code> (same as AMASS carrier), 120 FPS, Z-up</td><td>Full-body motion generation</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>90D in <code>poses[66:156]</code></td><td>Hand pose (uncalibrated)</td></tr>
+<tr><td>Root translation</td><td>Yes</td><td>Per-frame</td><td>3D meters: <code>[3.13, 3.37, 0.86]</code></td><td>Locomotion, trajectory</td></tr>
+<tr><td>BABEL annotations</td><td>Yes*</td><td>Per-segment</td><td>Action label + frame intervals from <code>babel-teach</code> JSON (full dataset)</td><td>Action segmentation, temporal grounding</td></tr>
+<tr><td>Body shape</td><td>Yes</td><td>Sequence</td><td>16D betas + gender (<code>female</code>)</td><td>Shape-aware generation</td></tr>
+<tr><td>Mocap markers</td><td>Yes</td><td>Per-frame</td><td>41 labeled markers x 3D</td><td>Marker-supervised reconstruction</td></tr>
+<tr><td>Action label (derived)</td><td>Yes</td><td>Sequence</td><td><code>"B3 walk1 stageii"</code> (filename-derived)</td><td>Coarse classification fallback</td></tr>
+<tr><td>Audio / facial / text</td><td>No</td><td>—</td><td>—</td><td>Not available for multimodal training</td></tr>
+<tr><td>Object interaction</td><td>No</td><td>—</td><td>—</td><td>Not available for object-aware training</td></tr>
+</table>
+<sub>* BABEL teach annotations require the full BABEL dataset JSON; demo fixture uses filename-derived labels only.</sub>
+</details>
+
 ---
 
 ### GRAB · object interaction
@@ -148,6 +233,23 @@ BABEL © Max Planck Gesellschaft. [License terms](https://babel.is.tue.mpg.de/li
 
 GRAB © Max Planck Gesellschaft. [License terms](https://grab.is.tue.mpg.de/license.html) apply; four distinct object-interaction clips rendered as modified retargeted GIFs.
 
+<details>
+<summary><strong>Sample schema — Airplane fly</strong>&ensp;<code>s1/airplane_fly_1</code>&ensp;1 113 frames · 120 FPS · 9.28 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Body skeleton</td><td>Yes</td><td>Per-frame</td><td>SMPL-X 165D axis-angle (fullpose), 120 FPS, Z-up</td><td>Object-interaction body motion</td></tr>
+<tr><td>Hand rotations</td><td>Yes</td><td>Per-frame</td><td>Separate <code>left_hand_pose</code> / <code>right_hand_pose</code> in fullpose</td><td>Grasp pose, hand-object coordination</td></tr>
+<tr><td>Object 6-DoF pose</td><td>Yes</td><td>Per-frame</td><td>Translation 3D + orientation 3D (axis-angle), <code>airplane.ply</code> mesh</td><td>Object trajectory, hand-object spatial reasoning</td></tr>
+<tr><td>Contact map</td><td>Yes</td><td>Per-frame</td><td>Body vertices <code>(T, 10475)</code> + object vertices <code>(T, 25002)</code></td><td>Contact prediction, grasp planning</td></tr>
+<tr><td>Motion intent</td><td>Yes</td><td>Sequence</td><td><code>"fly"</code></td><td>Intent-conditioned generation</td></tr>
+<tr><td>Object identity</td><td>Yes</td><td>Sequence</td><td><code>"airplane"</code></td><td>Object-class-conditioned generation</td></tr>
+<tr><td>Subject identity</td><td>Yes</td><td>Sequence</td><td><code>"s1"</code>, gender <code>"male"</code></td><td>Subject-specific style</td></tr>
+<tr><td>Facial expression</td><td>Yes</td><td>Per-frame</td><td>50D expression coefficients</td><td>Expression during object interaction</td></tr>
+<tr><td>Audio / text</td><td>No</td><td>—</td><td>—</td><td>Not available for multimodal training</td></tr>
+</table>
+</details>
+
 ---
 
 ### HumanML3D · text-motion pairs
@@ -164,6 +266,22 @@ GRAB © Max Planck Gesellschaft. [License terms](https://grab.is.tue.mpg.de/lice
 </table>
 
 HumanML3D uses AMASS-carried motion. [HumanML3D license](https://github.com/EricGuo5513/HumanML3D#how-to-obtain-the-data) applies; four distinct text-motion test samples rendered as modified retargeted GIFs.
+
+<details>
+<summary><strong>Sample schema — Text-motion sample 0</strong>&ensp;<code>test/test-00000-of-00002/0</code>&ensp;199 frames · 20 FPS · 9.95 s</summary>
+<br>
+<table>
+<tr><th align="left">Data channel</th><th>Avail.</th><th>Granularity</th><th align="left">Example content</th><th align="left">Training use</th></tr>
+<tr><td>Motion features</td><td>Yes</td><td>Per-frame</td><td>263D vector: root deltas 4 + RIC positions 63 + 6D rotations 126 + local positions 66 + foot contact 4</td><td>Core text-to-motion generation</td></tr>
+<tr><td>Text captions</td><td>Yes</td><td>Sequence</td><td><code>"a person is walking in place at a slow pace."</code> (3 captions per clip)</td><td>Text-conditioned motion synthesis</td></tr>
+<tr><td>POS tags</td><td>Yes</td><td>Sequence</td><td>Part-of-speech tags per caption word</td><td>Linguistic feature conditioning</td></tr>
+<tr><td>Foot contact</td><td>Yes</td><td>Per-frame</td><td>4D binary flags in <code>motion[259:263]</code></td><td>Ground contact, foot-skating prevention</td></tr>
+<tr><td>Clip metadata</td><td>Yes</td><td>Sequence</td><td><code>{name: "004822", num_frames: 199, duration: 9.95}</code></td><td>Clip identification and filtering</td></tr>
+<tr><td>Raw SMPL poses</td><td>No</td><td>—</td><td>Encoded as 263D features, not raw skeleton</td><td>Requires inverse decoding for joint angles</td></tr>
+<tr><td>Hand rotations</td><td>No</td><td>—</td><td>Not in 263D representation</td><td>Hands explicitly neutral in canonical output</td></tr>
+<tr><td>Audio / facial / object</td><td>No</td><td>—</td><td>—</td><td>Not available for multimodal training</td></tr>
+</table>
+</details>
 
 ---
 
