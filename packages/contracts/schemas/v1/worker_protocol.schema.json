@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:worker_protocol:1.0.0",
+  "title": "VIREA Worker Protocol v1 Messages",
+  "oneOf": [
+    { "$ref": "#/$defs/worker_metadata" },
+    { "$ref": "#/$defs/worker_infer_request" },
+    { "$ref": "#/$defs/worker_error" }
+  ],
+  "$defs": {
+    "worker_metadata": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "protocol_version",
+        "model_id",
+        "plugin_version",
+        "tasks",
+        "input_schemas",
+        "output_representation_id",
+        "output_skeleton_id"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.worker_metadata.v1.0.0" },
+        "protocol_version": { "const": "virea.worker_protocol.v1.0.0" },
+        "model_id": { "type": "string", "minLength": 1 },
+        "plugin_version": { "type": "string", "minLength": 1 },
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "input_schemas": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "output_representation_id": { "type": "string", "minLength": 1 },
+        "output_skeleton_id": { "type": "string", "minLength": 1 },
+        "supports_streaming": { "type": "boolean", "default": false },
+        "supports_cancel": { "type": "boolean", "default": true },
+        "resources": { "type": "object", "default": {} },
+        "runtime_core_identity": {
+          "oneOf": [
+            { "$ref": "#/$defs/runtime_core_identity" },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime_core_identity": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contracts_epoch",
+        "model_sdk_epoch",
+        "contracts_source",
+        "model_sdk_source"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "virea.runtime_core_identity.v1.0.0"
+        },
+        "contracts_epoch": { "type": "string", "minLength": 1 },
+        "model_sdk_epoch": { "type": "string", "minLength": 1 },
+        "contracts_source": { "type": "string", "minLength": 1 },
+        "model_sdk_source": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "worker_infer_request": {
+      "type": "object",
+      "required": ["schema_version", "job_id", "request", "staging_locator"],
+      "properties": {
+        "schema_version": { "const": "virea.worker_infer_request.v1.0.0" },
+        "job_id": { "type": "string", "minLength": 1 },
+        "request": { "$ref": "#/$defs/job_request" },
+        "staging_locator": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "worker_error": {
+      "type": "object",
+      "required": ["schema_version", "code", "message"],
+      "properties": {
+        "schema_version": { "const": "virea.worker_error.v1.0.0" },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean", "default": false },
+        "details": { "type": "object", "default": {} }
+      },
+      "additionalProperties": false
+    },
+    "job_request": {
+      "type": "object",
+      "required": ["schema_version", "model_id", "task"],
+      "properties": {
+        "schema_version": { "const": "virea.job_request.v1.0.0" },
+        "model_id": { "type": "string", "minLength": 1 },
+        "task": { "type": "string", "minLength": 1 },
+        "input": { "type": "object", "default": {} },
+        "parameters": { "type": "object", "default": {} },
+        "avatar_id": { "type": ["string", "null"] },
+        "idempotency_key": { "type": ["string", "null"] },
+        "execution_target": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["schema_version", "execution_domain_id"],
+              "properties": {
+                "schema_version": { "const": "virea.execution_target_selection.v1.0.0" },
+                "execution_domain_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+                "runtime_variant_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 },
+                "resource_profile_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

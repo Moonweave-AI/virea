@@ -1,0 +1,90 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: fake-motion-v1
+  display_name: VIREA Deterministic Fake Motion
+  plugin_version: 0.4.0
+  upstream:
+    repository: builtin://virea/fake-motion
+    revision: builtin-fake-v1
+    release: VIREA 0.4.0
+  tasks:
+    - text_to_motion
+  adapter_family: fake-root-translation
+  status: registered
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: false
+      frames:
+        type: integer
+        default: 8
+        minimum: 1
+        maximum: 10000
+      fps:
+        type: number
+        default: 20.0
+        exclusive_minimum: 0.0
+      behavior:
+        type: string
+        enum: [success, delay, oom, crash]
+        default: success
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: virea.fake.root_translation.v1
+  skeleton_id: vrm1.humanoid52.v1
+  fps: 20.0
+  coordinate_system: vrm_gltf
+  units: meters
+  root_translation_semantics: absolute_world_meters
+  root_rotation_semantics: identity_local_to_world
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: fake-runtime-v1
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+    python: ">=3.10,<3.14"
+    accelerator:
+      kind: cpu
+    lockfile: uv.lock
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_model_sdk.fake_worker
+    environment_allowlist:
+      - VIREA_RUNTIME_ID
+    working_directory: .
+    project_package: virea-model-sdk
+    availability: fixture_only
+artifacts: []
+licenses:
+  code: VIREA project license
+  weights: not_applicable
+  dataset_lineage: []
+  body_model: []
+  commercial_allowed: null
+  redistribution_allowed: null
+  requires_acceptance: false
+  source_urls: []
+resources:
+  accelerator: cpu
+  deterministic: true
+  model_dependencies: []
+  implementation: packages/model_sdk/src/virea_model_sdk/fake.py
+  worker: packages/model_sdk/src/virea_model_sdk/fake_worker.py
+test_only: true
+test_fixture:
+  request_fixture: builtin://virea-model-sdk/fake-motion-v1/success-8-frames
+  min_frames: 8
+  expected_representation_id: virea.fake.root_translation.v1
+  timeout_seconds: 30.0
+notes:
+  - The plugin and worker are internal deterministic test infrastructure; this manifest is excluded from production model support claims and release evidence.
+  - "The fixture is a logical built-in request: success behavior, eight frames, 20 FPS; a test runner must materialize the corresponding WorkerInferRequest."
+  - Runtime host, port, job-root, and model-id arguments are supplied by the supervisor after the declared base entrypoint.

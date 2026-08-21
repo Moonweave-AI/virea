@@ -18,7 +18,9 @@ def _copy_file(src: Path, dst: Path, copied: list[dict]) -> None:
     copied.append({"source": str(src), "target": str(dst), "bytes": dst.stat().st_size})
 
 
-def _portable_manifest_path(path: str | Path, full_raw_root: Path, demo_raw_root: Path) -> str:
+def _portable_manifest_path(
+    path: str | Path, full_raw_root: Path, demo_raw_root: Path
+) -> str:
     value = Path(path)
     for prefix, root in (("full_raw", full_raw_root), ("demo/raw", demo_raw_root)):
         try:
@@ -31,32 +33,54 @@ def _portable_manifest_path(path: str | Path, full_raw_root: Path, demo_raw_root
         return value.name
 
 
-def _portable_copy_manifest(copied: list[dict], full_raw_root: Path, demo_raw_root: Path) -> list[dict]:
+def _portable_copy_manifest(
+    copied: list[dict], full_raw_root: Path, demo_raw_root: Path
+) -> list[dict]:
     result: list[dict] = []
     for item in copied:
         portable = dict(item)
         if portable.get("source") != "generated" and portable.get("source"):
-            portable["source"] = _portable_manifest_path(str(portable["source"]), full_raw_root, demo_raw_root)
+            portable["source"] = _portable_manifest_path(
+                str(portable["source"]), full_raw_root, demo_raw_root
+            )
         if portable.get("target"):
-            portable["target"] = _portable_manifest_path(str(portable["target"]), full_raw_root, demo_raw_root)
+            portable["target"] = _portable_manifest_path(
+                str(portable["target"]), full_raw_root, demo_raw_root
+            )
         result.append(portable)
     return result
 
 
-def _copy_related_sample(sample, full_raw_root: Path, demo_raw_root: Path, copied: list[dict]) -> None:
-    _copy_file(sample.source_path, demo_raw_root / sample.source_path.relative_to(full_raw_root), copied)
+def _copy_related_sample(
+    sample, full_raw_root: Path, demo_raw_root: Path, copied: list[dict]
+) -> None:
+    _copy_file(
+        sample.source_path,
+        demo_raw_root / sample.source_path.relative_to(full_raw_root),
+        copied,
+    )
     for related in sample.related_paths.values():
         if related.exists() and related.is_file():
-            _copy_file(related, demo_raw_root / related.relative_to(full_raw_root), copied)
+            _copy_file(
+                related, demo_raw_root / related.relative_to(full_raw_root), copied
+            )
     sidecar_json = sample.source_path.with_suffix(".json")
     if sidecar_json.exists():
-        _copy_file(sidecar_json, demo_raw_root / sidecar_json.relative_to(full_raw_root), copied)
+        _copy_file(
+            sidecar_json,
+            demo_raw_root / sidecar_json.relative_to(full_raw_root),
+            copied,
+        )
     sidecar_txt = sample.source_path.with_suffix(".txt")
     if sidecar_txt.exists():
-        _copy_file(sidecar_txt, demo_raw_root / sidecar_txt.relative_to(full_raw_root), copied)
+        _copy_file(
+            sidecar_txt, demo_raw_root / sidecar_txt.relative_to(full_raw_root), copied
+        )
 
 
-def _build_humanml3d_demo(full_raw_root: Path, demo_raw_root: Path, max_rows: int, copied: list[dict]) -> None:
+def _build_humanml3d_demo(
+    full_raw_root: Path, demo_raw_root: Path, max_rows: int, copied: list[dict]
+) -> None:
     src = full_raw_root / "humanml3d" / "data" / "test-00000-of-00002.parquet"
     if not src.exists():
         return
@@ -64,31 +88,48 @@ def _build_humanml3d_demo(full_raw_root: Path, demo_raw_root: Path, max_rows: in
     dst.parent.mkdir(parents=True, exist_ok=True)
     df = pd.read_parquet(src).head(max(1, max_rows))
     df.to_parquet(dst, index=False)
-    copied.append({"source": str(src), "target": str(dst), "rows": len(df), "bytes": dst.stat().st_size})
+    copied.append(
+        {
+            "source": str(src),
+            "target": str(dst),
+            "rows": len(df),
+            "bytes": dst.stat().st_size,
+        }
+    )
     readme = full_raw_root / "humanml3d" / "README.md"
     _copy_file(readme, demo_raw_root / "humanml3d" / "README.md", copied)
 
 
-def _build_susu_split_files(demo_raw_root: Path, sample_id: str, copied: list[dict]) -> None:
+def _build_susu_split_files(
+    demo_raw_root: Path, sample_id: str, copied: list[dict]
+) -> None:
     split_root = demo_raw_root / "SuSuInterActs" / "split"
     split_root.mkdir(parents=True, exist_ok=True)
     for name in ("all", "train", "val", "test"):
         path = split_root / f"{name}_file_list.txt"
         path.write_text(sample_id + "\n", encoding="utf-8")
-        copied.append({"source": "generated", "target": str(path), "bytes": path.stat().st_size})
+        copied.append(
+            {"source": "generated", "target": str(path), "bytes": path.stat().st_size}
+        )
 
 
-def _build_susu_split_files_multi(demo_raw_root: Path, sample_ids: list[str], copied: list[dict]) -> None:
+def _build_susu_split_files_multi(
+    demo_raw_root: Path, sample_ids: list[str], copied: list[dict]
+) -> None:
     split_root = demo_raw_root / "SuSuInterActs" / "split"
     split_root.mkdir(parents=True, exist_ok=True)
     content = "\n".join(sample_ids) + "\n"
     for name in ("all", "train", "val", "test"):
         path = split_root / f"{name}_file_list.txt"
         path.write_text(content, encoding="utf-8")
-        copied.append({"source": "generated", "target": str(path), "bytes": path.stat().st_size})
+        copied.append(
+            {"source": "generated", "target": str(path), "bytes": path.stat().st_size}
+        )
 
 
-def _build_susu_text_files(full_raw_root: Path, demo_raw_root: Path, sample_id: str, copied: list[dict]) -> None:
+def _build_susu_text_files(
+    full_raw_root: Path, demo_raw_root: Path, sample_id: str, copied: list[dict]
+) -> None:
     src = full_raw_root / "SuSuInterActs" / "text_data" / "motion2text.json"
     if not src.exists():
         return
@@ -98,11 +139,18 @@ def _build_susu_text_files(full_raw_root: Path, demo_raw_root: Path, sample_id: 
     dst_root.mkdir(parents=True, exist_ok=True)
     for name in ("motion2text", "train", "val", "test"):
         dst = dst_root / f"{name}.json"
-        dst.write_text(json.dumps({sample_id: text}, ensure_ascii=False, indent=2), encoding="utf-8")
-        copied.append({"source": str(src), "target": str(dst), "bytes": dst.stat().st_size})
+        dst.write_text(
+            json.dumps({sample_id: text}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        copied.append(
+            {"source": str(src), "target": str(dst), "bytes": dst.stat().st_size}
+        )
 
 
-def build_demo_dataset(max_rows: int = 100, overwrite: bool = False, samples_per_dataset: int = 100) -> dict:
+def build_demo_dataset(
+    max_rows: int = 100, overwrite: bool = False, samples_per_dataset: int = 100
+) -> dict:
     full_registry = DatasetRegistry.default(data_source="full")
     full_raw_root = full_registry.paths.raw_root
     demo_paths = ProjectPaths(data_source="demo")
@@ -117,7 +165,9 @@ def build_demo_dataset(max_rows: int = 100, overwrite: bool = False, samples_per
     for record in full_registry.iter_records():
         if record.key == "humanml3d":
             _build_humanml3d_demo(full_raw_root, demo_raw_root, max_rows, copied)
-            selected[record.key] = [f"test/test-00000-of-00002/{i}" for i in range(min(max_rows, 100))]
+            selected[record.key] = [
+                f"test/test-00000-of-00002/{i}" for i in range(min(max_rows, 100))
+            ]
             continue
 
         adapter = full_registry.adapter(record.key)
@@ -134,7 +184,9 @@ def build_demo_dataset(max_rows: int = 100, overwrite: bool = False, samples_per
             _copy_related_sample(sample, full_raw_root, demo_raw_root, copied)
             if record.key == "susuinteracts":
                 susu_split_ids.append(sample.sample_id)
-                _build_susu_text_files(full_raw_root, demo_raw_root, sample.sample_id, copied)
+                _build_susu_text_files(
+                    full_raw_root, demo_raw_root, sample.sample_id, copied
+                )
         if record.key == "susuinteracts" and susu_split_ids:
             _build_susu_split_files_multi(demo_raw_root, susu_split_ids, copied)
         print(f"  [{record.key}] copied {len(chosen)} samples", flush=True)
@@ -147,7 +199,9 @@ def build_demo_dataset(max_rows: int = 100, overwrite: bool = False, samples_per
         "selected_samples": selected,
         "copied_files": _portable_copy_manifest(copied, full_raw_root, demo_raw_root),
     }
-    manifest_path = repo_root() / "demo" / "manifest.json"
+    manifest_path = demo_raw_root.parent / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return manifest

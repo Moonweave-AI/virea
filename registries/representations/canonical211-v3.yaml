@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: virea.canonical211.v3
+version: 3.0.0
+kind: packed_motion_tensor
+skeleton_id: vrm1.humanoid52.v1
+dtype: float32
+frame_shape: [211]
+rotation_representation: quaternion_xyzw
+rotation_layout: xyzw
+rotation_space: rest_relative_parent_local
+root_translation_semantics: world_absolute
+root_rotation_semantics: local_to_world
+coordinate_system_id: virea.gltf_y_up_z_forward.v1
+units: meters
+fps: null
+timebase: null
+source_urls:
+  - schemas/canonical_motion_v3.schema.json
+  - src/virea/motion/skeleton.py
+validation_status: regression_verified

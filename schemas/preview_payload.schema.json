@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/preview_payload.schema.json",
+  "$id": "urn:virea:schema:preview-payload:1.0.0",
   "title": "VIREA Preview Payload v1",
   "type": "object",
   "required": [
@@ -20,11 +20,11 @@
     "frames": { "type": "object" },
     "annotations": {
       "type": "array",
-      "items": { "$ref": "annotation.schema.json" }
+      "items": { "$ref": "urn:virea:schema:annotation:1.0.0" }
     },
     "channels": {
       "type": "array",
-      "items": { "$ref": "channel.schema.json" }
+      "items": { "$ref": "urn:virea:schema:channel:1.0.0" }
     },
     "validation_warnings": { "type": "array", "items": { "type": "string" } },
     "metadata": { "type": "object" },
@@ -37,7 +37,101 @@
         "fps", "frame_count", "duration_sec", "text", "split", "related_paths", "metadata"
       ]
     },
-    "motion": { "type": "object" }
+    "motion": { "$ref": "#/$defs/vrmMotionV3" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "quaternion": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" }, { "type": "number" },
+        { "type": "number" }, { "type": "number" }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "handCertificate": {
+      "type": "object",
+      "required": [
+        "schema_version", "policy_id", "policy_sha256", "status",
+        "postconditions_passed", "frame_count", "observation_sha256",
+        "evidence_sha256", "pre_solver_hand_sha256", "output_hand_sha256",
+        "report_sha256", "certificate", "artifact_replay_verified",
+        "viewer_pose_mutation_count",
+        "payload_frame_interval_frames_half_open"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.hand_constraint_certificate.v1.0.0" },
+        "policy_id": { "const": "virea.constraint_aware_hand_retarget.v1" },
+        "policy_sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "enum": ["passed_noop", "passed_constrained"] },
+        "postconditions_passed": { "const": true },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "observation_sha256": { "$ref": "#/$defs/sha256" },
+        "evidence_sha256": { "$ref": "#/$defs/sha256" },
+        "pre_solver_hand_sha256": { "$ref": "#/$defs/sha256" },
+        "output_hand_sha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "SHA-256 of this payload's hand_quaternions encoded as JSON([T,30,4]), one NUL byte, then C-order IEEE-754 float32 bytes in little-endian order."
+        },
+        "report_sha256": { "$ref": "#/$defs/sha256" },
+        "certificate": {
+          "type": "object",
+          "required": ["algorithm", "sha256", "covers", "verified"],
+          "properties": {
+            "algorithm": { "const": "sha256" },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "covers": { "const": "report_without_certificate_including_output_sha256" },
+            "verified": { "const": true }
+          },
+          "additionalProperties": false
+        },
+        "artifact_replay_verified": { "const": true },
+        "viewer_pose_mutation_count": { "const": 0 },
+        "payload_frame_interval_frames_half_open": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "vrmMotionV3": {
+      "type": "object",
+      "required": [
+        "schema_version", "canonical_schema_version", "rotation_semantics",
+        "frame_count", "coordinate_system", "unit", "root_translation",
+        "root_rotation", "core_bones", "core_quaternions", "hand_bones",
+        "hand_quaternions", "canonical_to_vrm", "rest_bones",
+        "rest_offsets", "rest_source", "hand_constraint_certificate"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.vrm_motion_payload.v3.0.0" },
+        "canonical_schema_version": { "const": "virea.canonical_motion.v3.0.0" },
+        "rotation_semantics": { "const": "rest_relative_normalized_pose_delta" },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "coordinate_system": { "const": "gltf_y_up_z_forward" },
+        "unit": { "const": "meter" },
+        "root_translation": { "type": "array" },
+        "root_rotation": { "type": "array", "items": { "$ref": "#/$defs/quaternion" } },
+        "core_bones": { "type": "array", "minItems": 21, "maxItems": 21, "items": { "type": "string" } },
+        "core_quaternions": { "type": "array" },
+        "hand_bones": { "type": "array", "minItems": 30, "maxItems": 30, "items": { "type": "string" } },
+        "hand_quaternions": { "type": "array" },
+        "canonical_to_vrm": { "type": "object" },
+        "rest_bones": { "type": "array", "minItems": 52, "maxItems": 52, "items": { "type": "string" } },
+        "rest_offsets": { "type": "object" },
+        "rest_source": { "const": "virea_canonical_rest.v3" },
+        "hand_constraint_certificate": { "$ref": "#/$defs/handCertificate" }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }

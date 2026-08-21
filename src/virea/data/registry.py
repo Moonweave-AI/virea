@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from importlib import import_module
-from pathlib import Path
 from typing import Iterable
 
 import yaml
@@ -26,7 +25,9 @@ class DatasetRegistry:
         self._adapters: dict[str, BaseDatasetAdapter] = {}
 
     @classmethod
-    def default(cls, paths: ProjectPaths | None = None, data_source: str | None = None) -> "DatasetRegistry":
+    def default(
+        cls, paths: ProjectPaths | None = None, data_source: str | None = None
+    ) -> "DatasetRegistry":
         project_paths = paths or ProjectPaths(data_source=data_source)
         registry_path = repo_root() / "registries" / "datasets.yaml"
         with registry_path.open("r", encoding="utf-8") as handle:

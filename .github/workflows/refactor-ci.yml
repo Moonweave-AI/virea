@@ -1,0 +1,205 @@
+name: VIREA refactor CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-docs-venv
+      VIREA_HOME: ${{ runner.temp }}/virea-docs-home
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-packages --extra dev
+      - run: uv run python scripts/generate_docs.py --check
+      - run: uv run python scripts/check_docs.py
+      - run: >-
+          uv run python -m pytest
+          tests/test_docs.py
+          tests/test_generated_documentation.py
+          -q
+
+  python-contracts:
+    runs-on: ubuntu-latest
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-contracts-venv
+      VIREA_HOME: ${{ runner.temp }}/virea-contracts-home
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @virea/web build
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-packages --extra dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run python scripts/check_runtime_locks.py
+      - run: uv run python -m pytest tests/refactor tests/characterization -q
+      - run: uv run python -m pytest tests/refactor/test_fresh_wheel_resources.py -q
+        env:
+          VIREA_RUN_FRESH_WHEEL_TEST: "1"
+      - run: >-
+          uv run python -m pytest tests
+          --ignore=tests/refactor
+          --ignore=tests/characterization
+          --ignore=tests/test_docs.py
+          -q
+      - run: uv build --all-packages --out-dir "$RUNNER_TEMP/virea-dist"
+
+  python-310-compatibility:
+    runs-on: ubuntu-latest
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-py310-venv
+      VIREA_HOME: ${{ runner.temp }}/virea-py310-home
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @virea/web build
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --python 3.10 --locked --all-packages --extra dev
+      - run: uv run --python 3.10 python -m pytest tests/refactor -q
+
+  windows-runtime-lifecycle:
+    runs-on: windows-latest
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-windows-venv
+      VIREA_HOME: ${{ runner.temp }}/virea-windows-home
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @virea/web build
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-packages --extra dev
+      - run: >-
+          uv run python -m pytest
+          tests/refactor/test_registered_runtime.py
+          tests/refactor/test_worker_process_recovery.py
+          tests/refactor/test_control_plane_cancellation.py
+          -q
+
+  execution-domain-contracts:
+    name: CPU execution domains (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-domain-venv
+      VIREA_HOME: ${{ runner.temp }}/virea-domain-home
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-26, macos-26-intel]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-packages --extra dev
+      - run: >-
+          uv run python -m pytest
+          tests/refactor/test_execution_domains.py
+          tests/refactor/test_bootstrap_detection_readiness.py
+          -q
+      - if: runner.os == 'macOS'
+        run: >-
+          uv run python -m pytest
+          tests/refactor/test_worker_process_recovery.py
+          -q
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Build and import CMDM CPU Runtime
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-cmdm-cpu-runtime
+        run: >-
+          uv sync --locked --python 3.11
+          --project plugins/models/cmdm-humanml3d/runtime-cpu
+      - name: Verify CMDM CPU Worker imports
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-cmdm-cpu-runtime
+        run: >-
+          uv run --locked --python 3.11
+          --project plugins/models/cmdm-humanml3d/runtime-cpu
+          python -I -c "import torch, virea_cmdm, virea_cmdm_cpu_runtime;
+          assert torch.cuda.is_available() is False"
+      - name: Build and import MoMADiff CPU Runtime
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-momadiff-cpu-runtime
+        run: >-
+          uv sync --locked --python 3.11
+          --project plugins/models/momadiff-humanml3d/runtime-cpu
+      - name: Verify MoMADiff CPU Worker imports
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/virea-momadiff-cpu-runtime
+        run: >-
+          uv run --locked --python 3.11
+          --project plugins/models/momadiff-humanml3d/runtime-cpu
+          python -I -c "import torch, virea_momadiff,
+          virea_momadiff_cpu_runtime;
+          assert torch.cuda.is_available() is False"
+
+  web-and-viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:viewer
+      - run: node --test tests/characterization/viewer_contract.test.mjs
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @virea/web test
+      - run: pnpm --filter @virea/web build

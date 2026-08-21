@@ -1,0 +1,141 @@
+include setup.py
+include THIRD_PARTY_NOTICES.md
+include registries/bundles/release-assets.v1.json
+include plugins/models/flood-diffusion-tiny/manifest.yaml
+include plugins/models/momadiff-humanml3d/manifest.yaml
+include plugins/models/mardm-humanml3d/manifest.yaml
+include plugins/models/acmdm-humanml3d/manifest.yaml
+include plugins/models/cmdm-humanml3d/manifest.yaml
+include plugins/models/prism-tp2m-1-4b/manifest.yaml
+include plugins/models/prism-tp2m-1-4b/evidence/wsl2-real-inference-2026-08-19.json
+exclude plugins/models/fake-motion-v1/manifest.yaml
+exclude plugins/adapters/fake-root-translation/adapter.yaml
+exclude packages/model_sdk/src/virea_model_sdk/fake.py
+exclude packages/model_sdk/src/virea_model_sdk/fake_worker.py
+recursive-include registries *.yaml
+exclude registries/representations/fake-root-translation.v1.yaml
+exclude registries/runtimes/fake-runtime-v1.yaml
+recursive-include configs *.yaml *.json
+recursive-include apps/viewer-web *.html *.css *.js
+recursive-include apps/web/dist *
+include packages/contracts/pyproject.toml
+include packages/contracts/setup.cfg
+recursive-include packages/contracts/schemas *.json
+recursive-include packages/contracts/src *.py
+include packages/model_sdk/pyproject.toml
+include packages/model_sdk/setup.cfg
+include packages/model_sdk/src/virea_model_sdk/__init__.py
+include packages/model_sdk/src/virea_model_sdk/plugin.py
+include packages/model_sdk/src/virea_model_sdk/resource_measurement.py
+include packages/model_sdk/src/virea_model_sdk/runtime_identity.py
+include packages/model_sdk/src/virea_model_sdk/worker.py
+include plugins/models/flood-diffusion-tiny/runtime/LICENSE
+include plugins/models/flood-diffusion-tiny/runtime/README.md
+include plugins/models/flood-diffusion-tiny/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/flood-diffusion-tiny/runtime/pyproject.toml
+include plugins/models/flood-diffusion-tiny/runtime/uv.lock
+recursive-include plugins/models/flood-diffusion-tiny/runtime/src *.py
+include plugins/models/flood-diffusion-tiny/runtime-cu128/LICENSE
+include plugins/models/flood-diffusion-tiny/runtime-cu128/README.md
+include plugins/models/flood-diffusion-tiny/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/flood-diffusion-tiny/runtime-cu128/pyproject.toml
+include plugins/models/flood-diffusion-tiny/runtime-cu128/uv.lock
+recursive-include plugins/models/flood-diffusion-tiny/runtime-cu128/src *.py
+include plugins/models/flood-diffusion-tiny/runtime-cpu/LICENSE
+include plugins/models/flood-diffusion-tiny/runtime-cpu/README.md
+include plugins/models/flood-diffusion-tiny/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/flood-diffusion-tiny/runtime-cpu/pyproject.toml
+include plugins/models/flood-diffusion-tiny/runtime-cpu/uv.lock
+recursive-include plugins/models/flood-diffusion-tiny/runtime-cpu/src *.py
+include plugins/models/momadiff-humanml3d/runtime/LICENSE
+include plugins/models/momadiff-humanml3d/runtime/README.md
+include plugins/models/momadiff-humanml3d/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/momadiff-humanml3d/runtime/pyproject.toml
+include plugins/models/momadiff-humanml3d/runtime/uv.lock
+recursive-include plugins/models/momadiff-humanml3d/runtime/src *.py
+include plugins/models/momadiff-humanml3d/runtime-cu128/LICENSE
+include plugins/models/momadiff-humanml3d/runtime-cu128/README.md
+include plugins/models/momadiff-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/momadiff-humanml3d/runtime-cu128/pyproject.toml
+include plugins/models/momadiff-humanml3d/runtime-cu128/uv.lock
+recursive-include plugins/models/momadiff-humanml3d/runtime-cu128/src *.py
+include plugins/models/momadiff-humanml3d/runtime-cpu/LICENSE
+include plugins/models/momadiff-humanml3d/runtime-cpu/README.md
+include plugins/models/momadiff-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/momadiff-humanml3d/runtime-cpu/pyproject.toml
+include plugins/models/momadiff-humanml3d/runtime-cpu/uv.lock
+recursive-include plugins/models/momadiff-humanml3d/runtime-cpu/src *.py
+include plugins/models/mardm-humanml3d/runtime/LICENSE
+include plugins/models/mardm-humanml3d/runtime/README.md
+include plugins/models/mardm-humanml3d/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/mardm-humanml3d/runtime/pyproject.toml
+include plugins/models/mardm-humanml3d/runtime/uv.lock
+recursive-include plugins/models/mardm-humanml3d/runtime/src *.py
+include plugins/models/mardm-humanml3d/runtime-cu128/LICENSE
+include plugins/models/mardm-humanml3d/runtime-cu128/README.md
+include plugins/models/mardm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/mardm-humanml3d/runtime-cu128/pyproject.toml
+include plugins/models/mardm-humanml3d/runtime-cu128/uv.lock
+recursive-include plugins/models/mardm-humanml3d/runtime-cu128/src *.py
+include plugins/models/mardm-humanml3d/runtime-cpu/LICENSE
+include plugins/models/mardm-humanml3d/runtime-cpu/README.md
+include plugins/models/mardm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/mardm-humanml3d/runtime-cpu/pyproject.toml
+include plugins/models/mardm-humanml3d/runtime-cpu/uv.lock
+recursive-include plugins/models/mardm-humanml3d/runtime-cpu/src *.py
+include plugins/models/acmdm-humanml3d/runtime/LICENSE
+include plugins/models/acmdm-humanml3d/runtime/README.md
+include plugins/models/acmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/acmdm-humanml3d/runtime/pyproject.toml
+include plugins/models/acmdm-humanml3d/runtime/uv.lock
+recursive-include plugins/models/acmdm-humanml3d/runtime/src *.py
+include plugins/models/acmdm-humanml3d/runtime-cu128/LICENSE
+include plugins/models/acmdm-humanml3d/runtime-cu128/README.md
+include plugins/models/acmdm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/acmdm-humanml3d/runtime-cu128/pyproject.toml
+include plugins/models/acmdm-humanml3d/runtime-cu128/uv.lock
+recursive-include plugins/models/acmdm-humanml3d/runtime-cu128/src *.py
+include plugins/models/acmdm-humanml3d/runtime-cpu/LICENSE
+include plugins/models/acmdm-humanml3d/runtime-cpu/README.md
+include plugins/models/acmdm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/acmdm-humanml3d/runtime-cpu/pyproject.toml
+include plugins/models/acmdm-humanml3d/runtime-cpu/uv.lock
+recursive-include plugins/models/acmdm-humanml3d/runtime-cpu/src *.py
+include plugins/models/cmdm-humanml3d/runtime/LICENSE
+include plugins/models/cmdm-humanml3d/runtime/README.md
+include plugins/models/cmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/cmdm-humanml3d/runtime/pyproject.toml
+include plugins/models/cmdm-humanml3d/runtime/uv.lock
+recursive-include plugins/models/cmdm-humanml3d/runtime/src *.py
+include plugins/models/cmdm-humanml3d/runtime-cu128/LICENSE
+include plugins/models/cmdm-humanml3d/runtime-cu128/README.md
+include plugins/models/cmdm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/cmdm-humanml3d/runtime-cu128/pyproject.toml
+include plugins/models/cmdm-humanml3d/runtime-cu128/uv.lock
+recursive-include plugins/models/cmdm-humanml3d/runtime-cu128/src *.py
+include plugins/models/cmdm-humanml3d/runtime-cpu/LICENSE
+include plugins/models/cmdm-humanml3d/runtime-cpu/README.md
+include plugins/models/cmdm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/cmdm-humanml3d/runtime-cpu/pyproject.toml
+include plugins/models/cmdm-humanml3d/runtime-cpu/uv.lock
+recursive-include plugins/models/cmdm-humanml3d/runtime-cpu/src *.py
+include plugins/models/prism-tp2m-1-4b/runtime/LICENSE
+include plugins/models/prism-tp2m-1-4b/runtime/README.md
+include plugins/models/prism-tp2m-1-4b/runtime/THIRD_PARTY_NOTICES.md
+include plugins/models/prism-tp2m-1-4b/runtime/pyproject.toml
+include plugins/models/prism-tp2m-1-4b/runtime/uv.lock
+recursive-include plugins/models/prism-tp2m-1-4b/runtime/src *.py
+include plugins/models/prism-tp2m-1-4b/runtime-cu128/LICENSE
+include plugins/models/prism-tp2m-1-4b/runtime-cu128/README.md
+include plugins/models/prism-tp2m-1-4b/runtime-cu128/THIRD_PARTY_NOTICES.md
+include plugins/models/prism-tp2m-1-4b/runtime-cu128/pyproject.toml
+include plugins/models/prism-tp2m-1-4b/runtime-cu128/uv.lock
+recursive-include plugins/models/prism-tp2m-1-4b/runtime-cu128/src *.py
+include plugins/models/prism-tp2m-1-4b/runtime-cpu/LICENSE
+include plugins/models/prism-tp2m-1-4b/runtime-cpu/README.md
+include plugins/models/prism-tp2m-1-4b/runtime-cpu/THIRD_PARTY_NOTICES.md
+include plugins/models/prism-tp2m-1-4b/runtime-cpu/pyproject.toml
+include plugins/models/prism-tp2m-1-4b/runtime-cpu/uv.lock
+recursive-include plugins/models/prism-tp2m-1-4b/runtime-cpu/src *.py
+global-exclude __pycache__/*
+global-exclude *.py[cod]

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:model_definition:1.0.0",
+  "title": "VIREA ModelDefinition v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "display_name",
+    "plugin_version",
+    "upstream_repository",
+    "upstream_revision",
+    "tasks",
+    "adapter_family",
+    "status"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.model_definition.v1.0.0" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "display_name": { "type": "string", "minLength": 1 },
+    "plugin_version": { "type": "string", "minLength": 1 },
+    "upstream_repository": { "type": "string", "minLength": 1 },
+    "upstream_revision": { "type": "string", "minLength": 1 },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "adapter_family": { "type": "string", "minLength": 1 },
+    "status": {
+      "enum": [
+        "registered",
+        "source_available",
+        "runnable_upstream",
+        "integrated_experimental",
+        "supported",
+        "blocked"
+      ]
+    },
+    "runtime_variants": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "license_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "commercial_allowed": { "type": ["boolean", "null"], "default": null },
+    "redistribution_allowed": { "type": ["boolean", "null"], "default": null },
+    "requires_acceptance": { "type": "boolean", "default": false },
+    "production_acceptance": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/productionAcceptance" }
+      ],
+      "default": null
+    },
+    "test_only": { "type": "boolean", "default": false },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "$defs": {
+    "productionAcceptance": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "request",
+        "expected",
+        "required_stages",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "virea.production_e2e_acceptance.v1.0.0"
+        },
+        "kind": { "const": "production_e2e" },
+        "request": {
+          "type": "object",
+          "required": ["schema_version", "model_id", "task"],
+          "properties": {
+            "schema_version": { "const": "virea.job_request.v1.0.0" },
+            "model_id": { "type": "string", "minLength": 1 },
+            "task": { "type": "string", "minLength": 1 },
+            "input": { "type": "object", "default": {} },
+            "parameters": { "type": "object", "default": {} },
+            "avatar_id": { "type": ["string", "null"] },
+            "idempotency_key": { "type": ["string", "null"] },
+            "execution_target": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["schema_version", "execution_domain_id"],
+                  "properties": {
+                    "schema_version": { "const": "virea.execution_target_selection.v1.0.0" },
+                    "execution_domain_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "runtime_variant_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 },
+                    "resource_profile_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected": {
+          "type": "object",
+          "required": [
+            "representation_id",
+            "skeleton_id",
+            "min_frames",
+            "artifacts"
+          ],
+          "properties": {
+            "representation_id": { "type": "string", "minLength": 1 },
+            "skeleton_id": { "type": "string", "minLength": 1 },
+            "min_frames": { "type": "integer", "minimum": 1 },
+            "artifacts": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "native_motion",
+                  "motion_ir",
+                  "retargeted_motion",
+                  "vrma"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "required_stages": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "environment_detection",
+              "artifact_installation",
+              "runtime_build",
+              "model_load",
+              "inference",
+              "native_artifact_validation",
+              "motion_ir_conversion",
+              "retarget_validation",
+              "vrma_export",
+              "web_playback"
+            ]
+          }
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 7200
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["integrated_experimental", "supported"]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["runtime_variants", "production_acceptance"],
+        "properties": {
+          "runtime_variants": { "minItems": 1 },
+          "production_acceptance": {
+            "$ref": "#/$defs/productionAcceptance"
+          },
+          "test_only": { "const": false }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "test_only": { "const": true } },
+        "required": ["test_only"]
+      },
+      "then": {
+        "properties": { "production_acceptance": { "type": "null" } }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

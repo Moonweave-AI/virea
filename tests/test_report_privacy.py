@@ -4,11 +4,11 @@ import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import SimpleNamespace
 
+from scripts import validate_preview_pipeline
 from virea.pipelines.batch import BatchReport
 from virea.pipelines.catalog import CatalogPipeline
 from virea.reporting import portable_path_reference, sanitize_report_paths
 from virea.verification import write_verification_report
-from scripts import smoke_pipeline
 
 
 def _assert_no_absolute_path_values(value: object) -> None:
@@ -24,14 +24,20 @@ def _assert_no_absolute_path_values(value: object) -> None:
 
 
 def test_processed_root_reference_is_portable_on_windows_and_posix() -> None:
-    assert portable_path_reference(
-        r"D:\private\processed\canonical\v0.2.0\clip.npz",
-        base=r"D:\private\processed",
-    ) == "canonical/v0.2.0/clip.npz"
-    assert portable_path_reference(
-        "/srv/private/processed/canonical/v0.2.0/clip.npz",
-        base="/srv/private/processed",
-    ) == "canonical/v0.2.0/clip.npz"
+    assert (
+        portable_path_reference(
+            r"D:\private\processed\canonical\v0.2.0\clip.npz",
+            base=r"D:\private\processed",
+        )
+        == "canonical/v0.2.0/clip.npz"
+    )
+    assert (
+        portable_path_reference(
+            "/srv/private/processed/canonical/v0.2.0/clip.npz",
+            base="/srv/private/processed",
+        )
+        == "canonical/v0.2.0/clip.npz"
+    )
     assert portable_path_reference(
         r"D:\private\processed\..\raw\clip.npz",
         base=r"D:\private\processed",
@@ -59,7 +65,9 @@ def test_report_path_sanitizer_preserves_urls_urns_and_api_routes() -> None:
     assert "/srv/private/raw" not in sanitized
 
 
-def test_write_verification_report_never_serializes_machine_absolute_paths(tmp_path: Path) -> None:
+def test_write_verification_report_never_serializes_machine_absolute_paths(
+    tmp_path: Path,
+) -> None:
     raw_root = r"D:\private\datasets\raw"
     processed_root = r"D:\private\runtime\processed"
     model_root = r"C:\Users\private-user\Downloads\VRM-Model-1.vrm"
@@ -88,10 +96,12 @@ def test_write_verification_report_never_serializes_machine_absolute_paths(tmp_p
     for secret in (raw_root, processed_root, model_root, posix_raw_root):
         assert secret not in serialized
         assert secret.replace("\\", "/") not in serialized.replace("\\", "/")
-    assert payload["reports"][0]["files"]["canonical_motion"].startswith("clip.npz@sha256-")
-    assert payload["vrm_control_rest_audit"]["descriptors"][0]["avatar_path"].startswith(
-        "VRM-Model-1.vrm@sha256-"
+    assert payload["reports"][0]["files"]["canonical_motion"].startswith(
+        "clip.npz@sha256-"
     )
+    assert payload["vrm_control_rest_audit"]["descriptors"][0][
+        "avatar_path"
+    ].startswith("VRM-Model-1.vrm@sha256-")
     _assert_no_absolute_path_values(payload)
 
 
@@ -102,14 +112,18 @@ def test_batch_report_serialization_redacts_nested_absolute_paths() -> None:
         processed=1,
         items=[
             {
-                "files": {"canonical_motion": "/srv/private/processed/canonical/clip.npz"},
+                "files": {
+                    "canonical_motion": "/srv/private/processed/canonical/clip.npz"
+                },
                 "error": r"reader failed at C:\private\raw\clip.npz",
             }
         ],
     ).to_dict()
 
     assert str(report["processed_root"]).startswith("processed@sha256-")
-    assert str(report["items"][0]["files"]["canonical_motion"]).startswith("clip.npz@sha256-")
+    assert str(report["items"][0]["files"]["canonical_motion"]).startswith(
+        "clip.npz@sha256-"
+    )
     assert "C:\\private\\raw" not in str(report["items"][0]["error"])
     _assert_no_absolute_path_values(report)
 
@@ -142,7 +156,9 @@ def test_catalog_uses_source_tokens_and_dataset_relative_paths(tmp_path: Path) -
     assert str(processed_root) not in json.dumps(payload)
 
 
-def test_smoke_report_uses_source_tokens_without_root_paths(tmp_path: Path, monkeypatch) -> None:
+def test_preview_validation_uses_source_tokens_without_root_paths(
+    tmp_path: Path, monkeypatch
+) -> None:
     raw_root = tmp_path / "private" / "raw"
     processed_root = tmp_path / "private" / "processed"
     raw_root.mkdir(parents=True)
@@ -151,13 +167,21 @@ def test_smoke_report_uses_source_tokens_without_root_paths(tmp_path: Path, monk
         keys=lambda: ["amass"],
         adapter=lambda _dataset: SimpleNamespace(discover=lambda limit: []),
     )
-    monkeypatch.setattr(smoke_pipeline.DatasetRegistry, "default", lambda data_source: registry)
+    monkeypatch.setattr(
+        validate_preview_pipeline.DatasetRegistry,
+        "default",
+        lambda data_source: registry,
+    )
 
-    payload = smoke_pipeline.smoke_source("full", max_frames=8, persist=False)
+    payload = validate_preview_pipeline.validate_source(
+        "full", max_frames=8, persist=False
+    )
 
     assert payload["raw_root"] == "data-source/full/raw"
     assert payload["processed_root"] == "data-source/full/processed"
-    assert payload["reports"][0]["reason"] == "no sample found in configured full raw root"
+    assert (
+        payload["reports"][0]["reason"] == "no sample found in configured full raw root"
+    )
     serialized = json.dumps(payload)
     assert str(raw_root) not in serialized
     assert str(processed_root) not in serialized

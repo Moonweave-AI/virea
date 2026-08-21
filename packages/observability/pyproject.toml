@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-observability"
+version = "0.4.0"
+description = "Structured local logging and redacted diagnostics for VIREA."
+requires-python = ">=3.10"
+dependencies = [
+  "virea-bootstrap>=0.4.0",
+  "virea-core>=0.4.0",
+]
+
+[tool.uv.sources]
+virea-bootstrap = { workspace = true }
+virea-core = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

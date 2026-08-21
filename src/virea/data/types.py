@@ -15,7 +15,6 @@ from virea.data.annotations import (
     normalize_channels,
 )
 
-
 JsonDict = dict[str, Any]
 
 
@@ -44,7 +43,9 @@ class DatasetRecord:
             license_family=str(payload.get("license_family", "unknown")),
             citation_keys=tuple(str(item) for item in payload.get("citation_keys", [])),
             modalities=dict(payload.get("modalities", {})),
-            native_representations=tuple(str(item) for item in payload.get("native_representations", [])),
+            native_representations=tuple(
+                str(item) for item in payload.get("native_representations", [])
+            ),
         )
 
     def to_dict(self) -> JsonDict:
@@ -89,7 +90,9 @@ class SampleRef:
             "duration_sec": self.duration_sec,
             "text": self.text,
             "split": self.split,
-            "related_paths": {key: str(value) for key, value in self.related_paths.items()},
+            "related_paths": {
+                key: str(value) for key, value in self.related_paths.items()
+            },
             "metadata": self.metadata,
         }
 
@@ -107,8 +110,7 @@ class SampleRef:
             "text": self.text,
             "split": self.split,
             "related_paths": {
-                key: json_value(str(value))
-                for key, value in self.related_paths.items()
+                key: json_value(str(value)) for key, value in self.related_paths.items()
             },
             "metadata": json_value(self.metadata),
         }
@@ -127,19 +129,33 @@ class RawClip:
     def limited(self, max_frames: int | None) -> "RawClip":
         if max_frames is not None and max_frames < 0:
             raise ValueError("max_frames must be non-negative")
-        primary_keys = ("positions", "poses", "fullpose", "motion", "body", "translation")
+        primary_keys = (
+            "positions",
+            "poses",
+            "fullpose",
+            "motion",
+            "body",
+            "translation",
+        )
         inferred_count = next(
             (
                 int(self.motion[key].shape[0])
                 for key in primary_keys
-                if isinstance(self.motion.get(key), np.ndarray) and self.motion[key].ndim >= 1
+                if isinstance(self.motion.get(key), np.ndarray)
+                and self.motion[key].ndim >= 1
             ),
             0,
         )
-        source_count = int(self.sample.frame_count) if self.sample.frame_count is not None else inferred_count
+        source_count = (
+            int(self.sample.frame_count)
+            if self.sample.frame_count is not None
+            else inferred_count
+        )
         if inferred_count:
             source_count = min(source_count or inferred_count, inferred_count)
-        frame_count = source_count if max_frames is None else min(source_count, int(max_frames))
+        frame_count = (
+            source_count if max_frames is None else min(source_count, int(max_frames))
+        )
         motion: dict[str, Any] = {}
         for key, value in self.motion.items():
             if isinstance(value, np.ndarray) and value.ndim >= 1:
@@ -162,13 +178,19 @@ class RawClip:
             frame_count=frame_count,
         )
         sample_metadata = dict(self.sample.metadata)
-        original_frame_count = self.sample.frame_count if self.sample.frame_count is not None else source_count
+        original_frame_count = (
+            self.sample.frame_count
+            if self.sample.frame_count is not None
+            else source_count
+        )
         original_duration = (
             self.sample.duration_sec
             if self.sample.duration_sec is not None
             else (source_count / fps if fps else None)
         )
-        if frame_count != source_count or (fps and original_duration != frame_count / fps):
+        if frame_count != source_count or (
+            fps and original_duration != frame_count / fps
+        ):
             sample_metadata.setdefault(
                 "original_time",
                 {
@@ -202,11 +224,15 @@ class RawClip:
             motion=motion,
             annotations=annotations,
             channels=channels,
-            validation_warnings=list(dict.fromkeys([
-                *self.validation_warnings,
-                *annotation_warnings,
-                *channel_warnings,
-            ])),
+            validation_warnings=list(
+                dict.fromkeys(
+                    [
+                        *self.validation_warnings,
+                        *annotation_warnings,
+                        *channel_warnings,
+                    ]
+                )
+            ),
             source_joint_names=self.source_joint_names,
             source_edges=self.source_edges,
         )
@@ -247,7 +273,9 @@ class PreviewPayload:
             "sample_id": self.sample.sample_id,
             "fps": self.fps,
             "frame_count": int(self.positions.shape[0]),
-            "duration_sec": float(self.positions.shape[0] / self.fps) if self.fps else None,
+            "duration_sec": float(self.positions.shape[0] / self.fps)
+            if self.fps
+            else None,
             "skeleton": {
                 "joint_names": self.joint_names,
                 "edges": [[int(a), int(b)] for a, b in self.edges],
@@ -259,11 +287,15 @@ class PreviewPayload:
             },
             "annotations": annotations,
             "channels": channels,
-            "validation_warnings": list(dict.fromkeys([
-                *self.validation_warnings,
-                *annotation_warnings,
-                *channel_warnings,
-            ])),
+            "validation_warnings": list(
+                dict.fromkeys(
+                    [
+                        *self.validation_warnings,
+                        *annotation_warnings,
+                        *channel_warnings,
+                    ]
+                )
+            ),
             "metadata": json_value(self.metadata),
             "quality": json_value(self.quality),
             "files": json_value(self.files),

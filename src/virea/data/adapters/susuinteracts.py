@@ -19,20 +19,32 @@ from virea.data.annotations import (
 )
 from virea.data.types import RawClip, SampleRef
 
+SUSU_POSITIONS_JOINT_ORDER = "susu63_unique"
+
 
 class SuSuInterActsAdapter(BaseDatasetAdapter):
-    def _profile_for(self, sample_id: str, has_positions: bool = False) -> tuple[str, str]:
+    def _profile_for(
+        self, sample_id: str, has_positions: bool = False
+    ) -> tuple[str, str]:
         if sample_id.startswith("fbx_to_json_data_susu_retarget_maya/"):
-            return "susu_retarget_maya_6d_body_hands_m_npy", "susu_retarget_maya_6d_body_hands"
+            return (
+                "susu_retarget_maya_6d_body_hands_m_npy",
+                "susu_retarget_maya_6d_body_hands",
+            )
         if sample_id.startswith("fbx_to_json_data_susu_chonglu/") or has_positions:
-            return "susu_chonglu_6d_body_hands_cm_positions_npy", "susu_chonglu_6d_body_hands_cm"
+            return (
+                "susu_chonglu_6d_body_hands_cm_positions_npy",
+                "susu_chonglu_6d_body_hands_cm",
+            )
         return "susu_6d_body_hands_npy", "susu_6d_body_hands"
 
     @staticmethod
     def _dataset_profile(codec_key: str, *, has_positions: bool = False) -> str:
         return {
             "susu_retarget_maya_6d_body_hands": (
-                "susu_retarget_maya_positions" if has_positions else "susu_retarget_maya_rotation_only"
+                "susu_retarget_maya_positions"
+                if has_positions
+                else "susu_retarget_maya_rotation_only"
             ),
             "susu_chonglu_6d_body_hands_cm": "susu_chonglu",
         }.get(codec_key, "susu_official_columns_local")
@@ -48,7 +60,11 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
         path = self.raw_root / "split" / f"{split}_file_list.txt"
         if not path.exists():
             return []
-        return [line.strip() for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()]
+        return [
+            line.strip()
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+            if line.strip()
+        ]
 
     def _motion_path(self, name: str) -> Path:
         return self._safe_path(self.raw_root / "motion_data", f"{name}.npy")
@@ -75,10 +91,20 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                 has_positions = False
                 if self.trusted_raw_pickle_enabled():
                     payload = self._load_trusted_pickle_numpy(exact_path).item()
-                    arrays = [np.asarray(value) for value in payload.values() if isinstance(value, np.ndarray)]
-                    frame_count = int(arrays[0].shape[0]) if arrays and arrays[0].ndim >= 1 else None
+                    arrays = [
+                        np.asarray(value)
+                        for value in payload.values()
+                        if isinstance(value, np.ndarray)
+                    ]
+                    frame_count = (
+                        int(arrays[0].shape[0])
+                        if arrays and arrays[0].ndim >= 1
+                        else None
+                    )
                     has_positions = "positions" in payload
-                source_format, codec_key = self._profile_for(exact_name, has_positions=has_positions)
+                source_format, codec_key = self._profile_for(
+                    exact_name, has_positions=has_positions
+                )
                 text = self._text_map().get(exact_name, "")
                 return [
                     self._sample(
@@ -88,12 +114,24 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                         codec_key,
                         fps=20.0,
                         frame_count=frame_count,
-                        duration_sec=(frame_count / 20.0) if frame_count is not None else None,
+                        duration_sec=(frame_count / 20.0)
+                        if frame_count is not None
+                        else None,
                         text=text,
-                        related_paths={"face": self._face_path(exact_name), "audio": self._audio_path(exact_name)},
+                        related_paths={
+                            "face": self._face_path(exact_name),
+                            "audio": self._audio_path(exact_name),
+                        },
                         metadata={
                             "susu_profile": codec_key,
-                            "dataset_profile": self._dataset_profile(codec_key, has_positions=has_positions),
+                            "dataset_profile": self._dataset_profile(
+                                codec_key, has_positions=has_positions
+                            ),
+                            **(
+                                {"positions_joint_order": SUSU_POSITIONS_JOINT_ORDER}
+                                if has_positions
+                                else {}
+                            ),
                         },
                     )
                 ]
@@ -107,7 +145,9 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                 seen.add(name)
                 path = self._motion_path(name)
                 text = text_map.get(name, "")
-                if not path.exists() or not (self._matches(name, query) or self._matches(text, query)):
+                if not path.exists() or not (
+                    self._matches(name, query) or self._matches(text, query)
+                ):
                     continue
                 source_format, codec_key = self._profile_for(name)
                 samples.append(
@@ -119,14 +159,24 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                         fps=20.0,
                         text=text,
                         split=None if split == "all" else split,
-                        related_paths={"face": self._face_path(name), "audio": self._audio_path(name)},
-                        metadata={"susu_profile": codec_key, "dataset_profile": self._dataset_profile(codec_key)},
+                        related_paths={
+                            "face": self._face_path(name),
+                            "audio": self._audio_path(name),
+                        },
+                        metadata={
+                            "susu_profile": codec_key,
+                            "dataset_profile": self._dataset_profile(codec_key),
+                        },
                     )
                 )
                 if len(samples) >= limit:
                     return samples
         for path in sorted((self.raw_root / "motion_data").rglob("*.npy")):
-            name = path.relative_to(self.raw_root / "motion_data").with_suffix("").as_posix()
+            name = (
+                path.relative_to(self.raw_root / "motion_data")
+                .with_suffix("")
+                .as_posix()
+            )
             if name in seen:
                 continue
             text = text_map.get(name, "")
@@ -141,8 +191,14 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                     codec_key,
                     fps=20.0,
                     text=text,
-                    related_paths={"face": self._face_path(name), "audio": self._audio_path(name)},
-                    metadata={"susu_profile": codec_key, "dataset_profile": self._dataset_profile(codec_key)},
+                    related_paths={
+                        "face": self._face_path(name),
+                        "audio": self._audio_path(name),
+                    },
+                    metadata={
+                        "susu_profile": codec_key,
+                        "dataset_profile": self._dataset_profile(codec_key),
+                    },
                 )
             )
             if len(samples) >= limit:
@@ -154,17 +210,27 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
         if not path.exists():
             raise FileNotFoundError(f"SuSuInterActs sample not found: {sample_id}")
         data = self._load_trusted_pickle_numpy(path).item()
-        motion = {key: np.asarray(value, dtype=np.float32) for key, value in data.items() if key in {"body", "left", "right", "positions"}}
+        motion = {
+            key: np.asarray(value, dtype=np.float32)
+            for key, value in data.items()
+            if key in {"body", "left", "right", "positions"}
+        }
         frame_count = int(next(iter(motion.values())).shape[0]) if motion else 0
         if "body" in motion and frame_count > 1:
             body_arr = motion["body"]
             if body_arr.std(axis=0).max() < 1e-6:
-                raise ValueError(f"SuSuInterActs sample is static/frozen (all frames identical): {sample_id}")
+                raise ValueError(
+                    f"SuSuInterActs sample is static/frozen (all frames identical): {sample_id}"
+                )
         motion["fps"] = 20.0
-        source_format, codec_key = self._profile_for(sample_id, has_positions="positions" in motion)
+        source_format, codec_key = self._profile_for(
+            sample_id, has_positions="positions" in motion
+        )
         face_path = self._face_path(sample_id)
         if face_path.exists():
-            motion["face"] = np.asarray(np.load(face_path, allow_pickle=False), dtype=np.float32)
+            motion["face"] = np.asarray(
+                np.load(face_path, allow_pickle=False), dtype=np.float32
+            )
         text = self._text_map().get(sample_id, "")
         audio_path = self._audio_path(sample_id)
         sample = self._sample(
@@ -182,7 +248,14 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                 "has_face": "face" in motion,
                 "has_audio": audio_path.exists(),
                 "susu_profile": codec_key,
-                "dataset_profile": self._dataset_profile(codec_key, has_positions="positions" in motion),
+                "dataset_profile": self._dataset_profile(
+                    codec_key, has_positions="positions" in motion
+                ),
+                **(
+                    {"positions_joint_order": SUSU_POSITIONS_JOINT_ORDER}
+                    if "positions" in motion
+                    else {}
+                ),
             },
         )
         annotations = []
@@ -211,12 +284,23 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
             if face_inline:
                 face_preview = {"weights": face.tolist()}
             else:
-                indices = np.linspace(0, max(face.shape[0] - 1, 0), min(face.shape[0], 2048), dtype=np.int32)
-                face_preview = {"frame_indices": indices.tolist(), "weights": face[indices].tolist()}
+                indices = np.linspace(
+                    0,
+                    max(face.shape[0] - 1, 0),
+                    min(face.shape[0], 2048),
+                    dtype=np.int32,
+                )
+                face_preview = {
+                    "frame_indices": indices.tolist(),
+                    "weights": face[indices].tolist(),
+                }
             face_availability = "inline" if face_inline else "external"
             face_ref = None
             face_reason = None
-            face_extras = {"channel_names_available": False, "source_file_present": True}
+            face_extras = {
+                "channel_names_available": False,
+                "source_file_present": True,
+            }
             if not face_inline:
                 try:
                     face_ref = cache_numpy_sidecar(face)
@@ -226,7 +310,9 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                     face_extras.update(
                         {
                             "lossless_sidecar_status": "unavailable_cache_capacity",
-                            "native_array_sha256": hashlib.sha256(np.ascontiguousarray(face).tobytes()).hexdigest(),
+                            "native_array_sha256": hashlib.sha256(
+                                np.ascontiguousarray(face).tobytes()
+                            ).hexdigest(),
                             "native_array_byte_length": int(face.nbytes),
                         }
                     )
@@ -240,7 +326,11 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                     kind="face",
                     availability=face_availability,
                     representation="arkit_51_coefficients",
-                    timebase={"start_frame": 0, "end_frame": int(face.shape[0]), "interval": "half_open"},
+                    timebase={
+                        "start_frame": 0,
+                        "end_frame": int(face.shape[0]),
+                        "interval": "half_open",
+                    },
                     fps=20.0,
                     frame_count=int(face.shape[0]),
                     shape=list(face.shape),
@@ -274,12 +364,16 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                         "channel_count": handle.getnchannels(),
                         "sample_width_bytes": handle.getsampwidth(),
                         "sample_count": handle.getnframes(),
-                        "duration_sec": handle.getnframes() / handle.getframerate() if handle.getframerate() else None,
+                        "duration_sec": handle.getnframes() / handle.getframerate()
+                        if handle.getframerate()
+                        else None,
                     }
             except (wave.Error, OSError):
                 audio_preview = {"byte_length": audio_path.stat().st_size}
         audio_availability = "external" if audio_path.exists() else "missing"
-        audio_reason = None if audio_path.exists() else "No WAV file exists for this sample."
+        audio_reason = (
+            None if audio_path.exists() else "No WAV file exists for this sample."
+        )
         audio_ref = None
         audio_extras: dict[str, object] = {
             "source_file_present": audio_path.exists(),
@@ -326,7 +420,13 @@ class SuSuInterActsAdapter(BaseDatasetAdapter):
                 kind="audio",
                 availability=audio_availability,
                 representation="wav" if audio_path.exists() else None,
-                timebase={"motion_fps": 20.0, "motion_frame_count": frame_count, "interval": "half_open"} if audio_path.exists() else None,
+                timebase={
+                    "motion_fps": 20.0,
+                    "motion_frame_count": frame_count,
+                    "interval": "half_open",
+                }
+                if audio_path.exists()
+                else None,
                 reason_unavailable=audio_reason,
                 preview=audio_preview,
                 data_ref=audio_ref,

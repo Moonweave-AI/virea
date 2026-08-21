@@ -5,8 +5,9 @@ import math
 import numpy as np
 
 ROOT_DIM = 7
-CANONICAL_SCHEMA_VERSION = "virea.canonical_motion.v1.0.0"
-CANONICAL_SKELETON_ID = "virea_canonical_skeleton.v1"
+CANONICAL_SCHEMA_VERSION = "virea.canonical_motion.v3.0.0"
+CANONICAL_SKELETON_ID = "virea_canonical_skeleton.v3"
+CANONICAL_ROTATION_SEMANTICS = "rest_relative_normalized_pose_delta"
 
 CORE_BONES = [
     "spine",
@@ -86,7 +87,9 @@ def identity_quats(frame_count: int, joint_count: int) -> np.ndarray:
     return quats
 
 
-def _normalized_continuous_quats(value: np.ndarray, shape: tuple[int, ...], name: str) -> np.ndarray:
+def _normalized_continuous_quats(
+    value: np.ndarray, shape: tuple[int, ...], name: str
+) -> np.ndarray:
     quats = np.asarray(value, dtype=np.float32)
     if quats.shape != shape:
         raise ValueError(f"{name} must have shape {shape}, got {quats.shape}")
@@ -111,7 +114,9 @@ def pack_sequence(
 ) -> np.ndarray:
     root_translation = np.asarray(root_translation, dtype=np.float32)
     if root_translation.ndim != 2 or root_translation.shape[1] != 3:
-        raise ValueError(f"root_translation must have shape (T, 3), got {root_translation.shape}")
+        raise ValueError(
+            f"root_translation must have shape (T, 3), got {root_translation.shape}"
+        )
     if not np.isfinite(root_translation).all():
         raise ValueError("root_translation contains NaN or infinity")
     frame_count = root_translation.shape[0]
@@ -150,7 +155,9 @@ def pack_sequence(
 def unpack_sequence(sequence: np.ndarray) -> dict[str, np.ndarray]:
     seq = np.asarray(sequence, dtype=np.float32)
     if seq.ndim != 2 or seq.shape[1] != FRAME_DIM:
-        raise ValueError(f"expected canonical sequence shape (T, {FRAME_DIM}), got {seq.shape}")
+        raise ValueError(
+            f"expected canonical sequence shape (T, {FRAME_DIM}), got {seq.shape}"
+        )
     if not np.isfinite(seq).all():
         raise ValueError("canonical sequence contains NaN or infinity")
     core_start = ROOT_DIM
@@ -158,7 +165,9 @@ def unpack_sequence(sequence: np.ndarray) -> dict[str, np.ndarray]:
     unpacked = {
         "root_translation": seq[:, 0:3],
         "root_rotation_xyzw": seq[:, 3:7],
-        "core_quats_xyzw": seq[:, core_start:core_stop].reshape(seq.shape[0], len(CORE_BONES), 4),
+        "core_quats_xyzw": seq[:, core_start:core_stop].reshape(
+            seq.shape[0], len(CORE_BONES), 4
+        ),
         "hand_quats_xyzw": seq[:, core_stop:].reshape(seq.shape[0], len(HAND_BONES), 4),
     }
     for name in ("root_rotation_xyzw", "core_quats_xyzw", "hand_quats_xyzw"):
@@ -186,7 +195,9 @@ def _slerp_xyzw(q0: np.ndarray, q1: np.ndarray, alpha: np.ndarray) -> np.ndarray
     return output.astype(np.float32)
 
 
-def resample_sequence(sequence: np.ndarray, source_fps: float, target_fps: float) -> np.ndarray:
+def resample_sequence(
+    sequence: np.ndarray, source_fps: float, target_fps: float
+) -> np.ndarray:
     """Resample canonical motion on a real-time axis.
 
     Root translation is linear; all rotations use shortest-arc SLERP.  The
@@ -204,17 +215,17 @@ def resample_sequence(sequence: np.ndarray, source_fps: float, target_fps: float
         return np.asarray(sequence, dtype=np.float32).copy()
     output_frames = max(1, int(math.ceil(source_frames * target_fps / source_fps)))
     source_position = np.minimum(
-        np.arange(output_frames, dtype=np.float32) * np.float32(source_fps / target_fps),
+        np.arange(output_frames, dtype=np.float32)
+        * np.float32(source_fps / target_fps),
         np.float32(source_frames - 1),
     )
     left = np.floor(source_position).astype(np.int64)
     right = np.minimum(left + 1, source_frames - 1)
     alpha_scalar = (source_position - left).astype(np.float32)
     alpha_vec = alpha_scalar[:, None]
-    root_translation = (
-        (1.0 - alpha_vec) * unpacked["root_translation"][left]
-        + alpha_vec * unpacked["root_translation"][right]
-    )
+    root_translation = (1.0 - alpha_vec) * unpacked["root_translation"][
+        left
+    ] + alpha_vec * unpacked["root_translation"][right]
     root_rotation = _slerp_xyzw(
         unpacked["root_rotation_xyzw"][left],
         unpacked["root_rotation_xyzw"][right],

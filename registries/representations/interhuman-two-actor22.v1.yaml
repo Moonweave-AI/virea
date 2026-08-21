@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: interhuman.two_actor_smpl22.pos3_rot6d.v1
+version: 1.0.0
+kind: multi_actor_positions_and_rotations
+skeleton_id: interhuman.two_actor_smpl22.v1
+dtype: float32
+frame_shape: [2, 22, 9]
+rotation_representation: continuous_6d
+rotation_layout: columns
+rotation_space: non_root_parent_local_root_absent
+root_translation_semantics: shared_world_absolute
+root_rotation_semantics: absent_zero_sentinel_mapped_to_identity
+coordinate_system_id: interhuman.shared_world.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/tr3e/InterGen
+  - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/utils/plot_script.py
+validation_status: source_verified

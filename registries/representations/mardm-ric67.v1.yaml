@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: mardm.humanml3d.ric67.v1
+version: 1.0.0
+kind: packed_motion_features
+skeleton_id: humanml3d.body22.v1
+dtype: float32
+frame_shape: [67]
+rotation_representation: yaw_velocity_only
+rotation_layout: root_channel_0
+rotation_space: root_invariant
+root_translation_semantics: yaw_local_velocity_xz_plus_absolute_height
+root_rotation_semantics: yaw_angular_velocity
+coordinate_system_id: humanml3d.normalized_y_up_z_forward.v1
+units: meters
+fps: 20.0
+timebase: [1, 20]
+source_urls:
+  - https://github.com/neu-vi/MARDM/blob/5e32b69723376028f38125ccee33011549cd341d/utils/motion_process.py
+validation_status: source_verified

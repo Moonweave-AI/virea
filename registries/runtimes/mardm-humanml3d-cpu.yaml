@@ -1,0 +1,38 @@
+schema_version: virea.runtime_spec.v1.0.0
+id: mardm-humanml3d-cpu
+backend: uv-native
+platforms:
+  - win-64
+  - linux-64
+  - osx-arm64
+  - osx-64
+python: ">=3.11,<3.12"
+accelerator:
+  kind: cpu
+  abi: null
+  min_vram_gib: null
+lockfile: uv.lock
+min_storage_gib: 10.0
+resource_profiles:
+  - id: whole-model-cpu
+    strategy: cpu
+    min_free_vram_gib: null
+    min_free_ram_gib: 24.0
+    min_free_swap_gib: 0.0
+entrypoint_argv:
+  - python
+  - -m
+  - virea_mardm.worker
+startup_timeout_seconds: 1200
+environment_allowlist:
+  - VIREA_ARTIFACT_ROOTS_JSON
+  - VIREA_RESOURCE_PROFILE
+  - VIREA_MEMORY_STRATEGY
+  - HF_HOME
+  - HF_HUB_OFFLINE
+  - TRANSFORMERS_OFFLINE
+working_directory: plugins/models/mardm-humanml3d/runtime-cpu
+project_package: virea-model-mardm-humanml3d-cpu-runtime
+project_version: 0.2.3
+runtime_core_epoch: virea-runtime-core-20260821.2
+availability: cpu_contract_and_lock_baseline_only_real_inference_unverified

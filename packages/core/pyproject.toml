@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-core"
+version = "0.4.0"
+description = "Local state, paths, jobs, and lifecycle primitives for VIREA."
+requires-python = ">=3.10"
+dependencies = ["virea-contracts>=0.4.0"]
+
+[tool.uv.sources]
+virea-contracts = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

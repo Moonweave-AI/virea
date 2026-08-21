@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: humanml3d.vector263.v1
+version: 1.0.0
+kind: packed_motion_features
+skeleton_id: humanml3d.body22.v1
+dtype: float32
+frame_shape: [263]
+rotation_representation: continuous_6d
+rotation_layout: columns
+rotation_space: root_invariant_parent_local
+root_translation_semantics: yaw_local_velocity_xz_plus_height
+root_rotation_semantics: yaw_angular_velocity
+coordinate_system_id: humanml3d.normalized_y_up_z_forward.v1
+units: meters
+fps: 20.0
+timebase: [1, 20]
+source_urls:
+  - https://github.com/EricGuo5513/HumanML3D
+  - https://github.com/GuyTevet/motion-diffusion-model
+validation_status: source_verified

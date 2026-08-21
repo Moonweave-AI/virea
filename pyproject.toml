@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea"
-version = "0.2.0"
+version = "0.4.0"
 description = "VRM-native motion data infrastructure and preview pipelines."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,21 +16,90 @@ dependencies = [
   "pydantic>=2.0",
   "pyyaml>=6.0",
   "uvicorn>=0.27",
+  "virea-bootstrap>=0.4.0",
+  "virea-contracts>=0.4.0",
+  "virea-core>=0.4.0",
+  "virea-model-pool>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "virea-motion-ir>=0.4.0",
+  "virea-runtime>=0.4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "httpx>=0.28",
   "httpx2>=2.9",
   "jsonschema>=4.21",
   "pytest>=8.0",
+  "ruff>=0.12,<1",
 ]
-
-[project.scripts]
-virea = "virea.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["vmf", "vmf.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "src"]
+pythonpath = [
+  ".",
+  "src",
+  "packages/bootstrap/src",
+  "packages/compatibility/src",
+  "packages/contracts/src",
+  "packages/core/src",
+  "packages/model_pool/src",
+  "packages/model_sdk/src",
+  "packages/motion_ir/src",
+  "packages/runtime/src",
+  "packages/retarget/src",
+  "packages/vrm/src",
+  "packages/observability/src",
+]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+# Keep the release lint contract explicit. Ruff 0.16 expanded its implicit
+# default set; framework-specific and modernization rules are adopted through
+# reviewed follow-up changes instead of silently changing on tool upgrade.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.uv.workspace]
+members = [
+  "apps/api",
+  "apps/cli",
+  "packages/bootstrap",
+  "packages/compatibility",
+  "packages/contracts",
+  "packages/core",
+  "packages/model_pool",
+  "packages/model_sdk",
+  "packages/motion_ir",
+  "packages/runtime",
+  "packages/retarget",
+  "packages/vrm",
+  "packages/observability",
+]
+exclude = [
+  "plugins/models/*/runtime",
+  "plugins/models/*/runtime-cpu",
+  "plugins/models/*/runtime-cu128",
+]
+
+[tool.uv.sources]
+virea-api = { workspace = true }
+virea-cli = { workspace = true }
+virea-bootstrap = { workspace = true }
+virea-compatibility = { workspace = true }
+virea-contracts = { workspace = true }
+virea-core = { workspace = true }
+virea-model-pool = { workspace = true }
+virea-model-sdk = { workspace = true }
+virea-motion-ir = { workspace = true }
+virea-runtime = { workspace = true }
+virea-retarget = { workspace = true }
+virea-vrm = { workspace = true }
+virea-observability = { workspace = true }

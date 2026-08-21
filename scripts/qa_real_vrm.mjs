@@ -1,7 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, rmdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { arch, cpus, platform, release, tmpdir } from "node:os";
-import { basename, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 import { chromium } from "playwright";
 
@@ -19,19 +19,46 @@ const requestedFrame = process.env.VIREA_QA_FRAME === undefined
   : Math.max(0, Number(process.env.VIREA_QA_FRAME) || 0);
 const detailZoomSteps = Math.max(0, Number(process.env.VIREA_QA_ZOOM_STEPS || 0));
 const detailPanYPixels = Number(process.env.VIREA_QA_PAN_Y_PIXELS || 0);
+const hideAnnotations = process.env.VIREA_QA_HIDE_ANNOTATIONS === "1";
+const focusBone = process.env.VIREA_QA_FOCUS_BONE || "";
+const focusDistanceScale = Number(process.env.VIREA_QA_FOCUS_DISTANCE_SCALE || 0.42);
 const browserPath = process.env.VIREA_QA_BROWSER_PATH
   ? resolve(process.env.VIREA_QA_BROWSER_PATH)
   : null;
-const outputPrefix = resolve(
-  process.env.VIREA_QA_OUTPUT_PREFIX || `${tmpdir()}/virea-real-vrm-${Date.now()}`,
-);
-
 if (!process.env.VIREA_VRM_PATH || !existsSync(vrmPath)) {
   throw new Error("Set VIREA_VRM_PATH to a readable local .vrm file; the model is never copied into the repository.");
 }
 if (browserPath && !existsSync(browserPath)) {
   throw new Error(`VIREA_QA_BROWSER_PATH does not exist: ${browserPath}`);
 }
+
+const explicitOutputDir = process.env.VIREA_QA_OUTPUT_DIR
+  ? resolve(process.env.VIREA_QA_OUTPUT_DIR)
+  : null;
+const runtimeRoot = process.env.VIREA_HOME
+  ? resolve(process.env.VIREA_HOME, "tmp")
+  : resolve(tmpdir(), "virea");
+const autoOutputDir = explicitOutputDir
+  ? null
+  : resolve(runtimeRoot, `qa-real-vrm-${process.pid}-${Date.now()}`);
+const outputDir = explicitOutputDir || autoOutputDir;
+mkdirSync(outputDir, { recursive: true });
+const outputPrefix = join(outputDir, "virea-real-vrm");
+const cleanupAutoOutput = () => {
+  if (!autoOutputDir || !existsSync(autoOutputDir)) return;
+  rmSync(autoOutputDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 50,
+  });
+  try {
+    rmdirSync(runtimeRoot);
+  } catch (error) {
+    if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(error?.code)) throw error;
+  }
+};
+if (autoOutputDir) process.once("exit", cleanupAutoOutput);
 
 const browser = await chromium.launch({
   headless: true,
@@ -90,6 +117,17 @@ try {
     await page.evaluate((frame) => window.__vireaShowcase.setFrame(frame), requestedFrame);
     await page.waitForTimeout(100);
   }
+  if (focusBone) {
+    const focused = await page.evaluate(
+      ({ boneName, distanceScale }) => window.__vireaShowcase.focusVrmBoneForQa(
+        boneName,
+        distanceScale,
+      ),
+      { boneName: focusBone, distanceScale: focusDistanceScale },
+    );
+    if (!focused) throw new Error(`cannot focus missing VRM humanoid bone: ${focusBone}`);
+    await page.waitForTimeout(100);
+  }
   if (detailZoomSteps > 0) {
     await page.locator("#modelCanvas").hover();
     for (let index = 0; index < detailZoomSteps; index += 1) {
@@ -109,6 +147,13 @@ try {
       await page.waitForTimeout(150);
     }
   }
+  if (hideAnnotations) {
+    await page.evaluate(() => window.__vireaShowcase.clearVrmAnnotationsForQa());
+    await page.locator("#modelAnnotationOverlay").evaluate((element) => {
+      element.style.display = "none";
+    });
+    await page.waitForTimeout(50);
+  }
 
   const realDiagnostics = await page.locator("#modelCanvas").evaluate((canvas) => ({
     markerPoolSize: Number(canvas.dataset.markerPoolSize || 0),
@@ -118,10 +163,7 @@ try {
     hasVrmHumanoid: canvas.dataset.hasVrmHumanoid === "true",
     normalizedPoseAxisMode: canvas.dataset.normalizedPoseAxisMode || "",
     legacyTerminalSelfConjugationCount: Number(canvas.dataset.legacyTerminalSelfConjugationCount || 0),
-    hierarchicalRestCorrectionMode: canvas.dataset.hierarchicalRestCorrectionMode || "",
-    hierarchicalRestCorrectionCount: Number(canvas.dataset.hierarchicalRestCorrectionCount || 0),
-    hierarchicalRestCalibratedEdgeCount: Number(canvas.dataset.hierarchicalRestCalibratedEdgeCount || 0),
-    hierarchicalRestMaxErrorDeg: Number(canvas.dataset.hierarchicalRestMaxErrorDeg || Number.NaN),
+    targetRestCorrectionCount: Number(canvas.dataset.targetRestCorrectionCount || 0),
     restFrameCorrectionCount: Number(canvas.dataset.restFrameCorrectionCount || 0),
   }));
   const realDesktopScreenshot = `${outputPrefix}-real-desktop.png`;
@@ -310,20 +352,19 @@ try {
     diagnostics_after: diagnosticsAfter,
     frame_timing: frameTiming,
     narrow_layout: narrowLayout,
-    screenshots: [realDesktopScreenshot, realCanvasScreenshot, stressDesktopScreenshot, narrowScreenshot],
+    screenshots: explicitOutputDir
+      ? [realDesktopScreenshot, realCanvasScreenshot, stressDesktopScreenshot, narrowScreenshot]
+      : [],
+    temporary_screenshots_removed: autoOutputDir !== null,
     console_errors: consoleErrors,
   };
   console.log(JSON.stringify(result, null, 2));
 
   const failed = [
     !realDiagnostics.hasVrmHumanoid,
-    realDiagnostics.normalizedPoseAxisMode !== "three-vrm-hierarchical-terminal-rest",
+    realDiagnostics.normalizedPoseAxisMode !== "three-vrm-portable-normalized",
     realDiagnostics.legacyTerminalSelfConjugationCount !== 0,
-    realDiagnostics.hierarchicalRestCorrectionMode !== "hierarchical-terminal-rest.v1",
-    realDiagnostics.hierarchicalRestCorrectionCount < 1,
-    realDiagnostics.hierarchicalRestCalibratedEdgeCount < 1,
-    !Number.isFinite(realDiagnostics.hierarchicalRestMaxErrorDeg),
-    realDiagnostics.hierarchicalRestMaxErrorDeg >= 0.1,
+    realDiagnostics.targetRestCorrectionCount !== 0,
     realDiagnostics.restFrameCorrectionCount !== 0,
     stressAnnotationCount > 0 && !diagnosticsAfter.anchorModes.includes("humanoid"),
     stressAnnotationCount > 0 && stressFixture.activeCount < stressAnnotationCount,
@@ -337,5 +378,10 @@ try {
   ].some(Boolean);
   if (failed) process.exitCode = 1;
 } finally {
-  await browser.close();
+  try {
+    await browser.close();
+  } finally {
+    cleanupAutoOutput();
+    process.removeListener("exit", cleanupAutoOutput);
+  }
 }

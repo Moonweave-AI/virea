@@ -1,0 +1,90 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: motioncraft-smplx
+  display_name: MotionCraft MC-Bench SMPL-X 322D
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/cure-lab/MotionCraft
+    revision: a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9
+    release: AAAI 2025
+  tasks:
+    - text_to_motion
+    - speech_to_gesture
+    - music_to_dance
+  adapter_family: motioncraft-smplx322
+  status: runnable_upstream
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+  - schema_version: virea.job_request.v1.0.0
+    task: speech_to_gesture
+    fields:
+      audio:
+        type: audio
+        required: true
+      transcript:
+        type: string
+        required: false
+  - schema_version: virea.job_request.v1.0.0
+    task: music_to_dance
+    fields:
+      audio:
+        type: audio
+        required: true
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: motionx.smplx322.v1
+  skeleton_id: motionx.smplx53.v1
+  fps: 30.0
+  coordinate_system: motionx.right_handed_y_up_profile_defined_forward
+  units: motionx_profile_defined_translation_units
+  root_translation_semantics: absolute_world_translation_at_features_309_to_312_with_subsource_scale_calibration_required
+  root_rotation_semantics: smplx_global_orient_axis_angle_at_features_0_to_3_local_to_world
+  face_representation_ids:
+    - smplx.expression50.v1
+runtime_variants: []
+artifacts:
+  - id: motioncraft-task-checkpoints
+    kind: manual
+    url: https://drive.google.com/drive/folders/1cY7JFtmqBEsI2R_UKcIzxcsLETw1OXwF
+    expected_files:
+      - text_to_motion_checkpoint
+      - speech_to_gesture_checkpoint
+      - music_to_dance_checkpoint
+  - id: motioncraft-evaluation-encoders
+    kind: manual
+    url: https://drive.google.com/drive/folders/1cy3tRnMpb1k-A3bX2rY4JlY8cMENPLZ2
+licenses:
+  code: Apache-2.0
+  weights: upstream_does_not_state_a_separate_weight_license
+  dataset_lineage:
+    - Motion-X
+    - HumanML3D
+    - BEAT2
+    - FineDance
+  body_model:
+    - SMPL-X license and model download terms apply
+  commercial_allowed: null
+  redistribution_allowed: null
+  requires_acceptance: true
+  source_urls:
+    - https://github.com/cure-lab/MotionCraft/blob/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9/LICENSE
+    - https://github.com/cure-lab/MotionCraft/blob/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9/README.md
+resources:
+  upstream_tested_python: "3.9"
+  upstream_tested_pytorch: 1.12.1
+  upstream_tested_cuda: "11.3"
+  required_libraries:
+    - mmcv
+    - tutel
+    - pytorch3d
+  native_feature_dim: 322
+  native_fps: 30.0
+notes:
+  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
+  - runnable_upstream is an upstream reproducibility statement only; the three task checkpoints have not been wrapped or run through VIREA's production end-to-end acceptance path.
+  - The 322D carrier has exact SMPL-X parameter slices, but translation scale is a Motion-X sub-source fact; conversion must fail closed when provenance is absent instead of assuming all sources are meters.

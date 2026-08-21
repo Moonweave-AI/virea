@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: smplx.expression50.v1
+version: 1.0.0
+kind: facial_expression_coefficients
+skeleton_id: motionx.smplx53.v1
+dtype: float32
+frame_shape: [50]
+rotation_representation: null
+rotation_layout: null
+rotation_space: null
+root_translation_semantics: not_applicable
+root_rotation_semantics: not_applicable
+coordinate_system_id: not_applicable
+units: dimensionless_coefficients
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/IDEA-Research/Motion-X
+  - https://github.com/vchoutas/smplx
+validation_status: source_verified

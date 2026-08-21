@@ -1,0 +1,245 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: mardm-humanml3d
+  display_name: MARDM SiT-XL HumanML3D
+  plugin_version: 0.2.0
+  upstream:
+    repository: https://github.com/neu-vi/MARDM
+    revision: 5e32b69723376028f38125ccee33011549cd341d
+    release: CVPR 2025
+  tasks:
+    - text_to_motion
+  adapter_family: mardm-ric67-body22
+  status: integrated_experimental
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+        maximum_length: 8000
+      motion_length_frames:
+        type: integer
+        required: false
+        minimum: 4
+        maximum: 196
+        multiple_of: 4
+      seconds:
+        type: number
+        required: false
+        minimum: 0.2
+        maximum: 9.8
+        multiple_of: 0.2
+      seed:
+        type: integer
+        default: 3407
+        minimum: 0
+        maximum: 2147483647
+      time_steps:
+        type: integer
+        default: 18
+        minimum: 1
+        maximum: 100
+      cfg:
+        type: number
+        default: 4.5
+        minimum: 0.0
+        maximum: 20.0
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: mardm.humanml3d.ric67.v1
+  skeleton_id: humanml3d.body22.v1
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward
+  units: meters
+  root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
+  root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: mardm-humanml3d-cu128
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 12.0
+    lockfile: uv.lock
+    min_storage_gib: 14.0
+    resource_profiles:
+      - id: cuda-full
+        strategy: cuda_full
+        min_free_vram_gib: 12.0
+        min_free_ram_gib: 16.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_mardm.worker
+    startup_timeout_seconds: 900
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/mardm-humanml3d/runtime-cu128
+    project_package: virea-model-mardm-humanml3d-cu128-runtime
+    project_version: 0.2.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_2_2_evidence_requires_reacceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: mardm-humanml3d-cpu
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 10.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 24.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_mardm.worker
+    startup_timeout_seconds: 1200
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/mardm-humanml3d/runtime-cpu
+    project_package: virea-model-mardm-humanml3d-cpu-runtime
+    project_version: 0.2.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cpu_contract_and_lock_baseline_only_real_inference_unverified
+artifacts:
+  - id: mardm-sit-xl
+    kind: huggingface
+    repository: cr8br0ze/MARDM_SiT_XL
+    revision: 6b9a9d6ea5456995e9883bda317e45ef111ecad3
+    allow_patterns:
+      - MARDM_SiT_XL.zip
+    expected_files:
+      - MARDM_SiT_XL.zip
+  - id: mardm-autoencoder-humanml3d
+    kind: huggingface
+    repository: cr8br0ze/AE_humanml3d
+    revision: 820463f243a39fe8d657c7216ac92f6fcbcb0c37
+    allow_patterns:
+      - AE_humanml3d.zip
+    expected_files:
+      - AE_humanml3d.zip
+  - id: mardm-length-estimator
+    kind: huggingface
+    repository: cr8br0ze/length_estimator
+    revision: af13da82bf96542c887d2bb60e93d3c79880a1ab
+    allow_patterns:
+      - length_estimator.zip
+    expected_files:
+      - length_estimator.zip
+  - id: mardm-source
+    kind: https
+    url: https://github.com/neu-vi/MARDM/archive/5e32b69723376028f38125ccee33011549cd341d.zip
+    revision: 5e32b69723376028f38125ccee33011549cd341d
+    expected_files:
+      - 5e32b69723376028f38125ccee33011549cd341d.zip
+  - id: openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files:
+      - ViT-B-32.pt
+licenses:
+  code: MIT
+  weights: MIT metadata on the three pinned MARDM Hugging Face repositories; OpenAI CLIP MIT
+  dataset_lineage:
+    - HumanML3D
+    - AMASS
+  body_model: []
+  commercial_allowed: true
+  redistribution_allowed: true
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/neu-vi/MARDM/blob/5e32b69723376028f38125ccee33011549cd341d/LICENSE.txt
+    - https://huggingface.co/cr8br0ze/MARDM_SiT_XL/tree/6b9a9d6ea5456995e9883bda317e45ef111ecad3
+    - https://huggingface.co/cr8br0ze/AE_humanml3d/tree/820463f243a39fe8d657c7216ac92f6fcbcb0c37
+    - https://huggingface.co/cr8br0ze/length_estimator/tree/af13da82bf96542c887d2bb60e93d3c79880a1ab
+    - https://github.com/openai/CLIP/blob/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6/LICENSE
+resources:
+  upstream_tested_python: 3.10.13
+  upstream_tested_pytorch: 2.2.0
+  upstream_tested_cuda: "12.1"
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0+cu128
+  preferred_model: MARDM-SiT-XL
+  upstream_inference_entrypoint: sample.py
+  native_feature_dim: 67
+  native_fps: 20.0
+  implementation: plugins/models/mardm-humanml3d/runtime/src/virea_mardm/worker.py
+  runtime_entrypoint: virea-model-mardm-humanml3d-worker
+  artifact_roots_environment: VIREA_ARTIFACT_ROOTS_JSON
+  cancellation: process_isolated_forced_termination_with_boundary_checks
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: mardm-humanml3d
+    task: text_to_motion
+    input:
+      prompt: A person walks forward and waves with the right hand.
+    parameters:
+      motion_length_frames: 80
+      seed: 3407
+      time_steps: 18
+      cfg: 4.5
+      fps: 20.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: mardm.humanml3d.ric67.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts:
+      - native_motion
+      - motion_ir
+      - retargeted_motion
+      - vrma
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 3600.0
+notes:
+  - The Worker imports the exact pinned upstream source archive and loads only the three exact checkpoint revisions plus the official OpenAI ViT-B/32 checkpoint; it never downloads during load or inference.
+  - The official MARDM constructor asserts CUDA availability only while preparing OpenAI CLIP and converts those weights to fp16. The shared Worker preserves that path for cuda_full and narrowly keeps AE, MARDM, length estimator, and CLIP weights in float32 for whole-model CPU execution; generation mathematics are unchanged.
+  - The Worker emits normalized RIC-67 together with the pinned upstream t2m evaluation mean and standard deviation required by the registered adapter. It does not invent the absent per-joint rotation stream.
+  - The existing generic CLI seconds parameter is accepted only when it maps exactly to 4-frame MARDM token increments at 20 FPS; callers may instead provide motion_length_frames, but never both.
+  - Temporal editing remains an upstream capability but is intentionally not declared by this Worker until its source-motion and edit-interval production path has separate real-checkpoint acceptance evidence.
+  - Windows RTX 5090 acceptance for job 01M0H4F7KXDM1BWRC47FCC1Z97 remains historical evidence for shared runtime package 0.2.2. The new 0.2.3 CUDA wrapper and CPU variant have contract/lock evidence only and require separate real-checkpoint acceptance.

@@ -1,0 +1,173 @@
+schema_version: virea.execution_target_registry.v1.0.0
+snapshot_date: '2026-08-22'
+status_vocabulary:
+  implemented: code path and deterministic contract tests exist
+  measured: resource detection was executed on the named platform
+  production-verified: a current Runtime wrapper completed doctor-to-browser acceptance
+  historical: an observation is retained for traceability but cannot promote the current Runtime wrapper
+  unverified: no same-platform hardware acceptance exists
+strategy_contracts:
+  cpu:
+    memory_strategy: cpu
+    runtime_spec_expressible: true
+    requires_worker_attestation: true
+  nvidia_cuda:
+    memory_strategies:
+      - cuda_full
+      - cuda_component_split
+      - cuda_cpu_offload
+      - cuda_sequential_cpu_offload
+    runtime_spec_expressible: true
+    requires_worker_attestation: true
+  apple_mps:
+    memory_strategy: mps_full
+    runtime_spec_expressible: true
+    requires_worker_attestation: true
+    current_model_worker_status: unimplemented
+  amd_rocm:
+    memory_strategy: rocm_full
+    runtime_spec_expressible: true
+    requires_worker_attestation: true
+    current_model_worker_status: unimplemented
+targets:
+  - id: windows-native
+    platform_ids: [win-64]
+    host_platform: windows
+    implementation:
+      detector: implemented
+      resolver: implemented
+      builder: implemented
+      worker: implemented
+    evidence:
+      status: unverified
+      validated_on: []
+      historical_observations:
+        - execution_target: windows-native
+          accelerator: nvidia
+          models: [flood-diffusion-tiny, momadiff-humanml3d, mardm-humanml3d, acmdm-humanml3d, cmdm-humanml3d]
+          evidence_scope: fresh-web-job-real-model-doctor-to-browser
+          doctor_to_browser: true
+          evidence_registry: registries/evidence/production-e2e.v1.yaml
+          evidence_ids:
+            - e2e-browser-flood-diffusion-tiny-20260821084140103-3292
+            - e2e-browser-momadiff-humanml3d-20260821084325940-15364
+            - e2e-browser-mardm-humanml3d-20260821080913573-55864
+            - e2e-browser-acmdm-humanml3d-20260821081301384-48528
+            - e2e-browser-cmdm-humanml3d-20260821081557740-44044
+          lifecycle: historical
+          promotion_eligible: false
+          reason: current_cuda_wrappers_require_reacceptance
+      inherited_from_other_targets: false
+    accelerators:
+      cpu: model-specific
+      nvidia: model-specific
+      rocm: unavailable
+      mps: unavailable
+  - id_pattern: 'wsl:<distribution>'
+    platform_ids: [linux-64, wsl2-x86_64]
+    host_platform: windows
+    implementation:
+      detector: implemented
+      resolver: implemented
+      builder: implemented
+      worker: implemented
+    evidence:
+      status: unverified
+      validated_on: []
+      historical_observations:
+        - execution_target: wsl:Ubuntu-24.04
+          accelerator: nvidia
+          models: [prism-tp2m-1-4b]
+          evidence_scope: fresh-web-job-real-model-doctor-to-browser
+          doctor_to_browser: true
+          evidence_registry: registries/evidence/production-e2e.v1.yaml
+          evidence_ids:
+            - e2e-browser-prism-tp2m-1-4b-20260821085331248-39264
+          lifecycle: historical
+          promotion_eligible: false
+          reason: current_cuda_wrapper_requires_reacceptance
+      inherited_from_other_targets: false
+    accelerators:
+      cpu: model-specific
+      nvidia: model-specific
+      rocm: unavailable
+      mps: unavailable
+  - id: linux-native
+    platform_ids: [linux-64]
+    host_platform: linux
+    implementation:
+      detector: implemented
+      resolver: implemented
+      builder: implemented
+      worker: implemented
+    evidence:
+      status: unverified
+      validated_on: []
+      inherited_from_other_targets: false
+    accelerators:
+      cpu: model-specific
+      nvidia: model-specific
+      rocm: model-specific-unimplemented
+      mps: unavailable
+  - id: macos-native
+    platform_ids: [osx-arm64, osx-64]
+    host_platform: macos
+    implementation:
+      detector: implemented
+      resolver: implemented
+      builder: implemented
+      worker: implemented
+    evidence:
+      status: unverified
+      validated_on: []
+      inherited_from_other_targets: false
+    accelerators:
+      cpu: model-specific
+      nvidia: unavailable
+      rocm: unavailable
+      mps: model-specific-unimplemented
+cpu_portability_baseline:
+  status: declared-locked-import-baseline
+  execution_targets: [windows-native, 'wsl:<distribution>', linux-native, macos-native]
+  platform_ids: [win-64, linux-64, osx-arm64, osx-64]
+  models: [flood-diffusion-tiny, momadiff-humanml3d, mardm-humanml3d, acmdm-humanml3d, cmdm-humanml3d, prism-tp2m-1-4b]
+  real_inference_verified: false
+  scope: RuntimeSpec declarations, reproducible locks, and isolated worker import contracts only
+model_capabilities:
+  flood-diffusion-tiny:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+  momadiff-humanml3d:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+  mardm-humanml3d:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+  acmdm-humanml3d:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+  cmdm-humanml3d:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+  prism-tp2m-1-4b:
+    cpu: declared-locked-import-baseline-win64-linux64-wsl-macos-real-inference-unverified
+    nvidia_cuda: historical-wrapper-needs-reacceptance
+    apple_mps: unimplemented
+    amd_rocm: unimplemented
+invariants:
+  resource_observations_are_domain_local: true
+  host_tools_cannot_satisfy_wsl_builds: true
+  detected_accelerator_does_not_imply_worker_support: true
+  unsupported_targets_require_actionable_remediation: true
+  model_evidence_is_execution_target_scoped: true
+  evidence_never_inherits_between_targets: true

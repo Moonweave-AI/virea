@@ -3,11 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMHumanBoneList, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import {
-  TERMINAL_PARENT,
-  buildTerminalRestPoseCorrections,
-  hierarchicalRestLocalRotation,
   normalizeQuatArray,
   normalizedLocalPoseRotation,
+  validateVrmMotionPayload,
   vrmSpecWorldAlignment,
 } from "./vrm-canonical-alignment.js";
 import {
@@ -185,13 +183,17 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     frame: 0,
     vrm: null,
     vrmWorldAlignment: null,
-    hierarchicalRestPose: null,
     staticScene: null,
     currentFileName: "",
     theme: "light",
     diagnosticsSignature: "",
     viewBounds: null,
     modelLoadGeneration: 0,
+    motionContract: {
+      supported: false,
+      errors: ["motion: no payload has been supplied"],
+      motion: null,
+    },
   };
   let resizeDirty = true;
   let renderWidth = 0;
@@ -234,6 +236,23 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     controls.update();
   }
 
+  function focusBone(boneName, distanceScale = 0.42) {
+    const node = state.vrm?.humanoid?.getRawBoneNode?.(boneName);
+    if (!node) return false;
+    state.vrm.scene.updateMatrixWorld(true);
+    const target = node.getWorldPosition(new THREE.Vector3());
+    const viewOffset = camera.position.clone().sub(controls.target);
+    if (viewOffset.lengthSq() < 1e-8) viewOffset.set(0, 0.1, 1);
+    const modelRadius = Number(state.viewBounds?.radius) || 0.8;
+    const distance = Math.max(0.12, modelRadius * Math.max(0.08, Number(distanceScale) || 0.42));
+    controls.target.copy(target);
+    camera.position.copy(target).add(viewOffset.normalize().multiplyScalar(distance));
+    camera.near = Math.min(camera.near, Math.max(0.003, distance / 100));
+    camera.updateProjectionMatrix();
+    controls.update();
+    return true;
+  }
+
   function clearCurrentModel() {
     // clearGroup owns disposal for attached scenes; disposing them before the
     // traversal would release the same GPU resources twice.
@@ -247,7 +266,6 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     canonicalRoot.quaternion.identity();
     state.vrm = null;
     state.vrmWorldAlignment = null;
-    state.hierarchicalRestPose = null;
     state.staticScene = null;
     state.currentFileName = "";
   }
@@ -514,38 +532,12 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     return alignment;
   }
 
-  function refreshHierarchicalRestPose() {
-    state.hierarchicalRestPose = null;
-    const restOffsets = state.motion?.rest_offsets;
-    if (!state.vrm?.humanoid || !restOffsets || !state.vrmWorldAlignment) return null;
-
-    // Capture the avatar's normalized rest geometry, not its current animated
-    // pose. Raw humanoid nodes are used here because they are the exact nodes
-    // ultimately driving the skin. Transforming them into motionRoot space
-    // removes root motion while retaining the VRM0/VRM1 canonicalRoot frame A.
-    state.vrm.humanoid.resetNormalizedPose?.();
-    if (typeof state.vrm.update === "function") state.vrm.update(0);
-    else state.vrm.humanoid.update?.();
-    motionRoot.updateMatrixWorld(true);
-    state.vrm.scene.updateMatrixWorld(true);
-
-    const canonicalToVrm = state.motion?.canonical_to_vrm || {};
-    const requiredBones = new Set([
-      ...Object.keys(TERMINAL_PARENT),
-      ...Object.values(TERMINAL_PARENT),
-    ]);
-    const targetCanonicalPositions = {};
-    for (const boneName of requiredBones) {
-      const vrmBoneName = canonicalToVrm[boneName] || boneName;
-      const node = state.vrm.humanoid.getRawBoneNode?.(vrmBoneName);
-      if (!node) continue;
-      const point = node.getWorldPosition(new THREE.Vector3());
-      motionRoot.worldToLocal(point);
-      targetCanonicalPositions[boneName] = [point.x, point.y, point.z];
-    }
-    const result = buildTerminalRestPoseCorrections(restOffsets, targetCanonicalPositions);
-    if (result.correctionCount > 0) state.hierarchicalRestPose = result;
-    return state.hierarchicalRestPose;
+  function clearAppliedVrmMotion() {
+    motionRoot.position.set(0, 0, 0);
+    motionRoot.quaternion.identity();
+    state.vrm?.humanoid?.resetNormalizedPose?.();
+    if (typeof state.vrm?.update === "function") state.vrm.update(0);
+    else state.vrm?.humanoid?.update?.();
   }
 
   function poseObjectFromFrame(frame) {
@@ -560,14 +552,9 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
-      const semanticRotation = hierarchicalRestLocalRotation(
-        rotation,
-        boneName,
-        state.hierarchicalRestPose?.globalCorrections,
-      );
       pose[vrmBoneName] = {
         rotation: normalizedLocalPoseRotation(
-          semanticRotation,
+          rotation,
           state.vrmWorldAlignment?.alignment_quaternion || null,
         ),
       };
@@ -578,14 +565,9 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       const rotation = rotation0 ? slerpQuatArrays(rotation0, rotation1, blend.alpha) : null;
       if (!rotation) return;
       const vrmBoneName = canonicalToVrm[boneName] || boneName;
-      const semanticRotation = hierarchicalRestLocalRotation(
-        rotation,
-        boneName,
-        state.hierarchicalRestPose?.globalCorrections,
-      );
       pose[vrmBoneName] = {
         rotation: normalizedLocalPoseRotation(
-          semanticRotation,
+          rotation,
           state.vrmWorldAlignment?.alignment_quaternion || null,
         ),
       };
@@ -649,11 +631,15 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
         canonicalRoot.add(vrm.scene);
         state.vrm = vrm;
         applyVrmCanonicalWorldAlignment(vrm);
-        refreshHierarchicalRestPose();
         applyFrame();
         const boneCount = VRMHumanBoneList.filter((boneName) => vrm.humanoid?.getRawBoneNode?.(boneName)).length;
-        const aligned = state.vrmWorldAlignment ? "aligned to processed VRM rest" : "loaded without rest alignment";
-        setStatus(`${file.name} loaded as VRM. Humanoid bones: ${boneCount}; ${aligned}. Annotation markers follow raw humanoid bone world nodes. Drag to orbit; wheel to zoom.`);
+        if (state.motionContract.supported) {
+          const aligned = state.vrmWorldAlignment ? "using portable normalized pose" : "loaded without world alignment";
+          setStatus(`${file.name} loaded as VRM. Humanoid bones: ${boneCount}; ${aligned}. Annotation markers follow raw humanoid bone world nodes. Drag to orbit; wheel to zoom.`);
+        } else {
+          const reason = state.motionContract.errors[0] || "motion contract validation failed";
+          setStatus(`${file.name} loaded as VRM, but motion playback is disabled: unsupported motion payload (${reason}).`);
+        }
       } else {
         fitStaticScene(gltf.scene);
         staticRoot.add(gltf.scene);
@@ -672,25 +658,37 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
   }
 
   function setMotionPayload(payload) {
+    const contract = validateVrmMotionPayload(payload);
     state.payload = payload || null;
-    state.motion = payload?.motion || null;
+    state.motionContract = contract;
+    state.motion = contract.motion;
     state.frame = 0;
     applyVrmCanonicalWorldAlignment(state.vrm);
-    refreshHierarchicalRestPose();
+    if (!contract.supported) {
+      clearAppliedVrmMotion();
+      updateAnnotationMarkers();
+      resetView();
+      const reason = contract.errors[0] || "motion contract validation failed";
+      const remaining = Math.max(0, contract.errors.length - 1);
+      setStatus(
+        `Unsupported motion payload; VRM playback is disabled. ${reason}`
+        + (remaining ? ` (+${remaining} additional contract error${remaining === 1 ? "" : "s"})` : ""),
+      );
+      return contract;
+    }
     applyFrame();
     resetView();
-    if (!state.motion) {
-      setStatus("Processed preview loaded, but no VRM motion payload is available.");
-    } else {
-      const report = continuityReport(payload);
-      const breaks = continuityBreakFrames(report, state.motion.frame_count);
-      if (breaks.length) {
-        setStatus(
-          `Motion has ${breaks.length} declared discontinuity boundary/boundaries before frame(s) ${breaks.join(", ")}. `
-          + "VRM playback holds the last source frame and never interpolates or smooths across a boundary.",
-        );
-      }
+    const report = continuityReport(payload);
+    const breaks = continuityBreakFrames(report, state.motion.frame_count);
+    if (breaks.length) {
+      setStatus(
+        `Motion has ${breaks.length} declared discontinuity boundary/boundaries before frame(s) ${breaks.join(", ")}. `
+        + "VRM playback holds the last source frame and never interpolates or smooths across a boundary.",
+      );
+    } else if (state.vrm) {
+      setStatus("Canonical v2 normalized-pose motion contract accepted; VRM playback is enabled.");
     }
+    return contract;
   }
 
   function setFrame(frame) {
@@ -716,24 +714,20 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
   }
 
   function getDiagnostics() {
-    const terminalRest = state.hierarchicalRestPose;
     return {
       markerPoolSize: state.markerPool.length,
       visibleMarkerCount: state.markerPool.filter((entry) => entry.group.visible).length,
       textureCreateCount: state.textureCreateCount,
       anchorModes: [...new Set(state.markerSpecs.map((spec) => spec.anchorMode).filter(Boolean))],
       hasVrmHumanoid: Boolean(state.vrm?.humanoid),
-      normalizedPoseAxisMode: terminalRest
-        ? "three-vrm-hierarchical-terminal-rest"
-        : "three-vrm-portable",
+      normalizedPoseAxisMode: state.motionContract.supported
+        ? "three-vrm-portable-normalized"
+        : "unsupported-motion-contract",
+      motionContractSupported: state.motionContract.supported,
+      motionContractErrors: [...state.motionContract.errors],
       legacyTerminalSelfConjugationCount: 0,
-      hierarchicalRestCorrectionMode: terminalRest?.mode || "none",
-      hierarchicalRestCorrectionCount: terminalRest?.correctionCount || 0,
-      hierarchicalRestCalibratedEdgeCount: terminalRest?.calibratedEdgeCount || 0,
-      hierarchicalRestMaxErrorDeg: terminalRest?.maxCalibratedErrorDeg ?? null,
-      hierarchicalRestMissingBones: terminalRest?.missingBones || [],
-      // Deprecated compatibility field: this remains the count of the removed
-      // per-bone self-conjugation path, not the new hierarchical correction.
+      targetRestCorrectionCount: 0,
+      // Deprecated compatibility field for the older per-bone correction.
       restFrameCorrectionCount: 0,
       hasStaticGlbFallback: Boolean(state.staticScene),
       frame: state.frame,
@@ -751,11 +745,10 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
       diagnostics.anchorModes.join(","),
       diagnostics.hasVrmHumanoid,
       diagnostics.normalizedPoseAxisMode,
+      diagnostics.motionContractSupported,
+      diagnostics.motionContractErrors.join(";"),
       diagnostics.legacyTerminalSelfConjugationCount,
-      diagnostics.hierarchicalRestCorrectionMode,
-      diagnostics.hierarchicalRestCorrectionCount,
-      diagnostics.hierarchicalRestCalibratedEdgeCount,
-      diagnostics.hierarchicalRestMaxErrorDeg,
+      diagnostics.targetRestCorrectionCount,
       diagnostics.restFrameCorrectionCount,
     ].join("|");
     if (signature === state.diagnosticsSignature) return;
@@ -766,13 +759,10 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
     canvas.dataset.anchorModes = diagnostics.anchorModes.join(",");
     canvas.dataset.hasVrmHumanoid = String(diagnostics.hasVrmHumanoid);
     canvas.dataset.normalizedPoseAxisMode = diagnostics.normalizedPoseAxisMode;
+    canvas.dataset.motionContractSupported = String(diagnostics.motionContractSupported);
+    canvas.dataset.motionContractErrors = diagnostics.motionContractErrors.join("; ");
     canvas.dataset.legacyTerminalSelfConjugationCount = String(diagnostics.legacyTerminalSelfConjugationCount);
-    canvas.dataset.hierarchicalRestCorrectionMode = diagnostics.hierarchicalRestCorrectionMode;
-    canvas.dataset.hierarchicalRestCorrectionCount = String(diagnostics.hierarchicalRestCorrectionCount);
-    canvas.dataset.hierarchicalRestCalibratedEdgeCount = String(diagnostics.hierarchicalRestCalibratedEdgeCount);
-    canvas.dataset.hierarchicalRestMaxErrorDeg = diagnostics.hierarchicalRestMaxErrorDeg == null
-      ? ""
-      : String(diagnostics.hierarchicalRestMaxErrorDeg);
+    canvas.dataset.targetRestCorrectionCount = String(diagnostics.targetRestCorrectionCount);
     canvas.dataset.restFrameCorrectionCount = String(diagnostics.restFrameCorrectionCount);
   }
 
@@ -815,5 +805,5 @@ export function createVrmViewer({ canvas, statusEl, fileInput, resetButton }) {
   resetView();
   window.requestAnimationFrame(render);
 
-  return { loadModel, resetView, setMotionPayload, setFrame, setTheme, setAnnotations, setChannels, setShowHands, getDiagnostics };
+  return { loadModel, resetView, focusBone, setMotionPayload, setFrame, setTheme, setAnnotations, setChannels, setShowHands, getDiagnostics };
 }

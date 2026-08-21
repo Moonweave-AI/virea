@@ -1,0 +1,287 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: acmdm-humanml3d
+  display_name: ACMDM-S-PS22 HumanML3D Absolute XYZ
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/neu-vi/ACMDM
+    revision: 25ed4ba22fb54d9c3e99361609ee344e7c940303
+    release: arXiv 2025
+  tasks:
+    - text_to_motion
+  adapter_family: joint-positions-body22
+  status: integrated_experimental
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+        maximum_length: 8000
+      motion_length_frames:
+        type: integer
+        required: false
+        minimum: 40
+        maximum: 196
+        multiple_of: 4
+      seconds:
+        type: number
+        required: false
+        minimum: 2.0
+        maximum: 9.8
+        multiple_of: 0.2
+      seed:
+        type: integer
+        default: 3407
+        minimum: 0
+        maximum: 2147483647
+      cfg:
+        type: number
+        default: 3.0
+        minimum: 0.0
+        maximum: 20.0
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: humanml3d.body22.positions.v1
+  skeleton_id: humanml3d.body22.v1
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward_global
+  units: meters
+  root_translation_semantics: absolute_xyz_is_joint_0_in_every_frame
+  root_rotation_semantics: not_provided_absolute_joint_positions_only
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: acmdm-humanml3d-cu128
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 6.0
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - id: cuda-full
+        strategy: cuda_full
+        min_free_vram_gib: 6.0
+        min_free_ram_gib: 8.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_acmdm.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/acmdm-humanml3d/runtime-cu128
+    project_package: virea-model-acmdm-humanml3d-cu128-runtime
+    project_version: 0.1.4
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_3_evidence_requires_reacceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: acmdm-humanml3d-cpu
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 12.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_acmdm.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/acmdm-humanml3d/runtime-cpu
+    project_package: virea-model-acmdm-humanml3d-cpu-runtime
+    project_version: 0.1.4
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cpu_contract_and_lock_baseline_only_real_inference_unverified
+artifacts:
+  - id: acmdm-flow-s-patchsize22
+    kind: huggingface
+    repository: cr8br0ze/ACMDM_Flow_S_PatchSize22
+    revision: f7b77ecb16968afb0329a4a706978780843a1fc9
+    allow_patterns:
+      - ACMDM_Flow_S_PatchSize22.zip
+    expected_files:
+      - ACMDM_Flow_S_PatchSize22.zip
+  - id: acmdm-ae-2d-causal
+    kind: huggingface
+    repository: cr8br0ze/AE_2D_Causal
+    revision: 78bbd7fc5ec129a6c74812d542892939261a984f
+    allow_patterns:
+      - AE_2D_Causal.zip
+    expected_files:
+      - AE_2D_Causal.zip
+  - id: acmdm-source
+    kind: https
+    url: https://github.com/neu-vi/ACMDM/archive/25ed4ba22fb54d9c3e99361609ee344e7c940303.zip
+    revision: 25ed4ba22fb54d9c3e99361609ee344e7c940303
+    expected_files:
+      - 25ed4ba22fb54d9c3e99361609ee344e7c940303.zip
+  - id: openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files:
+      - ViT-B-32.pt
+licenses:
+  code: MIT
+  weights: MIT metadata on both pinned official ACMDM Hugging Face repositories; OpenAI CLIP MIT
+  dataset_lineage:
+    - HumanML3D
+    - AMASS
+  body_model: []
+  commercial_allowed: true
+  redistribution_allowed: true
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/neu-vi/ACMDM/blob/25ed4ba22fb54d9c3e99361609ee344e7c940303/LICENSE
+    - https://huggingface.co/cr8br0ze/ACMDM_Flow_S_PatchSize22/tree/f7b77ecb16968afb0329a4a706978780843a1fc9
+    - https://huggingface.co/cr8br0ze/AE_2D_Causal/tree/78bbd7fc5ec129a6c74812d542892939261a984f
+    - https://github.com/openai/CLIP/blob/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6/LICENSE
+resources:
+  upstream_tested_python: 3.10.13
+  upstream_tested_pytorch: 2.2.0
+  upstream_tested_cuda: "12.1"
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0+cu128
+  blackwell_runtime_policy: current_pytorch_cu128_not_upstream_torch_2_2
+  preferred_model: ACMDM-Flow-S-PatchSize22
+  upstream_inference_entrypoint: evaluation_ACMDM.py
+  native_shape: T_x_22_x_3
+  native_fps: 20.0
+  model_parameter_count_without_clip: 39094184
+  autoencoder_parameter_count: 17076743
+  model_archive_bytes: 290192456
+  autoencoder_archive_bytes: 187332448
+  model_checkpoint_member: ACMDM_Flow_S_PatchSize22/model/latest.tar
+  autoencoder_checkpoint_member: AE_2D_Causal/model/latest.tar
+  implementation: plugins/models/acmdm-humanml3d/runtime/src/virea_acmdm/worker.py
+  artifact_roots_environment: VIREA_ARTIFACT_ROOTS_JSON
+  memory_floor_status: calibrated_fixed_and_maximum_request_on_win64_rtx5090
+  memory_floor_calibration:
+    schema_version: virea.runtime_memory_floor_calibration.v1.0.0
+    calibrated_at: "2026-08-21"
+    scope:
+      platform: win-64
+      accelerator: NVIDIA GeForce RTX 5090 Laptop GPU
+      device_uuid_redacted: true
+      runtime_id: acmdm-humanml3d-cu128
+      runtime_project_package: virea-model-acmdm-humanml3d-runtime
+      runtime_project_version: 0.1.3
+      runtime_core_epoch: virea-runtime-core-20260821.2
+      python_version: "3.11"
+      torch_version: 2.11.0+cu128
+      torch_cuda_version: "12.8"
+      memory_strategy: cuda_full
+    observations:
+      - request_scope: production_acceptance_80_frames
+        doctor_report_id: 01M0J26ZC4NXVWD4J3FQPHNF75
+        job_id: 01M0J2AKYNW53B285ZHJ55NBK1
+        result_id: 01M0J2BP0W0Z5XSRPQPG443CZ7
+        model_result_locator: results/01M0J2BP0W0Z5XSRPQPG443CZ7/model-result.json
+        generation_metadata_locator: jobs/01M0J2AKYNW53B285ZHJ55NBK1/staging/generation_metadata.json
+        frame_count: 80
+      - request_scope: manifest_maximum_196_frames
+        doctor_report_id: 01M0J26ZC4NXVWD4J3FQPHNF75
+        job_id: 01M0J2Q7GXAR4YBH2ZH1670JZS
+        result_id: 01M0J2QP7TCM2AD7VCD4EAZSRN
+        model_result_locator: results/01M0J2QP7TCM2AD7VCD4EAZSRN/model-result.json
+        generation_metadata_locator: jobs/01M0J2Q7GXAR4YBH2ZH1670JZS/staging/generation_metadata.json
+        frame_count: 196
+    observed_maxima:
+      process_peak_rss_bytes: 2552532992
+      system_ram_available_drop_peak_bytes: 1540747264
+      cuda_max_memory_allocated_bytes: 673024512
+      cuda_max_memory_reserved_bytes: 687865856
+      cuda_device_free_drop_bytes: 759169024
+    floor_formula:
+      ram_observed_basis_bytes: 2552532992
+      cuda_observed_basis_bytes: 759169024
+      headroom_policy: max_2_gib_or_20_percent
+      ram_headroom_bytes: 2147483648
+      cuda_headroom_bytes: 2147483648
+      derived_min_free_ram_gib: 5
+      derived_min_free_vram_gib: 3
+      registered_min_free_ram_gib: 8
+      registered_min_free_vram_gib: 6
+      floors_not_reduced: true
+    portability:
+      cpu_profile_extrapolated: false
+      other_platforms_or_gpus_extrapolated: false
+      admission_rechecks_current_free_resources: true
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: acmdm-humanml3d
+    task: text_to_motion
+    input:
+      prompt: A person walks forward, turns left, and waves with the right hand.
+    parameters:
+      motion_length_frames: 80
+      seed: 3407
+      cfg: 3.0
+      fps: 20.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: humanml3d.body22.positions.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts:
+      - native_motion
+      - motion_ir
+      - retargeted_motion
+      - vrma
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 3600.0
+notes:
+  - "The Worker follows the released joint-level ACMDM-S-PS22 evaluation path exactly: linear flow matching with velocity prediction, default Dopri5 ODE sampling, latent inverse normalization, Causal-AE decoding, and XYZ inverse normalization."
+  - "The native artifact is finite float32 [T,22,3] absolute global HumanML3D joint positions. Rotations are not invented; the downstream adapter must explicitly derive a target rotation stream from positions."
+  - "The released ACMDM constructor asserts CUDA availability only while preparing OpenAI CLIP and converts those weights to fp16. The shared Worker preserves that path for cuda_full and narrowly keeps CLIP/model weights in float32 for whole-model CPU execution; generation and ODE mathematics are unchanged."
+  - "The official README leaves its text-to-motion demo marked To be implemented, but releases evaluation code and the two exact pretrained archives used here. The VIREA Worker extracts only that released inference path and performs no dataset/evaluator download."
+  - "This plugin covers joint-level ACMDM-S-PS22 only. Prefix autoregression, ControlNet, raw-joint, XL, and mesh variants require separate artifacts, contracts, and production acceptance."
+  - "The Win64 / RTX 5090 acceptance and calibration remain historical evidence for runtime package 0.1.3. The new 0.1.4 CUDA wrapper and CPU variant have contract/lock evidence only and require separate real-checkpoint acceptance."

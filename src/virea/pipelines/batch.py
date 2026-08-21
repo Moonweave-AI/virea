@@ -9,8 +9,7 @@ from typing import Any, Callable, Literal
 
 from virea.data.registry import DatasetRegistry
 from virea.data.types import SampleRef
-from virea.pipelines.artifacts import artifact_paths
-from virea.pipelines.artifacts import motion_uid
+from virea.pipelines.artifacts import artifact_paths, motion_uid
 from virea.pipelines.processing import ProcessingPipeline
 from virea.reporting import sanitize_report_paths
 
@@ -47,19 +46,21 @@ class BatchReport:
     items: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return sanitize_report_paths({
-            "schema_version": self.schema_version,
-            "data_source": self.data_source,
-            "processed_root": self.processed_root,
-            "workers": self.workers,
-            "total": self.total,
-            "processed": self.processed,
-            "skipped": self.skipped,
-            "failed": self.failed,
-            "elapsed_sec": round(self.elapsed_sec, 3),
-            "passed": self.failed == 0,
-            "items": self.items,
-        })
+        return sanitize_report_paths(
+            {
+                "schema_version": self.schema_version,
+                "data_source": self.data_source,
+                "processed_root": self.processed_root,
+                "workers": self.workers,
+                "total": self.total,
+                "processed": self.processed,
+                "skipped": self.skipped,
+                "failed": self.failed,
+                "elapsed_sec": round(self.elapsed_sec, 3),
+                "passed": self.failed == 0,
+                "items": self.items,
+            }
+        )
 
 
 def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
@@ -79,21 +80,32 @@ def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
         frame_count = int(
             clip.sample.frame_count
             or next(
-                (int(v.shape[0]) for v in clip.motion.values() if hasattr(v, "shape") and len(v.shape) >= 1),
+                (
+                    int(v.shape[0])
+                    for v in clip.motion.values()
+                    if hasattr(v, "shape") and len(v.shape) >= 1
+                ),
                 1,
             )
         )
         if max_frames:
             frame_count = min(frame_count, int(max_frames))
         uid = motion_uid(dataset, sample_id, frame_count)
-        paths = artifact_paths(registry.paths.processed_root, registry.paths.processing_version, dataset, uid)
+        paths = artifact_paths(
+            registry.paths.processed_root,
+            registry.paths.processing_version,
+            dataset,
+            uid,
+        )
         if skip_existing and not force and paths.exists():
             valid, _errors = pipeline.validate_existing(clip, paths)
             if valid:
                 quality: dict[str, Any] = {}
                 if paths.quality_report.exists():
                     try:
-                        quality = json.loads(paths.quality_report.read_text(encoding="utf-8"))
+                        quality = json.loads(
+                            paths.quality_report.read_text(encoding="utf-8")
+                        )
                     except Exception:
                         pass
                 return {
@@ -103,8 +115,12 @@ def _worker_process_sample(payload: dict[str, Any]) -> dict[str, Any]:
                     "frame_count": frame_count,
                     "quality": quality,
                     "files": {
-                        "source_snapshot": paths.source_snapshot.relative_to(registry.paths.processed_root).as_posix(),
-                        "canonical_manifest": paths.canonical_manifest.relative_to(registry.paths.processed_root).as_posix(),
+                        "source_snapshot": paths.source_snapshot.relative_to(
+                            registry.paths.processed_root
+                        ).as_posix(),
+                        "canonical_manifest": paths.canonical_manifest.relative_to(
+                            registry.paths.processed_root
+                        ).as_posix(),
                     },
                     "elapsed_sec": 0.0,
                 }
@@ -144,11 +160,19 @@ class BatchPipeline:
         limit_per_dataset: int | None = None,
     ) -> list[ProcessingTask]:
         keys = datasets or self.registry.keys()
-        limit = limit_per_dataset if limit_per_dataset and limit_per_dataset > 0 else 1_000_000_000
+        limit = (
+            limit_per_dataset
+            if limit_per_dataset and limit_per_dataset > 0
+            else 1_000_000_000
+        )
         tasks: list[ProcessingTask] = []
         for dataset in keys:
-            for sample in self.registry.adapter(dataset).discover(limit=limit, query=query):
-                tasks.append(ProcessingTask(dataset=dataset, sample_id=sample.sample_id))
+            for sample in self.registry.adapter(dataset).discover(
+                limit=limit, query=query
+            ):
+                tasks.append(
+                    ProcessingTask(dataset=dataset, sample_id=sample.sample_id)
+                )
         return tasks
 
     def run(
@@ -193,7 +217,9 @@ class BatchPipeline:
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 future_map = {
                     executor.submit(_worker_process_sample, payload): (index, task)
-                    for index, (payload, task) in enumerate(zip(payloads, tasks), start=1)
+                    for index, (payload, task) in enumerate(
+                        zip(payloads, tasks), start=1
+                    )
                 }
                 for future in as_completed(future_map):
                     index, task = future_map[future]

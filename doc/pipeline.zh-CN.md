@@ -22,41 +22,43 @@
 ```bash
 git clone git@github.com:Moonweave-AI/virea.git
 cd virea
-uv sync --extra dev
-npm ci
+export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/legacy-dev-venv"
+uv sync --locked --extra dev
 ```
 
 <details>
-<summary><strong>Windows PowerShell（标准 venv）</strong></summary>
+<summary><strong>Windows PowerShell（无 uv 时的仓库外 venv）</strong></summary>
 
 ```powershell
 git clone git@github.com:Moonweave-AI/virea.git
 Set-Location virea
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+$devEnv = "$env:LOCALAPPDATA\VIREA\legacy-dev-venv"
+python -m venv $devEnv
+& "$devEnv\Scripts\Activate.ps1"
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-npm ci
 ```
 
 </details>
 
 <details>
-<summary><strong>macOS / Linux（标准 venv）</strong></summary>
+<summary><strong>macOS / Linux（无 uv 时的仓库外 venv）</strong></summary>
 
 ```bash
 git clone git@github.com:Moonweave-AI/virea.git
 cd virea
-python3 -m venv .venv
-source .venv/bin/activate
+dev_env="${XDG_DATA_HOME:-$HOME/.local/share}/virea/legacy-dev-venv"
+python3 -m venv "$dev_env"
+source "$dev_env/bin/activate"
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-npm ci
 ```
 
 </details>
 
-没有 uv 时仍可用标准 venv/pip；该路径遵守 `pyproject.toml` 的版本范围，但不保证与锁文件逐包一致。`npm ci` 必须成功，否则 Viewer 对 Three.js 与 three-vrm 的请求会失败。
+没有 uv 时仍可用仓库外 venv/pip；该路径遵守 `pyproject.toml` 的版本范围，但不保证与锁文件逐包一致。
+普通生产部署使用 wheel 内置的 Web 资源，不需要在 checkout 安装 Node 依赖。只有修改 legacy Viewer 或录制
+Showcase 的开发者才运行 `npm ci`；其 `node_modules` 是可删除的开发缓存，绝不进入发布制品。
 
 录制 Showcase 时再安装浏览器：
 
@@ -254,7 +256,7 @@ python scripts/check_docs.py
 $env:VIREA_QA_BASE_URL = "http://127.0.0.1:8000"
 $env:VIREA_VRM_PATH = "<local-avatar.vrm>"
 $env:VIREA_QA_BROWSER_PATH = "<installed-browser.exe>"   # Playwright 已装 Chromium 时可省略
-$env:VIREA_QA_OUTPUT_DIR = (Join-Path (Resolve-Path ".") "qa-evidence")  # 可选
+$env:VIREA_QA_OUTPUT_DIR = (Join-Path $env:LOCALAPPDATA "VIREA\qa-evidence\legacy-viewer")
 npm run qa:vrm
 ```
 
@@ -266,13 +268,14 @@ npm run qa:vrm
 ```bash
 export VIREA_QA_BASE_URL="http://127.0.0.1:8000"
 export VIREA_VRM_PATH="<local-avatar.vrm>"
-export VIREA_QA_OUTPUT_DIR="$(pwd)/qa-evidence"  # 可选
+export VIREA_QA_OUTPUT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/virea/qa-evidence/legacy-viewer"
 npm run qa:vrm
 ```
 
 </details>
 
-默认截图写入项目内的进程级运行目录并在脚本退出时清除；只有需要保留验收证据时才设置 `VIREA_QA_OUTPUT_DIR`。
+未显式设置时，截图写入系统临时目录（或外部 `VIREA_HOME/tmp`）的进程级目录并在脚本退出时清除；
+需要保留验收证据时，把 `VIREA_QA_OUTPUT_DIR` 指向 checkout 外的证据目录。
 
 该脚本默认先预热 30 秒，再构造至少 100 条同时 active 的 annotation，连续执行 3 轮 10 秒测量，以三轮最坏 p95 < 20 ms 为通过条件。它同时核验精确 sample、真实 humanoid bone、marker/texture 池不增长、Long Task、CDP task/script/layout/style/heap 指标、760 px 布局与浏览器 console。
 
@@ -282,8 +285,8 @@ npm run qa:vrm
 **读写烟测：**
 
 ```bash
-python scripts/smoke_pipeline.py --data-source demo --max-frames 8
-python scripts/smoke_pipeline.py --data-source full --max-frames 8
+python scripts/validate_preview_pipeline.py --data-source demo --max-frames 8
+python scripts/validate_preview_pipeline.py --data-source full --max-frames 8
 ```
 
 正式验收按 [分层清单](validation.zh-CN.md) 记录每一层；被 skip 的数据集仍然是未验证。

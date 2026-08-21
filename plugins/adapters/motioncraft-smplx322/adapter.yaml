@@ -1,0 +1,116 @@
+schema_version: virea.adapter_family.v1.0.0
+id: motioncraft-smplx322
+display_name: MotionCraft Motion-X SMPL-X 322D parameter carrier
+source_models:
+  - motioncraft-smplx
+implementation_status: pinned_upstream_contract_adapter_implemented
+support_status: runnable_upstream
+native_profile:
+  representation_id: motionx.smplx322.v1
+  carrier: dense_float_tensor
+  shape: [T, 322]
+  dtype: float32
+  fps:
+    mode: fixed
+    value: 30.0
+  coordinate_system:
+    id: motionx.right_handed_y_up_profile_defined_forward
+    handedness: right
+    up_axis: positive_y
+    warning: world_forward_and_translation_scale_are_subsource_profile_facts
+  units:
+    rotations: axis_angle_radians
+    expression_and_shape: dimensionless_coefficients
+    translation: motionx_subsource_profile_defined
+  translation_profiles:
+    motionx.metric_y_up:
+      scale_to_meters: 1.0
+      flip_z: false
+    motionx.aist_94unit_z_flip:
+      scale_to_meters: 0.010638297872340425
+      flip_z: true
+  fields:
+    - name: global_orient
+      slice: [0, 3]
+      shape: [T, 1, 3]
+      semantics: SMPL-X_root_axis_angle_local_to_world
+    - name: body_pose
+      slice: [3, 66]
+      shape: [T, 21, 3]
+      semantics: SMPL-X_parent_local_axis_angle
+    - name: hand_pose
+      slice: [66, 156]
+      shape: [T, 30, 3]
+      semantics: left_15_then_right_15_SMPL-X_parent_local_axis_angle
+    - name: jaw_pose
+      slice: [156, 159]
+      shape: [T, 1, 3]
+      semantics: parent_local_axis_angle
+    - name: expression
+      slice: [159, 209]
+      shape: [T, 50]
+    - name: face_shape
+      slice: [209, 309]
+      shape: [T, 100]
+    - name: transl
+      slice: [309, 312]
+      shape: [T, 3]
+      semantics: absolute_world_root_translation_in_the_declared_subsource_profile
+    - name: betas
+      slice: [312, 322]
+      shape: [T, 10]
+      semantics: body_shape_coefficients_normally_constant_across_time
+root_semantics:
+  translation:
+    kind: absolute
+    source_slice: [309, 312]
+    integration: none
+    required_provenance: motionx_subsource_and_translation_calibration_rule
+  rotation:
+    kind: explicit_global_orient
+    source_slice: [0, 3]
+    encoding: axis_angle_radians
+output_profile:
+  representation_id: virea.canonical211.v3
+  skeleton_id: vrm1.humanoid52.v1
+  fps: 30.0
+  frame_shape: [T, 211]
+  rotation_representation: quaternion_xyzw
+  rotation_layout: xyzw
+  units: meters
+  fields:
+    - name: root_translation_m
+      slice: [0, 3]
+      shape: [T, 3]
+    - name: humanoid_joint_quaternion_xyzw
+      slice: [3, 211]
+      shape: [T, 52, 4]
+  preserved_native_artifacts:
+    - expression50
+    - face_shape100
+    - betas10
+conversion:
+  required_steps:
+    - denormalize_with_the_task_checkpoint_specific_MC-Bench_statistics
+    - unpack_the_exact_322D_slices_without_reordering_left_and_right_hands
+    - insert_identity_eye_rotations_to_form_the_55_joint_SMPL-X_fullpose
+    - apply_only_the_translation_calibration_declared_by_the_source_profile
+  prohibited_shortcuts:
+    - assume_all_Motion-X_subsources_share_translation_units
+    - reinterpret_axis_angle_as_6D_rotation
+    - discard_expression_or_shape_without_preserving_the_native_artifact
+validation:
+  exact_feature_width: 322
+  reject_non_finite: true
+  require_fps: 30.0
+  require_subsource_translation_profile: true
+  betas_temporal_constancy: warn_if_variant
+official_sources:
+  - repository: https://github.com/cure-lab/MotionCraft
+    revision: a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9
+    path: README.md
+  - repository: https://github.com/IDEA-Research/Motion-X
+    role: smplx_322_representation_origin
+notes:
+  - The field layout is exact; world forward and translation calibration remain profile-specific and therefore fail closed until model-output provenance is attached.
+  - The VIREA compatibility adapter requires checkpoint statistics and an explicit translation subsource profile, rejects non-30-FPS or non-finite carriers, and preserves expression, face-shape, and betas native artifacts; no upstream checkpoint golden or Worker production acceptance exists yet.

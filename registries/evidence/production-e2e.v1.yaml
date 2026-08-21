@@ -1,0 +1,394 @@
+schema_version: virea.production_e2e_registry.v1.1.0
+snapshot_date: '2026-08-22'
+promotion_policy:
+  policy_version: virea.production_e2e_promotion_policy.v1.1.0
+  accepted_evidence_schema: virea.production_e2e_evidence.v1.1.0
+  accepted_validator: virea.production_e2e_evidence_validator.v1.1.0
+  ordinary_client_report_eligible: false
+  browser_observation_alone_eligible: false
+  historical_records_eligible: false
+  superseded_records_eligible: false
+  runtime_wrapper_identity_must_match_current: true
+  single_validated_run_maximum_model_status: integrated_experimental
+  supported_status_requires_release_policy_review: true
+  evidence_payloads_and_screenshots_live_outside_checkout: true
+collection_provenance:
+  control_plane_version: '0.4.0'
+  control_plane_source_kind: dirty_workspace_source_checkout
+  source_revision: null
+  release_artifact_verified: false
+  qualification: technical_source_candidate
+records: []
+historical_records:
+  - evidence_id: e2e-browser-mardm-humanml3d-20260821080913573-55864
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:10:18.726509+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: mardm-humanml3d
+      plugin_version: 0.2.0
+      upstream_revision: 5e32b69723376028f38125ccee33011549cd341d
+    runtime:
+      id: mardm-humanml3d-cu128
+      execution_domain: {id: windows-native, kind: windows-native, platform: win-64, architecture: amd64}
+      resource_profile_id: cuda-full
+      memory_strategy: cuda_full
+      device: 'cuda:NVIDIA GeForce RTX 5090 Laptop GPU'
+    chain:
+      doctor_report_id: 01M0HN590VZYKEQ1PJB03XNM4D
+      installation_id: 01M0HN8M84W964FKYBJ3SEEDT9
+      acceptance_job_id: 01M0HN9416QVWEQRVWE2RX45T1
+      acceptance_result_id: 01M0HN9YE03M2HRN529A4FKGH8
+      acceptance_worker_instance_id: 01M0HN985VT4V0Q7G8RQ1E2XYV
+      job_id: 01M0HNW5KBY9VSTCHX4FHKVFJK
+      result_id: 01M0HNWZNAHQHZCJTWANBJTWDM
+      worker_instance_id: 01M0HNWA845RY0VK4N9T4EF2DN
+    license_acceptance: {required: false, explicitly_accepted: false, satisfied: true}
+    vrma:
+      locator: results/01M0HNWZNAHQHZCJTWANBJTWDM/mardm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HNWZNAHQHZCJTWANBJTWDM.vrma
+      byte_length: 86192
+      http_get:
+        url_path: /api/v1/results/01M0HNWZNAHQHZCJTWANBJTWDM/artifacts/mardm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HNWZNAHQHZCJTWANBJTWDM.vrma
+        method: GET
+        status: 200
+        body_byte_length: 86192
+        content_length: 86192
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1168
+      mixer_time_after_seconds: 0.8501
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 44
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/mardm'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}
+
+  - evidence_id: e2e-browser-acmdm-humanml3d-20260821081301384-48528
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:13:50.436551+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: acmdm-humanml3d
+      plugin_version: 0.1.0
+      upstream_revision: 25ed4ba22fb54d9c3e99361609ee344e7c940303
+    runtime:
+      id: acmdm-humanml3d-cu128
+      execution_domain: {id: windows-native, kind: windows-native, platform: win-64, architecture: amd64}
+      resource_profile_id: cuda-full
+      memory_strategy: cuda_full
+      device: 'cuda:NVIDIA GeForce RTX 5090 Laptop GPU'
+    chain:
+      doctor_report_id: 01M0HP0A47R1TPH0YZK0F7F2QM
+      installation_id: 01M0HP12GY10KXPG4W6RFHJ1XD
+      acceptance_job_id: 01M0HP1GN38BHGCM94843QH9BW
+      acceptance_result_id: 01M0HP1X8Q5G8287AG8NFV14DZ
+      acceptance_worker_instance_id: 01M0HP1MN62J7RJZKVP4M4P0W7
+      job_id: 01M0HP3229EWTG6MR6QJB7S14D
+      result_id: 01M0HP3EKMYZZPP3C2C9A3NHZP
+      worker_instance_id: 01M0HP3624NR7NYV7CPBMX4XZC
+    license_acceptance: {required: false, explicitly_accepted: false, satisfied: true}
+    vrma:
+      locator: results/01M0HP3EKMYZZPP3C2C9A3NHZP/acmdm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HP3EKMYZZPP3C2C9A3NHZP.vrma
+      byte_length: 86208
+      http_get:
+        url_path: /api/v1/results/01M0HP3EKMYZZPP3C2C9A3NHZP/artifacts/acmdm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HP3EKMYZZPP3C2C9A3NHZP.vrma
+        method: GET
+        status: 200
+        body_byte_length: 86208
+        content_length: 86208
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1167
+      mixer_time_after_seconds: 0.8333
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 44
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/acmdm'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}
+
+  - evidence_id: e2e-browser-cmdm-humanml3d-20260821081557740-44044
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:16:52.838415+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: cmdm-humanml3d
+      plugin_version: 0.1.0
+      upstream_revision: 7fac27ecd78365115db5c29937f20889c318d79d
+    runtime:
+      id: cmdm-humanml3d-cu128
+      execution_domain: {id: windows-native, kind: windows-native, platform: win-64, architecture: amd64}
+      resource_profile_id: cuda-full
+      memory_strategy: cuda_full
+      device: 'cuda:0'
+    chain:
+      doctor_report_id: 01M0HP5JFZS1JDV391SSHZE9RJ
+      installation_id: 01M0HP6D23CSJ2HP73FQKQA86P
+      acceptance_job_id: 01M0HP6VFA6BWKV2AHEF10WFPN
+      acceptance_result_id: 01M0HP789CQ5SBJ30T13071KEF
+      acceptance_worker_instance_id: 01M0HP6ZPSE5B2D9PWG7E0M61S
+      job_id: 01M0HP8EB3MM3PG1ZHAV54QTC4
+      result_id: 01M0HP8V88QN9VZ1F31143D39B
+      worker_instance_id: 01M0HP8JK8W4Y9REVT6Q1SPAW7
+    license_acceptance: {required: false, explicitly_accepted: false, satisfied: true}
+    vrma:
+      locator: results/01M0HP8V88QN9VZ1F31143D39B/cmdm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HP8V88QN9VZ1F31143D39B.vrma
+      byte_length: 86196
+      http_get:
+        url_path: /api/v1/results/01M0HP8V88QN9VZ1F31143D39B/artifacts/cmdm-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HP8V88QN9VZ1F31143D39B.vrma
+        method: GET
+        status: 200
+        body_byte_length: 86196
+        content_length: 86196
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1332
+      mixer_time_after_seconds: 0.9164
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 46
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/cmdm'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}
+
+  - evidence_id: e2e-browser-prism-tp2m-1-4b-20260821085331248-39264
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:54:38.190963+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: prism-tp2m-1-4b
+      plugin_version: 0.1.0
+      upstream_revision: 3c58bc5d946f0827171a3712ed36314f4b1a5186
+    runtime:
+      id: prism-tp2m-1-4b-cu128-component-split
+      execution_domain: {id: 'wsl:Ubuntu-24.04', kind: wsl, platform: linux-64, architecture: x86_64}
+      resource_profile_id: cuda-component-split
+      memory_strategy: cuda_component_split
+      device: 'cuda:NVIDIA GeForce RTX 5090 Laptop GPU+cpu:UMT5'
+    chain:
+      doctor_report_id: 01M0HR90CBFEXYGP0X5H0RJC5K
+      installation_id: 01M0HRA3NWZ1CHC8F0PBM8FD9F
+      acceptance_job_id: 01M0HRABJSXYNDHG783EH4T4NC
+      acceptance_result_id: 01M0HRBFDS7N5BSZPVPDHWG666
+      acceptance_worker_instance_id: 01M0HRAER8KX5S2REY8V37CFEZ
+      job_id: 01M0HRD5QP3WRHD4W1NEXGGNX1
+      result_id: 01M0HREAR9ZH5219NPK930XVT0
+      worker_instance_id: 01M0HRDAMCX5H8Q9JTKTPV5Z2H
+    license_acceptance: {required: true, explicitly_accepted: true, satisfied: true}
+    distribution_scope: internal_private_external_assets_only
+    resource_measurement:
+      source: immutable_model_result_provenance
+      locator: results/01M0HREAR9ZH5219NPK930XVT0/model-result.json
+      byte_length: 3422
+      ram:
+        minimum_preload_available_bytes: 30064771072
+        minimum_post_load_available_bytes: 2147483648
+        before_load_available_bytes: 32463986688
+        after_load_available_bytes: 20110942208
+        after_inference_available_bytes: 19152322560
+        after_load_process_rss_bytes: 12612476928
+        after_inference_process_rss_bytes: 13683249152
+        process_peak_rss_bytes: 31703216128
+        peak_measurement_kind: linux_proc_status_vmhwm
+        post_load_requirement_passed: true
+      gpu:
+        total_memory_bytes: 25650855936
+        allocation_peak_recorded: false
+    vrma:
+      locator: results/01M0HREAR9ZH5219NPK930XVT0/prism-tp2m-1-4b__smplh.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HREAR9ZH5219NPK930XVT0.vrma
+      byte_length: 127768
+      http_get:
+        url_path: /api/v1/results/01M0HREAR9ZH5219NPK930XVT0/artifacts/prism-tp2m-1-4b__smplh.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HREAR9ZH5219NPK930XVT0.vrma
+        method: GET
+        status: 200
+        body_byte_length: 127768
+        content_length: 127768
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1167
+      mixer_time_after_seconds: 0.8334
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 43
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/prism-integrated-final'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}
+
+  - evidence_id: e2e-browser-flood-diffusion-tiny-20260821084140103-3292
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:42:38.019822+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: flood-diffusion-tiny
+      plugin_version: 0.1.0
+      upstream_revision: e86746efa2f16b94a1bb08550e3d8d4a32163f14
+    runtime:
+      id: flood-diffusion-tiny-cu128
+      execution_domain: {id: windows-native, kind: windows-native, platform: win-64, architecture: amd64}
+      resource_profile_id: cuda-full
+      memory_strategy: cuda_full
+      device: 'cuda:NVIDIA GeForce RTX 5090 Laptop GPU'
+    chain:
+      doctor_report_id: 01M0HKF2R5N49XJKRKDQVJSY1N
+      installation_id: 01M0HM28SE39R6EMG00WMN658X
+      acceptance_job_id: 01M0HM2QT55S3136HDN659B7FX
+      acceptance_result_id: 01M0HM381WZV2RK2Q1T3Q86Z6P
+      acceptance_worker_instance_id: 01M0HM2VWWVB12BADX9JFBKT5N
+      job_id: 01M0HQQHSR4XCMTAXP24SAFM8C
+      result_id: 01M0HQR3JEBFNAZR7Z9BQEN1BH
+      worker_instance_id: 01M0HQQQ0GFDS91Z1RPM6EAZJY
+    license_acceptance: {required: false, explicitly_accepted: false, satisfied: true}
+    vrma:
+      locator: results/01M0HQR3JEBFNAZR7Z9BQEN1BH/flood-diffusion-tiny__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HQR3JEBFNAZR7Z9BQEN1BH.vrma
+      byte_length: 83668
+      http_get:
+        url_path: /api/v1/results/01M0HQR3JEBFNAZR7Z9BQEN1BH/artifacts/flood-diffusion-tiny__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HQR3JEBFNAZR7Z9BQEN1BH.vrma
+        method: GET
+        status: 200
+        body_byte_length: 83668
+        content_length: 83668
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1166
+      mixer_time_after_seconds: 0.8498
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 46
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/flood-network-final'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}
+
+  - evidence_id: e2e-browser-momadiff-humanml3d-20260821084325940-15364
+    lifecycle:
+      status: historical
+      superseded: true
+      superseded_on: '2026-08-22'
+      supersession_reason: runtime_wrapper_revision_changed_requires_reacceptance
+    evidence_schema: virea.production_e2e_evidence.v1.0.0
+    validator_id: virea.production_e2e_evidence_validator.v1.0.0
+    outcome: passed
+    recorded_at: '2026-08-21T16:44:21.509861+08:00'
+    generation_mode: fresh_web_job
+    model:
+      id: momadiff-humanml3d
+      plugin_version: 0.1.0
+      upstream_revision: 6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+    runtime:
+      id: momadiff-humanml3d-cu128
+      execution_domain: {id: windows-native, kind: windows-native, platform: win-64, architecture: amd64}
+      resource_profile_id: cuda-full
+      memory_strategy: cuda_full
+      device: 'cuda:0'
+    chain:
+      doctor_report_id: 01M0HMHQMJ2YW5JKPAY97XCS7H
+      installation_id: 01M0HMZ5V9KDDX3JSKHP6JV16T
+      acceptance_job_id: 01M0HMZMM96Y1PMQ0QJ9NDDVR2
+      acceptance_result_id: 01M0HN00TVN5MSG4X07Q56J0SC
+      acceptance_worker_instance_id: 01M0HMZRNGMZTV6BNYSTRHSX8D
+      job_id: 01M0HQTS5GPH828808C26HHH94
+      result_id: 01M0HQV6R49BFJAYKYETD0PXQ9
+      worker_instance_id: 01M0HQTXZGDB9V7ZYXWMD1BNQT
+    license_acceptance: {required: false, explicitly_accepted: false, satisfied: true}
+    vrma:
+      locator: results/01M0HQV6R49BFJAYKYETD0PXQ9/momadiff-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HQV6R49BFJAYKYETD0PXQ9.vrma
+      byte_length: 86212
+      http_get:
+        url_path: /api/v1/results/01M0HQV6R49BFJAYKYETD0PXQ9/artifacts/momadiff-humanml3d__humanml3d.body22.v1__to__vrm1.humanoid52.v1__actor-0__01M0HQV6R49BFJAYKYETD0PXQ9.vrma
+        method: GET
+        status: 200
+        body_byte_length: 86212
+        content_length: 86212
+        unique_request_count: 1
+        unique_response_count: 1
+    browser:
+      engine: Chromium
+      version: 148.0.7778.96
+      viewer_state: playing
+      mixer_time_before_seconds: 0.1666
+      mixer_time_after_seconds: 0.8831
+      fully_visible: true
+      webgl_context: webgl2
+      webgl_context_lost: false
+      render_frame_count: 46
+      error_counts: {console: 0, warnings: 0, page: 0, request: 0}
+    bundle:
+      host_path_at_validation: '${LOCAL_EVIDENCE_ROOT}/production-e2e-fresh-20260821/momadiff-network-final'
+      payloads: [browser-observation.json, backend-validation.json, validated-evidence.json]
+      screenshots: [job-result.png, viewer.png, viewer-canvas.png]
+    promotion: {eligible: false, maximum_model_status: null, reason: historical_superseded_record}

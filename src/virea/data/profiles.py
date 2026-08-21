@@ -3,9 +3,19 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Literal
 
-
-ProfileStatus = Literal["draft", "source_verified", "regression_verified", "release_ready"]
+ProfileStatus = Literal[
+    "draft", "source_verified", "regression_verified", "release_ready"
+]
 RootRotationSemantics = Literal["local_to_world", "world_operator", "not_applicable"]
+HandSolverApplicability = Literal["required", "not_applicable"]
+HandEvidenceMode = Literal[
+    "parent_local_rotations",
+    "joint_positions",
+    "identity_neutral",
+]
+HandUnobservablePolicy = Literal["neutral", "reject"]
+
+DEFAULT_HAND_CONSTRAINT_POLICY_ID = "virea.constraint_aware_hand_retarget.v1"
 
 
 @dataclass(frozen=True)
@@ -38,6 +48,11 @@ class DatasetProfile:
     array_layout: dict[str, Any] = field(default_factory=dict)
     root_axes: tuple[int, int, int] = (0, 1, 2)
     translation_zeroed: bool = True
+    hand_solver_applicability: HandSolverApplicability = "required"
+    hand_evidence_mode: HandEvidenceMode = "identity_neutral"
+    hand_unobservable_policy: HandUnobservablePolicy = "neutral"
+    hand_solver_validation_status: ProfileStatus = "draft"
+    hand_constraint_policy_id: str = DEFAULT_HAND_CONSTRAINT_POLICY_ID
     notes: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -49,7 +64,7 @@ class DatasetProfile:
         return payload
 
 
-PROFILE_VERSION = "virea.dataset_profile.v1.0.0"
+PROFILE_VERSION = "virea.dataset_profile.v2.0.0"
 
 
 PROFILES: dict[str, DatasetProfile] = {
@@ -70,6 +85,7 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter",
         unit_scale_to_meter=1.0,
         validation_status="regression_verified",
+        hand_solver_validation_status="regression_verified",
         codec_source_profiles=("smplh_body22",),
         array_layout={"body_axis_angle": [0, 66], "translation_key": "trans"},
         notes=("Filename-derived semantics are not native AMASS annotations.",),
@@ -91,6 +107,7 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter",
         unit_scale_to_meter=1.0,
         validation_status="source_verified",
+        hand_solver_validation_status="source_verified",
         codec_source_profiles=("smplh_body22",),
         array_layout={"body_axis_angle": [0, 66], "annotation_time_unit": "seconds"},
     ),
@@ -111,6 +128,8 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter",
         unit_scale_to_meter=1.0,
         validation_status="source_verified",
+        hand_evidence_mode="joint_positions",
+        hand_solver_validation_status="source_verified",
         codec_source_profiles=("beat_bvh_full75_body22_hands30",),
         array_layout={
             "body_axis_angle": [0, 66],
@@ -146,8 +165,13 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter",
         unit_scale_to_meter=1.0,
         validation_status="source_verified",
+        hand_evidence_mode="identity_neutral",
+        hand_solver_validation_status="regression_verified",
         codec_source_profiles=("grab_smplx55",),
         array_layout={"fullpose": [0, 165], "contact_no_value": 0},
+        notes=(
+            "SMPL-X hand channels remain immutable source evidence, but are neutralized in canonical output until a versioned source-rest hand-frame calibration is verified.",
+        ),
     ),
     "motionx_smplx322": DatasetProfile(
         schema_version=PROFILE_VERSION,
@@ -166,6 +190,8 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter_or_export_specific",
         unit_scale_to_meter=1.0,
         validation_status="draft",
+        hand_evidence_mode="identity_neutral",
+        hand_solver_validation_status="regression_verified",
         codec_source_profiles=("motionx_smplx322",),
         array_layout={
             "root": [0, 3],
@@ -178,7 +204,10 @@ PROFILES: dict[str, DatasetProfile] = {
             "betas": [312, 322],
             "identity_eye_slots": [23, 24],
         },
-        notes=("World basis/unit require per-sub-source visual regression before release.",),
+        notes=(
+            "World basis/unit require per-sub-source visual regression before release.",
+            "SMPL-X hand channels remain immutable source evidence, but are neutralized in canonical output until a versioned source-rest hand-frame calibration is verified.",
+        ),
     ),
     "humanml3d_263d": DatasetProfile(
         schema_version=PROFILE_VERSION,
@@ -198,6 +227,7 @@ PROFILES: dict[str, DatasetProfile] = {
         unit_scale_to_meter=1.0,
         validation_status="source_verified",
         root_rotation_semantics="not_applicable",
+        hand_solver_validation_status="regression_verified",
         codec_source_profiles=("humanml3d_263d",),
         array_layout={
             "root_frame_deltas_and_height": [0, 4],
@@ -229,9 +259,15 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter",
         unit_scale_to_meter=1.0,
         validation_status="source_verified",
+        hand_evidence_mode="joint_positions",
+        hand_solver_validation_status="source_verified",
         codec_source_profiles=("susu_official_columns_local",),
         rotation_6d_layout="first_two_columns",
-        array_layout={"root_translation": [0, 3], "body_6d": [3, 153], "hand_6d": [0, 120]},
+        array_layout={
+            "root_translation": [0, 3],
+            "body_6d": [3, 153],
+            "hand_6d": [0, 120],
+        },
     ),
     "susu_retarget_maya": DatasetProfile(
         schema_version=PROFILE_VERSION,
@@ -250,10 +286,15 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="meter_or_centimeter",
         unit_scale_to_meter=1.0,
         validation_status="draft",
+        hand_evidence_mode="joint_positions",
         codec_source_profiles=("susu_retarget_maya_6d_body_hands",),
         rotation_6d_layout="first_two_columns",
         root_axes=(0, 2, 1),
-        array_layout={"root_translation": [0, 3], "body_6d": [3, 153], "hand_6d": [0, 120]},
+        array_layout={
+            "root_translation": [0, 3],
+            "body_6d": [3, 153],
+            "hand_6d": [0, 120],
+        },
         notes=("Must be calibrated against matching positions/BVH before release.",),
     ),
     "susu_chonglu": DatasetProfile(
@@ -273,10 +314,15 @@ PROFILES: dict[str, DatasetProfile] = {
         unit="centimeter",
         unit_scale_to_meter=0.01,
         validation_status="draft",
+        hand_evidence_mode="joint_positions",
         codec_source_profiles=("susu_chonglu_6d_body_hands_cm",),
         rotation_6d_layout="first_two_columns",
         root_axes=(0, 2, 1),
-        array_layout={"root_translation": [0, 3], "body_6d": [3, 153], "hand_6d": [0, 120]},
+        array_layout={
+            "root_translation": [0, 3],
+            "body_6d": [3, 153],
+            "hand_6d": [0, 120],
+        },
         notes=("Positions are authoritative until rotation export is calibrated.",),
     ),
 }
@@ -301,6 +347,7 @@ PROFILES.update(
             source_representation="smplh_body_hands_axis_angle_npz",
             joint_system="smplh_body22_hands30",
             validation_status="source_verified",
+            hand_evidence_mode="identity_neutral",
             codec_source_profiles=("smplh_body22_hands30",),
             array_layout={
                 "body_axis_angle": [0, 66],
@@ -318,6 +365,7 @@ PROFILES.update(
             unit="meter",
             unit_scale_to_meter=1.0,
             validation_status="draft",
+            hand_evidence_mode="identity_neutral",
             codec_source_profiles=("amass_smplx_stageii165",),
             array_layout={"fullpose": [0, 165], "translation_key": "trans"},
             notes=(
@@ -337,7 +385,9 @@ PROFILES.update(
             codec_source_profiles=("position_sequence",),
             validation_status="draft",
             array_layout={"positions": ["T", "J", 3]},
-            notes=("HumanAct12 position basis and skeleton mapping require source regression.",),
+            notes=(
+                "HumanAct12 position basis and skeleton mapping require source regression.",
+            ),
         ),
         "babel_amass_smpl_body22": replace(
             PROFILES["babel_amass"],
@@ -345,7 +395,10 @@ PROFILES.update(
             source_representation="babel_annotations_over_amass_body_axis_angle",
             joint_system="smpl_body22",
             codec_source_profiles=("smplh_body22",),
-            array_layout={"body_axis_angle": [0, 66], "annotation_time_unit": "seconds"},
+            array_layout={
+                "body_axis_angle": [0, 66],
+                "annotation_time_unit": "seconds",
+            },
         ),
         "babel_amass_smplh156": replace(
             PROFILES["babel_amass"],
@@ -353,6 +406,7 @@ PROFILES.update(
             source_representation="babel_annotations_over_amass_smplh156",
             joint_system="smplh_body22_hands30",
             codec_source_profiles=("smplh_body22_hands30",),
+            hand_evidence_mode="identity_neutral",
             array_layout={
                 "body_axis_angle": [0, 66],
                 "hands_axis_angle": [66, 156],
@@ -367,6 +421,7 @@ PROFILES.update(
             world_basis="z_up_to_y_up",
             source_up="+z",
             validation_status="draft",
+            hand_evidence_mode="identity_neutral",
             codec_source_profiles=("babel_amass_smplx_stageii165",),
             array_layout={"fullpose": [0, 165], "annotation_time_unit": "seconds"},
             notes=(
@@ -405,7 +460,9 @@ PROFILES.update(
             source_representation="susu_retarget_maya_positions_with_6d_body_hands",
             unit="centimeter",
             unit_scale_to_meter=0.01,
-            notes=("Position branch uses neg_z_up_to_y_up and remains draft pending source/VRM regression.",),
+            notes=(
+                "Position branch uses neg_z_up_to_y_up and remains draft pending source/VRM regression.",
+            ),
         ),
     }
 )
@@ -457,17 +514,23 @@ def profile_key_for_source(
         has_positions = bool(facts.get("has_positions"))
         return {
             "susu_retarget_maya_6d_body_hands": (
-                "susu_retarget_maya_positions" if has_positions else "susu_retarget_maya_rotation_only"
+                "susu_retarget_maya_positions"
+                if has_positions
+                else "susu_retarget_maya_rotation_only"
             ),
             "susu_chonglu_6d_body_hands_cm": "susu_chonglu",
         }.get(codec_key, "susu_official_columns_local")
     try:
         return DATASET_DEFAULT_PROFILE[dataset]
     except KeyError as exc:
-        raise KeyError(f"no dataset profile for {dataset}/{codec_key}/{sample_id}") from exc
+        raise KeyError(
+            f"no dataset profile for {dataset}/{codec_key}/{sample_id}"
+        ) from exc
 
 
-def profile_for_sample(dataset: str, sample_id: str = "", explicit_key: str | None = None) -> DatasetProfile:
+def profile_for_sample(
+    dataset: str, sample_id: str = "", explicit_key: str | None = None
+) -> DatasetProfile:
     if explicit_key:
         return profile_for(explicit_key)
     normalized = sample_id.replace("\\", "/").lower()

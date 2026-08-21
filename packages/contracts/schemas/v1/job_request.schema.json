@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:job_request:1.0.0",
+  "title": "VIREA JobRequest v1",
+  "type": "object",
+  "required": ["schema_version", "model_id", "task"],
+  "properties": {
+    "schema_version": { "const": "virea.job_request.v1.0.0" },
+    "model_id": { "type": "string", "minLength": 1 },
+    "task": { "type": "string", "minLength": 1 },
+    "input": { "type": "object", "default": {} },
+    "parameters": { "type": "object", "default": {} },
+    "avatar_id": { "type": ["string", "null"] },
+    "idempotency_key": { "type": ["string", "null"] },
+    "execution_target": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["schema_version", "execution_domain_id"],
+          "properties": {
+            "schema_version": {
+              "const": "virea.execution_target_selection.v1.0.0"
+            },
+            "execution_domain_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "runtime_variant_id": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "resource_profile_id": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

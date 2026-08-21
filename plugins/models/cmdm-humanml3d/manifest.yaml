@@ -1,0 +1,277 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: cmdm-humanml3d
+  display_name: CMDM HumanML3D
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/lycorp-jp/CMDM
+    revision: 7fac27ecd78365115db5c29937f20889c318d79d
+    release: CVPR 2026
+  tasks:
+    - text_to_motion
+  adapter_family: humanml3d-motion263-body22
+  status: integrated_experimental
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+        maximum_length: 8000
+      motion_length_frames:
+        type: integer
+        required: false
+        default: 80
+        minimum: 4
+        maximum: 196
+        multiple_of: 4
+      seconds:
+        type: number
+        required: false
+        minimum: 0.2
+        maximum: 9.8
+        multiple_of: 0.2
+      seed:
+        type: integer
+        default: 3407
+        minimum: 0
+        maximum: 2147483647
+      cfg:
+        type: number
+        default: 3.0
+        minimum: 0.0
+        maximum: 20.0
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: humanml3d.vector263.v1
+  skeleton_id: humanml3d.body22.v1
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward
+  units: meters
+  root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
+  root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: cmdm-humanml3d-cu128
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 6.0
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - id: cuda-full
+        strategy: cuda_full
+        min_free_vram_gib: 6.0
+        min_free_ram_gib: 8.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_cmdm.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/cmdm-humanml3d/runtime-cu128
+    project_package: virea-model-cmdm-humanml3d-cu128-runtime
+    project_version: 0.1.2
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: real_checkpoint_production_acceptance_passed_on_win64_rtx5090
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: cmdm-humanml3d-cpu
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 12.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_cmdm.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/cmdm-humanml3d/runtime-cpu
+    project_package: virea-model-cmdm-humanml3d-cpu-runtime
+    project_version: 0.1.2
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cpu_build_import_passed_win64_wsl_ubuntu_24_04_linux_native_macos_unverified
+artifacts:
+  - id: cmdm-humanml3d-checkpoints
+    kind: huggingface
+    repository: ly-corporation/CMDM
+    revision: be818de05ee83018d25dfeb9fbcd3fadddf4ccd8
+    allow_patterns:
+      - checkpoints/t2m/pretrained_dit/config.yaml
+      - checkpoints/t2m/pretrained_dit/model/latest.tar
+      - checkpoints/t2m/pretrained_vae/config.yaml
+      - checkpoints/t2m/pretrained_vae/model/net_best_fid.tar
+    expected_files:
+      - checkpoints/t2m/pretrained_dit/config.yaml
+      - checkpoints/t2m/pretrained_dit/model/latest.tar
+      - checkpoints/t2m/pretrained_vae/config.yaml
+      - checkpoints/t2m/pretrained_vae/model/net_best_fid.tar
+  - id: cmdm-source
+    kind: https
+    url: https://github.com/lycorp-jp/CMDM/archive/7fac27ecd78365115db5c29937f20889c318d79d.tar.gz
+    revision: 7fac27ecd78365115db5c29937f20889c318d79d
+    expected_files:
+      - LICENSE.txt
+      - NOTICE.txt
+      - models/BERT/BERT_encoder.py
+      - models/Causal_DiT.py
+      - models/Transformer.py
+      - models/VAE.py
+      - diffusions/transport/__init__.py
+      - diffusions/transport/integrators.py
+      - diffusions/transport/path.py
+      - diffusions/transport/transport.py
+      - diffusions/transport/utils.py
+    unpack:
+      - path: 7fac27ecd78365115db5c29937f20889c318d79d.tar.gz
+        format: tar
+        destination: .
+        strip_components: 1
+        remove_archive: true
+  - id: cmdm-distilbert-base-uncased
+    kind: huggingface
+    repository: distilbert/distilbert-base-uncased
+    revision: 12040accade4e8a0f71eabdb258fecc2e7e948be
+    allow_patterns:
+      - config.json
+      - model.safetensors
+      - tokenizer.json
+      - tokenizer_config.json
+      - vocab.txt
+    expected_files:
+      - config.json
+      - model.safetensors
+      - tokenizer.json
+      - tokenizer_config.json
+      - vocab.txt
+  - id: cmdm-humanml3d-mean
+    kind: https
+    url: https://raw.githubusercontent.com/EricGuo5513/HumanML3D/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/HumanML3D/Mean.npy
+    revision: 9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23
+    expected_files:
+      - Mean.npy
+  - id: cmdm-humanml3d-std
+    kind: https
+    url: https://raw.githubusercontent.com/EricGuo5513/HumanML3D/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/HumanML3D/Std.npy
+    revision: 9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23
+    expected_files:
+      - Std.npy
+licenses:
+  code: CC0-1.0 for CMDM-owned code; pinned NOTICE.txt governs incorporated third-party components
+  weights: Apache-2.0 stated by the pinned official Hugging Face model card
+  dataset_lineage:
+    - HumanML3D
+    - AMASS
+  body_model: []
+  commercial_allowed: true
+  redistribution_allowed: true
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/lycorp-jp/CMDM/blob/7fac27ecd78365115db5c29937f20889c318d79d/LICENSE.txt
+    - https://github.com/lycorp-jp/CMDM/blob/7fac27ecd78365115db5c29937f20889c318d79d/NOTICE.txt
+    - https://huggingface.co/ly-corporation/CMDM/blob/be818de05ee83018d25dfeb9fbcd3fadddf4ccd8/README.md
+    - https://huggingface.co/distilbert/distilbert-base-uncased/blob/12040accade4e8a0f71eabdb258fecc2e7e948be/LICENSE
+    - https://github.com/EricGuo5513/HumanML3D/blob/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23/LICENSE
+resources:
+  upstream_tested_python: 3.10.9
+  upstream_tested_pytorch: 2.6.0
+  upstream_tested_cuda: "12.4"
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0+cu128
+  blackwell_runtime_policy: torch_2_11_cu128_replaces_upstream_torch_2_6_cu124
+  upstream_inference_entrypoint: sample/demo.py
+  native_feature_dim: 263
+  native_fps: 20.0
+  causal_vae_temporal_stride: 4
+  max_motion_frames: 196
+  dit_parameter_count_without_distilbert: 38697024
+  vae_parameter_count: 76312199
+  checkpoint_download_bytes: 615030273
+  distilbert_download_bytes: 268652869
+  implementation: plugins/models/cmdm-humanml3d/runtime/src/virea_cmdm/worker.py
+  artifact_roots_environment: VIREA_ARTIFACT_ROOTS_JSON
+  memory_floor_status: measured_cuda_allocator_peak_on_win64_rtx5090
+  observed_cuda_allocator_before_inference_bytes: 728026624
+  observed_cuda_allocator_peak_bytes: 751978496
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: cmdm-humanml3d
+    task: text_to_motion
+    input:
+      prompt: A person walks forward, picks up a toolbox, and stands again.
+    parameters:
+      motion_length_frames: 80
+      seed: 3407
+      cfg: 3.0
+      fps: 20.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: humanml3d.vector263.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts:
+      - native_motion
+      - motion_ir
+      - retargeted_motion
+      - vrma
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 3600.0
+notes:
+  - "The Worker executes the pinned CMDM release path: DistilBERT text encoding, causal flow generation with the released pyramid schedule, MAC-VAE decoding, then the official HumanML3D inverse normalization."
+  - "The sole [T,263] native motion artifact is post inverse-normalization and therefore directly satisfies the existing HumanML3D adapter. The normalized decoder tensor is not duplicated as a second [T,263] artifact because the control plane intentionally requires exactly one native carrier."
+  - "CUDA full placement and whole-model CPU execution are implemented. No CUDA-to-CPU layer offload or sequential offload strategy is advertised."
+  - "The official single-prompt generate method has an unbound-local defect at cfg exactly 1.0. The Worker fails that value explicitly instead of silently changing its mathematics."
+  - "The official Hugging Face model card names Apache-2.0 but its LICENSE hyperlink does not resolve to a file at the pinned revision; deployments needing a complete copied license text must resolve that packaging omission with LY Corporation."
+  - "The official GitHub README describes the repository as a temporary open-source release that may later become read-only or private; production mirroring is a release-operations decision, not something this Worker silently performs."
+  - "Only the released single-prompt text-to-motion path is declared here. Multi-prompt autoregressive chaining requires a separate request/segment contract and production acceptance."
+  - "The pinned artifacts passed VIREA environment detection, transactional installation, isolated CUDA runtime load, exact 80-frame inference, native validation, Motion IR conversion, retarget validation, and VRMA export on Windows with an RTX 5090 Laptop GPU. Independent strict validation passed for job 01M0H3DRQ71SYSHVHJAE7MDGHZ and result 01M0H3E9P1RKRT9TBX5DFJMV9X; real browser playback remains separate release evidence, so this is integrated_experimental rather than a supported or cross-platform claim."

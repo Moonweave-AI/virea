@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-acmdm-humanml3d-cpu-runtime"
+version = "0.1.4"
+description = "Portable CPU environment for the shared VIREA ACMDM Worker"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "virea-model-acmdm-humanml3d-runtime==0.1.4",
+  "torch==2.11.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "torchvision==0.26.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "torchvision==0.17.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]
+
+[project.scripts]
+virea-model-acmdm-humanml3d-cpu-worker = "virea_acmdm.worker:main"
+
+[tool.uv.sources]
+virea-model-acmdm-humanml3d-runtime = { path = "../runtime", editable = false }
+torch = [
+  { index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.setuptools.packages.find]
+where = ["src"]

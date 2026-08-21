@@ -15,7 +15,9 @@ from virea.motion.rotation import axis_angle_to_quat_xyzw
 from virea.pipelines.processing import ProcessingPipeline
 
 
-def _axis_quaternions(axis: tuple[float, float, float], degrees: list[float]) -> np.ndarray:
+def _axis_quaternions(
+    axis: tuple[float, float, float], degrees: list[float]
+) -> np.ndarray:
     unit = np.asarray(axis, dtype=np.float64)
     unit /= np.linalg.norm(unit)
     angle = np.radians(np.asarray(degrees, dtype=np.float64))
@@ -70,7 +72,9 @@ def test_quaternion_sign_changes_are_not_motion_discontinuities() -> None:
 
     assert report["status"] == "continuous"
     assert report["discontinuity_frames"] == []
-    assert report["summary"]["max_root_rotation_geodesic_deg"] == pytest.approx(5.0, abs=1e-4)
+    assert report["summary"]["max_root_rotation_geodesic_deg"] == pytest.approx(
+        5.0, abs=1e-4
+    )
     assert continuity_warning(report) is None
 
 
@@ -148,8 +152,7 @@ def test_real_motionx_aist_original_322_exposes_two_source_breaks() -> None:
 
     assert report["discontinuity_frames"] == [142, 208]
     assert [
-        (segment["start_frame"], segment["end_frame"])
-        for segment in report["segments"]
+        (segment["start_frame"], segment["end_frame"]) for segment in report["segments"]
     ] == [(0, 142), (142, 208), (208, 300)]
     first, second = report["events"]
     assert first["root_rotation_geodesic_deg"] == pytest.approx(175.7267, abs=1e-3)
@@ -173,4 +176,7 @@ def test_real_motionx_pipeline_carries_breaks_to_metadata_quality_and_warning() 
     continuity = output.canonical.metadata["continuity"]
     assert continuity["discontinuity_frames"] == [142, 208]
     assert output.quality["continuity"] == continuity
-    assert any("must not interpolate or smooth" in item for item in output.clip.validation_warnings)
+    assert any(
+        "must not interpolate or smooth" in item
+        for item in output.clip.validation_warnings
+    )

@@ -1,0 +1,80 @@
+schema_version: virea.adapter_family.v1.0.0
+id: dart-smplx-primitives
+display_name: DART BABEL SMPL-X primitive rollout
+source_models:
+  - dart-smplx
+implementation_status: pinned_upstream_contract_adapter_implemented
+support_status: runnable_upstream
+native_profile:
+  representation_id: dart.smplx.body22.axis_angle_primitives.v1
+  carrier: ordered_motion_primitive_parameter_records
+  fps:
+    mode: fixed_for_selected_profile
+    value: 30.0
+  coordinate_system:
+    id: amass_smplx.right_handed_z_up
+    handedness: right
+    up_axis: positive_z
+    floor_plane: z_equals_zero_when_floor_constraints_are_enabled
+  units:
+    translation: meters
+    rotations: axis_angle_radians
+  fields:
+    - name: gender
+      shape: scalar_or_per_sequence
+      semantics: selects_the_SMPL-X_body_model
+    - name: betas
+      shape: [B]
+      semantics: SMPL-X_body_shape_constant_for_a_rollout
+    - name: transl
+      shape: [T, 3]
+      semantics: absolute_world_root_translation_after_rollout_reconstruction
+    - name: global_orient
+      shape: [T, 3]
+      semantics: SMPL-X_root_axis_angle_local_to_world_after_rollout_reconstruction
+    - name: body_pose
+      shape: [T, 63]
+      semantics: 21_parent_local_SMPL-X_body_joint_axis_angles
+    - name: primitive_boundaries
+      shape: [P, 2]
+      semantics: ordered_overlapping_history_and_future_frame_ranges
+root_semantics:
+  internal_primitive_frame:
+    translation: local_canonical_root_frame_used_by_the_motion_primitive_model
+    rotation: local_canonical_heading_used_by_the_motion_primitive_model
+  exported_rollout:
+    translation: absolute_world_smplx_transl_recovered_by_composing_primitives
+    rotation: absolute_world_smplx_global_orient_recovered_by_composing_primitives
+output_profile:
+  representation_id: dart.smplx.body22.axis_angle.v1
+  skeleton_id: smplx.body22.v1
+  fps: 30.0
+  coordinate_system: amass_smplx.right_handed_z_up
+  units: meters
+  parameters: [gender, betas, transl, global_orient, body_pose]
+conversion:
+  required_steps:
+    - use_the_upstream_rollout_reconstruction_to_compose_each_local_primitive_into_one_world_trajectory
+    - remove_overlap_only_with_the_upstream_history_future_boundary_rule
+    - preserve_text_segment_and_primitive_boundary_provenance
+    - evaluate_SMPL-X_only_after_world_root_reconstruction
+  prohibited_shortcuts:
+    - concatenate_local_primitive_translations_as_if_they_were_world_coordinates
+    - average_axis_angle_vectors_across_overlap
+    - apply_the_HML3D_20_FPS_profile_to_this_BABEL_manifest
+validation:
+  reject_non_finite: true
+  require_fps: 30.0
+  require_body_pose_width: 63
+  require_monotonic_primitive_boundaries: true
+  require_overlap_continuity_check: true
+official_sources:
+  - repository: https://github.com/zkf1997/DART
+    revision: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+    path: README.md
+  - repository: https://github.com/zkf1997/DART
+    revision: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+    path: config_files/config_hydra/motion_primitive/mp_h2_f8_r4.yaml
+notes:
+  - This declaration is the BABEL/SMPL-X 30 FPS family; DART's HML3D/SMPL-H 20 FPS path is intentionally excluded.
+  - The VIREA compatibility adapter validates reconstructed primitive boundaries, preserves betas, boundaries, text segments, and rollout provenance, and reuses the existing shape-agnostic SMPL-X retarget math; caller continuity attestation is not an upstream rollout golden, and no Worker production acceptance exists yet.

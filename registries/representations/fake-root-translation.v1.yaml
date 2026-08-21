@@ -1,0 +1,18 @@
+schema_version: virea.representation_profile.v1.0.0
+id: virea.fake.root_translation.v1
+version: 1.0.0
+kind: deterministic_fixture_root_translation
+skeleton_id: vrm1.humanoid52.v1
+dtype: float32
+frame_shape: [3]
+rotation_representation: null
+rotation_layout: null
+rotation_space: null
+root_translation_semantics: absolute_world_meters
+root_rotation_semantics: identity_local_to_world
+coordinate_system_id: vrm.gltf.right_handed_y_up_z_forward.v1
+units: meters
+fps: 20.0
+timebase: [1, 20]
+source_urls: []
+validation_status: regression_verified

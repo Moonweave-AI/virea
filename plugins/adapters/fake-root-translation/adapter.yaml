@@ -1,0 +1,49 @@
+schema_version: virea.adapter_family.v1.0.0
+id: fake-root-translation
+display_name: Fake root-translation passthrough
+source_models:
+  - fake-motion-v1
+implementation_status: deterministic_test_fixture
+support_status: registered_test_only
+native_profile:
+  representation_id: virea.fake.root_translation.v1
+  carrier: application/json
+  fps:
+    mode: request_defined
+    default: 20.0
+  coordinate_system:
+    id: vrm_gltf
+    handedness: right
+    up_axis: positive_y
+  units:
+    root_translation: meters
+  fields:
+    - name: root_translation_m
+      shape: [T, 3]
+      dtype: float32
+      semantics: absolute_world_translation
+      construction: frame_i_is_i_divided_by_fps_on_positive_x
+root_semantics:
+  translation:
+    kind: absolute
+    initial_value: [0.0, 0.0, 0.0]
+    integration: none
+  rotation:
+    kind: implicit_identity
+    value_xyzw: [0.0, 0.0, 0.0, 1.0]
+output_profile:
+  representation_id: virea.fake.root_translation.v1
+  skeleton_id: vrm1.humanoid52.v1
+  fps: preserve_request_fps
+  root_translation: preserve_absolute_world_meters
+  root_rotation: synthesize_identity_local_to_world
+validation:
+  reject_non_finite: true
+  frame_count_range: [1, 10000]
+  require_positive_fps: true
+official_sources:
+  - repository: builtin://virea/fake-motion
+    revision: builtin-fake-v1
+    path: packages/model_sdk/src/virea_model_sdk/fake.py
+notes:
+  - This adapter is a deterministic passthrough declaration; it does not imply supported status.

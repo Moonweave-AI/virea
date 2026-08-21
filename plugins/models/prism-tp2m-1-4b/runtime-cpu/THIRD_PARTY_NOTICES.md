@@ -1,0 +1,21 @@
+---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-22
+updated: 2026-08-22
+last_reviewed: 2026-08-22
+review_cycle_days: 180
+summary: PRISM CPU wrapper 继承的第三方来源与许可说明。
+canonical: plugins/models/prism-tp2m-1-4b/runtime-cpu/THIRD_PARTY_NOTICES.md
+related:
+  - ../runtime/THIRD_PARTY_NOTICES.md
+  - ../manifest.yaml
+supersedes: []
+superseded_by: []
+---
+
+# Third-party notices
+
+This environment installs the shared PRISM Worker and inherits the notices in
+`../runtime/THIRD_PARTY_NOTICES.md`. It does not redistribute PRISM assets.

@@ -42,11 +42,17 @@ class CatalogPipeline:
                     "top_dirs": dict(top_dirs.most_common(16)),
                 }
             )
-        return sanitize_report_paths({
-            "data_source": data_source,
-            "raw_root": raw_root_token,
-            "raw_root_status": "configured" if self.registry.paths.raw_root.exists() else "missing",
-            "processed_root": processed_root_token,
-            "processed_root_status": "configured" if self.registry.paths.processed_root.exists() else "missing",
-            "datasets": datasets,
-        })
+        return sanitize_report_paths(
+            {
+                "data_source": data_source,
+                "raw_root": raw_root_token,
+                "raw_root_status": "configured"
+                if self.registry.paths.raw_root.exists()
+                else "missing",
+                "processed_root": processed_root_token,
+                "processed_root_status": "configured"
+                if self.registry.paths.processed_root.exists()
+                else "missing",
+                "datasets": datasets,
+            }
+        )

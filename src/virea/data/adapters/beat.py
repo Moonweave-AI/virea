@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 
 from virea.data.adapters.base import BaseDatasetAdapter
-from virea.data.bvh import beat_bvh_to_body22, parse_bvh
 from virea.data.annotations import (
     SidecarCapacityError,
     cache_data_sidecar,
@@ -16,6 +15,7 @@ from virea.data.annotations import (
     make_channel,
     sidecar_cache_limits,
 )
+from virea.data.bvh import beat_bvh_to_body22, parse_bvh
 from virea.data.types import RawClip, SampleRef
 
 
@@ -29,7 +29,9 @@ class BEATAdapter(BaseDatasetAdapter):
         if not relative.parts or relative.parts[0] != "pose":
             raise ValueError("BEAT sample id must begin with pose/")
         source_relative = Path(*relative.parts[1:])
-        bvh_path = self._safe_path(self.raw_root / "hf", source_relative.with_suffix(".bvh"))
+        bvh_path = self._safe_path(
+            self.raw_root / "hf", source_relative.with_suffix(".bvh")
+        )
         legacy_pose_path = self._safe_path(
             self.raw_root / "pose", source_relative.with_suffix(".npz")
         )
@@ -39,7 +41,9 @@ class BEATAdapter(BaseDatasetAdapter):
         speaker = pose_path.parent.name
         return self.raw_root / "hf" / speaker / f"{pose_path.stem}.txt"
 
-    def _read_text(self, path: Path, sample_id: str, fps: float) -> tuple[str, list[dict]]:
+    def _read_text(
+        self, path: Path, sample_id: str, fps: float
+    ) -> tuple[str, list[dict]]:
         if not path.exists():
             return "", []
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -80,7 +84,11 @@ class BEATAdapter(BaseDatasetAdapter):
                         "gesture_label": label,
                         "declared_duration_sec": number(3),
                         "semantic_relevancy_score": score,
-                        "semantic_relevancy_scale": {"min": 0.0, "max": 10.0, "unit": "ordinal"},
+                        "semantic_relevancy_scale": {
+                            "min": 0.0,
+                            "max": 10.0,
+                            "unit": "ordinal",
+                        },
                         "unknown_columns": parts[6:] if len(parts) > 6 else [],
                         "upstream_provenance": "BEAT BVH/semantic TSV conversion completed before VIREA ingestion",
                     },
@@ -88,7 +96,9 @@ class BEATAdapter(BaseDatasetAdapter):
             )
         return " ".join(head for head in heads if head).strip(), annotations
 
-    def _audio_channel(self, sample_id: str, audio_path: Path, fps: float, frame_count: int) -> dict:
+    def _audio_channel(
+        self, sample_id: str, audio_path: Path, fps: float, frame_count: int
+    ) -> dict:
         if not audio_path.exists():
             return make_channel(
                 dataset=self.record.key,
@@ -109,7 +119,9 @@ class BEATAdapter(BaseDatasetAdapter):
                     "channel_count": handle.getnchannels(),
                     "sample_width_bytes": handle.getsampwidth(),
                     "sample_count": handle.getnframes(),
-                    "duration_sec": handle.getnframes() / handle.getframerate() if handle.getframerate() else None,
+                    "duration_sec": handle.getnframes() / handle.getframerate()
+                    if handle.getframerate()
+                    else None,
                 }
         except (wave.Error, OSError):
             audio_meta = {"byte_length": audio_path.stat().st_size}
@@ -128,7 +140,11 @@ class BEATAdapter(BaseDatasetAdapter):
                 kind="audio",
                 availability="metadata_only",
                 representation="wav",
-                timebase={"motion_fps": fps, "motion_frame_count": frame_count, "interval": "half_open"},
+                timebase={
+                    "motion_fps": fps,
+                    "motion_frame_count": frame_count,
+                    "interval": "half_open",
+                },
                 reason_unavailable=(
                     f"The lossless WAV is {byte_length} bytes and exceeds the bounded "
                     "on-demand sidecar capacity; metadata and content hash remain available."
@@ -158,7 +174,11 @@ class BEATAdapter(BaseDatasetAdapter):
                 kind="audio",
                 availability="metadata_only",
                 representation="wav",
-                timebase={"motion_fps": fps, "motion_frame_count": frame_count, "interval": "half_open"},
+                timebase={
+                    "motion_fps": fps,
+                    "motion_frame_count": frame_count,
+                    "interval": "half_open",
+                },
                 reason_unavailable=f"The lossless WAV could not enter the bounded sidecar cache: {exc}",
                 preview=audio_meta,
                 extras={"source_file_present": True, "native_byte_length": byte_length},
@@ -172,7 +192,11 @@ class BEATAdapter(BaseDatasetAdapter):
             kind="audio",
             availability="external",
             representation="wav",
-            timebase={"motion_fps": fps, "motion_frame_count": frame_count, "interval": "half_open"},
+            timebase={
+                "motion_fps": fps,
+                "motion_frame_count": frame_count,
+                "interval": "half_open",
+            },
             data_ref=audio_ref,
             preview=audio_meta,
             extras={"source_file_present": True},
@@ -191,11 +215,17 @@ class BEATAdapter(BaseDatasetAdapter):
                 reason_unavailable="No converted BEAT face JSON exists for this sample.",
             )
         try:
-            payload = json.loads(face_path.read_text(encoding="utf-8", errors="replace"))
+            payload = json.loads(
+                face_path.read_text(encoding="utf-8", errors="replace")
+            )
             names = [str(value) for value in payload.get("names", [])]
             frames = payload.get("frames", [])
-            weights = np.asarray([frame.get("weights", []) for frame in frames], dtype=np.float32)
-            times = np.asarray([frame.get("time", 0.0) for frame in frames], dtype=np.float64)
+            weights = np.asarray(
+                [frame.get("weights", []) for frame in frames], dtype=np.float32
+            )
+            times = np.asarray(
+                [frame.get("time", 0.0) for frame in frames], dtype=np.float64
+            )
             if weights.ndim != 2 or not names or weights.shape[1] != len(names):
                 raise ValueError("face weights/names shape mismatch")
             if times.shape[0] > 1:
@@ -204,13 +234,26 @@ class BEATAdapter(BaseDatasetAdapter):
                 face_fps = float(1.0 / np.median(positive)) if positive.size else None
             else:
                 face_fps = None
-            time_end = float(times[-1] + (1.0 / face_fps if face_fps else 0.0)) if times.size else 0.0
+            time_end = (
+                float(times[-1] + (1.0 / face_fps if face_fps else 0.0))
+                if times.size
+                else 0.0
+            )
             face_inline = weights.nbytes <= 2 * 1024 * 1024
             if face_inline:
-                face_preview = {"names": names, "timestamps_sec": times.tolist(), "weights": weights.tolist()}
+                face_preview = {
+                    "names": names,
+                    "timestamps_sec": times.tolist(),
+                    "weights": weights.tolist(),
+                }
                 face_ref = None
             else:
-                indices = np.linspace(0, max(weights.shape[0] - 1, 0), min(weights.shape[0], 2048), dtype=np.int32)
+                indices = np.linspace(
+                    0,
+                    max(weights.shape[0] - 1, 0),
+                    min(weights.shape[0], 2048),
+                    dtype=np.int32,
+                )
                 face_preview = {
                     "names": names,
                     "frame_indices": indices.tolist(),
@@ -235,7 +278,12 @@ class BEATAdapter(BaseDatasetAdapter):
                         kind="face",
                         availability="metadata_only",
                         representation="arkit_blendshape_coefficients",
-                        timebase={"start_sec": 0.0, "end_sec": time_end, "interval": "half_open", "timestamps_native": True},
+                        timebase={
+                            "start_sec": 0.0,
+                            "end_sec": time_end,
+                            "interval": "half_open",
+                            "timestamps_native": True,
+                        },
                         fps=face_fps,
                         frame_count=int(weights.shape[0]),
                         shape=list(weights.shape),
@@ -258,7 +306,12 @@ class BEATAdapter(BaseDatasetAdapter):
                 kind="face",
                 availability="inline" if face_inline else "external",
                 representation="arkit_blendshape_coefficients",
-                timebase={"start_sec": 0.0, "end_sec": time_end, "interval": "half_open", "timestamps_native": True},
+                timebase={
+                    "start_sec": 0.0,
+                    "end_sec": time_end,
+                    "interval": "half_open",
+                    "timestamps_native": True,
+                },
                 fps=face_fps,
                 frame_count=int(weights.shape[0]),
                 shape=list(weights.shape),
@@ -278,7 +331,10 @@ class BEATAdapter(BaseDatasetAdapter):
                 availability="metadata_only",
                 representation="unknown_json",
                 reason_unavailable=f"The face file exists but could not be normalized: {type(exc).__name__}.",
-                extras={"source_file_present": True, "byte_length": face_path.stat().st_size},
+                extras={
+                    "source_file_present": True,
+                    "byte_length": face_path.stat().st_size,
+                },
             )
 
     def discover(self, limit: int = 50, query: str = "") -> list[SampleRef]:
@@ -290,7 +346,11 @@ class BEATAdapter(BaseDatasetAdapter):
             sample_id = (Path("pose") / relative.with_suffix("")).as_posix()
             path = self.raw_root / "pose" / relative.with_suffix(".npz")
             text_path = bvh_path.with_suffix(".txt")
-            text = text_path.read_text(encoding="utf-8", errors="replace")[:200] if text_path.exists() else ""
+            text = (
+                text_path.read_text(encoding="utf-8", errors="replace")[:200]
+                if text_path.exists()
+                else ""
+            )
             if not (self._matches(sample_id, query) or self._matches(text, query)):
                 continue
             samples.append(
@@ -316,8 +376,12 @@ class BEATAdapter(BaseDatasetAdapter):
         poses = np.asarray(decoded["poses"], dtype=np.float32)
         trans = np.asarray(decoded["translation"], dtype=np.float32)
         source_positions = np.asarray(decoded["source_positions"], dtype=np.float32)
-        source_full_positions = np.asarray(decoded["source_full_positions"], dtype=np.float32)
-        hand_quaternions = np.asarray(decoded["hand_quaternions_xyzw"], dtype=np.float32)
+        source_full_positions = np.asarray(
+            decoded["source_full_positions"], dtype=np.float32
+        )
+        hand_quaternions = np.asarray(
+            decoded["hand_quaternions_xyzw"], dtype=np.float32
+        )
         source_rest_offsets = {
             str(name): np.asarray(offset, dtype=np.float32)
             for name, offset in decoded["source_rest_offsets"].items()

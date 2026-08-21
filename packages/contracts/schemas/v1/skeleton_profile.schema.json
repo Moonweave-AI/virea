@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:skeleton_profile:1.0.0",
+  "title": "VIREA SkeletonProfile v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "joints",
+    "coordinate_system",
+    "units",
+    "rest_pose_source",
+    "rotation",
+    "root_motion"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.skeleton_profile.v1.0.0" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+(?:[.-][a-z0-9_]+)*$"
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "joints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/joint" }
+    },
+    "coordinate_system": { "$ref": "#/$defs/coordinate_system" },
+    "units": { "type": "string", "minLength": 1 },
+    "rest_pose_source": { "type": "string", "minLength": 1 },
+    "rotation": { "$ref": "#/$defs/rotation" },
+    "root_motion": { "$ref": "#/$defs/root_motion" },
+    "fps": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "timebase": { "$ref": "#/$defs/nullable_timebase" },
+    "source_urls": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "validation_status": {
+      "enum": ["draft", "source_verified", "regression_verified", "release_ready"],
+      "default": "draft"
+    }
+  },
+  "$defs": {
+    "joint": {
+      "type": "object",
+      "required": ["name", "parent", "semantic"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "parent": { "type": ["string", "null"] },
+        "semantic": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean", "default": true },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "coordinate_system": {
+      "type": "object",
+      "required": ["handedness", "up", "forward"],
+      "properties": {
+        "handedness": { "enum": ["left", "right"] },
+        "up": { "enum": ["x", "y", "z", "-x", "-y", "-z"] },
+        "forward": { "enum": ["x", "y", "z", "-x", "-y", "-z"] }
+      },
+      "additionalProperties": false
+    },
+    "rotation": {
+      "type": "object",
+      "required": ["representation", "space"],
+      "properties": {
+        "representation": { "type": "string", "minLength": 1 },
+        "layout": { "type": ["string", "null"] },
+        "space": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "root_motion": {
+      "type": "object",
+      "required": ["translation", "rotation"],
+      "properties": {
+        "translation": { "type": "string", "minLength": 1 },
+        "rotation": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "nullable_timebase": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

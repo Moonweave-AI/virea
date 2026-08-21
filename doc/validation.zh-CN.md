@@ -131,10 +131,14 @@
 - [ ] 所有本地 Markdown 链接存在；公开本地媒体必须逐项出现在 publication policy 精确白名单内，文件 SHA-256 必须一致，未列媒体 fail-closed。
 - [ ] 正式媒体 manifest 为每个公开 GIF 记录 dataset、role、sample id、source repository/revision、license、citation、change statement、VRM hash/credit、media SHA-256、尺寸、帧数和时长。
 - [ ] GitHub 只内联 `selective-allowlist` 中明确允许且哈希匹配的媒体；数据集整体状态不替代逐媒体决定。
-- [ ] BEAT、Motion-X/AIST++、SuSuInterActs 与指定 VRM 的条件逐项满足；AMASS、BABEL、GRAB 和所选 AMASS-carried HumanML3D 媒体保持 `permission-required`。
+- [ ] BEAT、Motion-X/AIST++、SuSuInterActs 与指定 VRM 的条件逐项满足；AMASS、BABEL、GRAB 和所选 AMASS-carried HumanML3D 媒体按仓库所有者明确指令展示，同时逐项保留 `legal_permission_verified=false`，不得把展示决定写成已获上游许可。
 - [ ] 远端分支与本地 commit 一致后才可声明 GitHub 交付完成。
 
-## 当前证据记录
+## 历史证据记录（2026-08-10）
+
+以下数字只冻结 legacy dataset/retarget 管线在 2026-08-10 的运行，不是当前 0.4.0 full suite、六模型
+production E2E 或 release artifact 证据。当前发布裁决只读
+[0.4.0 发布验收](refactor/RELEASE_ACCEPTANCE_0.4.0.md)，不得复用本表数字填充其 pending 门禁。
 
 | 层 | 状态 | 结论 |
 |---|---|---|
@@ -142,9 +146,9 @@
 | Python 合约与真实数据回归 | 通过（155 passed / 36 skipped） | 2026-08-10 在完整 raw root、可信本地 pickle opt-in 与真实 VRM root 下执行；覆盖 schema、solver、tamper/replay、同尺寸恢复 mtime 篡改与真实数据回归。跳过项不计作通过 |
 | Viewer 合约回归 | 通过（57 passed） | 覆盖 hand quaternion 切片的 float32 hash 重算与篡改拒绝，验证 Viewer 不建立第二条手部修正轨道；不替代真实 Avatar mesh 视觉门禁 |
 | BEAT 长片机制回归 | 通过（1800 帧） | PIP `<0.5°` 近直区间按 float64 geometry + `neutral_zero_swing` 处理并进入 policy/certificate，不再列为未修机制 Stop-Ship |
-| 七库真实 smoke | 通过（每库一条） | 七库 source/processed 均满足有限值、真实 FPS/duration 与 profile contract；AMASS、BABEL、BEAT、GRAB、HumanML3D 通过 persist/Reader 零差回读；尚非每库七条 |
+| 七库真实最小数据链 | 通过（每库一条） | 七库 source/processed 均满足有限值、真实 FPS/duration 与 profile contract；AMASS、BABEL、BEAT、GRAB、HumanML3D 通过 persist/Reader 零差回读；尚非每库七条 |
 | Formal artifact fail-closed | 合约回归通过 | 覆盖 BABEL carrier duration、dataset/hand-solver `draft`、v3 evidence/certificate tamper、同尺寸内容替换并恢复 mtime 的拒绝路径；Reader 每次 v3 读取均完整复验 |
-| 公开 Showcase | 条件通过（12 项） | BEAT、Motion-X/AIST++、SuSuInterActs 各 4 个 GIF 已进入精确白名单与正式媒体 manifest；SHA-256、样本、许可、变更说明与 Reira 署名均由文档检查交叉验证；其余四库保持 `permission-required` |
+| 公开 Showcase | 有条件展示（28 项） | 七组各 4 个 GIF 均进入精确白名单与正式媒体 manifest；BEAT、Motion-X/AIST++、SuSuInterActs 按既有条款标注，AMASS、BABEL、GRAB、HumanML3D 明确记录仓库所有者展示指令与许可未核实边界；样本、条款、变更说明与 Reira 署名由文档检查交叉验证，不使用内容哈希作门禁 |
 | 指定真实 VRM | 部分通过 | VRM0 54 bones、52 mapping、Y-180 alignment 与 normalized-local conjugation 通过；SuSu 63-point 样本 + 104 active 压力经三轮测量，worst p95 `4.3 ms`、0 Long Task、pool/texture 稳定、console error 零。不能外推到七库全部 mesh 视觉质量 |
 | Release | **No-Go** | Motion-X/SuSu 仍有 draft profile，七源全量 raw 与多 Avatar 视觉证据未完成，仓库代码 LICENSE 仍待 Owner 决定；12 项条件许可不等于整体 Release 批准 |
 
@@ -156,8 +160,8 @@ python -m pytest -q
 npm run check
 npm run test:viewer
 python scripts/check_docs.py
-python scripts/smoke_pipeline.py --data-source demo --max-frames 8
-python scripts/smoke_pipeline.py --data-source full --max-frames 8
+python scripts/validate_preview_pipeline.py --data-source demo --max-frames 8
+python scripts/validate_preview_pipeline.py --data-source full --max-frames 8
 ```
 
 真实 VRM 的自动门禁通过 `VIREA_QA_BASE_URL` 与 `VIREA_VRM_PATH` 注入只读本地资源后执行 `npm run qa:vrm`。若系统浏览器不在 Playwright 默认位置，可额外传 `VIREA_QA_BROWSER_PATH`。默认输出位于项目内进程级目录并在脚本退出时清理；仅需保留证据时设置 `VIREA_QA_OUTPUT_DIR`，报告只记录 VRM hash，不记录模型绝对路径。

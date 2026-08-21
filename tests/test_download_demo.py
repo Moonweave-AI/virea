@@ -34,7 +34,9 @@ def test_selected_roots_are_mutually_exclusive() -> None:
         _selected_roots(True, True)
 
 
-def test_verifier_checks_lfs_sha256_git_blob_and_unexpected_files(tmp_path: Path) -> None:
+def test_verifier_checks_lfs_sha256_git_blob_and_unexpected_files(
+    tmp_path: Path,
+) -> None:
     raw = tmp_path / "raw"
     raw.mkdir()
     lfs_data = b"large-object\n"
@@ -42,12 +44,21 @@ def test_verifier_checks_lfs_sha256_git_blob_and_unexpected_files(tmp_path: Path
     (raw / "motion.npz").write_bytes(lfs_data)
     (raw / "metadata.json").write_bytes(git_data)
     expected = [
-        ExpectedFile("raw/motion.npz", len(lfs_data), "sha256", hashlib.sha256(lfs_data).hexdigest()),
-        ExpectedFile("raw/metadata.json", len(git_data), "git-sha1", _git_blob_digest(git_data)),
+        ExpectedFile(
+            "raw/motion.npz",
+            len(lfs_data),
+            "sha256",
+            hashlib.sha256(lfs_data).hexdigest(),
+        ),
+        ExpectedFile(
+            "raw/metadata.json", len(git_data), "git-sha1", _git_blob_digest(git_data)
+        ),
     ]
     result = _verify_download(tmp_path, expected, ("raw",))
     assert result["file_count"] == 2
-    assert _hash_file(raw / "metadata.json", "git-sha1", len(git_data)) == _git_blob_digest(git_data)
+    assert _hash_file(
+        raw / "metadata.json", "git-sha1", len(git_data)
+    ) == _git_blob_digest(git_data)
 
     (raw / "untracked.bin").write_bytes(b"unexpected")
     with pytest.raises(RuntimeError, match="unexpected: raw/untracked.bin"):

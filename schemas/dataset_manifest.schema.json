@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/dataset_manifest.schema.json",
+  "$id": "urn:virea:schema:dataset-manifest:0.1.0",
   "title": "VIREA Dataset Manifest",
   "type": "object",
   "required": ["schema_version", "dataset", "samples"],
@@ -9,7 +9,7 @@
     "dataset": { "type": "string" },
     "samples": {
       "type": "array",
-      "items": { "$ref": "motion_sample.schema.json" }
+      "items": { "$ref": "urn:virea:schema:motion-sample:3.0.0" }
     }
   },
   "additionalProperties": true

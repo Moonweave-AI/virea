@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: susu.body25_hands40.cont6d_root_delta.v1
+version: 1.0.0
+kind: split_body_hands_motion_features
+skeleton_id: susu.body25_hands40.v1
+dtype: float32
+frame_shape: [393]
+rotation_representation: continuous_6d
+rotation_layout: columns
+rotation_space: parent_local
+root_translation_semantics: root_offset_delta
+root_rotation_semantics: local_to_world
+coordinate_system_id: susu.mta_y_up_z_forward.v1
+units: root_delta_centimeters_rotations_dimensionless
+fps: 20.0
+timebase: [1, 20]
+source_urls:
+  - https://github.com/SentiAvatar/SentiAvatar/tree/71c61b05a0609a41c17aa146c9f4ee7778ebc649
+validation_status: source_verified

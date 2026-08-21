@@ -1,0 +1,51 @@
+schema_version: virea.adapter_family.v1.0.0
+id: joint-positions-body22
+display_name: Absolute body-22 joint positions to Motion IR
+source_models:
+  - acmdm-humanml3d
+implementation_status: production_adapter_real_checkpoint_validated
+support_status: integrated_experimental
+native_profile:
+  representation_id: humanml3d.body22.positions.v1
+  carrier: dense_float_tensor
+  shape: [T, 22, 3]
+  dtype: float32
+  fps:
+    mode: fixed
+    value: 20.0
+  coordinate_system:
+    id: humanml3d.right_handed_y_up_z_forward_global
+    handedness: right
+    up_axis: positive_y
+    nominal_forward_axis: positive_z
+  units: meters
+  root_translation_semantics: absolute_xyz_is_joint_0_in_every_frame
+  root_rotation_semantics: not_provided_absolute_joint_positions_only
+output_profile:
+  representation_id: humanml3d.body22.positions.v1
+  skeleton_id: humanml3d.body22.v1
+  shape: [T, 22, 3]
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward_global
+  units: meters
+  authoritative_geometry: absolute_global_joint_positions
+  per_joint_rotation_provenance: derived_by_the_existing_position_sequence_codec
+conversion:
+  required_steps:
+    - validate_exactly_one_finite_float32_T_by_22_by_3_native_artifact
+    - preserve_the_native_representation_skeleton_model_and_revision_identity
+    - convert_with_the_existing_body22_position_sequence_adapter
+  prohibited_shortcuts:
+    - reinterpret_absolute_joint_positions_as_relative_root_deltas
+    - accept_an_artifact_whose_declared_dtype_or_shape_differs_from_the_file
+validation:
+  exact_frame_shape: [22, 3]
+  reject_non_finite: true
+  require_fps: 20.0
+official_sources:
+  - repository: https://github.com/neu-vi/ACMDM
+    revision: 25ed4ba22fb54d9c3e99361609ee344e7c940303
+    role: released_joint_level_ACMDM_absolute_XYZ_output
+notes:
+  - ACMDM-S-PS22 emits absolute global HumanML3D body-22 XYZ positions; this adapter keeps that native identity and does not change the released inference mathematics.
+  - The compatibility layer derives a target rotation stream from joint geometry through the existing PositionSequenceCodec; the source does not claim native rotations.

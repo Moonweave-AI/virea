@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from functools import lru_cache
 import hashlib
 import logging
 import mimetypes
 import os
-from pathlib import Path
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -16,9 +16,9 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from virea.data.registry import DatasetRegistry
 from virea.data.annotations import resolve_cached_sidecar, sidecar_cache_health
 from virea.data.profiles import profile_for_sample
+from virea.data.registry import DatasetRegistry
 from virea.paths import AVAILABLE_DATA_SOURCES, ProjectPaths, repo_root
 from virea.pipelines.batch import BatchPipeline, default_worker_count
 from virea.pipelines.catalog import CatalogPipeline
@@ -27,7 +27,6 @@ from virea.pipelines.processed_preview import ProcessedPreviewPipeline
 from virea.pipelines.processing import ProcessingPipeline
 from virea.pipelines.raw_preview import RawPreviewPipeline
 from virea.server.binary_codec import pack_positions_binary
-
 
 LOGGER = logging.getLogger(__name__)
 MAX_EXPLICIT_PREVIEW_FRAMES = 1_000_000
@@ -67,21 +66,33 @@ def _mount_static_if_exists(app: FastAPI, route: str, directory: str | Path) -> 
     if not path.is_absolute():
         path = repo_root() / path
     if path.exists():
-        app.mount(route, StaticFiles(directory=str(path)), name=route.strip("/").replace("/", "_"))
+        app.mount(
+            route,
+            StaticFiles(directory=str(path)),
+            name=route.strip("/").replace("/", "_"),
+        )
 
 
-def _mount_static_first_existing(app: FastAPI, route: str, candidates: list[str | Path]) -> bool:
+def _mount_static_first_existing(
+    app: FastAPI, route: str, candidates: list[str | Path]
+) -> bool:
     for directory in candidates:
         path = Path(directory).expanduser()
         if not path.is_absolute():
             path = repo_root() / path
         if path.exists():
-            app.mount(route, StaticFiles(directory=str(path)), name=route.strip("/").replace("/", "_"))
+            app.mount(
+                route,
+                StaticFiles(directory=str(path)),
+                name=route.strip("/").replace("/", "_"),
+            )
             return True
     return False
 
 
-def _mount_static_from_env(app: FastAPI, route: str, env_name: str, project_relative_fallbacks: list[str]) -> bool:
+def _mount_static_from_env(
+    app: FastAPI, route: str, env_name: str, project_relative_fallbacks: list[str]
+) -> bool:
     candidates: list[str | Path] = []
     env_value = os.getenv(env_name)
     if env_value:
@@ -108,7 +119,9 @@ def _public_http_error(exc: Exception, status_code: int = 400) -> HTTPException:
         detail = "requested sample or artifact was not found"
     elif isinstance(exc, KeyError):
         detail = "unknown dataset or sample identifier"
-    elif isinstance(exc, PermissionError) and "VIREA_ALLOW_TRUSTED_RAW_PICKLE=1" in str(exc):
+    elif isinstance(exc, PermissionError) and "VIREA_ALLOW_TRUSTED_RAW_PICKLE=1" in str(
+        exc
+    ):
         detail = (
             "legacy GRAB/SuSu NumPy object data is disabled because it can execute code; "
             "for a locally verified dataset only, set VIREA_ALLOW_TRUSTED_RAW_PICKLE=1 "
@@ -142,7 +155,9 @@ def _public_path(value: str | Path, registry: DatasetRegistry) -> str:
 def _public_payload(value, registry: DatasetRegistry):
     """Remove machine-local absolute paths from every HTTP JSON response."""
     if isinstance(value, dict):
-        return {str(key): _public_payload(item, registry) for key, item in value.items()}
+        return {
+            str(key): _public_payload(item, registry) for key, item in value.items()
+        }
     if isinstance(value, list):
         return [_public_payload(item, registry) for item in value]
     if isinstance(value, tuple):
@@ -187,7 +202,11 @@ def _sidecar_media_type(path: Path) -> str:
         ".npz": "application/x-npz",
         ".wav": "audio/wav",
     }
-    return explicit.get(path.suffix.lower()) or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return (
+        explicit.get(path.suffix.lower())
+        or mimetypes.guess_type(path.name)[0]
+        or "application/octet-stream"
+    )
 
 
 def _sha256_file(path: Path) -> str:
@@ -201,13 +220,17 @@ def _sha256_file(path: Path) -> str:
 def _resolve_sidecar_file(digest: str, data_source: str | None = None) -> Path:
     if not re.fullmatch(r"[0-9a-f]{64}", digest):
         raise FileNotFoundError("invalid sidecar content identifier")
-    sources = (_resolve_data_source(data_source),) if data_source else AVAILABLE_DATA_SOURCES
+    sources = (
+        (_resolve_data_source(data_source),) if data_source else AVAILABLE_DATA_SOURCES
+    )
     for source in sources:
         root = (_registry_for(source).paths.processed_root / "sidecars").resolve()
         if not root.is_dir():
             continue
         for candidate in root.iterdir():
-            if not candidate.is_file() or not (candidate.name == digest or candidate.name.startswith(f"{digest}.")):
+            if not candidate.is_file() or not (
+                candidate.name == digest or candidate.name.startswith(f"{digest}.")
+            ):
                 continue
             resolved = candidate.resolve()
             if not resolved.is_relative_to(root):
@@ -236,15 +259,19 @@ def _preview_query_params(
 ) -> tuple[DatasetRegistry, str, str, str, int | None, bool]:
     resolved = _resolve_data_source(data_source)
     registry = _registry_for(resolved)
-    effective_max_frames = max_frames if max_frames is not None else registry.paths.preview_max_frames
+    effective_max_frames = (
+        max_frames if max_frames is not None else registry.paths.preview_max_frames
+    )
     return registry, resolved, dataset, sample_id, effective_max_frames, from_artifacts
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="VIREA Preview Runtime", version="0.2.0")
+    app = FastAPI(title="VIREA Preview Runtime", version="0.4.0")
     trusted_hosts = [
         item.strip()
-        for item in os.getenv("VIREA_TRUSTED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
+        for item in os.getenv(
+            "VIREA_TRUSTED_HOSTS", "127.0.0.1,localhost,testserver"
+        ).split(",")
         if item.strip()
     ]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
@@ -355,21 +382,31 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
-            registry, _source, _dataset, _sample, max_frames, _artifacts = _preview_query_params(
-                data_source, dataset, sample_id, max_frames, from_artifacts
+            registry, _source, _dataset, _sample, max_frames, _artifacts = (
+                _preview_query_params(
+                    data_source, dataset, sample_id, max_frames, from_artifacts
+                )
             )
             reader = PreviewReader(registry)
             if from_artifacts:
                 try:
-                    payload = reader.read_source_preview(dataset, sample_id, max_frames=max_frames).to_dict()
+                    payload = reader.read_source_preview(
+                        dataset, sample_id, max_frames=max_frames
+                    ).to_dict()
                     return _public_payload(payload, registry)
                 except FileNotFoundError:
                     pass
-            payload = RawPreviewPipeline(registry).preview(dataset, sample_id, max_frames=max_frames).to_dict()
+            payload = (
+                RawPreviewPipeline(registry)
+                .preview(dataset, sample_id, max_frames=max_frames)
+                .to_dict()
+            )
             return _public_payload(payload, registry)
         except FileNotFoundError as exc:
             raise _public_http_error(exc, 404) from exc
@@ -381,23 +418,31 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
-            registry, _source, _dataset, _sample, max_frames, _artifacts = _preview_query_params(
-                data_source, dataset, sample_id, max_frames, from_artifacts
+            registry, _source, _dataset, _sample, max_frames, _artifacts = (
+                _preview_query_params(
+                    data_source, dataset, sample_id, max_frames, from_artifacts
+                )
             )
             reader = PreviewReader(registry)
             if from_artifacts:
                 try:
-                    payload = reader.read_processed_preview(dataset, sample_id, max_frames=max_frames).to_dict()
+                    payload = reader.read_processed_preview(
+                        dataset, sample_id, max_frames=max_frames
+                    ).to_dict()
                     return _public_payload(payload, registry)
                 except FileNotFoundError:
                     pass
-            payload = ProcessedPreviewPipeline(registry).preview(
-                dataset, sample_id, max_frames=max_frames, persist=False
-            ).to_dict()
+            payload = (
+                ProcessedPreviewPipeline(registry)
+                .preview(dataset, sample_id, max_frames=max_frames, persist=False)
+                .to_dict()
+            )
             return _public_payload(payload, registry)
         except FileNotFoundError as exc:
             raise _public_http_error(exc, 404) from exc
@@ -409,17 +454,23 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> dict:
         try:
-            registry, _source, _dataset, _sample, max_frames, _artifacts = _preview_query_params(
-                data_source, dataset, sample_id, max_frames, from_artifacts
+            registry, _source, _dataset, _sample, max_frames, _artifacts = (
+                _preview_query_params(
+                    data_source, dataset, sample_id, max_frames, from_artifacts
+                )
             )
             reader = PreviewReader(registry)
             if from_artifacts:
                 try:
-                    return reader.read_motion_payload(dataset, sample_id, max_frames=max_frames)
+                    return reader.read_motion_payload(
+                        dataset, sample_id, max_frames=max_frames
+                    )
                 except FileNotFoundError:
                     pass
             payload = ProcessedPreviewPipeline(registry).preview(
@@ -443,7 +494,10 @@ def create_app() -> FastAPI:
     ) -> dict:
         try:
             registry = _registry_for(_resolve_data_source(data_source))
-            return _public_payload(PreviewReader(registry).read_quality_report(dataset, sample_id), registry)
+            return _public_payload(
+                PreviewReader(registry).read_quality_report(dataset, sample_id),
+                registry,
+            )
         except FileNotFoundError as exc:
             raise _public_http_error(exc, 404) from exc
 
@@ -459,15 +513,23 @@ def create_app() -> FastAPI:
         if stage == "source":
             if from_artifacts:
                 try:
-                    payload = reader.read_source_preview(dataset, sample_id, max_frames=max_frames)
+                    payload = reader.read_source_preview(
+                        dataset, sample_id, max_frames=max_frames
+                    )
                 except FileNotFoundError:
-                    payload = RawPreviewPipeline(registry).preview(dataset, sample_id, max_frames=max_frames)
+                    payload = RawPreviewPipeline(registry).preview(
+                        dataset, sample_id, max_frames=max_frames
+                    )
             else:
-                payload = RawPreviewPipeline(registry).preview(dataset, sample_id, max_frames=max_frames)
+                payload = RawPreviewPipeline(registry).preview(
+                    dataset, sample_id, max_frames=max_frames
+                )
         else:
             if from_artifacts:
                 try:
-                    payload = reader.read_processed_preview(dataset, sample_id, max_frames=max_frames)
+                    payload = reader.read_processed_preview(
+                        dataset, sample_id, max_frames=max_frames
+                    )
                 except FileNotFoundError:
                     payload = ProcessedPreviewPipeline(registry).preview(
                         dataset, sample_id, max_frames=max_frames, persist=False
@@ -487,12 +549,16 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> Response:
         try:
-            registry, _source, _dataset, _sample, max_frames, _artifacts = _preview_query_params(
-                data_source, dataset, sample_id, max_frames, from_artifacts
+            registry, _source, _dataset, _sample, max_frames, _artifacts = (
+                _preview_query_params(
+                    data_source, dataset, sample_id, max_frames, from_artifacts
+                )
             )
             return _binary_positions(
                 "source",
@@ -510,12 +576,16 @@ def create_app() -> FastAPI:
         data_source: str | None = None,
         dataset: str = Query(...),
         sample_id: str = Query(...),
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         from_artifacts: bool = Query(default=True, alias="from_artifacts"),
     ) -> Response:
         try:
-            registry, _source, _dataset, _sample, max_frames, _artifacts = _preview_query_params(
-                data_source, dataset, sample_id, max_frames, from_artifacts
+            registry, _source, _dataset, _sample, max_frames, _artifacts = (
+                _preview_query_params(
+                    data_source, dataset, sample_id, max_frames, from_artifacts
+                )
             )
             return _binary_positions(
                 "processed",
@@ -534,21 +604,33 @@ def create_app() -> FastAPI:
         dataset: str = Query(...),
         sample_id: str = Query(...),
         stage: Literal["raw", "processed"] = "processed",
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         persist: bool = False,
     ) -> dict:
         """Compute preview in memory without requiring persisted artifacts."""
         try:
             registry = _registry_for(_resolve_data_source(data_source))
-            max_frames = max_frames if max_frames is not None else registry.paths.preview_max_frames
+            max_frames = (
+                max_frames
+                if max_frames is not None
+                else registry.paths.preview_max_frames
+            )
             if stage == "raw":
-                payload = RawPreviewPipeline(registry).preview(dataset, sample_id, max_frames=max_frames).to_dict()
+                payload = (
+                    RawPreviewPipeline(registry)
+                    .preview(dataset, sample_id, max_frames=max_frames)
+                    .to_dict()
+                )
                 return _public_payload(payload, registry)
             if persist:
                 _require_write_api()
-            payload = ProcessedPreviewPipeline(registry).preview(
-                dataset, sample_id, max_frames=max_frames, persist=persist
-            ).to_dict()
+            payload = (
+                ProcessedPreviewPipeline(registry)
+                .preview(dataset, sample_id, max_frames=max_frames, persist=persist)
+                .to_dict()
+            )
             return _public_payload(payload, registry)
         except HTTPException:
             raise
@@ -561,7 +643,9 @@ def create_app() -> FastAPI:
         dataset: str = Query(...),
         sample_id: str = Query(...),
         stage: Literal["raw", "processed"] = "processed",
-        max_frames: int | None = Query(default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES),
+        max_frames: int | None = Query(
+            default=None, ge=1, le=MAX_EXPLICIT_PREVIEW_FRAMES
+        ),
         persist: bool = False,
         from_artifacts: bool = Query(default=False, alias="from_artifacts"),
     ) -> dict:
@@ -603,7 +687,9 @@ def create_app() -> FastAPI:
                 persist=request.persist,
                 skip_existing=request.skip_existing,
             )
-            builder_payload = ProcessedPreviewPipeline(registry)._builder.processed_payload(
+            builder_payload = ProcessedPreviewPipeline(
+                registry
+            )._builder.processed_payload(
                 output.clip,
                 output.canonical,
                 source=output.source,

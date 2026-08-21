@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/dataset_profile.schema.json",
-  "title": "VIREA Dataset Profile v1",
+  "$id": "urn:virea:schema:dataset-profile:2.0.0",
+  "title": "VIREA Dataset Profile v2",
   "type": "object",
   "required": [
     "schema_version", "key", "dataset", "source_representation", "joint_system",
@@ -9,10 +9,12 @@
     "source_up", "source_forward", "handedness", "unit", "unit_scale_to_meter",
     "validation_status", "root_rotation_semantics", "codec_source_profiles",
     "rotation_6d_layout", "array_layout", "root_axes",
-    "translation_zeroed", "notes"
+    "translation_zeroed", "hand_solver_applicability", "hand_evidence_mode",
+    "hand_unobservable_policy", "hand_solver_validation_status",
+    "hand_constraint_policy_id", "notes"
   ],
   "properties": {
-    "schema_version": { "const": "virea.dataset_profile.v1.0.0" },
+    "schema_version": { "const": "virea.dataset_profile.v2.0.0" },
     "key": { "type": "string", "minLength": 1 },
     "dataset": { "type": "string", "minLength": 1 },
     "source_representation": { "type": "string" },
@@ -40,6 +42,17 @@
       "items": { "type": "integer", "minimum": 0, "maximum": 2 }
     },
     "translation_zeroed": { "type": "boolean" },
+    "hand_solver_applicability": { "enum": ["required", "not_applicable"] },
+    "hand_evidence_mode": {
+      "enum": ["parent_local_rotations", "joint_positions", "identity_neutral"]
+    },
+    "hand_unobservable_policy": { "enum": ["neutral", "reject"] },
+    "hand_solver_validation_status": {
+      "enum": ["draft", "source_verified", "regression_verified", "release_ready"]
+    },
+    "hand_constraint_policy_id": {
+      "const": "virea.constraint_aware_hand_retarget.v1"
+    },
     "notes": { "type": "array", "items": { "type": "string" } }
   },
   "additionalProperties": false

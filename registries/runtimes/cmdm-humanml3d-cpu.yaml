@@ -1,0 +1,38 @@
+schema_version: virea.runtime_spec.v1.0.0
+id: cmdm-humanml3d-cpu
+backend: uv-native
+platforms:
+  - win-64
+  - linux-64
+  - osx-arm64
+  - osx-64
+python: ">=3.11,<3.12"
+accelerator:
+  kind: cpu
+  abi: null
+  min_vram_gib: null
+lockfile: uv.lock
+min_storage_gib: 8.0
+resource_profiles:
+  - id: whole-model-cpu
+    strategy: cpu
+    min_free_vram_gib: null
+    min_free_ram_gib: 12.0
+    min_free_swap_gib: 0.0
+entrypoint_argv:
+  - python
+  - -m
+  - virea_cmdm.worker
+startup_timeout_seconds: 600
+environment_allowlist:
+  - VIREA_ARTIFACT_ROOTS_JSON
+  - VIREA_RESOURCE_PROFILE
+  - VIREA_MEMORY_STRATEGY
+  - HF_HOME
+  - HF_HUB_OFFLINE
+  - TRANSFORMERS_OFFLINE
+working_directory: plugins/models/cmdm-humanml3d/runtime-cpu
+project_package: virea-model-cmdm-humanml3d-cpu-runtime
+project_version: 0.1.2
+runtime_core_epoch: virea-runtime-core-20260821.2
+availability: cpu_build_import_passed_win64_wsl_ubuntu_24_04_linux_native_macos_unverified

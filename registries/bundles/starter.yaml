@@ -1,0 +1,17 @@
+schema_version: virea.model_bundle.v1.0.0
+id: starter
+display_name: VIREA Starter
+status: draft
+models:
+  - model_id: flood-diffusion-tiny
+    role: first_real_model
+    required: true
+  - model_id: momask-humanml3d
+    role: next_real_model
+    required: false
+default_model_id: flood-diffusion-tiny
+commercial_safe: null
+requires_license_review: true
+notes:
+  - Registry membership does not imply that a model is installed, runnable, redistributable, or commercially usable.
+  - The default starter path is the pinned FloodDiffusionTiny real checkpoint and its pinned UMT5 text encoder; test fixtures are not part of this bundle.

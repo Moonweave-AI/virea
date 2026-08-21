@@ -1,0 +1,285 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: prism-tp2m-1-4b
+  display_name: PRISM TP2M 1.4B
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/ZeyuLing/PRISM
+    revision: 3c58bc5d946f0827171a3712ed36314f4b1a5186
+    release: arXiv 2603.08590 v3 and official public checkpoint snapshot
+  tasks:
+    - text_to_motion
+  adapter_family: prism-smplh-body22-axis-angle69
+  status: integrated_experimental
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt: {type: string, required: true, maximum_length: 8000}
+      num_frames:
+        type: integer
+        default: 129
+        minimum: 33
+        maximum: 961
+        description: Must satisfy (num_frames - 1) modulo 4 equals zero.
+      inference_steps: {type: integer, default: 50, minimum: 1, maximum: 200}
+      guidance_scale: {type: number, default: 5.0, minimum: 0.0, maximum: 20.0}
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: prism.smplh_body22.axis_angle69.v1
+  skeleton_id: smplh.body22.v1
+  fps: 30.0
+  coordinate_system: prism.smplh.right_handed_y_up_z_forward
+  units: meters
+  root_translation_semantics: public_pipeline_postprocessed_absolute_xyz
+  root_rotation_semantics: explicit_global_orientation_axis_angle_local_to_world
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: prism-tp2m-1-4b-cu128-component-split
+    backend: uv-native
+    platforms:
+      - linux-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 12.0
+    lockfile: uv.lock
+    min_storage_gib: 40.0
+    resource_profiles:
+      - id: cuda-component-split
+        strategy: cuda_component_split
+        min_free_vram_gib: 12.0
+        min_free_ram_gib: 28.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_prism.worker
+    startup_timeout_seconds: 1800
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+      - DIFFUSERS_OFFLINE
+      - TOKENIZERS_PARALLELISM
+      - PYTORCH_CUDA_ALLOC_CONF
+      - PYTORCH_ALLOC_CONF
+    working_directory: plugins/models/prism-tp2m-1-4b/runtime-cu128
+    project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
+    project_version: 0.1.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_2_evidence_requires_reacceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: prism-tp2m-1-4b-cpu
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 40.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 96.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_prism.worker
+    startup_timeout_seconds: 1800
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+      - DIFFUSERS_OFFLINE
+      - TOKENIZERS_PARALLELISM
+    working_directory: plugins/models/prism-tp2m-1-4b/runtime-cpu
+    project_package: virea-model-prism-tp2m-1-4b-cpu-runtime
+    project_version: 0.1.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: cpu_contract_and_lock_baseline_real_inference_unverified
+artifacts:
+  - id: prism-source
+    kind: https
+    url: https://github.com/ZeyuLing/PRISM/archive/3c58bc5d946f0827171a3712ed36314f4b1a5186.tar.gz
+    revision: 3c58bc5d946f0827171a3712ed36314f4b1a5186
+    expected_files:
+      - prism/registry.py
+      - prism/pipelines/prism_ar_t2m_pipeline.py
+      - prism/models/autoencoders/__init__.py
+      - prism/models/transformers/motion_prism/transformer_prism.py
+      - prism/utils/geometry/rotation_convert.py
+    unpack:
+      - path: 3c58bc5d946f0827171a3712ed36314f4b1a5186.tar.gz
+        format: tar
+        destination: .
+        strip_components: 1
+        remove_archive: true
+  - id: prism-tp2m-1-4b-official-hf
+    kind: huggingface
+    repository: ZeyuLing/PRISM-TP2M-1.4B
+    revision: 825daaa27f4f3845eb0978674c3acb378a12cda6
+    allow_patterns:
+      - config.json
+      - text_encoder/config.json
+      - text_encoder/model.safetensors
+      - transformer/config.json
+      - transformer/model.safetensors
+      - vae/config.json
+      - vae/model.safetensors
+    expected_files:
+      - config.json
+      - text_encoder/config.json
+      - text_encoder/model.safetensors
+      - transformer/config.json
+      - transformer/model.safetensors
+      - vae/config.json
+      - vae/model.safetensors
+  - id: prism-umt5-xxl-tokenizer
+    kind: huggingface
+    repository: google/umt5-xxl
+    revision: 66cb9e7e85526fe440a945569e42c72fb6cbc0ad
+    allow_patterns:
+      - tokenizer.json
+      - tokenizer_config.json
+      - special_tokens_map.json
+      - spiece.model
+    expected_files:
+      - tokenizer.json
+      - tokenizer_config.json
+      - special_tokens_map.json
+      - spiece.model
+  - id: prism-motionhub-smplh-stats
+    kind: https
+    url: https://huggingface.co/datasets/ZeyuLing/MotionHub/resolve/c3f6c8eb8a4ba9e5ca521cdc0af9264756b66726/statistics/smplh_universal_stats_aug.json?download=true
+    revision: c3f6c8eb8a4ba9e5ca521cdc0af9264756b66726
+    expected_files:
+      - smplh_universal_stats_aug.json
+licenses:
+  code: No usable license file is published by the pinned PRISM source revision.
+  weights: No usable license metadata is published by the pinned checkpoint revision.
+  dataset_lineage:
+    - HumanML3D
+    - MotionHub
+    - BABEL
+  body_model: []
+  commercial_allowed: null
+  redistribution_allowed: false
+  requires_acceptance: true
+  source_urls:
+    - https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186
+    - https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B/tree/825daaa27f4f3845eb0978674c3acb378a12cda6
+    - https://github.com/ZeyuLing/VersatileMotion/tree/e521f36dd5ad317bd8b47e69878d0eac79915e58
+resources:
+  integration_state: integrated_experimental
+  technical_availability: historical_runtime_0_1_2_acceptance_new_runtime_baselines_require_reacceptance
+  distribution_status: external_assets_only
+  license_status: license_review_required
+  artifact_acquisition: explicit_user_acceptance_then_direct_pinned_upstream_fetch_or_existing_external_roots
+  model_parameters: approximately_1.4B_motion_transformer_per_official_model_card
+  official_checkpoint_bytes: 32669418445
+  tokenizer_repository: google/umt5-xxl
+  tokenizer_revision: 66cb9e7e85526fe440a945569e42c72fb6cbc0ad
+  statistics_repository: ZeyuLing/MotionHub
+  statistics_revision: c3f6c8eb8a4ba9e5ca521cdc0af9264756b66726
+  statistics_member: statistics/smplh_universal_stats_aug.json
+  native_public_feature_dim: 69
+  internal_network_feature_dim: 138
+  native_fps: 30.0
+  memory_placement:
+    cuda_component_split:
+      text_encoder: cpu
+      transformer: cuda
+      vae: cuda
+      dtype: bfloat16
+    cpu:
+      text_encoder: cpu
+      transformer: cpu
+      vae: cpu
+      dtype: float32
+    implicit_network_access: false
+  ram_admission:
+    preflight_min_free_ram_gib: 28.0
+    post_load_min_available_ram_gib: 2.0
+    calibration_basis: 25.075_GiB_UMT5_weight_file_plus_successful_legacy_run_inside_31.063_GiB_WSL
+    managed_runtime_peak_measurement: required_in_fresh_product_e2e
+    cpu_preflight_min_free_ram_gib: 96.0
+    cpu_post_load_min_available_ram_gib: 8.0
+    cpu_floor_status: conservative_fail_closed_unmeasured
+  cpu_portability:
+    schema_version: virea.model_cpu_portability.v1.0.0
+    declared_platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    execution_policy:
+      device: cpu
+      dtype: float32
+      min_free_ram_gib: 96.0
+    blockers: []
+    observed_evidence: []
+  smpl_geometry:
+    required_for_generation: false
+    empty_directory_is_valid_asset: false
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: prism-tp2m-1-4b
+    task: text_to_motion
+    input:
+      prompt: A person walks forward, turns left, raises the right hand, and returns to a relaxed upright stance.
+    parameters:
+      num_frames: 129
+      inference_steps: 50
+      guidance_scale: 5.0
+      seed: 42
+      fps: 30.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: prism.smplh_body22.axis_angle69.v1
+    skeleton_id: smplh.body22.v1
+    min_frames: 129
+    artifacts:
+      - native_motion
+      - motion_ir
+      - retargeted_motion
+      - vrma
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 7200
+notes:
+  - The managed WSL2 production-evidence chain remains historical evidence for runtime package 0.1.2. The new 0.1.3 CUDA wrapper and CPU runtime have contract/lock evidence only and require separate real-checkpoint acceptance.
+  - The Worker performs no model download or implicit Hub access. Every artifact is installed before startup and addressed by VIREA_ARTIFACT_ROOTS_JSON.
+  - The runtime does not require or fabricate SMPL-X geometry. The raw public SMPL-X-style NPZ is preserved alongside the exact 69D body22 control-plane carrier.
+  - PRISM source and model assets remain external-only until usable redistribution terms are published.
+  - The CPU runtime uses all components on CPU in float32 and fails closed before artifact loading unless 96 GiB is available. This is a conservative unmeasured floor, not evidence that real CPU inference has passed.

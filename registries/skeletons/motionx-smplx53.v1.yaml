@@ -1,0 +1,72 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: motionx.smplx53.v1
+version: 1.0.0
+joints:
+  - {name: pelvis, parent: null, semantic: hips, required: true}
+  - {name: left_hip, parent: pelvis, semantic: leftUpperLeg, required: true}
+  - {name: right_hip, parent: pelvis, semantic: rightUpperLeg, required: true}
+  - {name: spine1, parent: pelvis, semantic: spine, required: true}
+  - {name: left_knee, parent: left_hip, semantic: leftLowerLeg, required: true}
+  - {name: right_knee, parent: right_hip, semantic: rightLowerLeg, required: true}
+  - {name: spine2, parent: spine1, semantic: chest, required: true}
+  - {name: left_ankle, parent: left_knee, semantic: leftFoot, required: true}
+  - {name: right_ankle, parent: right_knee, semantic: rightFoot, required: true}
+  - {name: spine3, parent: spine2, semantic: upperChest, required: true}
+  - {name: left_foot, parent: left_ankle, semantic: leftToes, required: true}
+  - {name: right_foot, parent: right_ankle, semantic: rightToes, required: true}
+  - {name: neck, parent: spine3, semantic: neck, required: true}
+  - {name: left_collar, parent: spine3, semantic: leftShoulder, required: true}
+  - {name: right_collar, parent: spine3, semantic: rightShoulder, required: true}
+  - {name: head, parent: neck, semantic: head, required: true}
+  - {name: left_shoulder, parent: left_collar, semantic: leftUpperArm, required: true}
+  - {name: right_shoulder, parent: right_collar, semantic: rightUpperArm, required: true}
+  - {name: left_elbow, parent: left_shoulder, semantic: leftLowerArm, required: true}
+  - {name: right_elbow, parent: right_shoulder, semantic: rightLowerArm, required: true}
+  - {name: left_wrist, parent: left_elbow, semantic: leftHand, required: true}
+  - {name: right_wrist, parent: right_elbow, semantic: rightHand, required: true}
+  - {name: left_index1, parent: left_wrist, semantic: leftIndexProximal, required: true}
+  - {name: left_index2, parent: left_index1, semantic: leftIndexIntermediate, required: true}
+  - {name: left_index3, parent: left_index2, semantic: leftIndexDistal, required: true}
+  - {name: left_middle1, parent: left_wrist, semantic: leftMiddleProximal, required: true}
+  - {name: left_middle2, parent: left_middle1, semantic: leftMiddleIntermediate, required: true}
+  - {name: left_middle3, parent: left_middle2, semantic: leftMiddleDistal, required: true}
+  - {name: left_pinky1, parent: left_wrist, semantic: leftLittleProximal, required: true}
+  - {name: left_pinky2, parent: left_pinky1, semantic: leftLittleIntermediate, required: true}
+  - {name: left_pinky3, parent: left_pinky2, semantic: leftLittleDistal, required: true}
+  - {name: left_ring1, parent: left_wrist, semantic: leftRingProximal, required: true}
+  - {name: left_ring2, parent: left_ring1, semantic: leftRingIntermediate, required: true}
+  - {name: left_ring3, parent: left_ring2, semantic: leftRingDistal, required: true}
+  - {name: left_thumb1, parent: left_wrist, semantic: leftThumbProximal, required: true}
+  - {name: left_thumb2, parent: left_thumb1, semantic: leftThumbIntermediate, required: true}
+  - {name: left_thumb3, parent: left_thumb2, semantic: leftThumbDistal, required: true}
+  - {name: right_index1, parent: right_wrist, semantic: rightIndexProximal, required: true}
+  - {name: right_index2, parent: right_index1, semantic: rightIndexIntermediate, required: true}
+  - {name: right_index3, parent: right_index2, semantic: rightIndexDistal, required: true}
+  - {name: right_middle1, parent: right_wrist, semantic: rightMiddleProximal, required: true}
+  - {name: right_middle2, parent: right_middle1, semantic: rightMiddleIntermediate, required: true}
+  - {name: right_middle3, parent: right_middle2, semantic: rightMiddleDistal, required: true}
+  - {name: right_pinky1, parent: right_wrist, semantic: rightLittleProximal, required: true}
+  - {name: right_pinky2, parent: right_pinky1, semantic: rightLittleIntermediate, required: true}
+  - {name: right_pinky3, parent: right_pinky2, semantic: rightLittleDistal, required: true}
+  - {name: right_ring1, parent: right_wrist, semantic: rightRingProximal, required: true}
+  - {name: right_ring2, parent: right_ring1, semantic: rightRingIntermediate, required: true}
+  - {name: right_ring3, parent: right_ring2, semantic: rightRingDistal, required: true}
+  - {name: right_thumb1, parent: right_wrist, semantic: rightThumbProximal, required: true}
+  - {name: right_thumb2, parent: right_thumb1, semantic: rightThumbIntermediate, required: true}
+  - {name: right_thumb3, parent: right_thumb2, semantic: rightThumbDistal, required: true}
+  - {name: jaw, parent: head, semantic: jaw, required: true}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: smplx_neutral_template
+rotation:
+  representation: axis_angle
+  layout: xyz_rotation_vectors
+  space: parent_local
+root_motion:
+  translation: source_absolute_with_subsource_calibration
+  rotation: local_to_world
+fps: 30
+source_urls:
+  - https://github.com/IDEA-Research/Motion-X
+  - https://github.com/vchoutas/smplx
+validation_status: draft

@@ -8,8 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from virea.data.adapters.base import BaseDatasetAdapter
 from virea.data.adapters.amass import amass_pose_codec, inspect_amass_pose_codec
+from virea.data.adapters.base import BaseDatasetAdapter
 from virea.data.annotations import make_annotation
 from virea.data.types import RawClip, SampleRef
 
@@ -58,7 +58,9 @@ class BABELAdapter(BaseDatasetAdapter):
         try:
             return self._safe_path(self.raw_root.parent / "amass", feat)
         except ValueError as exc:
-            raise ValueError(f"BABEL feat_p escaped the sibling AMASS root: {feat!r}") from exc
+            raise ValueError(
+                f"BABEL feat_p escaped the sibling AMASS root: {feat!r}"
+            ) from exc
 
     def _annotation_motion_candidates(self, feat: str) -> list[tuple[str, Path]]:
         parts = list(Path(feat).parts)
@@ -70,17 +72,25 @@ class BABELAdapter(BaseDatasetAdapter):
                 candidates.append(
                     (
                         "mapped_dataset_drop_archive_wrapper",
-                        self._safe_path(amass_root, Path(mapped_dataset).joinpath(*parts[2:])),
+                        self._safe_path(
+                            amass_root, Path(mapped_dataset).joinpath(*parts[2:])
+                        ),
                     )
                 )
             except ValueError:
                 pass
-            fallback = self._canonical_carrier_fallback(mapped_dataset, tuple(parts[2:-1]), parts[-1])
+            fallback = self._canonical_carrier_fallback(
+                mapped_dataset, tuple(parts[2:-1]), parts[-1]
+            )
             if fallback is not None:
                 candidates.append(("mapped_dataset_canonical_filename", fallback))
         try:
-            candidates.append(("sibling_amass_exact", self._safe_path(amass_root, feat)))
-            candidates.append(("legacy_babel_local", self._safe_path(self.raw_root, feat)))
+            candidates.append(
+                ("sibling_amass_exact", self._safe_path(amass_root, feat))
+            )
+            candidates.append(
+                ("legacy_babel_local", self._safe_path(self.raw_root, feat))
+            )
         except ValueError:
             pass
         unique: list[tuple[str, Path]] = []
@@ -106,7 +116,11 @@ class BABELAdapter(BaseDatasetAdapter):
         source_name: str,
     ) -> Path | None:
         dataset_root = self._safe_path(self.raw_root.parent / "amass", mapped_dataset)
-        preferred_parent = self._safe_path(dataset_root, Path(*relative_parent)) if relative_parent else dataset_root
+        preferred_parent = (
+            self._safe_path(dataset_root, Path(*relative_parent))
+            if relative_parent
+            else dataset_root
+        )
         search_root = preferred_parent if preferred_parent.is_dir() else dataset_root
         if not search_root.is_dir():
             return None
@@ -160,11 +174,17 @@ class BABELAdapter(BaseDatasetAdapter):
                         duration_sec=float(record.get("dur", 0.0) or 0.0),
                         text=text,
                         split=split,
-                        related_paths={"annotation": self.raw_root / "babel-teach" / f"{split}.json"},
+                        related_paths={
+                            "annotation": self.raw_root
+                            / "babel-teach"
+                            / f"{split}.json"
+                        },
                         metadata={
                             "babel_sid": record.get("babel_sid"),
                             "feat_p": record.get("feat_p"),
-                            "carrier_path_rule": self._annotation_motion_rule(record, motion_path),
+                            "carrier_path_rule": self._annotation_motion_rule(
+                                record, motion_path
+                            ),
                             "dataset_profile": self._carrier_profile_key(codec_key),
                         },
                     )
@@ -192,7 +212,9 @@ class BABELAdapter(BaseDatasetAdapter):
                 break
         return samples
 
-    def _record_for_sample(self, sample_id: str) -> tuple[str | None, dict[str, Any] | None]:
+    def _record_for_sample(
+        self, sample_id: str
+    ) -> tuple[str | None, dict[str, Any] | None]:
         parts = sample_id.split("/")
         if len(parts) == 3 and parts[0] == "babel-teach":
             split, key = parts[1], parts[2]
@@ -209,11 +231,24 @@ class BABELAdapter(BaseDatasetAdapter):
         else:
             path = self._path_from_id(sample_id, ".npz")
         if not path.exists():
-            raise FileNotFoundError(f"BABEL carrier motion not found for {sample_id}: {path}")
+            raise FileNotFoundError(
+                f"BABEL carrier motion not found for {sample_id}: {path}"
+            )
         payload = np.load(path, allow_pickle=False)
         poses = np.asarray(payload["poses"], dtype=np.float32)
-        trans = np.asarray(payload.get("trans", np.zeros((poses.shape[0], 3))), dtype=np.float32)
-        fps = float(np.asarray(payload.get("mocap_framerate", payload.get("mocap_frame_rate", payload.get("mocap_frame_rate", 60.0)))).reshape(-1)[0])
+        trans = np.asarray(
+            payload.get("trans", np.zeros((poses.shape[0], 3))), dtype=np.float32
+        )
+        fps = float(
+            np.asarray(
+                payload.get(
+                    "mocap_framerate",
+                    payload.get(
+                        "mocap_frame_rate", payload.get("mocap_frame_rate", 60.0)
+                    ),
+                )
+            ).reshape(-1)[0]
+        )
         codec_key, carrier_source_format = amass_pose_codec(payload, poses.shape[1])
         profile_key = self._carrier_profile_key(codec_key)
         carrier_time_contract: dict[str, Any] | None = None
@@ -236,7 +271,9 @@ class BABELAdapter(BaseDatasetAdapter):
             seq_block = record.get("seq_ann")
             seq_block = seq_block if isinstance(seq_block, dict) else {}
             seq_labels = seq_block.get("labels", [])
-            for ordinal, item in enumerate(seq_labels if isinstance(seq_labels, list) else []):
+            for ordinal, item in enumerate(
+                seq_labels if isinstance(seq_labels, list) else []
+            ):
                 if not isinstance(item, dict):
                     continue
                 label = item.get("proc_label") or item.get("raw_label")
@@ -254,14 +291,20 @@ class BABELAdapter(BaseDatasetAdapter):
                         text=str(label),
                         provenance="native",
                         original={"record": item},
-                        extras={key: value for key, value in item.items() if key not in {"proc_label", "raw_label"}},
+                        extras={
+                            key: value
+                            for key, value in item.items()
+                            if key not in {"proc_label", "raw_label"}
+                        },
                     )
                 )
             frame_block = record.get("frame_ann")
             frame_block = frame_block if isinstance(frame_block, dict) else {}
             frame_labels = frame_block.get("labels", [])
             offset = len(annotations)
-            for ordinal, item in enumerate(frame_labels if isinstance(frame_labels, list) else []):
+            for ordinal, item in enumerate(
+                frame_labels if isinstance(frame_labels, list) else []
+            ):
                 if not isinstance(item, dict):
                     continue
                 label = item.get("proc_label") or item.get("raw_label")
@@ -282,7 +325,12 @@ class BABELAdapter(BaseDatasetAdapter):
                         end_sec=item.get("end_t"),
                         fps=fps,
                         original={"record": item},
-                        extras={key: value for key, value in item.items() if key not in {"proc_label", "raw_label", "start_t", "end_t"}},
+                        extras={
+                            key: value
+                            for key, value in item.items()
+                            if key
+                            not in {"proc_label", "raw_label", "start_t", "end_t"}
+                        },
                     )
                 )
         else:
@@ -311,7 +359,11 @@ class BABELAdapter(BaseDatasetAdapter):
             frame_count=poses.shape[0],
             text=text,
             split=split,
-            related_paths={"annotation": self.raw_root / "babel-teach" / f"{split}.json"} if record is not None and split else None,
+            related_paths={
+                "annotation": self.raw_root / "babel-teach" / f"{split}.json"
+            }
+            if record is not None and split
+            else None,
             metadata={
                 "dataset_profile": profile_key,
                 "carrier_source_format": carrier_source_format,
@@ -328,10 +380,15 @@ class BABELAdapter(BaseDatasetAdapter):
             },
         )
         validation_warnings: list[str] = []
-        if carrier_time_contract is not None and carrier_time_contract["status"] != "matched":
+        if (
+            carrier_time_contract is not None
+            and carrier_time_contract["status"] != "matched"
+        ):
             declared_duration = float(carrier_time_contract["declared_duration_sec"])
             decoded_duration = float(carrier_time_contract["decoded_duration_sec"])
-            if abs(decoded_duration - declared_duration) > float(carrier_time_contract["tolerance_sec"]):
+            if abs(decoded_duration - declared_duration) > float(
+                carrier_time_contract["tolerance_sec"]
+            ):
                 validation_warnings.append(
                     f"BABEL declared duration {declared_duration:.6f}s differs from carrier frames/fps {decoded_duration:.6f}s."
                 )

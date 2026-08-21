@@ -1,10 +1,13 @@
 # Third-Party Notices
 
-This notice records the third-party material represented in VIREA’s public retargeting gallery and source-skeleton tables. It does not grant a license to VIREA code as a whole.
+This notice records third-party material used or distributed by VIREA,
+including model Runtimes, the browser bundle, the public retargeting gallery,
+and source-skeleton tables. It does not grant a license to VIREA code as a
+whole.
 
 ## Common media changes
 
-The twelve public dataset-derived GIFs were transformed as follows: source motion was decoded and coordinate-normalized, retargeted into VIREA canonical v3, transferred to the credited VRM humanoid, camera-framed for a whole-body, hand, foot, or facing view, and encoded as an animated GIF. The repository does not distribute the source motion arrays, dialogue, audio, face channels, source video or music, or the `.vrm` model. Exact per-file samples, source revisions, change statements, dimensions, frame counts, durations, and SHA-256 values are in the [media manifest](doc/showcase/media/manifest.json).
+All 28 dataset-derived GIFs were transformed as follows: source motion was decoded and coordinate-normalized, retargeted into VIREA canonical v3, transferred to the credited VRM humanoid, camera-framed for a whole-body, hand, foot, or facing view, and encoded as an animated GIF. Twelve have the public-use basis documented below; the other sixteen are displayed at the repository owner's explicit direction while upstream permission remains unverified. Display does not convert those sixteen files into publicly licensed material. The repository does not distribute the source motion arrays, dialogue, audio, face channels, source video or music, or the `.vrm` model. Exact per-file samples, source revisions, change statements, dimensions, frame counts, durations, and recorded identities are in the [media manifest](doc/showcase/media/manifest.json); those identities are provenance records, not a new release-readiness hash gate.
 
 No upstream author, publisher, or Avatar creator endorses VIREA.
 
@@ -167,7 +170,48 @@ of the People's Republic of China, excluding its conflict of law principles.
 - Source files: `motion_generation/meta/mta63joints/template_susu_retarget_63nodes.bvh`, `motion_generation/meta/mta63joints/src_joint_dict.json`, and the related local-rotation export implementation
 - License at that revision: [CC BY-NC 4.0](https://github.com/SentiAvatar/SentiAvatar/blob/1067a67f2ddab48dfbdd73189a3d1a46abd4cdca/LICENSE), © 2026 Chuhao Jin
 
-VIREA adapted the numerical MTA63 hierarchy and rest geometry in `src/virea/motion/codecs.py`: offsets were converted from centimetres to metres and stored as `float32`; the hierarchy was separated into body and hand tables; duplicated wrist slots were represented explicitly; source metacarpals were retained for FK; and stable identifiers and SHA-256 fingerprints were added. This adapted material is restricted to non-commercial use, requires attribution and indication of changes, and may not carry additional restrictions.
+VIREA adapted the numerical MTA63 hierarchy and rest geometry in `src/virea/motion/codecs.py`: offsets were converted from centimetres to metres and stored as `float32`; the hierarchy was separated into body and hand tables; duplicated wrist slots were represented explicitly; source metacarpals were retained for FK; and stable identifiers were added. This adapted material is restricted to non-commercial use, requires attribution and indication of changes, and may not carry additional restrictions.
+
+## PRISM managed runtime
+
+- Source repository: [ZeyuLing/PRISM](https://github.com/ZeyuLing/PRISM), revision `3c58bc5d946f0827171a3712ed36314f4b1a5186`
+- Adapted source: `prism/pipelines/prism_ar_t2m_pipeline.py`, prompt-encoding sequence
+- Local integration: `plugins/models/prism-tp2m-1-4b/runtime/src/virea_prism/offline_loader.py`
+
+The pinned PRISM and VersatileMotion repositories do not publish usable
+licensing terms. The prompt-encoding sequence in the managed runtime follows
+the upstream tokenizer, attention-mask, encoder, trim, pad, repeat, and reshape
+flow. VIREA's local MIT notice does not cover that adapted sequence. The
+runtime may be used for the current private/internal technical acceptance, but
+public or commercial redistribution requires upstream permission or a
+separately evidenced independent replacement.
+
+## Browser Web distribution
+
+The production assets under `apps/web/dist` bundle the following pinned
+browser dependencies. Their MIT licenses apply only to the named third-party
+software and do not license VIREA as a whole.
+
+- `three` `0.183.2`: [npm package](https://www.npmjs.com/package/three/v/0.183.2),
+  [official source tag `r183`](https://github.com/mrdoob/three.js/tree/r183),
+  [MIT license](https://github.com/mrdoob/three.js/blob/r183/LICENSE),
+  Copyright © 2010–2026 three.js authors.
+- `@pixiv/three-vrm` `3.5.1` and `@pixiv/three-vrm-animation` `3.5.1`:
+  [official source tag `v3.5.1`](https://github.com/pixiv/three-vrm/tree/v3.5.1),
+  [MIT license](https://github.com/pixiv/three-vrm/blob/v3.5.1/LICENSE),
+  Copyright © 2019–2026 pixiv Inc.
+- `vite` `7.3.1`: the production output contains Vite's injected
+  `modulepreload` runtime helper; [official source tag `v7.3.1`](https://github.com/vitejs/vite/tree/v7.3.1),
+  [Vite core MIT license and complete bundled-dependency notices](https://github.com/vitejs/vite/blob/v7.3.1/packages/vite/LICENSE.md),
+  Copyright © 2019–present, VoidZero Inc. and Vite contributors.
+
+The corresponding license texts ship beside the browser bundle at
+`apps/web/dist/third-party-notices/three-LICENSE.txt` and
+`apps/web/dist/third-party-notices/pixiv-three-vrm-LICENSE.txt`, while the Vite
+core terms accompanying the generated helper are in
+`apps/web/dist/third-party-notices/vite-core-LICENSE.txt`. Their canonical Vite
+public sources are under `apps/web/public/third-party-notices/` so a clean Web
+rebuild preserves the notices.
 
 ## Permission-required source families
 
@@ -185,13 +229,13 @@ type: notice
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-09
-updated: 2026-08-10
-last_reviewed: 2026-08-10
+updated: 2026-08-21
+last_reviewed: 2026-08-21
 review_cycle_days: 90
 title: VIREA Third-Party Notices
 audience: Users, distributors, and IP reviewers
 visibility: Public
-summary: VIREA 公开重定向媒体、指定 VRM Avatar 与内嵌第三方几何资料的来源、署名、改动和许可条件。
+summary: VIREA 模型 Runtime、权重、公开重定向媒体、指定 VRM Avatar 与内嵌第三方几何资料的来源、署名、改动和许可边界。
 canonical: THIRD_PARTY_NOTICES.md
 related:
   - README.md

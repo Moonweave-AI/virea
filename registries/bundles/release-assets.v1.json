@@ -1,0 +1,348 @@
+{
+  "schema_version": "virea.release_assets.v1.0.0",
+  "models": [
+    {
+      "model_id": "flood-diffusion-tiny",
+      "manifest": "plugins/models/flood-diffusion-tiny/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/flood-diffusion-tiny/runtime",
+        "project_package": "virea-model-flood-diffusion-tiny-runtime",
+        "assets": [
+          "plugins/models/flood-diffusion-tiny/runtime/LICENSE",
+          "plugins/models/flood-diffusion-tiny/runtime/README.md",
+          "plugins/models/flood-diffusion-tiny/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/flood-diffusion-tiny/runtime/pyproject.toml",
+          "plugins/models/flood-diffusion-tiny/runtime/uv.lock",
+          "plugins/models/flood-diffusion-tiny/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_flood/worker.py"
+        ]
+      },
+      "runtime_project": {
+        "root": "plugins/models/flood-diffusion-tiny/runtime-cu128",
+        "project_package": "virea-model-flood-diffusion-tiny-cu128-runtime",
+        "assets": [
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/LICENSE",
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/README.md",
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/pyproject.toml",
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/uv.lock",
+          "plugins/models/flood-diffusion-tiny/runtime-cu128/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_flood_cu128_runtime/__init__.py"
+        ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/flood-diffusion-tiny/runtime-cpu",
+          "project_package": "virea-model-flood-diffusion-tiny-cpu-runtime",
+          "assets": [
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/LICENSE",
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/README.md",
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/pyproject.toml",
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/uv.lock",
+            "plugins/models/flood-diffusion-tiny/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_flood_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "momadiff-humanml3d",
+      "manifest": "plugins/models/momadiff-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/momadiff-humanml3d/runtime",
+        "project_package": "virea-model-momadiff-humanml3d-runtime",
+        "assets": [
+          "plugins/models/momadiff-humanml3d/runtime/LICENSE",
+          "plugins/models/momadiff-humanml3d/runtime/README.md",
+          "plugins/models/momadiff-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/momadiff-humanml3d/runtime/pyproject.toml",
+          "plugins/models/momadiff-humanml3d/runtime/uv.lock",
+          "plugins/models/momadiff-humanml3d/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_momadiff/worker.py"
+        ]
+      },
+      "runtime_project": {
+          "root": "plugins/models/momadiff-humanml3d/runtime-cu128",
+          "project_package": "virea-model-momadiff-humanml3d-cu128-runtime",
+          "assets": [
+            "plugins/models/momadiff-humanml3d/runtime-cu128/LICENSE",
+            "plugins/models/momadiff-humanml3d/runtime-cu128/README.md",
+            "plugins/models/momadiff-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md",
+            "plugins/models/momadiff-humanml3d/runtime-cu128/pyproject.toml",
+            "plugins/models/momadiff-humanml3d/runtime-cu128/uv.lock",
+            "plugins/models/momadiff-humanml3d/runtime-cu128/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_momadiff_cu128_runtime/__init__.py"
+          ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/momadiff-humanml3d/runtime-cpu",
+          "project_package": "virea-model-momadiff-humanml3d-cpu-runtime",
+          "assets": [
+            "plugins/models/momadiff-humanml3d/runtime-cpu/LICENSE",
+            "plugins/models/momadiff-humanml3d/runtime-cpu/README.md",
+            "plugins/models/momadiff-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/momadiff-humanml3d/runtime-cpu/pyproject.toml",
+            "plugins/models/momadiff-humanml3d/runtime-cpu/uv.lock",
+            "plugins/models/momadiff-humanml3d/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_momadiff_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "mardm-humanml3d",
+      "manifest": "plugins/models/mardm-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/mardm-humanml3d/runtime",
+        "project_package": "virea-model-mardm-humanml3d-runtime",
+        "assets": [
+          "plugins/models/mardm-humanml3d/runtime/LICENSE",
+          "plugins/models/mardm-humanml3d/runtime/README.md",
+          "plugins/models/mardm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/mardm-humanml3d/runtime/pyproject.toml",
+          "plugins/models/mardm-humanml3d/runtime/uv.lock",
+          "plugins/models/mardm-humanml3d/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_mardm/worker.py"
+        ]
+      },
+      "runtime_project": {
+        "root": "plugins/models/mardm-humanml3d/runtime-cu128",
+        "project_package": "virea-model-mardm-humanml3d-cu128-runtime",
+        "assets": [
+          "plugins/models/mardm-humanml3d/runtime-cu128/LICENSE",
+          "plugins/models/mardm-humanml3d/runtime-cu128/README.md",
+          "plugins/models/mardm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/mardm-humanml3d/runtime-cu128/pyproject.toml",
+          "plugins/models/mardm-humanml3d/runtime-cu128/uv.lock",
+          "plugins/models/mardm-humanml3d/runtime-cu128/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_mardm_cu128_runtime/__init__.py"
+        ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/mardm-humanml3d/runtime-cpu",
+          "project_package": "virea-model-mardm-humanml3d-cpu-runtime",
+          "assets": [
+            "plugins/models/mardm-humanml3d/runtime-cpu/LICENSE",
+            "plugins/models/mardm-humanml3d/runtime-cpu/README.md",
+            "plugins/models/mardm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/mardm-humanml3d/runtime-cpu/pyproject.toml",
+            "plugins/models/mardm-humanml3d/runtime-cpu/uv.lock",
+            "plugins/models/mardm-humanml3d/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_mardm_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "acmdm-humanml3d",
+      "manifest": "plugins/models/acmdm-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/acmdm-humanml3d/runtime",
+        "project_package": "virea-model-acmdm-humanml3d-runtime",
+        "assets": [
+          "plugins/models/acmdm-humanml3d/runtime/LICENSE",
+          "plugins/models/acmdm-humanml3d/runtime/README.md",
+          "plugins/models/acmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/acmdm-humanml3d/runtime/pyproject.toml",
+          "plugins/models/acmdm-humanml3d/runtime/uv.lock",
+          "plugins/models/acmdm-humanml3d/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_acmdm/worker.py"
+        ]
+      },
+      "runtime_project": {
+        "root": "plugins/models/acmdm-humanml3d/runtime-cu128",
+        "project_package": "virea-model-acmdm-humanml3d-cu128-runtime",
+        "assets": [
+          "plugins/models/acmdm-humanml3d/runtime-cu128/LICENSE",
+          "plugins/models/acmdm-humanml3d/runtime-cu128/README.md",
+          "plugins/models/acmdm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/acmdm-humanml3d/runtime-cu128/pyproject.toml",
+          "plugins/models/acmdm-humanml3d/runtime-cu128/uv.lock",
+          "plugins/models/acmdm-humanml3d/runtime-cu128/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_acmdm_cu128_runtime/__init__.py"
+        ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/acmdm-humanml3d/runtime-cpu",
+          "project_package": "virea-model-acmdm-humanml3d-cpu-runtime",
+          "assets": [
+            "plugins/models/acmdm-humanml3d/runtime-cpu/LICENSE",
+            "plugins/models/acmdm-humanml3d/runtime-cpu/README.md",
+            "plugins/models/acmdm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/acmdm-humanml3d/runtime-cpu/pyproject.toml",
+            "plugins/models/acmdm-humanml3d/runtime-cpu/uv.lock",
+            "plugins/models/acmdm-humanml3d/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_acmdm_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "cmdm-humanml3d",
+      "manifest": "plugins/models/cmdm-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/cmdm-humanml3d/runtime",
+        "project_package": "virea-model-cmdm-humanml3d-runtime",
+        "assets": [
+          "plugins/models/cmdm-humanml3d/runtime/LICENSE",
+          "plugins/models/cmdm-humanml3d/runtime/README.md",
+          "plugins/models/cmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/cmdm-humanml3d/runtime/pyproject.toml",
+          "plugins/models/cmdm-humanml3d/runtime/uv.lock",
+          "plugins/models/cmdm-humanml3d/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_cmdm/worker.py"
+        ]
+      },
+      "runtime_project": {
+          "root": "plugins/models/cmdm-humanml3d/runtime-cu128",
+          "project_package": "virea-model-cmdm-humanml3d-cu128-runtime",
+          "assets": [
+            "plugins/models/cmdm-humanml3d/runtime-cu128/LICENSE",
+            "plugins/models/cmdm-humanml3d/runtime-cu128/README.md",
+            "plugins/models/cmdm-humanml3d/runtime-cu128/THIRD_PARTY_NOTICES.md",
+            "plugins/models/cmdm-humanml3d/runtime-cu128/pyproject.toml",
+            "plugins/models/cmdm-humanml3d/runtime-cu128/uv.lock",
+            "plugins/models/cmdm-humanml3d/runtime-cu128/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_cmdm_cu128_runtime/__init__.py"
+          ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/cmdm-humanml3d/runtime-cpu",
+          "project_package": "virea-model-cmdm-humanml3d-cpu-runtime",
+          "assets": [
+            "plugins/models/cmdm-humanml3d/runtime-cpu/LICENSE",
+            "plugins/models/cmdm-humanml3d/runtime-cpu/README.md",
+            "plugins/models/cmdm-humanml3d/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/cmdm-humanml3d/runtime-cpu/pyproject.toml",
+            "plugins/models/cmdm-humanml3d/runtime-cpu/uv.lock",
+            "plugins/models/cmdm-humanml3d/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_cmdm_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    },
+    {
+      "model_id": "prism-tp2m-1-4b",
+      "manifest": "plugins/models/prism-tp2m-1-4b/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/prism-tp2m-1-4b/runtime",
+        "project_package": "virea-model-prism-tp2m-1-4b-runtime",
+        "assets": [
+          "plugins/models/prism-tp2m-1-4b/evidence/wsl2-real-inference-2026-08-19.json",
+          "plugins/models/prism-tp2m-1-4b/runtime/LICENSE",
+          "plugins/models/prism-tp2m-1-4b/runtime/README.md",
+          "plugins/models/prism-tp2m-1-4b/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/prism-tp2m-1-4b/runtime/pyproject.toml",
+          "plugins/models/prism-tp2m-1-4b/runtime/uv.lock",
+          "plugins/models/prism-tp2m-1-4b/runtime/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_prism/worker.py"
+        ]
+      },
+      "runtime_project": {
+        "root": "plugins/models/prism-tp2m-1-4b/runtime-cu128",
+        "project_package": "virea-model-prism-tp2m-1-4b-cu128-runtime",
+        "assets": [
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/LICENSE",
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/README.md",
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/pyproject.toml",
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/uv.lock",
+          "plugins/models/prism-tp2m-1-4b/runtime-cu128/src"
+        ],
+        "required_files": [
+          "pyproject.toml",
+          "uv.lock",
+          "src/virea_prism_cu128_runtime/__init__.py"
+        ]
+      },
+      "additional_runtime_projects": [
+        {
+          "root": "plugins/models/prism-tp2m-1-4b/runtime-cpu",
+          "project_package": "virea-model-prism-tp2m-1-4b-cpu-runtime",
+          "assets": [
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/LICENSE",
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/README.md",
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/THIRD_PARTY_NOTICES.md",
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/pyproject.toml",
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/uv.lock",
+            "plugins/models/prism-tp2m-1-4b/runtime-cpu/src"
+          ],
+          "required_files": [
+            "pyproject.toml",
+            "uv.lock",
+            "src/virea_prism_cpu_runtime/__init__.py"
+          ]
+        }
+      ]
+    }
+  ]
+}

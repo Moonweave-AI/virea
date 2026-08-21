@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:execution-target-selection:1.0.0",
+  "title": "VIREA ExecutionTargetSelection v1",
+  "type": "object",
+  "required": ["schema_version", "execution_domain_id"],
+  "properties": {
+    "schema_version": {
+      "const": "virea.execution_target_selection.v1.0.0"
+    },
+    "execution_domain_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "runtime_variant_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "resource_profile_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 256
+    }
+  },
+  "additionalProperties": false
+}

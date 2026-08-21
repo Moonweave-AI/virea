@@ -1,146 +1,171 @@
+---
+type: index
+status: Active
+owner: VIREA maintainers
+created: 2026-08-08
+updated: 2026-08-21
+last_reviewed: 2026-08-21
+review_cycle_days: 14
+summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
+canonical: doc/README.zh-CN.md
+related:
+  - ../README.md
+  - models/README.zh-CN.md
+  - platforms/README.zh-CN.md
+  - quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+---
+
 <div align="center">
 
 # VIREA Documentation
 
-### 从第一次启动到可重放的 canonical v3 证据
+### 从环境检测、真实模型安装和 Motion IR，到可审计的 VRMA 浏览器播放
 
-[Getting Started](getting-started.zh-CN.md) · [Pipeline](pipeline.zh-CN.md) · [Retarget Math](math-retarget/README.zh-CN.md) · [Validation](validation.zh-CN.md) · [Showcase](showcase/README.md)
+[开始使用](getting-started/installation.zh-CN.md) ·
+[选择模型](models/README.zh-CN.md) ·
+[部署平台](platforms/README.zh-CN.md) ·
+[排查问题](operations/troubleshooting.zh-CN.md) ·
+[验收证据](quality/production-e2e.zh-CN.md)
 
 </div>
 
 > [!IMPORTANT]
-> 本文档体系严格区分四类信息：**已批准的契约**、**当前工作树实现**、**带日期的验证证据**和**仍待研究的假设**。RFC / ADR 处于 `Proposed` 状态时，即使代码已经实现，也不会自动视为 `Accepted`；旧截图和旧测试数字也不自动构成当前证据。
+> 文档严格区分产品目标、Runtime 声明、当前实现和带机器身份的实测证据。模型或平台出现在表格中，
+> 不自动等于已安装、已实测、可公开再分发或达到 `supported`。
+
+六模型 manifest 保留此前有界 `integrated_experimental`，`supported = 0`；但旧 validated evidence /
+validator `v1.0.0` 已被当前 `v1.1.0` policy 判定失效，新的 5 条 Windows-native 与 1 条 PRISM WSL
+Ubuntu 24.04 全链正在重采集。在新 record 写入 registry 前，当前有效 `passed` 数量为 0，不能复用旧 result
+或预填 ID。最终冻结树的完整测试与 fresh release artifact 仍待重跑，公开 GA 为 No-Go。
+
+仓库当前没有统一的项目代码 `LICENSE`。各目录、Runtime、Web bundle、模型 integration 和媒体可能具有
+不同的第三方条款；[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) 及分目录 notice 只说明来源与
+边界，不给整个项目授予统一开源或商业许可。贡献入口见 [CONTRIBUTING](../CONTRIBUTING.md)，安全报告见
+[SECURITY](../SECURITY.md)。
 
 ## 选择你的路径
 
-<table>
-  <tr>
-    <td width="33%"><strong>第一次使用</strong><br><a href="getting-started.zh-CN.md">Getting Started</a><br>安装、空壳 Viewer、local-only demo、full raw current-v3。</td>
-    <td width="33%"><strong>运行与处理</strong><br><a href="pipeline.zh-CN.md">Pipeline 使用指南</a><br>数据路径、批处理、Viewer 启动、版本化重建与排错。</td>
-    <td width="33%"><strong>查看结果</strong><br><a href="showcase/README.md">Showcase</a><br>七数据集画廊、证据范围与公开许可边界。</td>
-  </tr>
-  <tr>
-    <td><strong>理解数学</strong><br><a href="math-retarget/README.zh-CN.md">Retarget 共同层</a><br>坐标、时间、quaternion、FK、211D 张量与手部 solver。</td>
-    <td><strong>接入数据</strong><br><a href="dataset-audit.zh-CN.md">七数据集审计</a><br>来源定义、数组 shape、FPS、单位、basis 与 profile 边界。</td>
-    <td><strong>审查交付</strong><br><a href="validation.zh-CN.md">分层验收清单</a><br>source、solver、artifact、Reader、VRM、性能与媒体许可。</td>
-  </tr>
-</table>
+| 目标 | 从这里开始 | 完成标志 |
+|---|---|---|
+| 第一次生成动作 | [安装](getting-started/installation.zh-CN.md) → [首次生成](getting-started/first-generation.zh-CN.md) | 得到绑定模型、Runtime、原生骨骼和目标骨骼的真实结果 |
+| 在 Avatar 上播放 | [浏览器播放](getting-started/browser-playback.zh-CN.md) | Avatar 完整可见、动画时钟推进、控制台零错误 |
+| 选择正确模型 | [模型目录](models/README.zh-CN.md) → [生成矩阵](models/support-matrix.generated.md) | 明确 task、原生 skeleton/representation、资源和许可边界 |
+| 部署 Windows / Linux / WSL2 / macOS | [执行域指南](platforms/README.zh-CN.md) → [平台矩阵](platforms/support-matrix.generated.md) | detector、builder、Worker 在同一目标域运行 |
+| 显存不足时选择 RAM/CPU 路径 | [资源准入](operations/runtime-data-and-retention.zh-CN.md) | Runtime 选中 Worker 真正实现的 profile，或在下载前给出可操作拒绝原因 |
+| 接入新模型 | [模型适配指南](development/model-adapter.zh-CN.md) | manifest、runtime、native contract、adapter、真实 production acceptance 同步 |
+| 审查发布声明 | [Production E2E](quality/production-e2e.zh-CN.md) → [发布验收](refactor/RELEASE_ACCEPTANCE_0.4.0.md) | 每项声明都能回到不可变 job/result/产物与浏览器证据 |
+| 维护文档 | [文档规范](development/documentation.zh-CN.md) | 全 Markdown 元数据、链接和生成表门禁通过 |
 
-## 文档地图
+## 核心心智模型
 
 ```mermaid
-flowchart TD
-    A["README<br/>what · why · status"] --> B["Tutorial<br/>Getting Started"]
-    A --> C["How-to<br/>Pipeline · Showcase"]
-    A --> D["Explanation<br/>Architecture · Math · Theory"]
-    A --> E["Reference<br/>Datasets · Annotation · Schemas"]
-    D --> F["Decision<br/>RFC · ADR · Engineering Brief"]
-    E --> G["Evidence<br/>Validation · Research logs"]
-    F --> G
+flowchart LR
+    M["Model\n任务 · 上游 · 原生骨骼/表示"] --> E["Execution Domain\nWindows · Linux · WSL2 · macOS"]
+    E --> R["Isolated Runtime\n资源 profile · 锁 · Worker"]
+    R --> N["Native ModelResult"]
+    N --> I["Motion IR"]
+    I --> T["Target skeleton\nCanonical211 · VRMA"]
+    T --> P["Real VRM playback"]
+    M -. identity .-> X["Evidence"]
+    E -. machine report .-> X
+    R -. install / load / inference .-> X
+    P -. WebGL / screenshot / console .-> X
 ```
 
-**推荐阅读顺序：** 先通过 Tutorial 完成一次本地运行；需要执行任务时查 How-to；需要准确字段定义时查 Reference；理解设计理由时读 Explanation；争议与长期契约查 Decision；任何"已验证"的声明回到 Evidence 核实。
+- **Model** 定义生成任务、固定上游、原生 skeleton/representation 和精确验收请求。
+- **Execution Domain** 定义 detector、builder、Python、Worker 和硬件事实实际位于哪里。
+- **Result** 保留 model/runtime/checkpoint 和 native → target 身份，不用模糊文件名覆盖差异。
+- **Evidence** 证明某个明确环境跑过某条链；它不能由客户端布尔自报，也不能从平台声明推断。
 
 ## Tutorial
 
-| 文档 | 适合谁 | 完成后得到什么 |
-|---|---|---|
-| [Getting Started](getting-started.zh-CN.md) | 第一次 clone 的用户 | 能区分 UI 安装成功、legacy demo 与 current v3 三种状态 |
+| 文档 | 内容 |
+|---|---|
+| [安装与环境检测](getting-started/installation.zh-CN.md) | checkout 外环境、`VIREA_HOME`、setup、doctor、资源准入 |
+| [第一次真实生成](getting-started/first-generation.zh-CN.md) | model install/verify、exact request、结果与 artifact |
+| [真实 Avatar 播放](getting-started/browser-playback.zh-CN.md) | Web、VRM、VRMA、可见帧和浏览器证据 |
+| [完整入门与运维命令](getting-started.zh-CN.md) | 0.4.0 CLI/API 的较完整任务索引与恢复路径 |
 
-## How-to
+## How-to 与运维
 
 | 文档 | 任务 |
 |---|---|
-| [Pipeline 使用指南](pipeline.zh-CN.md) | 安装、数据路径配置、批处理、Viewer 启动、版本化重建与排错 |
-| [Showcase](showcase/README.md) | 七数据集画廊、证据范围与媒体发布条件 |
-| [SuSu 专项审计](susu-pipeline-audit.zh-CN.md) | 区分 official columns/local 与本地变体，执行 fail-closed 校准 |
+| [Runtime 数据与保留策略](operations/runtime-data-and-retention.zh-CN.md) | 外部目录、缓存、日志、失败 staging、清理与恢复 |
+| [Troubleshooting](operations/troubleshooting.zh-CN.md) | detector、资源、下载、runtime、Worker、结果和 Viewer 故障 |
+| [数据与 canonical 管线](pipeline.zh-CN.md) | legacy dataset adapter、批处理、artifact 和 Viewer 路径 |
+| [Showcase](showcase/README.md) | 七数据集 retarget 画廊及媒体许可边界 |
+| [SuSu 专项审计](susu-pipeline-audit.zh-CN.md) | official/local profile、轴向、单位和 fail-closed 校准 |
 
 ## Reference
 
-| 文档 | 权威范围 |
+| 文档或目录 | 权威范围 |
 |---|---|
-| [Annotation 与 Viewer 契约](annotation-viewer.zh-CN.md) | annotation 结构、时间区间、channel、body anchor 与 Viewer 行为 |
-| [七数据集审计](dataset-audit.zh-CN.md) | 原生定义、实际数组、上游转换、当前 profile 与缺口 |
-| [`schemas/`](../schemas) | JSON Schema 的公共字段与版本；机器可验证的事实源 |
-| [参考资料](references.zh-CN.md) | 一手论文、官方规范、官方仓库与固定工程依据 |
-| [公式审查清单](math-retarget/review-checklist.zh-CN.md) | Markdown 公式、数组和代码的对码规则 |
+| [模型目录](models/README.zh-CN.md) | 模型身份、状态维度与 per-model 文档 |
+| [模型支持矩阵](models/support-matrix.generated.md) | manifest 生成的 task、骨骼、表示、Runtime 与资源摘要 |
+| [平台目录](platforms/README.zh-CN.md) | Windows、Linux、WSL2、macOS 执行域定义 |
+| [平台支持矩阵](platforms/support-matrix.generated.md) | Runtime 声明与平台级 evidence 边界 |
+| [状态语义](reference/status-semantics.zh-CN.md) | `registered`、`runnable_upstream`、`integrated_experimental`、`supported` 等精确定义 |
+| [`packages/contracts/schemas/`](../packages/contracts/schemas) | Model、Runtime、Worker、Result、Motion IR、VRM、Machine JSON Schema |
+| [`registries/`](../registries) | Runtime、骨骼、表示、bundle 与执行目标机器事实 |
+| [Annotation / Viewer](annotation-viewer.zh-CN.md) | annotation、时间区间、channel 与 Viewer 行为 |
+| [数据集审计](dataset-audit.zh-CN.md) | 七数据集来源、shape、FPS、单位与 profile |
+| [官方参考资料](references.zh-CN.md) | 论文、规范、官方仓库与固定工程依据 |
 
-## Explanation
+## Explanation：动作数学与系统设计
 
 | 文档 | 解释的问题 |
 |---|---|
-| [工程设计](engineering-design.zh-CN.md) | Adapter、Profile、Codec、Retarget、Solver、Artifact、Reader、Viewer 的分层理由 |
-| [Retarget 数学共同层](math-retarget/README.zh-CN.md) | 统一坐标系、rotation 约定、FK、211D 张量、可观测性与 canonical v3 |
-| [理论与目标](theory.zh-CN.md) | VRM-native 目标、非目标与长期边界 |
-
-### 五类 source retarget 路径
-
-| Source family | 数据集 | 文档 | 进入 canonical 的路径 |
-|---|---|---|---|
-| SMPL / SMPL-H | AMASS、BABEL | [SMPL-H → VRM](math-retarget/smplh-to-vrm.zh-CN.md) | body direct rotation；未标定 hands 走显式 neutral policy |
-| SMPL-X family | GRAB、Motion-X | [SMPL-X → VRM](math-retarget/smplx-to-vrm.zh-CN.md) | fullpose decode；未标定 hands 不直写 target |
-| 75-joint BVH | BEAT | [BVH / BEAT → VRM](math-retarget/bvh-to-vrm.zh-CN.md) | hierarchy FK → body22 + hands30 joint-centre evidence |
-| HumanML3D 263D | HumanML3D | [263D → VRM](math-retarget/humanml3d-263d-to-vrm.zh-CN.md) | official RIC positions → position fitting |
-| Body/hand 6D | SuSuInterActs | [SuSu → VRM](math-retarget/susu-to-vrm.zh-CN.md) | 原生 63 centres 或 MTA63 FK → joint-centre evidence |
-
-目标 Avatar 的 normalized pose、VRM0/VRM1 alignment 与 three-vrm 契约见 [VRM/glTF 目标层](math-retarget/vrm-gltf-target.zh-CN.md)。
+| [工程设计](engineering-design.zh-CN.md) | Adapter、Profile、Codec、Retarget、Artifact、Reader 和 Viewer 分层 |
+| [Retarget 数学共同层](math-retarget/README.zh-CN.md) | 坐标、quaternion、FK、Canonical211 与可观测性 |
+| [SMPL-H → VRM](math-retarget/smplh-to-vrm.zh-CN.md) | SMPL/SMPL-H body 与 hand policy |
+| [SMPL-X → VRM](math-retarget/smplx-to-vrm.zh-CN.md) | fullpose、expression 与目标映射 |
+| [BVH / BEAT → VRM](math-retarget/bvh-to-vrm.zh-CN.md) | hierarchy FK 与 joint-centre evidence |
+| [HumanML3D 263D → VRM](math-retarget/humanml3d-263d-to-vrm.zh-CN.md) | official RIC 与 position fitting |
+| [SuSu → VRM](math-retarget/susu-to-vrm.zh-CN.md) | body/hand 6D、root delta 与 MTA63 |
+| [VRM/glTF 目标层](math-retarget/vrm-gltf-target.zh-CN.md) | normalized pose、VRM0/1、VRMA rest hips 与 Viewer |
+| [理论与非目标](theory.zh-CN.md) | VRM-native 产品目标和长期边界 |
 
 ## Decision records
 
 | 状态 | 文档 | 决定范围 |
 |---|---|---|
-| Accepted | [RFC-0001](rfcs/0001-annotation-time-retarget-v1.zh-CN.md) | Annotation、时间、迁移和 retarget v1 基线 |
-| Accepted | [ADR-0001](adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md) | 版本化语义与自包含 artifact |
+| Accepted | [RFC-0001](rfcs/0001-annotation-time-retarget-v1.zh-CN.md) | Annotation、时间、迁移和 retarget v1 |
 | Proposed | [RFC-0002](rfcs/0002-constraint-aware-hand-retarget-v1.zh-CN.md) | 七库统一 HandEvidence 与约束求解 |
-| Proposed | [ADR-0002](adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md) | canonical v3 单轨输出、证书与 Viewer 零修正 |
-| In review | [Engineering Brief](engineering-briefs/constraint-aware-hand-retarget-v1.zh-CN.md) | 机制、风险、不变量、测试和 rollout 方案 |
+| Accepted | [RFC-0003](rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md) | 0.3 多包、多模型隔离、Motion IR 与迁移边界 |
+| Accepted | [ADR-0001](adrs/0001-versioned-motion-semantics-and-artifacts.zh-CN.md) | 版本化动作语义与自包含 artifact |
+| Proposed | [ADR-0002](adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md) | canonical v3 与约束手部重定向 |
+| Accepted | [ADR-0003](adrs/0003-multi-package-isolated-model-runtimes.zh-CN.md) | monorepo、核心无模型依赖、独立 Worker |
+| Accepted | [ADR-0004](adrs/0004-execution-domain-routing.zh-CN.md) | Windows/Linux/WSL2/macOS 执行域路由 |
+| Accepted | [ADR-0005](adrs/0005-retire-vmf-stage1.zh-CN.md) | 退役历史训练支线并保留共享动作数学 |
 
 ## Evidence 与研究
 
-| 文档 | 状态 | 用途 |
-|---|---|---|
-| [分层验收清单与当前证据](validation.zh-CN.md) | Current | 当前回归数字、Stop-Ship 与 Release No-Go 的唯一摘要入口 |
-| [手指重定向根因研究](research/finger-retarget-root-cause-2026-08-09.zh-CN.md) | Current research | target-runtime、source geometry、solver 与不可观测性的真实反例 |
-| [姿态重定向真实核验 2026-08-08](research/pose-retarget-validation-2026-08-08.zh-CN.md) | Historical | canonical v3 之前的分层轴向/FK 证据；不可作为当前完成声明 |
-| [Source Authority Review](research/source-authority-review.zh-CN.md) | Superseded | 前期一手来源审计，由后续真实验证继承 |
-
-## 维护规则
-
-| 事实类型 | 权威来源 |
+| 文档 | 用途 |
 |---|---|
-| 字段定义 | JSON Schema |
-| 当前代码行为 | 当前分支实现与可失败测试 |
-| 数学事实 | [Retarget 数学共同层](math-retarget/README.zh-CN.md) |
-| 架构事实 | [工程设计](engineering-design.zh-CN.md) |
-| 治理状态 | RFC / ADR 的显式状态标签 |
-| 当前证据 | [验收清单](validation.zh-CN.md) 中的带日期记录 |
-| 历史记录 | 旧报告保留不覆盖，标记 Historical / Superseded 并指向继任文档 |
-| 发布状态 | IP decision 与 release review；文件存在、测试通过或公开可见都不等于获得许可 |
+| [Production E2E 合同](quality/production-e2e.zh-CN.md) | doctor → install → exact inference → Motion IR → VRMA → browser 的完整证明 |
+| [Production browser evidence](quality/production-browser-evidence.zh-CN.md) | fresh Web job、真实 Viewer observation 与后端不可变状态绑定 |
+| [0.4.0 QA 计划](refactor/QA_PLAN.md) | 软件、模型、平台、packaging 与浏览器分层门禁 |
+| [0.4.0 发布验收](refactor/RELEASE_ACCEPTANCE_0.4.0.md) | 当前范围的 Go/No-Go 与精确证据 |
+| [WP00–WP15 映射](refactor/WP00_WP15_IMPLEMENTATION_MAP.md) | 原规划到当前实现的逐项状态 |
+| [首波模型目录](model-catalog/first-wave-2026-08-20.zh-CN.md) | 2025–2026 候选、固定上游与接入边界 |
+| [Motion generation 总 registry](model-catalog/motion-generation-registry-2026-08-20.zh-CN.md) | 用户提供快照的只读归档 |
+| [PRISM 模型页](models/prism.zh-CN.md) | PRISM 技术部署、资产与发行边界 |
+| [PRISM 官方接入审计](research/prism-official-integration-audit-2026-08-21.zh-CN.md) | 固定上游、补齐资产和真实部署证据 |
+| [ACMDM 官方接入审计](research/acmdm-official-integration-audit-2026-08-21.zh-CN.md) | 官方 checkpoint 与 adapter/Worker 合同 |
 
-贡献规则见 [CONTRIBUTING.md](../CONTRIBUTING.md)，漏洞与敏感数据报告见 [SECURITY.md](../SECURITY.md)，第三方材料见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+## 文档维护
 
+文档的字段、状态和平台表由 manifest、RuntimeSpec、registry 与 evidence 生成；不要手工复制同一事实。
 
-<!--
----
-type: index
-status: Active
-owner: "@Joker-of-Gotham"
-created: 2026-08-08
-updated: 2026-08-10
-last_reviewed: 2026-08-10
-review_cycle_days: 30
-title: VIREA Documentation
-audience: Users, implementers, reviewers, and researchers
-visibility: Public
-summary: 按 Tutorial、How-to、Reference、Explanation、Decision 与 Evidence 组织的 VIREA 唯一文档入口。
-canonical: doc/README.zh-CN.md
-related:
-  - ../README.md
-  - getting-started.zh-CN.md
-  - engineering-design.zh-CN.md
-  - validation.zh-CN.md
-  - showcase/README.md
-supersedes: []
-superseded_by: []
----
--->
+```text
+python scripts/generate_docs.py --check
+python scripts/check_docs.py
+python -m pytest tests/test_docs.py tests/test_generated_documentation.py -q
+```
+
+新增或改写 Markdown 前阅读 [文档设计规范](development/documentation.zh-CN.md)。新增模型阅读
+[模型适配指南](development/model-adapter.zh-CN.md)。贡献、安全与第三方条款分别见
+[CONTRIBUTING](../CONTRIBUTING.md)、[SECURITY](../SECURITY.md) 和
+[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md)。

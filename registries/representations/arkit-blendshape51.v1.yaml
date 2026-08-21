@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: arkit.blendshape51.v1
+version: 1.0.0
+kind: facial_blendshape_coefficients
+skeleton_id: susu.body25_hands40.v1
+dtype: float32
+frame_shape: [51]
+rotation_representation: null
+rotation_layout: null
+rotation_space: null
+root_translation_semantics: not_applicable
+root_rotation_semantics: not_applicable
+coordinate_system_id: not_applicable
+units: normalized_coefficients
+fps: 20.0
+timebase: [1, 20]
+source_urls:
+  - https://github.com/SentiAvatar/SentiAvatar/tree/71c61b05a0609a41c17aa146c9f4ee7778ebc649
+validation_status: source_verified

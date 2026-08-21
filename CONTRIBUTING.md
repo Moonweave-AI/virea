@@ -4,7 +4,7 @@
 
 ## 开始之前
 
-1. 阅读[项目状态](README.md#项目状态)与[工程边界](doc/engineering-design.zh-CN.md)。
+1. 阅读[模型状态](README.md#model-support)与[工程边界](doc/engineering-design.zh-CN.md)。
 2. 确认改动属于 Adapter、Profile、Codec、Retarget、Hand Solver、Artifact、Reader 或 Viewer 中的哪一层。
 3. 涉及公共 schema、坐标语义、处理版本或跨层责任时，先更新 RFC / ADR；不要用实现反向改写尚未批准的决策。
 4. 检查数据、模型、截图或派生媒体的再分发权限。没有明确 `allowed` 决定时保持 local-only。
@@ -12,15 +12,17 @@
 ## 本地开发
 
 ```bash
+export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-env"
+export VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
 uv sync --extra dev
-npm ci
 uv run python -m pytest -q
-npm run check
-npm run test:viewer
 uv run python scripts/check_docs.py
 ```
 
-所有临时测试、截图、录屏和分析输出写入仓库内已忽略的 `tmp/`。Raw dataset 与 VRM 可以只读引用，但不得复制到仓库或测试 fixture。
+Windows PowerShell 使用 `$env:LOCALAPPDATA\VIREA\...` 下的等价路径。只有修改 Web/Viewer 时才安装
+Node 依赖并运行相应检查；`node_modules` 是开发缓存，不得进入发布候选或生产安装。所有临时测试、
+截图、录屏和分析输出写入系统临时目录或外部 `VIREA_HOME/qa`，不能因为路径被 Git 忽略就写入仓库。
+Raw dataset 与 VRM 可以只读引用，但不得复制到仓库或测试 fixture。
 
 ## 改动必须携带的证据
 

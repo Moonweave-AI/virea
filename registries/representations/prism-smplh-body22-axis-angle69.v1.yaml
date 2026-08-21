@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: prism.smplh_body22.axis_angle69.v1
+version: 1.0.0
+kind: packed_smplh_body22_absolute_translation_axis_angle
+skeleton_id: smplh.body22.v1
+dtype: float32
+frame_shape: [69]
+rotation_representation: axis_angle
+rotation_layout: transl3_then_global_orient3_then_body_pose63
+rotation_space: root_local_to_world_then_parent_local
+root_translation_semantics: public_pipeline_postprocessed_absolute_xyz
+root_rotation_semantics: explicit_global_orientation_axis_angle_in_channels_3_6
+coordinate_system_id: prism.smplh.right_handed_y_up_z_forward.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/ZeyuLing/PRISM/blob/3c58bc5d946f0827171a3712ed36314f4b1a5186/prism/pipelines/prism_ar_t2m_pipeline.py
+  - https://github.com/ZeyuLing/PRISM/blob/3c58bc5d946f0827171a3712ed36314f4b1a5186/prism/models/motion_processor/smpl_processor.py
+validation_status: regression_verified

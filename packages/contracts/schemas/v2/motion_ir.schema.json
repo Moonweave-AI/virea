@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:motion_ir:2.0.0",
+  "title": "VIREA Motion IR v2",
+  "type": "object",
+  "required": ["schema_version", "motion_id", "time", "actors"],
+  "properties": {
+    "schema_version": { "const": "virea.motion_ir.v2.0.0" },
+    "motion_id": { "type": "string", "minLength": 1 },
+    "time": { "$ref": "#/$defs/time_descriptor" },
+    "actors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/actor_track" }
+    },
+    "face_tracks": { "$ref": "#/$defs/extensible_tracks" },
+    "gaze_tracks": { "$ref": "#/$defs/extensible_tracks" },
+    "contact_tracks": { "$ref": "#/$defs/extensible_tracks" },
+    "object_tracks": { "$ref": "#/$defs/extensible_tracks" },
+    "annotations": { "$ref": "#/$defs/extensible_tracks" },
+    "segments": { "$ref": "#/$defs/extensible_tracks" },
+    "provenance": { "type": "object", "default": {} },
+    "quality": { "type": "object", "default": {} }
+  },
+  "$defs": {
+    "artifact_ref": {
+      "type": "object",
+      "required": ["name", "media_type", "uri"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "media_type": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "minLength": 1 },
+        "byte_length": { "type": ["integer", "null"], "minimum": 0 },
+        "dtype": { "type": ["string", "null"] },
+        "shape": {
+          "type": ["array", "null"],
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "time_descriptor": {
+      "type": "object",
+      "required": ["frame_count"],
+      "properties": {
+        "frame_count": { "type": "integer", "minimum": 0 },
+        "fps": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "timebase": { "$ref": "#/$defs/nullable_timebase" },
+        "timestamps": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_ref" }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["fps"],
+          "properties": {
+            "timebase": { "type": ["null"] },
+            "timestamps": { "type": ["null"] }
+          }
+        },
+        {
+          "required": ["timebase"],
+          "properties": {
+            "fps": { "type": ["null"] },
+            "timestamps": { "type": ["null"] }
+          }
+        },
+        {
+          "required": ["timestamps"],
+          "properties": {
+            "fps": { "type": ["null"] },
+            "timebase": { "type": ["null"] },
+            "timestamps": { "$ref": "#/$defs/artifact_ref" }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "nullable_timebase": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    },
+    "skeleton_descriptor": {
+      "type": "object",
+      "required": ["profile_id", "joint_names", "parent_indices"],
+      "properties": {
+        "profile_id": { "type": "string", "minLength": 1 },
+        "joint_names": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "parent_indices": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": -1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "actor_track": {
+      "type": "object",
+      "required": ["actor_id", "skeleton", "root_translation", "root_rotation"],
+      "properties": {
+        "actor_id": { "type": "string", "minLength": 1 },
+        "skeleton": { "$ref": "#/$defs/skeleton_descriptor" },
+        "root_translation": { "$ref": "#/$defs/artifact_ref" },
+        "root_rotation": { "$ref": "#/$defs/artifact_ref" },
+        "local_rotations": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_ref" }
+          ]
+        },
+        "global_positions": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_ref" }
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_ref" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensible_tracks": {
+      "type": "array",
+      "items": { "type": "object" },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

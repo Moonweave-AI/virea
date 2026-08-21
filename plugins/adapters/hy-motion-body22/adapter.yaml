@@ -1,0 +1,97 @@
+schema_version: virea.adapter_family.v1.0.0
+id: hy-motion-body22
+display_name: HY-Motion 1.0 decoded body-22 rotation and translation
+source_models:
+  - hy-motion-1
+implementation_status: pinned_upstream_contract_adapter_implemented
+support_status: runnable_upstream
+native_profile:
+  representation_id: hy_motion.body22.rot6d_translation.v1
+  carrier: decoded_dictionary
+  fps:
+    mode: fixed_output_mesh_rate
+    value: 30.0
+    note: upstream_generation_may_use_a_different_internal_temporal_rate_but_public_mesh_output_is_30_FPS
+  coordinate_system:
+    id: hy_motion.right_handed_y_up_ground_aligned
+    handedness: right
+    up_axis: positive_y
+    ground_alignment: minimum_mesh_vertex_y_is_shifted_to_zero_per_sample
+  units:
+    translation_and_keypoints: meters
+    rotations: dimensionless_6D_first_two_basis_vectors
+  fields:
+    - name: transl
+      shape: [B, T, 3]
+      semantics: smoothed_absolute_translation_after_vertical_ground_shift
+    - name: rot6d
+      shape: [B, T, 22, 6]
+      semantics: root_then_21_body_rotations_after_upstream_slerp_smoothing
+    - name: keypoints3d
+      shape: [B, T, J, 3]
+      semantics: WoodenMesh_forward_kinematics_output_when_body_model_is_loaded
+  derived_optional_views:
+    - name: root_rotations_mat
+      shape: [B, T, 3, 3]
+      semantics: redundantly_derived_from_the_smoothed_root_6D_channel
+      preserved_by_this_adapter: false
+  preserved_side_artifacts:
+    - name: latent_denorm
+      representation_id: hy_motion.latent201.v1
+      shape: [B, T, 201]
+      semantics: denormalized_model_tensor_before_smoothing_and_ground_shift
+      opaque_tail_slice: [135, 201]
+root_semantics:
+  translation:
+    kind: absolute
+    latent_slice: [0, 3]
+    integration: none_because_decode_motion_from_latent_calls_rel_trans_false
+    postprocess: Savitzky-Golay_smoothing_then_vertical_ground_shift
+  rotation:
+    kind: explicit_6D_local_to_world
+    latent_slice: [3, 9]
+    postprocess: quaternion_continuity_and_Gaussian_SLERP_smoothing
+output_profile:
+  representation_id: hy_motion.body22.rot6d_translation.v1
+  skeleton_id: hy_motion.wooden_body22.v1
+  fps: 30.0
+  coordinate_system: hy_motion.right_handed_y_up_ground_aligned
+  units: meters
+  frame_shape: [T, 135]
+  rotation_representation: continuous_6d
+  rotation_layout: upstream_view_3x2_interleaved_columns
+  translation_shape: [T, 3]
+  rotation_shape: [T, 22, 6]
+  optional_keypoints_shape: [T, J, 3]
+conversion:
+  required_steps:
+    - use_the_pinned_upstream_decode_motion_from_latent_with_num_joints_22_and_rel_trans_false
+    - preserve_the_full_201D_latent_even_though_only_0_to_135_is_consumed_by_the_public_decoder
+    - retain_whether_smoothing_and_ground_alignment_were_enabled
+    - map_joints_by_the_bundled_WoodenMesh_joint_names_not_by_positional_guessing
+  prohibited_shortcuts:
+    - cumsum_the_absolute_translation_channel
+    - assign_meaning_to_features_135_to_201_without_a_new_upstream_contract
+    - assume_SMPL-X_joint_order_for_the_bundled_WoodenMesh
+validation:
+  exact_latent_width: 201
+  exact_decoded_rotation_joint_count: 22
+  reject_non_finite: true
+  require_fps: 30.0
+  require_smoothing_applied: true
+  require_ground_alignment_applied: true
+  require_WoodenMesh_joint_name_table_for_keypoint_mapping: true
+official_sources:
+  - repository: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
+    revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+    path: hymotion/utils/geometry.py
+  - repository: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
+    revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+    path: hymotion/pipeline/motion_diffusion.py
+  - repository: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
+    revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+    path: hymotion/pipeline/body_model.py
+notes:
+  - The opaque 66-feature tail is an observed fact of the pinned public decoder, not a claim that those features are meaningless to training.
+  - root_rotations_mat is an optional redundant upstream view and is not claimed as a preserved native artifact; callers can derive it from the registered root rot6d channel.
+  - The VIREA compatibility adapter uses the pinned interleaved view(3,2) rotation layout and returns decoded rotations, the full 201D latent, and optional keypoints as native artifacts; no checkpoint golden, model runtime, or Worker production acceptance exists yet.

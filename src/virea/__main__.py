@@ -1,4 +1,5 @@
 """Allow running as `python -m virea`."""
+
 import multiprocessing
 
 from virea.cli import main

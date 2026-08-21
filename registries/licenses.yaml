@@ -54,3 +54,14 @@ licenses:
     derived_motion_public_release: true
     requires_registration: false
     notes: Reserved for tiny synthetic fixtures.
+
+  prism_external_assets_license_review:
+    commercial_use: check_required
+    public_redistribution: false
+    derived_motion_public_release: check_required
+    requires_registration: false
+    notes: >-
+      PRISM, PRISM-TP2M-1.4B, and the VersatileMotion repository named as the
+      license location publish no usable redistribution terms at their pinned
+      2026-08-21 revisions. VIREA may fetch pinned external artifacts only
+      after explicit user acceptance, and never bundles or redistributes them.

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-retarget"
+version = "0.4.0"
+description = "Motion IR retarget pipeline backed by VIREA's frozen mathematics."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "virea>=0.4.0",
+  "virea-motion-ir>=0.4.0",
+]
+
+[tool.uv.sources]
+virea = { workspace = true }
+virea-motion-ir = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

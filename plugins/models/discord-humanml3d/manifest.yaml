@@ -1,0 +1,71 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: discord-humanml3d
+  display_name: DisCoRD MoMask HumanML3D
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/whwjdqls/DisCoRD
+    revision: 782deffca1a263a2241b6321cfe6532a022f284e
+    release: ICCV 2025 Highlight; training code released 2025-09-27
+  tasks:
+    - text_to_motion
+  adapter_family: humanml3d-motion263-body22
+  status: runnable_upstream
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+      motion_length_frames:
+        type: integer
+        required: true
+        description: The official DisCoRD inference requires an explicit fixed motion length.
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: humanml3d.vector263.v1
+  skeleton_id: humanml3d.body22.v1
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward
+  units: meters
+  root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
+  root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
+  face_representation_ids: []
+runtime_variants: []
+artifacts:
+  - id: discord-momask-rf-decoder
+    kind: manual
+    url: https://drive.google.com/file/d/1glQFuMvWI_dKeQeS7s8V_4zdOHfIv1wS/view
+    expected_files:
+      - checkpoints/DisCoRD_Momask_RFDecoder_best.pth
+  - id: discord-momask-dependencies
+    kind: manual
+    repository: https://github.com/whwjdqls/DisCoRD
+    revision: 782deffca1a263a2241b6321cfe6532a022f284e
+    url: https://github.com/whwjdqls/DisCoRD/blob/782deffca1a263a2241b6321cfe6532a022f284e/prepare/download_models.sh
+licenses:
+  code: MIT
+  weights: upstream_does_not_state_a_separate_weight_license
+  dataset_lineage:
+    - HumanML3D
+    - MoMask
+    - AMASS
+  body_model: []
+  commercial_allowed: null
+  redistribution_allowed: null
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/whwjdqls/DisCoRD/blob/782deffca1a263a2241b6321cfe6532a022f284e/LICENSE
+    - https://github.com/whwjdqls/DisCoRD/blob/782deffca1a263a2241b6321cfe6532a022f284e/README.md
+resources:
+  upstream_tested_python: 3.8.5
+  upstream_tested_cuda: "11.8"
+  upstream_inference_entrypoint: visualize.py
+  base_generator: MoMask
+  native_feature_dim: 263
+  native_fps: 20.0
+notes:
+  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
+  - Upstream inference depends on both the DisCoRD rectified-flow decoder checkpoint and MoMask checkpoints; neither dependency has a VIREA runtime lock or production end-to-end acceptance record.
+  - The HumanML3D 263D output follows the shared adapter contract and must not be treated as direct joint-local rotations.

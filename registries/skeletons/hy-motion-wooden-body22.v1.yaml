@@ -1,0 +1,36 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: hy_motion.wooden_body22.v1
+version: 1.0.0
+joints:
+  - {name: Pelvis, parent: null, semantic: hips, required: true}
+  - {name: L_Hip, parent: Pelvis, semantic: leftUpperLeg, required: true}
+  - {name: R_Hip, parent: Pelvis, semantic: rightUpperLeg, required: true}
+  - {name: Spine1, parent: Pelvis, semantic: spine, required: true}
+  - {name: L_Knee, parent: L_Hip, semantic: leftLowerLeg, required: true}
+  - {name: R_Knee, parent: R_Hip, semantic: rightLowerLeg, required: true}
+  - {name: Spine2, parent: Spine1, semantic: chest, required: true}
+  - {name: L_Ankle, parent: L_Knee, semantic: leftFoot, required: true}
+  - {name: R_Ankle, parent: R_Knee, semantic: rightFoot, required: true}
+  - {name: Spine3, parent: Spine2, semantic: upperChest, required: true}
+  - {name: L_Foot, parent: L_Ankle, semantic: leftToes, required: true}
+  - {name: R_Foot, parent: R_Ankle, semantic: rightToes, required: true}
+  - {name: Neck, parent: Spine3, semantic: neck, required: true}
+  - {name: L_Collar, parent: Spine3, semantic: leftShoulder, required: true}
+  - {name: R_Collar, parent: Spine3, semantic: rightShoulder, required: true}
+  - {name: Head, parent: Neck, semantic: head, required: true}
+  - {name: L_Shoulder, parent: L_Collar, semantic: leftUpperArm, required: true}
+  - {name: R_Shoulder, parent: R_Collar, semantic: rightUpperArm, required: true}
+  - {name: L_Elbow, parent: L_Shoulder, semantic: leftLowerArm, required: true}
+  - {name: R_Elbow, parent: R_Shoulder, semantic: rightLowerArm, required: true}
+  - {name: L_Wrist, parent: L_Elbow, semantic: leftHand, required: true}
+  - {name: R_Wrist, parent: R_Elbow, semantic: rightHand, required: true}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: hy_motion_pinned_wooden_model_binary
+rotation: {representation: continuous_6d, layout: columns, space: parent_local}
+root_motion: {translation: absolute_world_ground_aligned, rotation: local_to_world}
+fps: 30
+source_urls:
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/hymotion/pipeline/body_model.py
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/hymotion/utils/smplh2woodfbx.py
+validation_status: source_verified

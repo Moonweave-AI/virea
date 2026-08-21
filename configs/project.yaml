@@ -8,9 +8,9 @@ paths:
   processed_root_env: VIREA_PROCESSED_ROOT
   data_source_env: VIREA_DATA_SOURCE
   vrm_model_root_env: VIREA_VRM_MODEL_ROOT
-  # Processed data defaults to this repository's ignored data/ directory.
-  default_processed_root: data/virea_processed
-  processed_subdir: virea_processed
+  # Relative data paths resolve below VIREA_HOME, never below the checkout.
+  default_processed_root: data-sources/full/processed
+  processed_subdir: processed
 
 data_sources:
   # ─── full ───────────────────────────────────────────────────────────────────
@@ -18,24 +18,25 @@ data_sources:
   # data drive. Path varies by machine — configure via environment variable:
   #   $env:VIREA_RAW_ROOT = "<path-to-full-raw-datasets>"  (PowerShell)
   #   export VIREA_RAW_ROOT="/mnt/data/raw"            (Linux/Mac)
-  # If VIREA_RAW_ROOT is not set, the system checks the portable data/raw folder.
+  # If VIREA_RAW_ROOT is not set, the system checks
+  # VIREA_HOME/data-sources/full/raw.
   full:
     label: Full external raw datasets (machine-specific path)
-    processed_root: data/virea_processed/full
+    processed_root: data-sources/full/processed
     description: >
       Complete raw dataset collection stored on an external/dedicated data drive.
       NOT inside this repository. Set VIREA_RAW_ROOT env var to specify the path,
-      or place data under the repository-local ignored data/raw folder.
+      or place data under VIREA_HOME/data-sources/full/raw.
 
   # ─── demo ───────────────────────────────────────────────────────────────────
-  # A small local fixture (subset of full) inside this repository for quick
+  # A small local fixture (subset of full) under VIREA_HOME for quick
   # end-to-end testing without requiring the full dataset drive.
   demo:
-    label: Local demo fixture (project-internal subset)
-    raw_root: demo/raw
-    processed_root: demo/processed
+    label: Managed demo fixture (VIREA_HOME subset)
+    raw_root: data-sources/demo/raw
+    processed_root: data-sources/demo/processed
     description: >
-      Small same-layout fixture under virea/demo/raw/ for quick end-to-end tests.
+      Small same-layout fixture under VIREA_HOME/data-sources/demo/raw/.
       Built from 'full' source via: python -m virea.cli build-demo
 
 runtime:
@@ -44,6 +45,6 @@ runtime:
   # caller does not request a crop.  The browser applies its own time-based,
   # 15-second default so high-FPS clips are not silently reduced to 1.5 s.
   preview_max_frames: null
-  processing_version: v0.2.0
+  processing_version: v0.4.0
   batch_workers: 0
   batch_skip_existing: true

@@ -1,0 +1,38 @@
+schema_version: virea.runtime_spec.v1.0.0
+id: flood-diffusion-tiny-cu128
+backend: uv-native
+platforms:
+  - win-64
+  - linux-64
+python: ">=3.11,<3.12"
+accelerator:
+  kind: nvidia
+  abi: cu128
+  min_vram_gib: 16.0
+lockfile: uv.lock
+min_storage_gib: 16.0
+resource_profiles:
+  - id: cuda-full
+    strategy: cuda_full
+    min_free_vram_gib: 16.0
+    min_free_ram_gib: 8.0
+    min_free_swap_gib: 0.0
+entrypoint_argv:
+  - python
+  - -m
+  - virea_flood.worker
+startup_timeout_seconds: 300
+environment_allowlist:
+  - VIREA_MODEL_ROOT
+  - VIREA_TEXT_ENCODER_ROOT
+  - VIREA_RESOURCE_PROFILE
+  - VIREA_MEMORY_STRATEGY
+  - VFR_ATTENTION_BACKEND
+  - HF_HOME
+  - HF_HUB_OFFLINE
+  - TRANSFORMERS_OFFLINE
+working_directory: plugins/models/flood-diffusion-tiny/runtime-cu128
+project_package: virea-model-flood-diffusion-tiny-cu128-runtime
+project_version: 0.1.3
+runtime_core_epoch: virea-runtime-core-20260821.2
+availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_2_evidence_requires_reacceptance

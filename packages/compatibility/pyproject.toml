@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-compatibility"
+version = "0.4.0"
+description = "Brownfield adapters from VIREA legacy codecs into Motion IR v2."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "virea>=0.4.0",
+  "virea-motion-ir>=0.4.0",
+]
+
+[tool.uv.sources]
+virea = { workspace = true }
+virea-motion-ir = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

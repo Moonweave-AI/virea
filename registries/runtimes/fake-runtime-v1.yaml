@@ -1,0 +1,22 @@
+schema_version: virea.runtime_spec.v1.0.0
+id: fake-runtime-v1
+backend: uv-native
+platforms:
+  - win-64
+  - linux-64
+  - osx-arm64
+python: ">=3.10,<3.14"
+accelerator:
+  kind: cpu
+  abi: null
+  min_vram_gib: null
+lockfile: uv.lock
+entrypoint_argv:
+  - python
+  - -m
+  - virea_model_sdk.fake_worker
+environment_allowlist:
+  - VIREA_RUNTIME_ID
+working_directory: .
+project_package: virea-model-sdk
+availability: fixture_only

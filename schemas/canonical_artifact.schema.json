@@ -1,16 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/canonical_artifact.schema.json",
-  "title": "VIREA Canonical Artifact v1",
+  "$id": "urn:virea:schema:canonical-artifact:3.0.0",
+  "title": "VIREA Canonical Artifact v3",
   "type": "object",
   "required": [
     "schema_version", "processing_version", "profile", "profile_sha256", "time",
-    "motion_uid", "source_fingerprint", "sample", "canonical", "rest", "transform", "annotations", "channels",
+    "motion_uid", "source_fingerprint", "sample", "canonical", "rest", "transform", "hand_retarget", "quality", "quality_report", "preview", "processing", "annotations", "channels",
     "sidecars", "redactions", "arrays", "validation_warnings", "manifest_sha256"
   ],
   "properties": {
-    "schema_version": { "const": "virea.canonical_artifact.v1.0.0" },
-    "processing_version": { "type": "string" },
+    "schema_version": { "const": "virea.canonical_artifact.v3.0.0" },
+    "processing_version": { "const": "v0.4.0" },
     "motion_uid": { "type": "string", "minLength": 1 },
     "source_fingerprint": {
       "type": "object",
@@ -23,7 +23,7 @@
       "additionalProperties": false
     },
     "sample": { "type": "object" },
-    "profile": { "$ref": "dataset_profile.schema.json" },
+    "profile": { "$ref": "urn:virea:schema:dataset-profile:2.0.0" },
     "profile_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "time": {
       "type": "object",
@@ -39,8 +39,11 @@
     },
     "canonical": {
       "type": "object",
-      "required": ["frame_dim", "dtype", "quaternion_order", "core_bones", "hand_bones"],
+      "required": ["schema_version", "skeleton_id", "rotation_semantics", "frame_dim", "dtype", "quaternion_order", "core_bones", "hand_bones"],
       "properties": {
+        "schema_version": { "const": "virea.canonical_motion.v3.0.0" },
+        "skeleton_id": { "const": "virea_canonical_skeleton.v3" },
+        "rotation_semantics": { "const": "rest_relative_normalized_pose_delta" },
         "frame_dim": { "const": 211 },
         "dtype": { "const": "<f4" },
         "quaternion_order": { "const": "xyzw" },
@@ -53,12 +56,35 @@
       "type": "object",
       "required": ["source", "offsets", "sha256"],
       "properties": {
-        "source": { "type": "string" },
+        "source": { "const": "virea_canonical_rest.v3" },
         "offsets": { "type": "object" },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       },
       "additionalProperties": true
     },
+    "hand_retarget": { "$ref": "#/$defs/handRetarget" },
+    "quality": { "type": "object" },
+    "quality_report": {
+      "type": "object",
+      "required": ["path", "byte_length", "sha256", "canonical_json_sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$" },
+        "byte_length": { "type": "integer", "minimum": 2 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "canonical_json_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "preview": {
+      "type": "object",
+      "required": ["source_metadata", "processed_metadata"],
+      "properties": {
+        "source_metadata": { "type": "object" },
+        "processed_metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "processing": { "type": "object" },
     "transform": {
       "type": "object",
       "required": ["basis_name", "basis", "basis_determinant", "root_rotation_semantics", "unit_scale_to_meter", "root_axes", "translation_zeroed", "crop_resample_map"],
@@ -74,18 +100,177 @@
       },
       "additionalProperties": true
     },
-    "annotations": { "type": "array", "items": { "$ref": "annotation.schema.json" } },
-    "channels": { "type": "array", "items": { "$ref": "channel.schema.json" } },
+    "annotations": { "type": "array", "items": { "$ref": "urn:virea:schema:annotation:1.0.0" } },
+    "channels": { "type": "array", "items": { "$ref": "urn:virea:schema:channel:1.0.0" } },
     "sidecars": { "type": "array", "items": { "$ref": "#/$defs/dataReference" } },
     "redactions": { "type": "array", "items": { "$ref": "#/$defs/redaction" } },
     "arrays": {
       "type": "object",
+      "required": [
+        "canonical_motion.sequence",
+        "canonical_motion.pre_solver_hand_quaternions",
+        "canonical_motion.hand_position_evidence"
+      ],
+      "properties": {
+        "canonical_motion.pre_solver_hand_quaternions": {
+          "allOf": [
+            { "$ref": "#/$defs/arrayDescriptor" },
+            {
+              "properties": {
+                "dtype": { "const": "<f4" },
+                "shape": {
+                  "type": "array",
+                  "prefixItems": [
+                    { "type": "integer", "minimum": 1 },
+                    { "const": 30 },
+                    { "const": 4 }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          ]
+        },
+        "canonical_motion.hand_position_evidence": {
+          "allOf": [
+            { "$ref": "#/$defs/arrayDescriptor" },
+            {
+              "properties": {
+                "dtype": { "const": "<f4" },
+                "shape": {
+                  "type": "array",
+                  "prefixItems": [
+                    { "type": "integer", "minimum": 0 },
+                    { "const": 32 },
+                    { "const": 3 }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          ]
+        }
+      },
       "additionalProperties": { "$ref": "#/$defs/arrayDescriptor" }
     },
     "validation_warnings": { "type": "array", "items": { "type": "string" } },
     "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   },
   "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "solverCertificate": {
+      "type": "object",
+      "required": ["algorithm", "sha256", "covers", "verified"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "covers": { "const": "report_without_certificate_including_output_sha256" },
+        "verified": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "handSolverReport": {
+      "type": "object",
+      "required": [
+        "schema_version", "policy_id", "policy_sha256", "status",
+        "postconditions_passed", "source_input_unchanged", "input_sha256",
+        "output_sha256", "frame_count", "bone_count",
+        "continuity_segments_frames_half_open", "observation",
+        "position_evidence", "per_bone", "certificate"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.hand_constraint_certificate.v1.0.0" },
+        "policy_id": { "const": "virea.constraint_aware_hand_retarget.v1" },
+        "policy_sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "enum": ["passed_noop", "passed_constrained"] },
+        "postconditions_passed": { "const": true },
+        "source_input_unchanged": { "const": true },
+        "input_sha256": { "$ref": "#/$defs/sha256" },
+        "output_sha256": { "$ref": "#/$defs/sha256" },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "bone_count": { "const": 30 },
+        "continuity_segments_frames_half_open": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "observation": {
+          "type": "object",
+          "required": [
+            "source", "fps", "swing_basis", "swing_dof_semantics",
+            "unobservable_policy", "inference_prior_id", "per_bone",
+            "inferred_dofs", "unobservable_dofs"
+          ]
+        },
+        "position_evidence": {
+          "type": "object",
+          "required": ["mode", "sha256", "claim"],
+          "properties": {
+            "mode": {
+              "type": ["string", "null"],
+              "enum": [null, "provided_joint_positions", "canonical_fk_from_input_quaternions"]
+            },
+            "sha256": { "$ref": "#/$defs/nullableSha256" },
+            "claim": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "per_bone": { "type": "object", "minProperties": 30 },
+        "certificate": { "$ref": "#/$defs/solverCertificate" }
+      },
+      "additionalProperties": true
+    },
+    "handRetarget": {
+      "type": "object",
+      "required": [
+        "schema_version", "solver_schema_version", "policy_id",
+        "policy_sha256", "observation_sha256", "evidence_sha256",
+        "pre_solver_hand_sha256", "output_hand_sha256",
+        "position_evidence_sha256", "position_evidence_joint_order",
+        "report_sha256", "report"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.hand_retarget_artifact.v1.0.0" },
+        "solver_schema_version": { "const": "virea.hand_constraint_certificate.v1.0.0" },
+        "policy_id": { "const": "virea.constraint_aware_hand_retarget.v1" },
+        "policy_sha256": { "$ref": "#/$defs/sha256" },
+        "observation_sha256": { "$ref": "#/$defs/sha256" },
+        "evidence_sha256": { "$ref": "#/$defs/sha256" },
+        "pre_solver_hand_sha256": { "$ref": "#/$defs/sha256" },
+        "output_hand_sha256": { "$ref": "#/$defs/sha256" },
+        "position_evidence_sha256": { "$ref": "#/$defs/nullableSha256" },
+        "position_evidence_joint_order": {
+          "type": "array",
+          "minItems": 32,
+          "maxItems": 32,
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "report_sha256": { "$ref": "#/$defs/sha256" },
+        "report": { "$ref": "#/$defs/handSolverReport" }
+      },
+      "additionalProperties": false
+    },
     "dataReference": {
       "type": "object",
       "required": ["path", "sha256", "byte_length", "media_type", "encoding"],

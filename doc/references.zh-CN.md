@@ -18,6 +18,19 @@
 - [MANO / SMPL+H 官方项目](https://mano.is.tue.mpg.de/)：手部模型与 SMPL+H 背景。
 - [SMPL-X 官方项目](https://smpl-x.is.tue.mpg.de/) 与 [论文](https://arxiv.org/abs/1904.05866)：body、hands、jaw、eyes、expression 的模型定义。
 
+## PRISM（2026）
+
+- [PRISM 论文 arXiv:2603.08590](https://arxiv.org/abs/2603.08590)、[作者正式代码仓库](https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186) 与 [作者正式 1.4B 权重](https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B/tree/825daaa27f4f3845eb0978674c3acb378a12cda6)：逐关节因果 VAE、noise-free condition injection、T2M/TP2M/顺序生成，以及 30 FPS SMPL-H body-22 的内部 138D network tensor。
+- [正式 138D translation processor](https://github.com/ZeyuLing/PRISM/blob/3c58bc5d946f0827171a3712ed36314f4b1a5186/prism/models/motion_processor/smpl_processor.py) 与 [正式 6D rotation converter](https://github.com/ZeyuLing/PRISM/blob/3c58bc5d946f0827171a3712ed36314f4b1a5186/prism/utils/geometry/rotation_convert.py)：138D 为 absolute translation 3 + delta 3 + 22×rotation-6D，6D 按旋转矩阵前两列依次拼接。
+
+当前仓库边界：正式模型 snapshot 不内含 tokenizer 与统计量，managed Runtime 分别固定到
+`google/umt5-xxl` tokenizer 与 MotionHub SMPL-H statistics；生成路径不要求 SMPL geometry。既有 WSL
+部署留下三次真实 PRISM 结果；新的控制面又在 `wsl:Ubuntu-24.04` 完成 fresh
+doctor→install→inference→Motion IR→VRMA→browser 链，因此技术状态现为受限
+`integrated_experimental`。控制面公开的是 `[T,69]`（translation 3 + global axis-angle 3 + 21×local
+axis-angle），138D 只保留为 side artifact。PRISM、checkpoint 与 VersatileMotion 固定来源仍没有可由
+VIREA 代授的许可，源码/权重仅作 external assets，不自动再分发。详见[正式来源审计](research/prism-official-integration-audit-2026-08-21.zh-CN.md)。
+
 工程约束：joint mapping 是领域常量；FPS、basis、unit、数组切片和 sub-source provenance 仍由 dataset profile 决定。
 
 ## 七个数据集
@@ -56,8 +69,8 @@ type: reference
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
-updated: 2026-08-08
-last_reviewed: 2026-08-08
+updated: 2026-08-21
+last_reviewed: 2026-08-21
 review_cycle_days: 90
 summary: 影响 VIREA schema、source decode、retarget、VRM runtime 与许可判断的一手资料。
 canonical: doc/references.zh-CN.md

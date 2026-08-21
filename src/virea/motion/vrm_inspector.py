@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 import struct
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from virea.motion.canonical import CANONICAL_TO_VRM_BONE_NAME, CORE_BONES, HAND_BONES
-
 
 _GLB_MAGIC = 0x46546C67
 _GLB_VERSION = 2
@@ -63,7 +62,9 @@ def _load_glb_json(path: Path) -> dict[str, Any]:
                     raise VRMInspectionError("GLB JSON chunk is too large")
                 raw_json = _read_exact(stream, chunk_length, "GLB JSON chunk")
                 try:
-                    payload = json.loads(raw_json.rstrip(b"\x00 \t\r\n").decode("utf-8"))
+                    payload = json.loads(
+                        raw_json.rstrip(b"\x00 \t\r\n").decode("utf-8")
+                    )
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                     raise VRMInspectionError("invalid GLB JSON chunk") from exc
                 if not isinstance(payload, dict):
@@ -99,10 +100,16 @@ def _vrm_extension(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
 
 def _is_node_index(value: Any, node_count: int) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value < node_count
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value < node_count
+    )
 
 
-def _human_bones(vrm_extension: dict[str, Any], version: str, node_count: int) -> dict[str, int]:
+def _human_bones(
+    vrm_extension: dict[str, Any], version: str, node_count: int
+) -> dict[str, int]:
     humanoid = vrm_extension.get("humanoid")
     if not isinstance(humanoid, dict):
         raise VRMInspectionError("VRM humanoid definition is missing")
@@ -121,14 +128,20 @@ def _human_bones(vrm_extension: dict[str, Any], version: str, node_count: int) -
                 continue
             raw_name = entry.get("bone")
             node_index = entry.get("node")
-            if isinstance(raw_name, str) and raw_name and _is_node_index(node_index, node_count):
+            if (
+                isinstance(raw_name, str)
+                and raw_name
+                and _is_node_index(node_index, node_count)
+            ):
                 result[raw_name] = node_index
     if not result:
         raise VRMInspectionError("VRM does not contain valid humanoid bone nodes")
     return result
 
 
-def _finite_vector(value: Any, length: int, default: tuple[float, ...], label: str) -> np.ndarray:
+def _finite_vector(
+    value: Any, length: int, default: tuple[float, ...], label: str
+) -> np.ndarray:
     if value is None:
         return np.asarray(default, dtype=np.float64)
     if not isinstance(value, list) or len(value) != length:
@@ -161,7 +174,9 @@ def _quaternion_matrix(quaternion_xyzw: np.ndarray) -> np.ndarray:
 def _node_local_matrix(node: dict[str, Any], node_index: int) -> np.ndarray:
     raw_matrix = node.get("matrix")
     if raw_matrix is not None:
-        matrix_values = _finite_vector(raw_matrix, 16, tuple(np.eye(4).T.reshape(-1)), f"node {node_index} matrix")
+        matrix_values = _finite_vector(
+            raw_matrix, 16, tuple(np.eye(4).T.reshape(-1)), f"node {node_index} matrix"
+        )
         matrix = matrix_values.reshape(4, 4).T
         if not np.allclose(matrix[3], [0.0, 0.0, 0.0, 1.0], atol=1e-7):
             raise VRMInspectionError(f"node {node_index} matrix is not affine")
@@ -173,14 +188,18 @@ def _node_local_matrix(node: dict[str, Any], node_index: int) -> np.ndarray:
     rotation = _finite_vector(
         node.get("rotation"), 4, (0.0, 0.0, 0.0, 1.0), f"node {node_index} rotation"
     )
-    scale = _finite_vector(node.get("scale"), 3, (1.0, 1.0, 1.0), f"node {node_index} scale")
+    scale = _finite_vector(
+        node.get("scale"), 3, (1.0, 1.0, 1.0), f"node {node_index} scale"
+    )
     matrix = np.eye(4, dtype=np.float64)
     matrix[:3, :3] = _quaternion_matrix(rotation) @ np.diag(scale)
     matrix[:3, 3] = translation
     return matrix
 
 
-def _node_graph(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[int, int | None]]:
+def _node_graph(
+    payload: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[int, int | None]]:
     raw_nodes = payload.get("nodes")
     if not isinstance(raw_nodes, list) or not raw_nodes:
         raise VRMInspectionError("GLB nodes are missing")
@@ -190,7 +209,9 @@ def _node_graph(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[int
             raise VRMInspectionError(f"node {node_index} must be an object")
         nodes.append(raw_node)
 
-    parents: dict[int, int | None] = {node_index: None for node_index in range(len(nodes))}
+    parents: dict[int, int | None] = {
+        node_index: None for node_index in range(len(nodes))
+    }
     for parent_index, node in enumerate(nodes):
         children = node.get("children", [])
         if not isinstance(children, list):
@@ -204,7 +225,9 @@ def _node_graph(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[int
     return nodes, parents
 
 
-def _world_matrices(nodes: list[dict[str, Any]], parents: dict[int, int | None]) -> dict[int, np.ndarray]:
+def _world_matrices(
+    nodes: list[dict[str, Any]], parents: dict[int, int | None]
+) -> dict[int, np.ndarray]:
     cache: dict[int, np.ndarray] = {}
     resolving: set[int] = set()
 
@@ -271,17 +294,23 @@ def _canonical_humanoid_nodes(
                 break
             cursor = parents[cursor]
         node = nodes[node_index]
-        parent_name = nodes[parent_index].get("name") if parent_index is not None else None
+        parent_name = (
+            nodes[parent_index].get("name") if parent_index is not None else None
+        )
         result[canonical_name] = {
             "canonical_name": canonical_name,
             "vrm_humanoid_name": vrm_name,
             "node_index": node_index,
             "node_name": str(node.get("name") or f"node_{node_index}"),
             "parent_node_index": parent_index,
-            "parent_node_name": str(parent_name or f"node_{parent_index}") if parent_index is not None else None,
+            "parent_node_name": str(parent_name or f"node_{parent_index}")
+            if parent_index is not None
+            else None,
             "nearest_humanoid_parent_vrm": nearest_vrm_parent,
             "nearest_humanoid_parent_canonical": nearest_canonical_parent,
-            "world_position": world_matrices[node_index][:3, 3].astype(np.float32).tolist(),
+            "world_position": world_matrices[node_index][:3, 3]
+            .astype(np.float32)
+            .tolist(),
         }
     if "hips" not in result:
         raise VRMInspectionError("VRM humanoid does not define a valid hips node")

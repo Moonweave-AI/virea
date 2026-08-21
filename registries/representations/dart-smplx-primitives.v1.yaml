@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: dart.smplx.body22.axis_angle_primitives.v1
+version: 1.0.0
+kind: ordered_motion_primitive_parameter_records
+skeleton_id: smplx.body22.v1
+dtype: structured_float32
+frame_shape: [variable_primitive_record]
+rotation_representation: axis_angle
+rotation_layout: global_orient3_plus_body_pose63
+rotation_space: primitive_local_then_upstream_world_composed
+root_translation_semantics: upstream_composed_absolute_world
+root_rotation_semantics: upstream_composed_local_to_world
+coordinate_system_id: amass_smplx.right_handed_z_up.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/zkf1997/DART/tree/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+validation_status: draft

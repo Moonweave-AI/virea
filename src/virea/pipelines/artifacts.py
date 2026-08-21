@@ -7,7 +7,9 @@ from pathlib import Path
 
 def motion_uid(dataset: str, sample_id: str, frame_count: int) -> str:
     safe = "".join(ch if ch.isalnum() else "_" for ch in sample_id).strip("_")
-    digest = hashlib.sha1(f"{dataset}:{sample_id}:{frame_count}".encode("utf-8")).hexdigest()[:8]
+    digest = hashlib.sha1(
+        f"{dataset}:{sample_id}:{frame_count}".encode("utf-8")
+    ).hexdigest()[:8]
     return f"virea:{dataset}:{safe}:000000:{frame_count:06d}:{digest}"
 
 
@@ -46,15 +48,50 @@ def artifact_paths(
 ) -> ArtifactPaths:
     stem = file_stem_from_uid(motion_uid)
     return ArtifactPaths(
-        source_snapshot=processed_root / "source" / version / "snapshot" / dataset / f"{stem}.npz",
-        canonical_motion=processed_root / "canonical" / version / "motion" / dataset / f"{stem}.npz",
-        canonical_manifest=processed_root / "canonical" / version / "manifest" / dataset / f"{stem}.json",
-        vrm_positions=processed_root / "vrm" / version / "positions" / dataset / f"{stem}.npz",
-        quality_report=processed_root / "vrm" / version / "quality" / dataset / f"{stem}.json",
-        metadata=processed_root / "canonical" / version / "metadata" / dataset / f"{stem}.json",
+        source_snapshot=processed_root
+        / "source"
+        / version
+        / "snapshot"
+        / dataset
+        / f"{stem}.npz",
+        canonical_motion=processed_root
+        / "canonical"
+        / version
+        / "motion"
+        / dataset
+        / f"{stem}.npz",
+        canonical_manifest=processed_root
+        / "canonical"
+        / version
+        / "manifest"
+        / dataset
+        / f"{stem}.json",
+        vrm_positions=processed_root
+        / "vrm"
+        / version
+        / "positions"
+        / dataset
+        / f"{stem}.npz",
+        quality_report=processed_root
+        / "vrm"
+        / version
+        / "quality"
+        / dataset
+        / f"{stem}.json",
+        metadata=processed_root
+        / "canonical"
+        / version
+        / "metadata"
+        / dataset
+        / f"{stem}.json",
     )
 
 
 def legacy_vrm_motion_path(paths: ArtifactPaths) -> Path:
     """Backward-compatible path used before positions/ rename."""
-    return paths.vrm_positions.parent.parent / "motion" / paths.vrm_positions.parent.name / paths.vrm_positions.name
+    return (
+        paths.vrm_positions.parent.parent
+        / "motion"
+        / paths.vrm_positions.parent.name
+        / paths.vrm_positions.name
+    )

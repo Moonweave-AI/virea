@@ -1,0 +1,83 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: susu.body25_hands40.v1
+version: 1.0.0
+joints:
+  - {name: pelvis, parent: null, semantic: hips, required: true}
+  - {name: thigh_r, parent: pelvis, semantic: rightUpperLeg, required: true}
+  - {name: calf_r, parent: thigh_r, semantic: rightLowerLeg, required: true}
+  - {name: foot_r, parent: calf_r, semantic: rightFoot, required: true}
+  - {name: ball_r, parent: foot_r, semantic: rightToes, required: true}
+  - {name: thigh_l, parent: pelvis, semantic: leftUpperLeg, required: true}
+  - {name: calf_l, parent: thigh_l, semantic: leftLowerLeg, required: true}
+  - {name: foot_l, parent: calf_l, semantic: leftFoot, required: true}
+  - {name: ball_l, parent: foot_l, semantic: leftToes, required: true}
+  - {name: spine_01, parent: pelvis, semantic: spine, required: true}
+  - {name: spine_02, parent: spine_01, semantic: spineAux1, required: true}
+  - {name: spine_03, parent: spine_02, semantic: chest, required: true}
+  - {name: spine_04, parent: spine_03, semantic: chestAux1, required: true}
+  - {name: spine_05, parent: spine_04, semantic: upperChest, required: true}
+  - {name: neck_01, parent: spine_05, semantic: neck, required: true}
+  - {name: neck_02, parent: neck_01, semantic: neckAux1, required: true}
+  - {name: head, parent: neck_02, semantic: head, required: true}
+  - {name: clavicle_l, parent: spine_05, semantic: leftShoulder, required: true}
+  - {name: upperarm_l, parent: clavicle_l, semantic: leftUpperArm, required: true}
+  - {name: lowerarm_l, parent: upperarm_l, semantic: leftLowerArm, required: true}
+  - {name: clavicle_r, parent: spine_05, semantic: rightShoulder, required: true}
+  - {name: upperarm_r, parent: clavicle_r, semantic: rightUpperArm, required: true}
+  - {name: lowerarm_r, parent: upperarm_r, semantic: rightLowerArm, required: true}
+  - {name: hand_l, parent: lowerarm_l, semantic: leftHand, required: true}
+  - {name: hand_r, parent: lowerarm_r, semantic: rightHand, required: true}
+  - {name: left_hand_root, parent: hand_l, semantic: sourceDuplicateLeftWrist, required: true}
+  - {name: left_index_metacarpal, parent: left_hand_root, semantic: leftIndexMetacarpal, required: true}
+  - {name: left_index_proximal, parent: left_index_metacarpal, semantic: leftIndexProximal, required: true}
+  - {name: left_index_intermediate, parent: left_index_proximal, semantic: leftIndexIntermediate, required: true}
+  - {name: left_index_distal, parent: left_index_intermediate, semantic: leftIndexDistal, required: true}
+  - {name: left_middle_metacarpal, parent: left_hand_root, semantic: leftMiddleMetacarpal, required: true}
+  - {name: left_middle_proximal, parent: left_middle_metacarpal, semantic: leftMiddleProximal, required: true}
+  - {name: left_middle_intermediate, parent: left_middle_proximal, semantic: leftMiddleIntermediate, required: true}
+  - {name: left_middle_distal, parent: left_middle_intermediate, semantic: leftMiddleDistal, required: true}
+  - {name: left_ring_metacarpal, parent: left_hand_root, semantic: leftRingMetacarpal, required: true}
+  - {name: left_ring_proximal, parent: left_ring_metacarpal, semantic: leftRingProximal, required: true}
+  - {name: left_ring_intermediate, parent: left_ring_proximal, semantic: leftRingIntermediate, required: true}
+  - {name: left_ring_distal, parent: left_ring_intermediate, semantic: leftRingDistal, required: true}
+  - {name: left_little_metacarpal, parent: left_hand_root, semantic: leftLittleMetacarpal, required: true}
+  - {name: left_little_proximal, parent: left_little_metacarpal, semantic: leftLittleProximal, required: true}
+  - {name: left_little_intermediate, parent: left_little_proximal, semantic: leftLittleIntermediate, required: true}
+  - {name: left_little_distal, parent: left_little_intermediate, semantic: leftLittleDistal, required: true}
+  - {name: left_thumb_proximal, parent: left_hand_root, semantic: leftThumbProximal, required: true}
+  - {name: left_thumb_intermediate, parent: left_thumb_proximal, semantic: leftThumbIntermediate, required: true}
+  - {name: left_thumb_distal, parent: left_thumb_intermediate, semantic: leftThumbDistal, required: true}
+  - {name: right_hand_root, parent: hand_r, semantic: sourceDuplicateRightWrist, required: true}
+  - {name: right_index_metacarpal, parent: right_hand_root, semantic: rightIndexMetacarpal, required: true}
+  - {name: right_index_proximal, parent: right_index_metacarpal, semantic: rightIndexProximal, required: true}
+  - {name: right_index_intermediate, parent: right_index_proximal, semantic: rightIndexIntermediate, required: true}
+  - {name: right_index_distal, parent: right_index_intermediate, semantic: rightIndexDistal, required: true}
+  - {name: right_middle_metacarpal, parent: right_hand_root, semantic: rightMiddleMetacarpal, required: true}
+  - {name: right_middle_proximal, parent: right_middle_metacarpal, semantic: rightMiddleProximal, required: true}
+  - {name: right_middle_intermediate, parent: right_middle_proximal, semantic: rightMiddleIntermediate, required: true}
+  - {name: right_middle_distal, parent: right_middle_intermediate, semantic: rightMiddleDistal, required: true}
+  - {name: right_ring_metacarpal, parent: right_hand_root, semantic: rightRingMetacarpal, required: true}
+  - {name: right_ring_proximal, parent: right_ring_metacarpal, semantic: rightRingProximal, required: true}
+  - {name: right_ring_intermediate, parent: right_ring_proximal, semantic: rightRingIntermediate, required: true}
+  - {name: right_ring_distal, parent: right_ring_intermediate, semantic: rightRingDistal, required: true}
+  - {name: right_little_metacarpal, parent: right_hand_root, semantic: rightLittleMetacarpal, required: true}
+  - {name: right_little_proximal, parent: right_little_metacarpal, semantic: rightLittleProximal, required: true}
+  - {name: right_little_intermediate, parent: right_little_proximal, semantic: rightLittleIntermediate, required: true}
+  - {name: right_little_distal, parent: right_little_intermediate, semantic: rightLittleDistal, required: true}
+  - {name: right_thumb_proximal, parent: right_hand_root, semantic: rightThumbProximal, required: true}
+  - {name: right_thumb_intermediate, parent: right_thumb_proximal, semantic: rightThumbIntermediate, required: true}
+  - {name: right_thumb_distal, parent: right_thumb_intermediate, semantic: rightThumbDistal, required: true}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: sentiavatar_mta63_template_geometry
+rotation:
+  representation: continuous_6d
+  layout: columns
+  space: parent_local
+root_motion:
+  translation: root_offset_delta
+  rotation: local_to_world
+fps: 20
+source_urls:
+  - https://github.com/SentiAvatar/SentiAvatar
+validation_status: source_verified

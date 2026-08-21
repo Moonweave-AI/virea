@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:model_result:1.0.0",
+  "title": "VIREA ModelResult v1",
+  "type": "object",
+  "required": ["schema_version", "job_id", "model", "task", "native"],
+  "properties": {
+    "schema_version": { "const": "virea.model_result.v1.0.0" },
+    "job_id": { "type": "string", "minLength": 1 },
+    "model": { "$ref": "#/$defs/model_identity" },
+    "task": { "type": "string", "minLength": 1 },
+    "request_id": { "type": ["string", "null"] },
+    "native": { "$ref": "#/$defs/native_motion" },
+    "segments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/valid_segment" },
+      "default": []
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "provenance": { "$ref": "#/$defs/generation_provenance" }
+  },
+  "$defs": {
+    "model_identity": {
+      "type": "object",
+      "required": [
+        "id",
+        "plugin_version",
+        "upstream_repository",
+        "upstream_revision",
+        "runtime_id"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "plugin_version": { "type": "string", "minLength": 1 },
+        "upstream_repository": { "type": "string", "minLength": 1 },
+        "upstream_revision": { "type": "string", "minLength": 1 },
+        "runtime_id": { "type": "string", "minLength": 1 },
+        "artifact_manifest_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "artifact_ref": {
+      "type": "object",
+      "required": ["name", "media_type", "uri"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "media_type": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "minLength": 1 },
+        "byte_length": { "type": ["integer", "null"], "minimum": 0 },
+        "dtype": { "type": ["string", "null"] },
+        "shape": {
+          "type": ["array", "null"],
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "native_motion": {
+      "type": "object",
+      "required": [
+        "representation_id",
+        "skeleton_id",
+        "frame_count",
+        "coordinate_system",
+        "units",
+        "root_translation_semantics",
+        "root_rotation_semantics",
+        "artifacts"
+      ],
+      "properties": {
+        "representation_id": { "type": "string", "minLength": 1 },
+        "skeleton_id": { "type": "string", "minLength": 1 },
+        "fps": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "timebase": { "$ref": "#/$defs/nullable_timebase" },
+        "frame_count": { "type": "integer", "minimum": 0 },
+        "coordinate_system": { "type": "string", "minLength": 1 },
+        "units": { "type": "string", "minLength": 1 },
+        "root_translation_semantics": { "type": "string", "minLength": 1 },
+        "root_rotation_semantics": { "type": "string", "minLength": 1 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_ref" }
+        }
+      },
+      "oneOf": [
+        { "required": ["fps"], "properties": { "timebase": { "type": "null" } } },
+        { "required": ["timebase"], "properties": { "fps": { "type": "null" } } }
+      ],
+      "additionalProperties": false
+    },
+    "nullable_timebase": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    },
+    "valid_segment": {
+      "type": "object",
+      "required": ["start_frame", "end_frame"],
+      "properties": {
+        "start_frame": { "type": "integer", "minimum": 0 },
+        "end_frame": { "type": "integer", "minimum": 0 },
+        "valid": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "generation_provenance": {
+      "type": "object",
+      "properties": {
+        "seed": { "type": ["integer", "null"] },
+        "precision": { "type": ["string", "null"] },
+        "device": { "type": ["string", "null"] },
+        "generation_parameters": { "type": "object", "default": {} },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["repository", "revision"],
+            "properties": {
+              "repository": { "type": "string", "minLength": 1 },
+              "revision": { "type": "string", "minLength": 1 },
+              "release": { "type": ["string", "null"] }
+            },
+            "additionalProperties": false
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "default": {}
+    }
+  },
+  "additionalProperties": false
+}

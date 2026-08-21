@@ -109,7 +109,7 @@ Source preview 用同一 body/hand decode 和 source rest FK，随后只做 prof
 - Body22 文件不能凭尾部宽度猜 hands。
 - SMPL-H hands 是否真实进入最终 sequence 要用非 identity fixture 和真实 VRM finger检查。
 - BABEL carrier resolver 和 duration mismatch 是正式发布门禁。
-- AMASS HumanAct12 positions 旁路属于 [position fitting](README.zh-CN.md#8-position-fitting-path)，不是本文 direct axis-angle 主路径。
+- AMASS HumanAct12 positions 旁路属于 [position decode/fitting](README.zh-CN.md#8-position-decodefitting-path)，不是本文 direct axis-angle 主路径。
 
 
 <!--

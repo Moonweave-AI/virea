@@ -5,7 +5,6 @@ import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-
 _WINDOWS_ABSOLUTE_PATH_RE = re.compile(
     r"(?<![A-Za-z0-9_])(?:[A-Za-z]:[\\/]|\\\\)[^\s\"'<>|?*]+"
 )
@@ -21,7 +20,11 @@ def _is_absolute_path(value: str) -> bool:
 
 
 def _path_name(value: str) -> str:
-    pure = PureWindowsPath(value) if PureWindowsPath(value).is_absolute() else PurePosixPath(value)
+    pure = (
+        PureWindowsPath(value)
+        if PureWindowsPath(value).is_absolute()
+        else PurePosixPath(value)
+    )
     return pure.name or "root"
 
 
@@ -33,7 +36,9 @@ def opaque_path_reference(value: str | Path) -> str:
     return f"{_path_name(raw)}@sha256-{digest}"
 
 
-def portable_path_reference(value: str | Path, *, base: str | Path | None = None) -> str:
+def portable_path_reference(
+    value: str | Path, *, base: str | Path | None = None
+) -> str:
     """Serialize a file reference relative to ``base`` or as an opaque identity.
 
     Report consumers do not need a machine-local root. Files inside the declared
@@ -44,7 +49,10 @@ def portable_path_reference(value: str | Path, *, base: str | Path | None = None
     raw = str(value)
     if base is not None:
         base_raw = str(base)
-        if PureWindowsPath(raw).is_absolute() and PureWindowsPath(base_raw).is_absolute():
+        if (
+            PureWindowsPath(raw).is_absolute()
+            and PureWindowsPath(base_raw).is_absolute()
+        ):
             try:
                 relative = PureWindowsPath(raw).relative_to(PureWindowsPath(base_raw))
             except ValueError:
@@ -73,7 +81,9 @@ def portable_path_reference(value: str | Path, *, base: str | Path | None = None
     if _is_absolute_path(raw):
         return opaque_path_reference(raw)
     relative = PureWindowsPath(raw) if "\\" in raw else PurePosixPath(raw)
-    if ".." in relative.parts or (isinstance(relative, PureWindowsPath) and relative.drive):
+    if ".." in relative.parts or (
+        isinstance(relative, PureWindowsPath) and relative.drive
+    ):
         return opaque_path_reference(raw)
     if isinstance(value, Path):
         return value.as_posix()
@@ -96,14 +106,16 @@ def _redact_embedded_absolute_paths(value: str) -> str:
     pieces: list[str] = []
     cursor = 0
     for match in _WEB_OR_URN_TOKEN_RE.finditer(value):
-        pieces.append(redact_plain_text(value[cursor:match.start()]))
+        pieces.append(redact_plain_text(value[cursor : match.start()]))
         pieces.append(match.group(0))
         cursor = match.end()
     pieces.append(redact_plain_text(value[cursor:]))
     return "".join(pieces)
 
 
-def sanitize_report_paths(value: Any, *, relative_base: str | Path | None = None) -> Any:
+def sanitize_report_paths(
+    value: Any, *, relative_base: str | Path | None = None
+) -> Any:
     """Recursively make report values portable and safe to persist or publish."""
 
     if isinstance(value, dict):
@@ -112,9 +124,13 @@ def sanitize_report_paths(value: Any, *, relative_base: str | Path | None = None
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [sanitize_report_paths(item, relative_base=relative_base) for item in value]
+        return [
+            sanitize_report_paths(item, relative_base=relative_base) for item in value
+        ]
     if isinstance(value, tuple):
-        return [sanitize_report_paths(item, relative_base=relative_base) for item in value]
+        return [
+            sanitize_report_paths(item, relative_base=relative_base) for item in value
+        ]
     if isinstance(value, Path):
         return portable_path_reference(value, base=relative_base)
     if isinstance(value, str):
@@ -122,7 +138,9 @@ def sanitize_report_paths(value: Any, *, relative_base: str | Path | None = None
             return value
         if _is_absolute_path(value):
             return portable_path_reference(value, base=relative_base)
-        if relative_base is not None and ("/" in value or "\\" in value or value in {".", ".."}):
+        if relative_base is not None and (
+            "/" in value or "\\" in value or value in {".", ".."}
+        ):
             return portable_path_reference(value, base=relative_base)
         return _redact_embedded_absolute_paths(value)
     return value

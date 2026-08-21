@@ -1,0 +1,21 @@
+schema_version: virea.representation_profile.v1.0.0
+id: hy_motion.body22.rot6d_translation.v1
+version: 1.0.0
+kind: decoded_split_translation_and_rotation_tensors
+skeleton_id: hy_motion.wooden_body22.v1
+dtype: float32
+frame_shape: [135]
+rotation_representation: continuous_6d
+rotation_layout: upstream_view_3x2_interleaved_columns
+rotation_space: root_local_to_world_then_parent_local
+root_translation_semantics: absolute_world_smoothed_then_vertical_ground_shift
+root_rotation_semantics: explicit_6d_local_to_world_smoothed
+coordinate_system_id: hy_motion.right_handed_y_up_ground_aligned.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/hymotion/utils/geometry.py
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/hymotion/pipeline/motion_diffusion.py
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/hymotion/pipeline/body_model.py
+validation_status: source_verified

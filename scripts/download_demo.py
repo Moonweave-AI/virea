@@ -11,6 +11,7 @@ Usage:
     python scripts/download_demo.py --processed-only --accept-local-only
     python scripts/download_demo.py --raw-only --accept-local-only
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,12 +35,20 @@ class ExpectedFile:
 
 def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     config = json.loads(path.read_text(encoding="utf-8"))
-    required = {"schema_version", "repo_id", "repo_type", "revision", "license_decision"}
+    required = {
+        "schema_version",
+        "repo_id",
+        "repo_type",
+        "revision",
+        "license_decision",
+    }
     missing = sorted(required - config.keys())
     if missing:
         raise ValueError(f"demo download config is missing: {', '.join(missing)}")
     revision = str(config["revision"])
-    if len(revision) != 40 or any(char not in "0123456789abcdef" for char in revision.lower()):
+    if len(revision) != 40 or any(
+        char not in "0123456789abcdef" for char in revision.lower()
+    ):
         raise ValueError("demo revision must be a full 40-character Git commit")
     if config["license_decision"] not in {"allowed", "local-only", "blocked"}:
         raise ValueError("license_decision must be allowed, local-only, or blocked")
@@ -49,7 +58,9 @@ def _load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
 def _assert_license_gate(config: dict[str, Any], accepted_local_only: bool) -> None:
     decision = config["license_decision"]
     if decision == "blocked":
-        raise PermissionError("demo download is blocked by the asset provenance decision")
+        raise PermissionError(
+            "demo download is blocked by the asset provenance decision"
+        )
     if decision != "allowed" and not accepted_local_only:
         raise PermissionError(
             "the pinned demo has no verified redistribution licence; rerun with "
@@ -67,7 +78,9 @@ def _selected_roots(raw_only: bool, processed_only: bool) -> tuple[str, ...]:
     return ("raw", "processed")
 
 
-def _remote_manifest(api: Any, config: dict[str, Any], roots: Iterable[str]) -> list[ExpectedFile]:
+def _remote_manifest(
+    api: Any, config: dict[str, Any], roots: Iterable[str]
+) -> list[ExpectedFile]:
     expected: dict[str, ExpectedFile] = {}
     for root in roots:
         entries = api.list_repo_tree(
@@ -93,9 +106,13 @@ def _remote_manifest(api: Any, config: dict[str, Any], roots: Iterable[str]) -> 
             else:
                 algorithm = "git-sha1"
                 digest = str(entry.blob_id)
-            expected[path] = ExpectedFile(path=path, size=int(size), algorithm=algorithm, digest=digest)
+            expected[path] = ExpectedFile(
+                path=path, size=int(size), algorithm=algorithm, digest=digest
+            )
     if not expected:
-        raise RuntimeError("the pinned Hub revision contains no files for the selected scope")
+        raise RuntimeError(
+            "the pinned Hub revision contains no files for the selected scope"
+        )
     return [expected[path] for path in sorted(expected)]
 
 
@@ -123,7 +140,9 @@ def _safe_local_path(target: Path, relative: str) -> Path:
     return candidate
 
 
-def _verify_download(target: Path, expected: Iterable[ExpectedFile], roots: Iterable[str]) -> dict[str, Any]:
+def _verify_download(
+    target: Path, expected: Iterable[ExpectedFile], roots: Iterable[str]
+) -> dict[str, Any]:
     expected_list = list(expected)
     expected_paths = {item.path for item in expected_list}
     verified: list[dict[str, Any]] = []
@@ -162,7 +181,12 @@ def _verify_download(target: Path, expected: Iterable[ExpectedFile], roots: Iter
     return {"file_count": len(verified), "files": verified}
 
 
-def _write_manifest(target: Path, config: dict[str, Any], roots: tuple[str, ...], verification: dict[str, Any]) -> Path:
+def _write_manifest(
+    target: Path,
+    config: dict[str, Any],
+    roots: tuple[str, ...],
+    verification: dict[str, Any],
+) -> Path:
     manifest = {
         "schema_version": "virea.demo-download-manifest.v1",
         "repo_id": config["repo_id"],
@@ -175,21 +199,33 @@ def _write_manifest(target: Path, config: dict[str, Any], roots: tuple[str, ...]
     }
     path = target / "manifest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return path
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Download the pinned VIREA demo snapshot")
+    parser = argparse.ArgumentParser(
+        description="Download the pinned VIREA demo snapshot"
+    )
     scope = parser.add_mutually_exclusive_group()
     scope.add_argument("--raw-only", action="store_true", help="Download only raw data")
-    scope.add_argument("--processed-only", action="store_true", help="Download only processed data")
+    scope.add_argument(
+        "--processed-only", action="store_true", help="Download only processed data"
+    )
     parser.add_argument(
         "--accept-local-only",
         action="store_true",
         help="Acknowledge that the data and derivatives must remain local until licences are verified",
     )
-    parser.add_argument("--target", type=Path, default=None, help="Target directory (default: <repo_root>/demo)")
+    parser.add_argument(
+        "--target",
+        type=Path,
+        default=None,
+        help="Target directory (default: <repo_root>/demo)",
+    )
     args = parser.parse_args(argv)
 
     config = _load_config()
@@ -200,13 +236,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from huggingface_hub import HfApi, snapshot_download
     except ImportError as exc:
-        raise RuntimeError("huggingface_hub is required; install it with: pip install huggingface_hub") from exc
+        raise RuntimeError(
+            "huggingface_hub is required; install it with: pip install huggingface_hub"
+        ) from exc
 
     api = HfApi()
-    info = api.repo_info(repo_id=config["repo_id"], repo_type=config["repo_type"], revision=config["revision"])
+    info = api.repo_info(
+        repo_id=config["repo_id"],
+        repo_type=config["repo_type"],
+        revision=config["revision"],
+    )
     if info.sha != config["revision"]:
         raise RuntimeError(f"Hub resolved an unexpected revision: {info.sha}")
-    print(f"Resolving per-file checksums for {config['repo_id']}@{config['revision']} ...")
+    print(
+        f"Resolving per-file checksums for {config['repo_id']}@{config['revision']} ..."
+    )
     expected = _remote_manifest(api, config, roots)
 
     patterns = [f"{root}/**" for root in roots]
@@ -222,7 +266,9 @@ def main(argv: list[str] | None = None) -> int:
     verification = _verify_download(target, expected, roots)
     manifest_path = _write_manifest(target, config, roots, verification)
     print(f"Verified {verification['file_count']} files. Manifest: {manifest_path}")
-    print("Redistribution is disabled: keep the downloaded data and all derived media local.")
+    print(
+        "Redistribution is disabled: keep the downloaded data and all derived media local."
+    )
     return 0
 
 

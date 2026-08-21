@@ -4,7 +4,11 @@ from typing import Any
 
 import numpy as np
 
-from virea.motion.rotation import normalize_quat_xyzw, quat_apply_xyzw, quat_inverse_xyzw
+from virea.motion.rotation import (
+    normalize_quat_xyzw,
+    quat_apply_xyzw,
+    quat_inverse_xyzw,
+)
 from virea.motion.skeleton import (
     BODY_BONES,
     BODY_EDGES,
@@ -63,9 +67,14 @@ SUSU_MAYA_AIM_AXES: dict[str, list[float]] = {
     "rightUpperArm": [0, 0, 1],
 }
 
-_SUSU_MAYA_STATISTICAL_BONES = frozenset({
-    "leftLowerArm", "rightLowerArm", "leftHand", "rightHand",
-})
+_SUSU_MAYA_STATISTICAL_BONES = frozenset(
+    {
+        "leftLowerArm",
+        "rightLowerArm",
+        "leftHand",
+        "rightHand",
+    }
+)
 
 
 def _determine_parent_aim_axes(
@@ -100,7 +109,9 @@ def _determine_parent_aim_axes(
         best_score = -2.0
         best_axis = _CANDIDATE_AXES[3]
         for axis in _CANDIDATE_AXES:
-            axis_batch = np.broadcast_to(axis.reshape(1, 3), (parent_global.shape[0], 3)).copy()
+            axis_batch = np.broadcast_to(
+                axis.reshape(1, 3), (parent_global.shape[0], 3)
+            ).copy()
             world_dirs = quat_apply_xyzw(parent_global, axis_batch)
             score = float(np.mean(np.sum(world_dirs * expected.reshape(1, 3), axis=1)))
             if score > best_score:
@@ -145,7 +156,9 @@ def positions_from_global_rotations(
             positions[:, BODY_INDEX[bone]] = parent_pos
             continue
 
-        vrm_offset = np.asarray(DEFAULT_REST_OFFSETS.get(bone, [0, 0, 0]), dtype=np.float32)
+        vrm_offset = np.asarray(
+            DEFAULT_REST_OFFSETS.get(bone, [0, 0, 0]), dtype=np.float32
+        )
         length = float(np.linalg.norm(vrm_offset))
         if length < 1e-6:
             positions[:, BODY_INDEX[bone]] = parent_pos
@@ -210,10 +223,10 @@ def source_fk_from_body_quats(
     preview (Y-up, Z-forward) so that Before/After are comparable.
     """
     from virea.motion.retarget import (
-        target_scale_from_rest_offsets,
         infer_clip_world_basis,
         resolve_world_basis,
         rotate_positions_by_matrix,
+        target_scale_from_rest_offsets,
     )
 
     names = joint_names or BODY_BONES
@@ -237,7 +250,11 @@ def source_fk_from_body_quats(
     )
 
     if normalize_world and positions.shape[1] >= len(BODY_BONES):
-        basis = resolve_world_basis(world_basis) if world_basis is not None else infer_clip_world_basis(positions)
+        basis = (
+            resolve_world_basis(world_basis)
+            if world_basis is not None
+            else infer_clip_world_basis(positions)
+        )
         positions = rotate_positions_by_matrix(positions, basis["rotation_matrix"])
 
     positions = positions - positions[:1, BODY_INDEX["hips"]].reshape(1, 1, 3)
@@ -253,26 +270,55 @@ def source_positions_normalized(
 ) -> np.ndarray:
     """World-normalize and scale position-based source data for Before preview.
 
-    Expects positions already mapped to BODY_BONES layout via
-    body_positions_from_fk_positions. Applies world-basis detection,
-    scaling, and root centering.
+    The input may use BODY_BONES or a larger named topology such as FK_BONES.
+    Basis and scale are estimated from a BODY_BONES view, then the exact same
+    transform is applied to every named joint.  Positional arrays must never
+    be interpreted by a different skeleton order merely because they contain
+    at least 22 joints.
     """
     from virea.motion.retarget import (
         _target_scale_from_positions,
+        body_positions_from_fk_positions,
         infer_clip_world_basis,
         resolve_world_basis,
         rotate_positions_by_matrix,
     )
 
     body = np.asarray(body_positions, dtype=np.float32)
+    names = list(joint_names)
+    if body.ndim != 3 or body.shape[-1] != 3:
+        raise ValueError(f"source positions must have shape (T,J,3), got {body.shape}")
+    if body.shape[1] != len(names):
+        raise ValueError(
+            f"source position joint count {body.shape[1]} does not match "
+            f"joint_names count {len(names)}"
+        )
+    if len(set(names)) != len(names):
+        raise ValueError("source position joint_names must be unique")
+    if "hips" not in names:
+        raise ValueError("source position joint_names must include hips")
 
-    if normalize_world and body.shape[1] >= len(BODY_BONES):
-        basis = resolve_world_basis(world_basis) if world_basis is not None else infer_clip_world_basis(body)
+    body_view = body_positions_from_fk_positions(body, names)
+    missing_body = [name for name in BODY_BONES if name not in names]
+    if missing_body:
+        raise ValueError(
+            "source position normalization requires the complete body topology; "
+            f"missing {missing_body}"
+        )
+
+    if normalize_world:
+        basis = (
+            resolve_world_basis(world_basis)
+            if world_basis is not None
+            else infer_clip_world_basis(body_view)
+        )
         body = rotate_positions_by_matrix(body, basis["rotation_matrix"])
+        body_view = rotate_positions_by_matrix(body_view, basis["rotation_matrix"])
 
-    scale = _target_scale_from_positions(body)
+    scale = _target_scale_from_positions(body_view)
     body = body * np.float32(scale)
-    body = body - body[:1, BODY_INDEX["hips"]].reshape(1, 1, 3)
+    hips_index = names.index("hips")
+    body = body - body[:1, hips_index].reshape(1, 1, 3)
     return body.astype(np.float32)
 
 

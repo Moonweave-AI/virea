@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-vrm"
+version = "0.4.0"
+description = "VRM profiles, inspection, and VRM Animation export for VIREA."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "virea>=0.4.0",
+  "virea-contracts>=0.4.0",
+  "virea-retarget>=0.4.0",
+]
+
+[tool.uv.sources]
+virea = { workspace = true }
+virea-contracts = { workspace = true }
+virea-retarget = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,85 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: dart-smplx
+  display_name: DART BABEL SMPL-X Motion Primitives
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/zkf1997/DART
+    revision: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+    release: ICLR 2025 Spotlight
+  tasks:
+    - streaming_text_to_motion
+    - motion_inbetweening
+    - waypoint_controlled_motion
+    - scene_conditioned_motion
+  adapter_family: dart-smplx-primitives
+  status: runnable_upstream
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: streaming_text_to_motion
+    fields:
+      text_timeline:
+        type: text_segments
+        required: true
+      initial_motion:
+        representation_id: dart.smplx.body22.axis_angle.v1
+        required: false
+  - schema_version: virea.job_request.v1.0.0
+    task: waypoint_controlled_motion
+    fields:
+      text_timeline:
+        type: text_segments
+        required: true
+      waypoints:
+        type: world_space_constraints
+        required: true
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: dart.smplx.body22.axis_angle_primitives.v1
+  skeleton_id: smplx.body22.v1
+  fps: 30.0
+  coordinate_system: amass_smplx.right_handed_z_up
+  units: meters
+  root_translation_semantics: absolute_world_smplx_transl_after_primitive_rollout_reconstruction
+  root_rotation_semantics: smplx_global_orient_axis_angle_local_to_world_after_primitive_rollout_reconstruction
+  face_representation_ids: []
+runtime_variants: []
+artifacts:
+  - id: dart-babel-checkpoints-and-runtime-data
+    kind: manual
+    url: https://drive.google.com/drive/folders/1vJg3GFVPT6kr6cA0HrQGmiAEBE2dkaps
+    expected_files:
+      - mvae/**
+      - mld_denoiser/**
+      - data/**
+licenses:
+  code: Apache-2.0
+  weights: Apache-2.0 per upstream DART code-and-model statement
+  dataset_lineage:
+    - BABEL
+    - AMASS
+  body_model:
+    - SMPL-X license and model download terms apply
+  commercial_allowed: null
+  redistribution_allowed: null
+  requires_acceptance: true
+  source_urls:
+    - https://github.com/zkf1997/DART/blob/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417/LICENSE
+    - https://github.com/zkf1997/DART/blob/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417/README.md
+resources:
+  upstream_tested_os: Ubuntu 22.04.4 LTS
+  upstream_tested_gpu: NVIDIA RTX 4090
+  upstream_tested_memory_gib: 64
+  babel_fps: 30.0
+  humanml3d_alternative_fps: 20.0
+  body_type: smplx
+  official_parameter_fields:
+    - gender
+    - betas
+    - transl
+    - global_orient
+    - body_pose
+notes:
+  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
+  - This plugin deliberately selects the BABEL/SMPL-X 30 FPS path; the separate HML3D/SMPL-H 20 FPS path needs a different manifest and adapter profile.
+  - A synthetic VIREA output-contract adapter exists, but runnable_upstream does not mean runtime integration or support; no isolated Worker, real upstream rollout, or production end-to-end acceptance exists.

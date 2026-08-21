@@ -1,0 +1,346 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: momadiff-humanml3d
+  display_name: MoMADiff HumanML3D
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/zzysteve/MoMADiff
+    revision: 6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+    release: ACM Multimedia 2025
+  tasks:
+    - text_to_motion
+  adapter_family: humanml3d-motion263-body22
+  status: integrated_experimental
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_motion
+    fields:
+      prompt:
+        type: string
+        required: true
+        maximum_length: 8000
+      motion_length_frames:
+        type: integer
+        required: false
+        minimum: 4
+        maximum: 196
+        multiple_of: 4
+        description: Optional explicit HumanML3D pose count; omitted lengths use the released estimator.
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: humanml3d.vector263.v1
+  skeleton_id: humanml3d.body22.v1
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward
+  units: meters
+  root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
+  root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
+  face_representation_ids: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: momadiff-humanml3d-cu128
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 6.0
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - id: cuda-full
+        strategy: cuda_full
+        min_free_vram_gib: 6.0
+        min_free_ram_gib: 8.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_momadiff.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_MEMORY_STRATEGY
+      - VIREA_RESOURCE_PROFILE
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/momadiff-humanml3d/runtime-cu128
+    project_package: virea-model-momadiff-humanml3d-cu128-runtime
+    project_version: 0.1.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: real_checkpoint_production_acceptance_and_memory_floor_calibration_passed_on_win64_rtx5090
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: momadiff-humanml3d-cpu
+    backend: uv-native
+    platforms:
+      - win-64
+      - linux-64
+      - osx-arm64
+      - osx-64
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 12.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv:
+      - python
+      - -m
+      - virea_momadiff.worker
+    startup_timeout_seconds: 600
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_MEMORY_STRATEGY
+      - VIREA_RESOURCE_PROFILE
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+    working_directory: plugins/models/momadiff-humanml3d/runtime-cpu
+    project_package: virea-model-momadiff-humanml3d-cpu-runtime
+    project_version: 0.1.3
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: real_checkpoint_direct_worker_resource_calibration_passed_on_win64_cpu_build_import_passed_wsl_ubuntu_24_04_linux_native_macos_unverified
+artifacts:
+  - id: momadiff-upstream-source
+    kind: https
+    url: https://github.com/zzysteve/MoMADiff/archive/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c.tar.gz
+    revision: 6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+    expected_files:
+      - LICENSE
+      - NOTICE
+      - configs/t2m.yaml
+      - diffusion/gaussian_diffusion.py
+      - models/klvae/autoencoder.py
+      - models/mask_transformer/latent_transformer.py
+      - utils/diffusion.py
+    unpack:
+      - path: 6dd9bea254bbca6cf19756ac3ee037cbf4f6021c.tar.gz
+        format: tar
+        destination: .
+        strip_components: 1
+        remove_archive: true
+  - id: momadiff-humanml3d-checkpoints
+    kind: huggingface
+    repository: SteveZh/momadiff_models
+    revision: daf83c1441fbb9e8bacd377e28f557b54080c2a1
+    allow_patterns:
+      - t2m/Trans-B_EMA_klv0-stable_masked-only_diff1000/model/latest_ema.tar
+      - t2m/kl_vae_ver0-stable/args_for_pretrained_klvae.pkl
+      - t2m/kl_vae_ver0-stable/meta/mean.npy
+      - t2m/kl_vae_ver0-stable/meta/std.npy
+      - t2m/kl_vae_ver0-stable/net_last.pth
+      - t2m/length_estimator/model/finest.tar
+    expected_files:
+      - t2m/Trans-B_EMA_klv0-stable_masked-only_diff1000/model/latest_ema.tar
+      - t2m/kl_vae_ver0-stable/args_for_pretrained_klvae.pkl
+      - t2m/kl_vae_ver0-stable/meta/mean.npy
+      - t2m/kl_vae_ver0-stable/meta/std.npy
+      - t2m/kl_vae_ver0-stable/net_last.pth
+      - t2m/length_estimator/model/finest.tar
+  - id: openai-clip-vit-b-32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files:
+      - ViT-B-32.pt
+licenses:
+  code: MIT
+  weights: MIT (declared by the official pinned Hugging Face model card); HumanML3D and AMASS dataset-lineage terms remain separate.
+  dataset_lineage:
+    - HumanML3D
+    - AMASS
+  body_model: []
+  commercial_allowed: true
+  redistribution_allowed: true
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/zzysteve/MoMADiff/blob/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c/LICENSE
+    - https://github.com/zzysteve/MoMADiff/blob/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c/NOTICE
+    - https://huggingface.co/SteveZh/momadiff_models/tree/daf83c1441fbb9e8bacd377e28f557b54080c2a1
+resources:
+  upstream_tested_python: 3.10.14
+  upstream_tested_pytorch: 2.4.0
+  upstream_tested_cuda: "12.1"
+  virea_pytorch: 2.11.0+cu128
+  blackwell_runtime_policy: current_pytorch_cu128_not_upstream_torch_2_4
+  upstream_inference_entrypoint: text2motion_demo.ipynb
+  native_feature_dim: 263
+  native_fps: 20.0
+  max_motion_frames: 196
+  temporal_downsample: 4
+  default_masked_autoregressive_steps: 7
+  default_classifier_free_guidance: 3.0
+  default_ddim_steps: 100
+  implementation: plugins/models/momadiff-humanml3d/runtime/src/virea_momadiff/worker.py
+  artifact_roots_environment: VIREA_ARTIFACT_ROOTS_JSON
+  memory_floor_status: calibrated_per_profile_fixed_and_maximum_request_on_win64
+  memory_floor_calibration:
+    schema_version: virea.runtime_memory_floor_calibration.v1.0.0
+    calibrated_at: "2026-08-21"
+    evidence_root_logical_id: virea-0.4.0/production-e2e-20260821/momadiff-humanml3d
+    headroom_policy: max_2_gib_or_20_percent
+    artifact_revisions:
+      momadiff-upstream-source: 6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+      momadiff-humanml3d-checkpoints: daf83c1441fbb9e8bacd377e28f557b54080c2a1
+      openai-clip-vit-b-32: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    profiles:
+      cuda-full:
+        evidence_classification: control_plane_resource_calibration_not_production_browser_evidence
+        scope:
+          platform: win-64
+          accelerator: NVIDIA GeForce RTX 5090 Laptop GPU
+          device_uuid_redacted: true
+          runtime_id: momadiff-humanml3d-cu128
+          runtime_project_package: virea-model-momadiff-humanml3d-cu128-runtime
+          runtime_project_version: 0.1.3
+          runtime_core_epoch: virea-runtime-core-20260821.2
+          torch_version: 2.11.0+cu128
+          torch_cuda_version: "12.8"
+          memory_strategy: cuda_full
+          resource_profile: cuda-full
+          doctor_report_id: 01M0J3ABBVRB9C3R4ZDS4N6JYZ
+          calibration_installation_id: 01M0J3AYV25N7G7JZDKD85PAFS
+        observations:
+          - request_scope: production_acceptance_80_frames
+            frame_count: 80
+            job_id: 01M0J3CBKV7NKT2ENF03CQQD43
+            result_id: 01M0J3D3EM9XCD1KHBCEWWPHEE
+            model_result_locator: results/01M0J3D3EM9XCD1KHBCEWWPHEE/model-result.json
+            generation_metadata_locator: jobs/01M0J3CBKV7NKT2ENF03CQQD43/staging/generation_metadata.json
+          - request_scope: manifest_maximum_196_frames
+            frame_count: 196
+            job_id: 01M0J3E659QANNHRGJYZ7K8S4E
+            result_id: 01M0J3EMPKJTVQ65XKWVD46X5G
+            model_result_locator: results/01M0J3EMPKJTVQ65XKWVD46X5G/model-result.json
+            generation_metadata_locator: jobs/01M0J3E659QANNHRGJYZ7K8S4E/staging/generation_metadata.json
+        observed_maxima:
+          process_peak_rss_bytes: 4404617216
+          system_ram_available_drop_peak_bytes: 3827294208
+          cuda_max_memory_allocated_bytes: 701373440
+          cuda_max_memory_reserved_bytes: 721420288
+          cuda_device_free_drop_load_to_inference_bytes: 792723456
+        floor_formula:
+          ram_observed_basis_bytes: 4404617216
+          ram_headroom_bytes: 2147483648
+          derived_min_free_ram_gib: 7
+          registered_min_free_ram_gib: 8
+          cuda_observed_basis_bytes: 792723456
+          cuda_headroom_bytes: 2147483648
+          derived_min_free_vram_gib: 3
+          registered_min_free_vram_gib: 6
+          floors_not_reduced: true
+        portability:
+          other_platforms_or_gpus_extrapolated: false
+          admission_rechecks_current_free_resources: true
+          production_browser_evidence: false
+      whole-model-cpu:
+        evidence_classification: direct_worker_resource_calibration_not_production_browser_evidence
+        scope:
+          platform: win-64
+          cpu: Intel64 Family 6 Model 198 Stepping 2, GenuineIntel
+          runtime_id: momadiff-humanml3d-cpu
+          runtime_project_package: virea-model-momadiff-humanml3d-cpu-runtime
+          runtime_project_version: 0.1.3
+          runtime_core_epoch: virea-runtime-core-20260821.2
+          torch_version: 2.11.0+cpu
+          torch_cuda_version: null
+          torch_cuda_available: false
+          torch_cuda_device_count: 0
+          cuda_visible_devices: "-1"
+          memory_strategy: cpu
+          resource_profile: whole-model-cpu
+          doctor_report_id: 01M0J3ABBVRB9C3R4ZDS4N6JYZ
+          artifact_installation_id: 01M0J3AYV25N7G7JZDKD85PAFS
+        observations:
+          - request_scope: direct_worker_cpu_80_frames
+            frame_count: 80
+            qa_job_id: momadiff-cpu-80-20260821T121330347878Z
+            state_store_result_id: null
+            model_result_locator: calibration/cpu/cpu-80-20260821T121330347878Z/model-result.json
+            generation_metadata_locator: calibration/cpu/cpu-80-20260821T121330347878Z/generation-metadata.json
+            runtime_probe_locator: calibration/cpu/cpu-80-20260821T121330347878Z/runtime-probe.json
+            nvidia_smi_observations_locator: calibration/cpu/cpu-80-20260821T121330347878Z/nvidia-smi-observations.json
+            nvidia_smi_sample_count: 67
+            worker_pid: 54484
+            worker_started_at: "2026-08-21T12:13:32.523768+00:00"
+            worker_stopped_at: "2026-08-21T12:13:49.677359+00:00"
+            nvidia_worker_pid_seen: false
+          - request_scope: direct_worker_cpu_196_frames
+            frame_count: 196
+            qa_job_id: momadiff-cpu-196-20260821T121512012901Z
+            state_store_result_id: null
+            model_result_locator: calibration/cpu/cpu-196-20260821T121512012901Z/model-result.json
+            generation_metadata_locator: calibration/cpu/cpu-196-20260821T121512012901Z/generation-metadata.json
+            runtime_probe_locator: calibration/cpu/cpu-196-20260821T121512012901Z/runtime-probe.json
+            nvidia_smi_observations_locator: calibration/cpu/cpu-196-20260821T121512012901Z/nvidia-smi-observations.json
+            nvidia_smi_sample_count: 34
+            worker_pid: 42120
+            worker_started_at: "2026-08-21T12:15:14.218889+00:00"
+            worker_stopped_at: "2026-08-21T12:15:23.036994+00:00"
+            nvidia_worker_pid_seen: false
+        observed_maxima:
+          process_peak_rss_bytes: 4527616000
+          system_ram_available_drop_peak_bytes: 4305440768
+        floor_formula:
+          ram_observed_basis_bytes: 4527616000
+          ram_headroom_bytes: 2147483648
+          derived_min_free_ram_gib: 7
+          registered_min_free_ram_gib: 12
+          floors_not_reduced: true
+        portability:
+          cpu_profile_extrapolated_to_other_platforms: false
+          linux_or_macos_production_evidence: false
+          admission_rechecks_current_free_resources: true
+          production_browser_evidence: false
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: momadiff-humanml3d
+    task: text_to_motion
+    input:
+      prompt: A person walks forward, turns left, and raises the right hand.
+      motion_length_frames: 80
+    parameters:
+      seed: 42
+      fps: 20.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: humanml3d.vector263.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts:
+      - native_motion
+      - motion_ir
+      - retargeted_motion
+      - vrma
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 3600.0
+notes:
+  - "The Worker executes the released notebook path: masked autoregressive latent generation, diffusion token synthesis, KLVAE decoding, then the official HumanML3D mean/std inverse transform."
+  - "The native artifact is the post-inverse-transform [T,263] carrier. recover_from_ric joint positions are deliberately not substituted for the native model output."
+  - "CUDA full placement and whole-model CPU execution are implemented. No CPU-offload strategy is declared or inferred from spare RAM."
+  - "The pinned artifacts passed VIREA environment detection, transactional installation, isolated CUDA runtime load, exact 80-frame inference, Motion IR conversion, retarget validation, VRMA export, and independent real-browser Avatar playback on Windows with an RTX 5090 Laptop GPU. This evidence supports integrated_experimental only and is not a supported or cross-platform claim."

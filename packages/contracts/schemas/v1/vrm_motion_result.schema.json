@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:vrm_motion_result:1.0.0",
+  "title": "VIREA VrmMotionResult v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "result_id",
+    "job_id",
+    "source_motion_id",
+    "avatar_profile",
+    "retarget_policy_id",
+    "actor_ids",
+    "tracks",
+    "exports",
+    "quality",
+    "loss_report"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.vrm_motion_result.v1.0.0" },
+    "result_id": { "type": "string", "minLength": 1 },
+    "job_id": { "type": "string", "minLength": 1 },
+    "identity": {
+      "oneOf": [
+        { "$ref": "#/$defs/result_identity" },
+        { "type": "null" }
+      ]
+    },
+    "source_motion_id": { "type": "string", "minLength": 1 },
+    "avatar_id": { "type": ["string", "null"] },
+    "avatar_profile": { "type": "string", "minLength": 1 },
+    "retarget_policy_id": { "type": "string", "minLength": 1 },
+    "actor_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "tracks": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] }
+    },
+    "exports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/export_record" }
+    },
+    "quality": { "type": "object" },
+    "loss_report": { "type": "object" }
+  },
+  "$defs": {
+    "export_record": {
+      "type": "object",
+      "required": ["format", "locator", "media_type", "byte_length"],
+      "properties": {
+        "format": { "type": "string", "minLength": 1 },
+        "locator": { "type": "string", "minLength": 1 },
+        "media_type": { "type": "string", "minLength": 1 },
+        "byte_length": { "type": ["integer", "null"], "minimum": 0 },
+        "identity": {
+          "oneOf": [
+            { "$ref": "#/$defs/actor_export_identity" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "result_identity": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "model_id",
+        "model_version",
+        "runtime_variant_id",
+        "checkpoint_revision",
+        "native_representation_id",
+        "native_skeleton_id",
+        "target_representation_id",
+        "target_skeleton_id",
+        "resource_profile_id",
+        "memory_strategy",
+        "device"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.result_identity.v1.0.0" },
+        "model_id": { "type": "string", "minLength": 1 },
+        "model_version": { "type": "string", "minLength": 1 },
+        "runtime_variant_id": { "type": "string", "minLength": 1 },
+        "execution_domain_id": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "checkpoint_revision": { "type": "string", "minLength": 1 },
+        "artifact_manifest_id": { "type": ["string", "null"] },
+        "native_representation_id": { "type": "string", "minLength": 1 },
+        "native_skeleton_id": { "type": "string", "minLength": 1 },
+        "target_representation_id": { "type": "string", "minLength": 1 },
+        "target_skeleton_id": { "type": "string", "minLength": 1 },
+        "resource_profile_id": { "type": "string", "minLength": 1 },
+        "memory_strategy": {
+          "enum": [
+            "cuda_full",
+            "cuda_cpu_offload",
+            "cuda_sequential_cpu_offload",
+            "rocm_full",
+            "mps_full",
+            "cpu"
+          ]
+        },
+        "device": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "actor_export_identity": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "actor_id",
+        "representation_id",
+        "skeleton_id"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.actor_export_identity.v1.0.0" },
+        "actor_id": { "type": "string", "minLength": 1 },
+        "representation_id": { "type": "string", "minLength": 1 },
+        "skeleton_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

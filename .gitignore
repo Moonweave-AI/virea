@@ -1,5 +1,11 @@
 /.venv/
+/.venv-*/
+/.uv-cache/
 /node_modules/
+**/node_modules/
+**/build/
+/dist/
+/apps/web/dist/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,6 +13,9 @@ __pycache__/
 pytest-cache-files-*/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+/htmlcov/
 
 # Local configuration and credentials. Commit only reviewed examples.
 .env
@@ -31,6 +40,8 @@ id_ed25519*
 /outputs/
 /.virea-runtime/
 /.virea-pytest/
+/.virea-pytest-*/
+/.virea-real-e2e-*/
 *.npz
 *.npy
 *.parquet

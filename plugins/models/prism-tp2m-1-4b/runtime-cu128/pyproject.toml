@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-prism-tp2m-1-4b-cu128-runtime"
+version = "0.1.3"
+description = "CUDA 12.8 component-split environment for the shared VIREA PRISM Worker"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "virea-model-prism-tp2m-1-4b-runtime==0.1.3",
+  "torch==2.11.0",
+]
+
+[project.scripts]
+virea-model-prism-tp2m-1-4b-cu128-worker = "virea_prism.worker:main"
+
+[tool.uv.sources]
+virea-model-prism-tp2m-1-4b-runtime = { path = "../runtime", editable = false }
+torch = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.setuptools.packages.find]
+where = ["src"]

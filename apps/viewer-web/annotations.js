@@ -399,6 +399,82 @@ function metadataAnnotations(payload, fallbackSample, hasSemanticAnnotation) {
   if (meta.has_contact !== undefined) add({ level: "context", type: "contact_channel", bodypart: "contact", text: meta.has_contact ? "Contact channel available" : "Contact channel unavailable", source: "metadata.has_contact", provenance: "native" });
   if (meta.has_face !== undefined || meta.face_expr) add({ level: "context", type: "face_channel", bodypart: "face", text: meta.has_face === false ? "Face channel unavailable" : "Face / expression channel available", source: "metadata.face", provenance: "native" });
   if (sample.related_paths?.audio || meta.has_audio !== undefined) add({ level: "context", type: "audio_channel", bodypart: "audio", text: meta.has_audio === false ? "Audio channel unavailable" : "Audio channel available", source: "metadata.audio", provenance: "native" });
+  const handBiomechanics = meta.hand_biomechanics;
+  if (handBiomechanics?.status === "review_required") {
+    const pipViolationCount = Number(
+      handBiomechanics.pip_limit_violation_count
+        ?? handBiomechanics.violation_count
+        ?? 0,
+    );
+    const bendPlaneViolationCount = Number(
+      handBiomechanics.bend_plane_violation_count ?? 0,
+    );
+    const extensionViolationCount = Number(
+      handBiomechanics.extension_limit_violation_count ?? 0,
+    );
+    const directionUnobservableCount = Number(
+      handBiomechanics.direction_unobservable_violation_count ?? 0,
+    );
+    const hardLimit = Number(handBiomechanics.hard_pip_limit_deg || 0);
+    const bendPlaneLimit = Number(handBiomechanics.bend_plane_review_deg || 0);
+    const limitEnvelope = (values) => {
+      const finite = Object.values(values || {})
+        .map(Number)
+        .filter((value) => Number.isFinite(value) && value >= 0);
+      if (!finite.length) return "";
+      const minimum = Math.min(...finite);
+      const maximum = Math.max(...finite);
+      return Math.abs(maximum - minimum) < 1e-6
+        ? `${minimum.toFixed(1)}°`
+        : `${minimum.toFixed(1)}–${maximum.toFixed(1)}° per-finger`;
+    };
+    const flexionEnvelope = limitEnvelope(handBiomechanics.pip_upper_limits_deg);
+    const extensionEnvelope = limitEnvelope(
+      handBiomechanics.pip_extension_upper_limits_deg,
+    );
+    const diagnosticParts = [];
+    if (hardLimit > 0) {
+      diagnosticParts.push(
+        `${pipViolationCount} PIP flexion frame-joints exceed ${hardLimit.toFixed(0)}°`,
+      );
+    } else if (flexionEnvelope) {
+      diagnosticParts.push(
+        `${pipViolationCount} PIP flexion frame-joints exceed the ${flexionEnvelope} envelope`,
+      );
+    }
+    if (extensionEnvelope) {
+      diagnosticParts.push(
+        `${extensionViolationCount} PIP extension frame-joints exceed the ${extensionEnvelope} envelope`,
+      );
+    } else if (extensionViolationCount > 0) {
+      diagnosticParts.push(
+        `${extensionViolationCount} PIP extension frame-joints exceed their declared limits`,
+      );
+    }
+    if (bendPlaneLimit > 0) {
+      diagnosticParts.push(
+        `${bendPlaneViolationCount} bend-plane frame-joints exceed ${bendPlaneLimit.toFixed(0)}°`,
+      );
+    }
+    if (directionUnobservableCount > 0) {
+      diagnosticParts.push(
+        `${directionUnobservableCount} extreme frame-joints have an unobservable bend direction`,
+      );
+    }
+    if (!diagnosticParts.length) {
+      diagnosticParts.push(`${Number(handBiomechanics.review_candidate_count || 0)} frame-joints flagged`);
+    }
+    add({
+      level: "part",
+      type: "hand_biomechanics_review",
+      bodypart: "hands",
+      text: `Source hand geometry requires review: ${diagnosticParts.join("; ")}`,
+      source: "metadata.hand_biomechanics",
+      provenance: "derived",
+      reasoning: "Derived source-geometry diagnostic only. Signed PIP angles use a side-oriented convention: positive flexion and negative extension. Thresholds are neither dataset-native labels nor a biomechanical regularizer. The processed motion remains source-faithful, and no hidden clamp or smoothing was applied.",
+      extras: { hand_biomechanics: handBiomechanics },
+    });
+  }
 
   const sampleId = sample.sample_id || payload?.sample_id;
   const inferred = labelFromSampleId(sampleId);

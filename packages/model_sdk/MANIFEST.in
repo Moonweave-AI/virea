@@ -1,0 +1,2 @@
+exclude src/virea_model_sdk/fake.py
+exclude src/virea_model_sdk/fake_worker.py

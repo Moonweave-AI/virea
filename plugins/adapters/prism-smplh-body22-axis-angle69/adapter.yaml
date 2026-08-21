@@ -1,0 +1,80 @@
+schema_version: virea.adapter_family.v1.0.0
+id: prism-smplh-body22-axis-angle69
+display_name: PRISM public SMPL-H body22 axis-angle payload to Canonical211
+source_models:
+  - prism-tp2m-1-4b
+implementation_status: real_public_payload_adapter_implemented
+support_status: integrated_experimental
+native_profile:
+  representation_id: prism.smplh_body22.axis_angle69.v1
+  carrier: dense_float_tensor
+  shape: [T, 69]
+  dtype: float32
+  fps:
+    mode: fixed
+    value: 30.0
+  coordinate_system:
+    id: prism.smplh.right_handed_y_up_z_forward.v1
+    handedness: right
+    up_axis: positive_y
+    nominal_forward_axis: positive_z
+  units:
+    translation: meters
+    rotations: axis_angle_radians
+  fields:
+    - name: absolute_root_translation
+      slice: [0, 3]
+      shape: [T, 3]
+      semantics: public_pipeline_postprocessed_absolute_translation
+    - name: body22_axis_angle
+      slice: [3, 69]
+      shape: [T, 22, 3]
+      semantics: root_local_to_world_then_21_parent_local_axis_angle_rotations
+root_semantics:
+  translation:
+    kind: absolute
+    source_slice: [0, 3]
+    integration: none
+  rotation:
+    kind: explicit_axis_angle_local_to_world
+    source_slice: [3, 6]
+output_profile:
+  representation_id: virea.canonical211.v3
+  skeleton_id: vrm1.humanoid52.v1
+  fps: 30.0
+  frame_shape: [T, 211]
+  rotation_representation: quaternion_xyzw
+  rotation_layout: xyzw
+  units: meters
+  fields:
+    - name: root_translation_m
+      slice: [0, 3]
+      shape: [T, 3]
+    - name: humanoid_joint_quaternion_xyzw
+      slice: [3, 211]
+      shape: [T, 52, 4]
+conversion:
+  required_steps:
+    - preserve_the_complete_public_SMPL_X_style_NPZ_as_native_evidence
+    - pack_only_transl_global_orient_and_body_pose_into_the_69D_control_plane_carrier
+    - decode_axis_angle_with_the_existing_AxisAngleBody22Codec
+    - use_neutral_target_hand_channels_because_PRISM_body22_has_no_hand_motion
+  prohibited_shortcuts:
+    - expose_the_internal_138D_network_tensor_as_the_public_Worker_result
+    - reinterpret_axis_angle_as_rotation_6d
+    - create_or_accept_an_empty_SMPL_X_directory_as_a_valid_body_model_asset
+validation:
+  exact_feature_width: 69
+  minimum_frames: 1
+  reject_non_finite: true
+  require_fps: 30.0
+official_sources:
+  - repository: https://github.com/ZeyuLing/PRISM
+    revision: 3c58bc5d946f0827171a3712ed36314f4b1a5186
+    path: prism/pipelines/prism_ar_t2m_pipeline.py
+  - repository: https://github.com/ZeyuLing/PRISM
+    revision: 3c58bc5d946f0827171a3712ed36314f4b1a5186
+    path: prism/models/motion_processor/smpl_processor.py
+notes:
+  - The public pipeline returns transl/global_orient/body_pose and a padded 165D SMPL-X-style pose array; its 138D abs_rel/rot6d tensor is internal.
+  - The runtime retains the raw NPZ and exposes a separate exact 69D frame-major carrier for the control plane.

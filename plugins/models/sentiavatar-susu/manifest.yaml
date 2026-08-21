@@ -1,0 +1,87 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: sentiavatar-susu
+  display_name: SentiAvatar SuSu
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/SentiAvatar/SentiAvatar
+    revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
+    release: arXiv v1 2026-04-03; public code and weights 2026
+  tasks:
+    - audio_text_to_avatar_motion
+    - streaming_dialogue_avatar_motion
+  adapter_family: sentiavatar-susu-mta63
+  status: runnable_upstream
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: audio_text_to_avatar_motion
+    fields:
+      audio:
+        type: mono_pcm_audio
+        sample_rate_hz: 16000
+        required: true
+      dialogue_text:
+        type: string
+        required: true
+      action_and_expression_tags:
+        type: string
+        required: false
+  - schema_version: virea.job_request.v1.0.0
+    task: streaming_dialogue_avatar_motion
+    fields:
+      audio_chunks:
+        type: mono_pcm_audio_stream
+        sample_rate_hz: 16000
+        required: true
+      dialogue_turns:
+        type: text_stream
+        required: true
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: susu.body25_hands40.cont6d_root_delta.v1
+  skeleton_id: susu.body25_hands40.v1
+  fps: 20.0
+  coordinate_system: susu_native_xyz_with_official_bvh_export_xzy_swizzle
+  units: centimeters_for_native_root_channel_rotations_unitless
+  root_translation_semantics: first_three_body_features_are_differential_root_offsets_integrated_by_cumulative_sum_then_seeded_at_native_0_0_102
+  root_rotation_semantics: first_body_joint_6d_parent_local_rotation_with_fixed_pelvis_export_correction
+  face_representation_ids:
+    - arkit.blendshape51.v1
+runtime_variants: []
+artifacts:
+  - id: sentiavatar-checkpoints
+    kind: huggingface
+    repository: Chuhaojin/SentiAvatar
+    revision: 242b2031a913dd1b25f43fe1f3e112611864c9cc
+licenses:
+  code: SentiPulse Non-Commercial Source License v1.0
+  weights: SentiPulse Non-Commercial Source License v1.0
+  dataset_lineage:
+    - SuSuInterActs
+    - BEATv2 evaluation lineage
+  body_model:
+    - SuSu MTA63 skeleton and BVH templates under the project license
+  commercial_allowed: false
+  redistribution_allowed: true
+  requires_acceptance: true
+  source_urls:
+    - https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE
+    - https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/README.md
+resources:
+  upstream_python: "3.10"
+  llm_planner_base: Qwen2-0.5B
+  audio_encoder: Chinese HuBERT
+  native_fps: 20.0
+  native_fields:
+    body_shape: [T, 153]
+    left_hand_shape: [T, 120]
+    right_hand_shape: [T, 120]
+    face_shape: [T, 51]
+  effective_unique_joints: 63
+  generated_stream_joints: 65
+  duplicated_stream_joints: [left_wrist, right_wrist]
+notes:
+  - The full Git commit and Hugging Face artifact revision were verified with git ls-remote on 2026-08-21.
+  - The apparent 25+20+20=65 stream count becomes the official 63-joint MTA skeleton because each hand stream repeats the corresponding body wrist; the adapter must drop only those two duplicates.
+  - The pinned inference code cumulatively integrates root deltas, adds native offset [0, 0, 102], and swaps Y/Z for BVH export; older local SuSu files that contain absolute roots require a distinct profile and must not be auto-detected by magnitude.
+  - runnable_upstream is not integrated_experimental or supported; there is no VIREA Worker/runtime/adapter production end-to-end acceptance yet.

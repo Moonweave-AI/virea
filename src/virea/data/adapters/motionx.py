@@ -25,17 +25,27 @@ class MotionXAdapter(BaseDatasetAdapter):
 
     @classmethod
     def _profile_key(cls, sample_id: str) -> str:
-        return "motionx_aist_smplx322" if cls._sub_source(sample_id).casefold() == "aist" else "motionx_smplx322"
+        return (
+            "motionx_aist_smplx322"
+            if cls._sub_source(sample_id).casefold() == "aist"
+            else "motionx_smplx322"
+        )
 
     def _seq_text_path(self, motion_path: Path) -> Path:
-        rel = motion_path.relative_to(self.raw_root / "motion_data" / "smplx_322").with_suffix(".txt")
+        rel = motion_path.relative_to(
+            self.raw_root / "motion_data" / "smplx_322"
+        ).with_suffix(".txt")
         return self.raw_root / "motionx_seq_text_v1.1" / rel
 
     def _frame_text_path(self, motion_path: Path, kind: str) -> Path:
-        rel = motion_path.relative_to(self.raw_root / "motion_data" / "smplx_322").with_suffix(".json")
+        rel = motion_path.relative_to(
+            self.raw_root / "motion_data" / "smplx_322"
+        ).with_suffix(".json")
         return self.raw_root / "texts" / kind / rel
 
-    def _frame_text_annotations(self, sample_id: str, frame_path: Path, kind: str, fps: float) -> tuple[list[dict], dict | None]:
+    def _frame_text_annotations(
+        self, sample_id: str, frame_path: Path, kind: str, fps: float
+    ) -> tuple[list[dict], dict | None]:
         if not frame_path.exists():
             return [], None
         try:
@@ -60,7 +70,11 @@ class MotionXAdapter(BaseDatasetAdapter):
             return None
 
         records: list[dict] = []
-        items = payload.items() if isinstance(payload, dict) else enumerate(payload if isinstance(payload, list) else [])
+        items = (
+            payload.items()
+            if isinstance(payload, dict)
+            else enumerate(payload if isinstance(payload, list) else [])
+        )
         for source_ordinal, (key, value) in enumerate(items):
             text = as_text(value)
             if not text:
@@ -70,7 +84,9 @@ class MotionXAdapter(BaseDatasetAdapter):
             start_sec = None
             end_sec = None
             if isinstance(value, dict):
-                start_frame = first_present(value, ("start_frame", "frame_start", "frame"))
+                start_frame = first_present(
+                    value, ("start_frame", "frame_start", "frame")
+                )
                 end_frame = first_present(value, ("end_frame", "frame_end"))
                 start_sec = first_present(value, ("start_sec", "start_t", "start_time"))
                 end_sec = first_present(value, ("end_sec", "end_t", "end_time"))
@@ -82,7 +98,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                     "key": str(key),
                     "value": value,
                     "text": text,
-                    "start_frame": int(start_frame) if start_frame is not None else None,
+                    "start_frame": int(start_frame)
+                    if start_frame is not None
+                    else None,
                     "end_frame": int(end_frame) if end_frame is not None else None,
                     "start_sec": start_sec,
                     "end_sec": end_sec,
@@ -94,7 +112,13 @@ class MotionXAdapter(BaseDatasetAdapter):
         # Present it as short half-second intervals; the source file remains the lossless
         # per-frame channel and is identified by hash below.
         groups: list[list[dict]] = []
-        for record in sorted(records, key=lambda item: (item["start_frame"] is None, item["start_frame"] or item["source_ordinal"])):
+        for record in sorted(
+            records,
+            key=lambda item: (
+                item["start_frame"] is None,
+                item["start_frame"] or item["source_ordinal"],
+            ),
+        ):
             if not groups:
                 groups.append([record])
                 continue
@@ -116,7 +140,11 @@ class MotionXAdapter(BaseDatasetAdapter):
 
         annotations: list[dict] = []
         source_sha256 = hashlib.sha256(source_bytes).hexdigest()
-        bodypart = "body" if kind == "body_texts" else ("hands" if kind == "hand_texts" else "face")
+        bodypart = (
+            "body"
+            if kind == "body_texts"
+            else ("hands" if kind == "hand_texts" else "face")
+        )
         for group_ordinal, group in enumerate(groups):
             unique_texts = list(dict.fromkeys(item["text"] for item in group))
             combined = " | ".join(unique_texts)
@@ -127,7 +155,11 @@ class MotionXAdapter(BaseDatasetAdapter):
             end_sec = group[-1]["end_sec"]
             is_aggregate = len(unique_texts) > 1
             record_key = f"{group[0]['key']}:{group[-1]['key']}"
-            bodypart = "body" if kind == "body_texts" else ("hands" if kind == "hand_texts" else "face")
+            bodypart = (
+                "body"
+                if kind == "body_texts"
+                else ("hands" if kind == "hand_texts" else "face")
+            )
             annotations.append(
                 make_annotation(
                     dataset=self.record.key,
@@ -158,7 +190,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                     extras={
                         "source_record_count": len(group),
                         "source_text_sha256": hashlib.sha256(
-                            json.dumps(unique_texts, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                            json.dumps(
+                                unique_texts, ensure_ascii=False, separators=(",", ":")
+                            ).encode("utf-8")
                         ).hexdigest(),
                         "display_text_truncated": len(combined) > len(display_text),
                         "aggregation_window_frames": 15,
@@ -194,7 +228,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                             },
                         )
                     )
-        frame_ends = [int(item["end_frame"]) for item in records if item["end_frame"] is not None]
+        frame_ends = [
+            int(item["end_frame"]) for item in records if item["end_frame"] is not None
+        ]
         channel_frame_count = max(frame_ends, default=len(records))
         try:
             data_ref = cache_data_sidecar(
@@ -220,7 +256,11 @@ class MotionXAdapter(BaseDatasetAdapter):
             kind=kind.removesuffix("s"),
             availability=channel_availability,
             representation="per_frame_text_json",
-            timebase={"start_frame": 0, "end_frame": channel_frame_count, "interval": "half_open"},
+            timebase={
+                "start_frame": 0,
+                "end_frame": channel_frame_count,
+                "interval": "half_open",
+            },
             fps=fps,
             frame_count=channel_frame_count,
             shape=[len(records)],
@@ -229,19 +269,24 @@ class MotionXAdapter(BaseDatasetAdapter):
             reason_unavailable=channel_reason,
             preview={
                 "record_count": len(records),
-                "first_records": [{"key": item["key"], "text": item["text"]} for item in records[:3]],
+                "first_records": [
+                    {"key": item["key"], "text": item["text"]} for item in records[:3]
+                ],
             },
             extras={
                 "source_sha256": source_sha256,
                 "source_byte_length": len(source_bytes),
                 "aggregation_window_frames": 15,
-                "lossless_source_materialized_as_processed_sidecar": data_ref is not None,
+                "lossless_source_materialized_as_processed_sidecar": data_ref
+                is not None,
                 "lossless_sidecar_status": sidecar_status,
             },
         )
         return annotations, channel
 
-    def _sequence_annotations(self, sample_id: str, text: str, fps: float) -> list[dict]:
+    def _sequence_annotations(
+        self, sample_id: str, text: str, fps: float
+    ) -> list[dict]:
         annotations: list[dict] = []
         for ordinal, raw_line in enumerate(text.splitlines()):
             if not raw_line.strip():
@@ -256,7 +301,11 @@ class MotionXAdapter(BaseDatasetAdapter):
                     return None
 
             start_sec, end_sec = number(2), number(3)
-            has_interval = start_sec is not None and end_sec is not None and not (start_sec == 0.0 and end_sec == 0.0)
+            has_interval = (
+                start_sec is not None
+                and end_sec is not None
+                and not (start_sec == 0.0 and end_sec == 0.0)
+            )
             annotations.append(
                 make_annotation(
                     dataset=self.record.key,
@@ -299,7 +348,13 @@ class MotionXAdapter(BaseDatasetAdapter):
                 exact_path = None
             if exact_path is not None and exact_path.is_file():
                 text_path = self._seq_text_path(exact_path)
-                text = text_path.read_text(encoding="utf-8", errors="replace").splitlines()[0] if text_path.exists() else ""
+                text = (
+                    text_path.read_text(
+                        encoding="utf-8", errors="replace"
+                    ).splitlines()[0]
+                    if text_path.exists()
+                    else ""
+                )
                 array = np.load(exact_path, allow_pickle=False, mmap_mode="r")
                 try:
                     frame_count = int(array.shape[0]) if array.ndim >= 1 else None
@@ -315,7 +370,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                         "smplx_fullpose",
                         fps=30.0,
                         frame_count=frame_count,
-                        duration_sec=(frame_count / 30.0) if frame_count is not None else None,
+                        duration_sec=(frame_count / 30.0)
+                        if frame_count is not None
+                        else None,
                         text=text,
                         related_paths={"sequence_text": text_path},
                         metadata={
@@ -328,10 +385,27 @@ class MotionXAdapter(BaseDatasetAdapter):
         for path in sorted(root.rglob("*.npy")):
             sample_id = path.relative_to(self.raw_root).with_suffix("").as_posix()
             text_path = self._seq_text_path(path)
-            text = text_path.read_text(encoding="utf-8", errors="replace").splitlines()[0] if text_path.exists() else ""
+            text = (
+                text_path.read_text(encoding="utf-8", errors="replace").splitlines()[0]
+                if text_path.exists()
+                else ""
+            )
             if not (self._matches(sample_id, query) or self._matches(text, query)):
                 continue
-            samples.append(self._sample(sample_id, path, "smplx_322_npy", "smplx_fullpose", text=text, related_paths={"sequence_text": text_path}, metadata={"sub_source": self._sub_source(sample_id), "dataset_profile": self._profile_key(sample_id)}))
+            samples.append(
+                self._sample(
+                    sample_id,
+                    path,
+                    "smplx_322_npy",
+                    "smplx_fullpose",
+                    text=text,
+                    related_paths={"sequence_text": text_path},
+                    metadata={
+                        "sub_source": self._sub_source(sample_id),
+                        "dataset_profile": self._profile_key(sample_id),
+                    },
+                )
+            )
             if len(samples) >= limit:
                 break
         return samples
@@ -372,7 +446,11 @@ class MotionXAdapter(BaseDatasetAdapter):
         betas = arr[:, 312:322]
         unknown_tail = arr[:, 322:]
         text_path = self._seq_text_path(path)
-        text = text_path.read_text(encoding="utf-8", errors="replace").strip() if text_path.exists() else ""
+        text = (
+            text_path.read_text(encoding="utf-8", errors="replace").strip()
+            if text_path.exists()
+            else ""
+        )
         annotations = self._sequence_annotations(sample_id, text, fps=30.0)
         related = {"sequence_text": text_path}
         metadata = {
@@ -390,14 +468,18 @@ class MotionXAdapter(BaseDatasetAdapter):
                 "output_width": 165,
             },
             "source_width": int(arr.shape[1]),
-            "unknown_tail_slice": [322, int(arr.shape[1])] if arr.shape[1] > 322 else None,
+            "unknown_tail_slice": [322, int(arr.shape[1])]
+            if arr.shape[1] > 322
+            else None,
         }
         text_channels: list[dict] = []
         for kind in ("body_texts", "hand_texts", "face_texts"):
             frame_path = self._frame_text_path(path, kind)
             if frame_path.exists():
                 related[kind] = frame_path
-                frame_annotations, frame_channel = self._frame_text_annotations(sample_id, frame_path, kind, fps=30.0)
+                frame_annotations, frame_channel = self._frame_text_annotations(
+                    sample_id, frame_path, kind, fps=30.0
+                )
                 annotations.extend(frame_annotations)
                 if frame_channel is not None:
                     text_channels.append(frame_channel)
@@ -405,7 +487,17 @@ class MotionXAdapter(BaseDatasetAdapter):
                     "annotation_count": len(frame_annotations),
                     "channel_id": frame_channel["id"] if frame_channel else None,
                 }
-        sample = self._sample(sample_id, path, "smplx_322_npy", "smplx_fullpose", fps=30.0, frame_count=arr.shape[0], text=text, related_paths=related, metadata=metadata)
+        sample = self._sample(
+            sample_id,
+            path,
+            "smplx_322_npy",
+            "smplx_fullpose",
+            fps=30.0,
+            frame_count=arr.shape[0],
+            text=text,
+            related_paths=related,
+            metadata=metadata,
+        )
         motion = {
             "fullpose": fullpose,
             "translation": translation,
@@ -422,10 +514,18 @@ class MotionXAdapter(BaseDatasetAdapter):
             face_reason = None
             face_preview = {"weights": face_expr.tolist()}
         else:
-            sample_indices = np.linspace(0, max(face_expr.shape[0] - 1, 0), min(face_expr.shape[0], 2048), dtype=np.int32)
+            sample_indices = np.linspace(
+                0,
+                max(face_expr.shape[0] - 1, 0),
+                min(face_expr.shape[0], 2048),
+                dtype=np.int32,
+            )
             face_availability = "external"
             face_reason = None
-            face_preview = {"frame_indices": sample_indices.tolist(), "weights": face_expr[sample_indices].tolist()}
+            face_preview = {
+                "frame_indices": sample_indices.tolist(),
+                "weights": face_expr[sample_indices].tolist(),
+            }
         face_ref = None
         if face_availability == "external":
             try:
@@ -442,7 +542,11 @@ class MotionXAdapter(BaseDatasetAdapter):
             kind="face",
             availability=face_availability,
             representation="smplx_expression_coefficients",
-            timebase={"start_frame": 0, "end_frame": int(face_expr.shape[0]), "interval": "half_open"},
+            timebase={
+                "start_frame": 0,
+                "end_frame": int(face_expr.shape[0]),
+                "interval": "half_open",
+            },
             fps=30.0,
             frame_count=int(face_expr.shape[0]),
             shape=list(face_expr.shape),
@@ -453,7 +557,9 @@ class MotionXAdapter(BaseDatasetAdapter):
             extras={
                 "source_slice": [159, 209],
                 "channel_names_available": False,
-                "native_array_sha256": hashlib.sha256(np.ascontiguousarray(face_expr).tobytes()).hexdigest(),
+                "native_array_sha256": hashlib.sha256(
+                    np.ascontiguousarray(face_expr).tobytes()
+                ).hexdigest(),
                 "native_array_byte_length": int(face_expr.nbytes),
             },
         )
@@ -474,8 +580,16 @@ class MotionXAdapter(BaseDatasetAdapter):
                 data_ref = None
             else:
                 availability = "external"
-                indices = np.linspace(0, max(values.shape[0] - 1, 0), min(values.shape[0], 2048), dtype=np.int32)
-                preview = {"frame_indices": indices.tolist(), "values": values[indices].tolist()}
+                indices = np.linspace(
+                    0,
+                    max(values.shape[0] - 1, 0),
+                    min(values.shape[0], 2048),
+                    dtype=np.int32,
+                )
+                preview = {
+                    "frame_indices": indices.tolist(),
+                    "values": values[indices].tolist(),
+                }
                 try:
                     data_ref = cache_numpy_sidecar(values)
                     reason_unavailable = None
@@ -494,7 +608,11 @@ class MotionXAdapter(BaseDatasetAdapter):
                 kind=kind,
                 availability=availability,
                 representation=representation,
-                timebase={"start_frame": 0, "end_frame": int(values.shape[0]), "interval": "half_open"},
+                timebase={
+                    "start_frame": 0,
+                    "end_frame": int(values.shape[0]),
+                    "interval": "half_open",
+                },
                 fps=30.0,
                 frame_count=int(values.shape[0]),
                 shape=list(values.shape),
@@ -505,7 +623,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                 extras={
                     "source_slice": source_slice,
                     "dtype": str(values.dtype),
-                    "native_array_sha256": hashlib.sha256(np.ascontiguousarray(values).tobytes()).hexdigest(),
+                    "native_array_sha256": hashlib.sha256(
+                        np.ascontiguousarray(values).tobytes()
+                    ).hexdigest(),
                     "native_array_byte_length": int(values.nbytes),
                 },
             )
@@ -527,7 +647,11 @@ class MotionXAdapter(BaseDatasetAdapter):
             kind="source_parameters",
             availability=source_parameter_availability,
             representation="motionx_smplx_parameter_matrix",
-            timebase={"start_frame": 0, "end_frame": int(arr.shape[0]), "interval": "half_open"},
+            timebase={
+                "start_frame": 0,
+                "end_frame": int(arr.shape[0]),
+                "interval": "half_open",
+            },
             fps=30.0,
             frame_count=int(arr.shape[0]),
             shape=list(arr.shape),
@@ -545,7 +669,9 @@ class MotionXAdapter(BaseDatasetAdapter):
                 "unknown_tail_slice": metadata["unknown_tail_slice"],
                 "data_ref_scope": "original_source_matrix",
                 "original_shape": list(arr.shape),
-                "native_array_sha256": hashlib.sha256(np.ascontiguousarray(arr).tobytes()).hexdigest(),
+                "native_array_sha256": hashlib.sha256(
+                    np.ascontiguousarray(arr).tobytes()
+                ).hexdigest(),
                 "native_array_byte_length": int(arr.nbytes),
             },
         )
@@ -570,4 +696,6 @@ class MotionXAdapter(BaseDatasetAdapter):
             source_parameter_channel,
             *text_channels,
         ]
-        return RawClip(sample=sample, motion=motion, annotations=annotations, channels=channels).limited(max_frames)
+        return RawClip(
+            sample=sample, motion=motion, annotations=annotations, channels=channels
+        ).limited(max_frames)

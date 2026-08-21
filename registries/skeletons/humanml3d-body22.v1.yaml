@@ -1,0 +1,40 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: humanml3d.body22.v1
+version: 1.0.0
+joints:
+  - {name: pelvis, parent: null, semantic: hips, required: true}
+  - {name: left_hip, parent: pelvis, semantic: leftUpperLeg, required: true}
+  - {name: right_hip, parent: pelvis, semantic: rightUpperLeg, required: true}
+  - {name: spine1, parent: pelvis, semantic: spine, required: true}
+  - {name: left_knee, parent: left_hip, semantic: leftLowerLeg, required: true}
+  - {name: right_knee, parent: right_hip, semantic: rightLowerLeg, required: true}
+  - {name: spine2, parent: spine1, semantic: chest, required: true}
+  - {name: left_ankle, parent: left_knee, semantic: leftFoot, required: true}
+  - {name: right_ankle, parent: right_knee, semantic: rightFoot, required: true}
+  - {name: spine3, parent: spine2, semantic: upperChest, required: true}
+  - {name: left_foot, parent: left_ankle, semantic: leftToes, required: true}
+  - {name: right_foot, parent: right_ankle, semantic: rightToes, required: true}
+  - {name: neck, parent: spine3, semantic: neck, required: true}
+  - {name: left_collar, parent: spine3, semantic: leftShoulder, required: true}
+  - {name: right_collar, parent: spine3, semantic: rightShoulder, required: true}
+  - {name: head, parent: neck, semantic: head, required: true}
+  - {name: left_shoulder, parent: left_collar, semantic: leftUpperArm, required: true}
+  - {name: right_shoulder, parent: right_collar, semantic: rightUpperArm, required: true}
+  - {name: left_elbow, parent: left_shoulder, semantic: leftLowerArm, required: true}
+  - {name: right_elbow, parent: right_shoulder, semantic: rightLowerArm, required: true}
+  - {name: left_wrist, parent: left_elbow, semantic: leftHand, required: true}
+  - {name: right_wrist, parent: right_elbow, semantic: rightHand, required: true}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: humanml3d_uniform_skeleton
+rotation:
+  representation: continuous_6d
+  layout: columns
+  space: root_invariant_child_edge
+root_motion:
+  translation: yaw_local_velocity_xz_plus_height
+  rotation: yaw_velocity
+fps: 20
+source_urls:
+  - https://github.com/EricGuo5513/HumanML3D
+validation_status: source_verified

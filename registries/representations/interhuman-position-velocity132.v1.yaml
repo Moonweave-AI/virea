@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: interhuman.body22.position_velocity132.v1
+version: 1.0.0
+kind: two_actor_packed_motion_features
+skeleton_id: interhuman.two_actor_smpl22.v1
+dtype: float32
+frame_shape: [2, 132]
+rotation_representation: null
+rotation_layout: null
+rotation_space: null
+root_translation_semantics: actor1_canonical_frame_shared_by_both_actors
+root_rotation_semantics: absent_derived_only_during_export
+coordinate_system_id: interhuman.actor1_heading_positive_z_y_up.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/data/interhuman.py
+validation_status: source_verified

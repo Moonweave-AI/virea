@@ -33,3 +33,10 @@ citations:
     title: SentiAvatar Towards Expressive and Interactive Digital Humans
     year: 2026
     url: https://arxiv.org/abs/2604.02908
+
+  prism_2026:
+    title: PRISM Streaming Human Motion Generation with Per-Joint Latent Decomposition
+    year: 2026
+    url: https://arxiv.org/abs/2603.08590
+    code: https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186
+    weights: https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B/tree/825daaa27f4f3845eb0978674c3acb378a12cda6

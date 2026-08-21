@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:runtime_spec:1.0.0",
+  "title": "VIREA RuntimeSpec v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "backend",
+    "platforms",
+    "python",
+    "accelerator",
+    "lockfile",
+    "entrypoint_argv"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.runtime_spec.v1.0.0" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "backend": { "enum": ["uv-native", "pixi-native", "oci"] },
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "python": { "type": "string", "minLength": 1 },
+    "accelerator": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["cpu", "nvidia", "rocm", "mps"] },
+        "abi": { "type": ["string", "null"] },
+        "min_vram_gib": { "type": ["number", "null"], "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "lockfile": { "type": "string", "minLength": 1 },
+    "entrypoint_argv": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "min_storage_gib": { "type": ["number", "null"], "minimum": 0 },
+    "resource_profiles": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": ["id", "strategy"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "strategy": {
+            "enum": [
+              "cuda_full",
+              "cuda_component_split",
+              "cuda_cpu_offload",
+              "cuda_sequential_cpu_offload",
+              "rocm_full",
+              "mps_full",
+              "cpu"
+            ]
+          },
+          "min_free_vram_gib": {
+            "type": ["number", "null"],
+            "minimum": 0
+          },
+          "min_free_ram_gib": { "type": "number", "minimum": 0, "default": 0 },
+          "min_free_swap_gib": { "type": "number", "minimum": 0, "default": 0 }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "strategy": {
+                  "enum": [
+                    "cuda_component_split",
+                    "cuda_cpu_offload",
+                    "cuda_sequential_cpu_offload",
+                    "cpu"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": ["min_free_ram_gib"],
+              "properties": {
+                "min_free_ram_gib": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "strategy": { "const": "cpu" } } },
+            "then": {
+              "properties": {
+                "min_free_vram_gib": {
+                  "oneOf": [{ "type": "null" }, { "const": 0 }]
+                }
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "startup_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1800,
+      "default": 30
+    },
+    "environment_allowlist": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "working_directory": { "type": ["string", "null"] },
+    "project_package": { "type": ["string", "null"], "minLength": 1 },
+    "project_version": { "type": ["string", "null"], "minLength": 1 },
+    "runtime_core_epoch": { "type": ["string", "null"], "minLength": 1 },
+    "availability": { "type": "string", "minLength": 1, "default": "supported" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["project_version"],
+        "properties": { "project_version": { "type": "string" } }
+      },
+      "then": {
+        "required": ["project_package"],
+        "properties": {
+          "project_package": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["runtime_core_epoch"],
+        "properties": { "runtime_core_epoch": { "type": "string" } }
+      },
+      "then": {
+        "required": ["project_package", "project_version"],
+        "properties": {
+          "project_package": { "type": "string", "minLength": 1 },
+          "project_version": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

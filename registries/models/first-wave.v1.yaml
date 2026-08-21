@@ -1,0 +1,554 @@
+overlay_version: virea.motion_model_first_wave_overlay.v1.0.0
+snapshot_date: '2026-08-20'
+status: draft
+owner: VIREA maintainers
+base_registry:
+  path: motion-model-registry.v1.0.0.yaml
+  registry_version: virea.motion_model_registry.v1.0.0
+purpose: >-
+  A sparse evidence and integration-status overlay for first-wave candidates and
+  notable registration-only models. It intentionally does not duplicate the
+  519-entry base registry.
+status_semantics:
+  registered: >-
+    Tracked as a research work or integration target only. No inference,
+    weight, license, or VIREA implementation claim is implied.
+  runnable_upstream: >-
+    The official upstream provides enough code, artifacts, and documentation
+    to execute at least one published inference path. VIREA may already contain
+    a managed Runtime, Worker, or adapter, but the current production-acceptance
+    contract has not completed and the model is not counted as integrated.
+  integrated_experimental: >-
+    A VIREA Worker, isolated runtime, Motion IR decoder, and real official
+    checkpoint production-acceptance path have run successfully, but hardware,
+    platform, licensing, quality, or regression coverage remains incomplete.
+  supported: >-
+    A tested VIREA worker, runtime manifest, decoder, end-to-end VRM regression,
+    and explicit license declaration exist.
+  blocked: >-
+    A concrete upstream, artifact, license, dependency, platform, or resource
+    condition prevents a runnable VIREA integration; the entry must name the
+    condition and cannot be installed or promoted.
+invariants:
+  registration_is_not_support: true
+  upstream_runnable_is_not_virea_integrated: true
+  supported_requires_real_integration_evidence: true
+  supported_entries_in_this_snapshot: 0
+entries:
+  - uid: 2025-flood-diffusion-tiny
+    model_id: flood-diffusion-tiny
+    role: integrated_model
+    wave: 1
+    integration_status: integrated_experimental
+    official_sources:
+      code_and_weights: https://huggingface.co/AlayaLab/FloodDiffusionTiny/tree/e86746efa2f16b94a1bb08550e3d8d4a32163f14
+      text_encoder: https://huggingface.co/google/umt5-base/tree/0de9394d54f8975e71838d309de1cb496c894ab9
+    artifact_status: pinned_official_weights_and_text_encoder
+    license:
+      id: Apache-2.0
+      status: verified_for_recorded_artifacts
+    runtime: Windows win64; isolated CUDA Worker; cuda_full only
+    input: English text plus requested duration
+    output: VAE-decoded HumanML3D (T,263) at 20 FPS
+    adapter_family: humanml3d-motion263-body22
+    resource_fallback: none; reject before download when independent VRAM, RAM, swap, or storage budget is insufficient
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      manifest_runtime_availability: real_checkpoint_production_acceptance_passed_on_win64_rtx5090
+      ready_installation_id: 01M0H5HQJ5VXE5AR1S1ARFY7MG
+      acceptance_job_id: 01M0H5PX11VNF79ZY5FS4H1BH6
+      acceptance_result_id: 01M0H5RRBP5J51NR182HKA83PW
+      exact_job_id: 01M0H5SERHQP1AKZPJDSFAQXWJ
+      exact_result_id: 01M0H5T4WC1YAXX0X041E4KMJ3
+      real_install_ready_verify: true
+      real_checkpoint_inference: true
+      motion_ir_decoder: true
+      canonical211: true
+      vrma_validator: true
+      real_browser_playback: true
+      end_to_end_regression: true
+      tested_platform: Windows win64; NVIDIA RTX 5090
+      exact_result:
+        native_shape: [77, 263]
+        native_finite: true
+        canonical_shape: [77, 211]
+        fps: 20
+        vrma_bytes: 83664
+        vrma_frames: 77
+        vrma_duration_seconds: 3.80
+        vrma_rotation_tracks: 52
+        vrma_translation_tracks: 1
+        rest_hips_meters: 1.0
+        load_seconds: 19.388
+        inference_seconds: 3.059
+        total_seconds: 22.673
+        validator_ok: true
+        production_e2e_complete: false
+        outstanding_external_stage: web_playback
+      external_browser_evidence:
+        current_bundle_port: 8015
+        full_avatar_playback: true
+        console_warning_count: 0
+        console_error_count: 0
+
+  - uid: 2025-momadiff
+    model_id: momadiff-humanml3d
+    role: integrated_model
+    wave: 1
+    integration_status: integrated_experimental
+    official_sources:
+      code: https://github.com/zzysteve/MoMADiff/tree/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+      weights: https://huggingface.co/SteveZh/momadiff_models/tree/daf83c1441fbb9e8bacd377e28f557b54080c2a1
+      text_encoder_code: https://github.com/openai/CLIP/tree/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+      text_encoder_weights: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    artifact_status: pinned_official_code_weights_and_text_encoder
+    license:
+      code: MIT
+      weights: MIT
+      status: repository_code_and_weights_mit_dataset_lineage_terms_separate
+    runtime: Windows win64; isolated Worker; cuda_full or whole_model_cpu
+    input: text plus motion length
+    output: denormalized HumanML3D (T,263) at 20 FPS
+    adapter_family: humanml3d-motion263-body22
+    resource_fallback: whole-model CPU execution is implemented; VRAM, RAM, swap, and storage remain independent admission budgets
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      real_install_ready_verify: true
+      real_checkpoint_inference: true
+      motion_ir_decoder: true
+      canonical211: true
+      vrma_validator: true
+      real_browser_playback: true
+      end_to_end_regression: true
+      tested_platform: Windows win64; NVIDIA RTX 5090
+
+  - uid: 2026-prism
+    model_id: prism-tp2m-1-4b
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 1
+    integration_status: integrated_experimental
+    official_sources:
+      paper: https://arxiv.org/abs/2603.08590
+      code: https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186
+      weights: https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B/tree/825daaa27f4f3845eb0978674c3acb378a12cda6
+      declared_license_location: https://github.com/ZeyuLing/VersatileMotion/tree/e521f36dd5ad317bd8b47e69878d0eac79915e58
+    catalog_only: false
+    automatic_install: explicit_user_acceptance_required
+    release_packaging: runtime_code_with_external_assets_only
+    artifact_status: official_checkpoint_tokenizer_and_statistics_pinned; no_SMPL_geometry_required
+    license:
+      id: unspecified
+      status: license_review_required
+      redistribution_allowed: false
+    runtime: Python 3.11; PyTorch 2.11 cu128; WSL2/native Linux NVIDIA; UMT5 CPU plus transformer/VAE CUDA
+    input: text with explicit frame count, inference steps, guidance, and seed
+    output: public pipeline SMPL-X-style NPZ retained plus exact (T,69) absolute-translation/body22-axis-angle carrier at 30 FPS
+    adapter_family: prism-smplh-body22-axis-angle69
+    adapter_contract: public payload (T,69) to Motion IR, Canonical211, and VRMA
+    adaptation_difficulty: high
+    blockers:
+      - PRISM, the checkpoint model card, and VersatileMotion publish no usable redistribution terms, so assets remain external-only.
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      motion_ir_decoder: true
+      real_checkpoint_inference: true
+      managed_runtime_product_e2e: true
+      end_to_end_regression: true
+      tested_platform: WSL2 Ubuntu 24.04; NVIDIA RTX 5090 Laptop GPU
+
+  - uid: 2025-mardm
+    model_id: mardm-humanml3d
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 2
+    integration_status: integrated_experimental
+    official_sources:
+      paper: https://arxiv.org/abs/2411.16575
+      code: https://github.com/neu-vi/MARDM/tree/5e32b69723376028f38125ccee33011549cd341d
+      weights: https://huggingface.co/cr8br0ze/MARDM_SiT_XL/tree/6b9a9d6ea5456995e9883bda317e45ef111ecad3
+      autoencoder: https://huggingface.co/cr8br0ze/AE_humanml3d/tree/820463f243a39fe8d657c7216ac92f6fcbcb0c37
+      length_estimator: https://huggingface.co/cr8br0ze/length_estimator/tree/af13da82bf96542c887d2bb60e93d3c79880a1ab
+      text_encoder_code: https://github.com/openai/CLIP/tree/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+      text_encoder_weights: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    artifact_status: pinned_official_code_weights_autoencoder_length_estimator_and_text_encoder
+    license:
+      id: MIT
+      status: verified
+    runtime: Windows win64; isolated CUDA Worker; cuda_full only
+    input: text plus optional motion length
+    output: normalized HumanML3D (T,67) with pinned mean/std at 20 FPS; official recovery yields body22 joints
+    adapter_family: mardm-ric67-body22
+    resource_fallback: none; reject before download when independent VRAM, RAM, swap, or storage budget is insufficient
+    adaptation_difficulty: low
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      real_install_ready_verify: true
+      real_checkpoint_inference: true
+      motion_ir_decoder: true
+      canonical211: true
+      vrma_validator: true
+      real_browser_playback: true
+      end_to_end_regression: true
+      tested_platform: Windows win64; NVIDIA RTX 5090
+
+  - uid: 2025-acmdm
+    model_id: acmdm-humanml3d
+    role: integrated_model
+    wave: 1
+    integration_status: integrated_experimental
+    official_sources:
+      code: https://github.com/neu-vi/ACMDM/tree/25ed4ba22fb54d9c3e99361609ee344e7c940303
+      weights: https://huggingface.co/cr8br0ze/ACMDM_Flow_S_PatchSize22/tree/f7b77ecb16968afb0329a4a706978780843a1fc9
+      autoencoder: https://huggingface.co/cr8br0ze/AE_2D_Causal/tree/78bbd7fc5ec129a6c74812d542892939261a984f
+      text_encoder_code: https://github.com/openai/CLIP/tree/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+      text_encoder_weights: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    artifact_status: pinned_official_code_weights_autoencoder_and_text_encoder
+    license:
+      id: MIT
+      status: verified
+    runtime: Windows win64; isolated CUDA Worker; cuda_full only
+    input: text plus motion length
+    output: absolute joint positions (T,22,3) at 20 FPS
+    adapter_family: joint-positions-body22
+    resource_fallback: none; reject before download when independent VRAM, RAM, swap, or storage budget is insufficient
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      real_install_ready_verify: true
+      real_checkpoint_inference: true
+      motion_ir_decoder: true
+      canonical211: true
+      vrma_validator: true
+      real_browser_playback: true
+      end_to_end_regression: true
+      tested_platform: Windows win64; NVIDIA RTX 5090
+
+  - uid: 2025-cmdm
+    model_id: cmdm-humanml3d
+    role: integrated_model
+    wave: 1
+    integration_status: integrated_experimental
+    official_sources:
+      code: https://github.com/lycorp-jp/CMDM/tree/7fac27ecd78365115db5c29937f20889c318d79d
+      weights: https://huggingface.co/ly-corporation/CMDM/tree/be818de05ee83018d25dfeb9fbcd3fadddf4ccd8
+      text_encoder: https://huggingface.co/distilbert/distilbert-base-uncased/tree/12040accade4e8a0f71eabdb258fecc2e7e948be
+      humanml3d_stats: https://github.com/EricGuo5513/HumanML3D/tree/9176e8fb446b71c7d2a725eb5cf6fec1ae3b3c23
+    artifact_status: pinned_official_code_weights_text_encoder_and_humanml3d_statistics
+    license:
+      code: CC0-1.0 with upstream NOTICE
+      weights: Apache-2.0
+      status: verified_for_recorded_artifacts
+    runtime: Windows win64; isolated Worker; cuda_full or whole_model_cpu
+    input: text plus motion length
+    output: denormalized HumanML3D (T,263) at 20 FPS
+    adapter_family: humanml3d-motion263-body22
+    resource_fallback: whole-model CPU execution is implemented; VRAM, RAM, swap, and storage remain independent admission budgets
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      real_install_ready_verify: true
+      real_checkpoint_inference: true
+      motion_ir_decoder: true
+      canonical211: true
+      vrma_validator: true
+      real_browser_playback: true
+      end_to_end_regression: true
+      tested_platform: Windows win64; NVIDIA RTX 5090
+
+  - uid: 2025-intermask
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 3
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2410.10010
+      code: https://github.com/gohar-malik/intermask
+      weights: https://github.com/gohar-malik/intermask#2-models-and-dependencies
+    artifact_status: official_code_and_weights
+    license:
+      id: MIT
+      status: verified
+      dependencies: InterHuman, Inter-X, and SMPL-X retain separate terms
+    runtime: Python 3.7.7; PyTorch 1.13.1
+    input: text; reaction mode can condition on a reference actor
+    output: two actor tensors, each shaped (T, 22, 9), at 30 FPS
+    adapter_family: multi_actor_motion
+    adaptation_difficulty: medium
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-motioncraft
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 4
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2407.21136
+      code: https://github.com/cure-lab/MotionCraft
+      weights: https://github.com/cure-lab/MotionCraft#pretrained-models
+    artifact_status: official_code_and_three_task_checkpoints
+    license:
+      id: Apache-2.0
+      status: verified
+      dependencies: Training datasets retain separate terms
+    runtime: Python 3.9; PyTorch 1.12.1; CUDA 11.3; mmcv-full; Tutel; PyTorch3D
+    input: text, speech, or music depending on the selected checkpoint
+    output: unified SMPL-X whole-body representation; repository layout uses smplx_322
+    adapter_family: smplx_whole_body
+    adaptation_difficulty: high
+    limitations:
+      - The three tasks use separate checkpoints; this is not one all-modal checkpoint.
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-dart
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 5
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2410.05260
+      code: https://github.com/zkf1997/DART
+      weights: https://github.com/zkf1997/DART#data-and-model-checkpoints
+    artifact_status: official_code_weights_and_demo_data
+    license:
+      id: Apache-2.0
+      status: verified
+      dependencies: SMPL-X, SMPL-H, AMASS, BABEL, and HumanML3D retain separate terms
+    runtime: Tested upstream on Ubuntu 22.04 and RTX 4090
+    input: motion history plus streaming text; optional keyframes, trajectories, goals, or scene SDF
+    output: autoregressive SMPL-X motion primitives exported as PKL or NPZ
+    adapter_family: smplx_whole_body
+    adaptation_difficulty: high
+    capabilities:
+      - text_stream
+      - inbetween
+      - trajectory_control
+      - scene_control
+      - goal_policy
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-hy-motion-1-0
+    role: first_wave_candidate
+    wave: 2
+    priority_rank: 6
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2512.23464
+      code: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
+      weights: https://huggingface.co/tencent/HY-Motion-1.0
+      license: https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/master/License.txt
+    artifact_status: official_inference_code_and_weights
+    license:
+      id: Tencent-HY-MOTION-1.0-Community
+      status: verified_restricted
+      restrictions:
+        - License does not apply in the European Union, United Kingdom, or South Korea.
+        - Additional authorization is required above the stated monthly-active-user threshold.
+        - Outputs may not be used to improve another AI model.
+    runtime: Full model minimum 26GB VRAM; Lite minimum 24GB VRAM
+    input: English text plus optional duration estimation and prompt rewriting
+    output: model configuration input_dim is 201; field mapping awaits official-decoder adapter work
+    adapter_family: smpl_smplh_axis_angle
+    adaptation_difficulty: medium_high
+    default_enablement: opt_in_only
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2026-sentiavatar-susuinteracts
+    role: first_wave_candidate
+    wave: 2
+    priority_rank: 7
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2604.02908
+      code: https://github.com/SentiAvatar/SentiAvatar
+      weights: https://huggingface.co/Chuhaojin/SentiAvatar
+      license: https://github.com/SentiAvatar/SentiAvatar/blob/main/LICENSE
+    artifact_status: official_code_and_weights
+    license:
+      id: SentiPulse-Non-Commercial-Source-1.0
+      status: verified_restricted
+      commercial_use: false
+    runtime: Python 3.10; Qwen2-0.5B; Chinese HuBERT; vLLM; RVQ-VAE; Mask Transformer
+    input: 16kHz Mandarin audio plus a Chinese action tag
+    output: 20 FPS body (T,153), left hand (T,120), right hand (T,120), ARKit-51 expression; BVH and UE JSON export
+    adapter_family: streaming_audio_motion
+    adaptation_difficulty: medium_high
+    upstream_inconsistency: README says 63 joints while 25 + 20 + 20 equals 65; use tensor shapes and named-joint maps
+    default_enablement: noncommercial_opt_in_only
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-discord
+    role: first_wave_candidate
+    wave: 1
+    priority_rank: 8
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2411.19527
+      code: https://github.com/whwjdqls/DisCoRD
+      weights: https://github.com/whwjdqls/DisCoRD#download-checkpoints
+    artifact_status: official_code_and_weights
+    license:
+      id: MIT
+      status: verified
+    runtime: Python 3.8.5; CUDA 11.8; MoMask and HumanML/KIT toolchain
+    input: text plus explicit motion length
+    output: MoMask-compatible HumanML3D or KIT motion through a rectified-flow continuous decoder
+    adapter_family: humanml3d_263d_body22
+    adaptation_difficulty: low_medium
+    recommended_role: continuous_decoder_refiner
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-remomask
+    role: first_wave_candidate
+    wave: 2
+    priority_rank: 9
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2508.02605
+      code: https://github.com/AIGeeksGroup/ReMoMask
+      weights: https://huggingface.co/AIGeeksGroup/ReMoMask
+    artifact_status: official_code_and_huggingface_artifacts
+    license:
+      id: CC-BY-NC-SA-4.0
+      status: verified_restricted
+      commercial_use: false
+      share_alike: true
+    runtime: Python 3.10; PyTorch 2.1.0; CUDA 11.8; approximately 8.87GB official HF artifacts
+    input: text plus optional length and retrieval database
+    output: HumanML3D route with 22-joint or SMPL visualization
+    adapter_family: humanml3d_263d_body22
+    adaptation_difficulty: medium_high
+    upstream_inconsistency: GitHub README says weights are coming soon, while the official HF repository contains them
+    default_enablement: noncommercial_opt_in_only
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2025-intermimic
+    role: first_wave_candidate
+    wave: 2
+    priority_rank: 10
+    integration_status: runnable_upstream
+    official_sources:
+      paper: https://arxiv.org/abs/2502.20390
+      code: https://github.com/Sirui-Xu/InterMimic
+      weights: https://github.com/Sirui-Xu/InterMimic#teacher-policy-inference
+    artifact_status: official_code_and_partial_published_scenario_checkpoints
+    license:
+      id: MIT
+      status: verified
+      dependencies: Isaac, PHC, datasets, robots, and object assets retain separate terms
+    runtime: Isaac Gym Python 3.8 and CUDA 11.6; or Isaac Sim 5.1 with IsaacLab 2.3.1
+    input: reference HOI trajectories plus object geometry and state
+    output: simulated SMPL-X or Unitree G1 state, dynamic object 6-DoF, contacts, and rollout
+    adapter_family: physics_policy_bridge
+    adaptation_difficulty: very_high
+    limitations:
+      - Upstream teacher checkpoints do not cover every claimed interaction class.
+      - This is a physics-policy bridge, not a direct text-to-motion worker.
+    virea_evidence:
+      worker: false
+      runtime_manifest: false
+      motion_ir_decoder: false
+      end_to_end_regression: false
+
+  - uid: 2026-opendancenet
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      project: https://open-dance.github.io/
+    blocker: Official project page says code is coming soon.
+
+  - uid: 2026-monofirll
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      project: https://research.beingbeyond.com/opent2m
+    blocker: No official code or model-weight download is published.
+
+  - uid: 2026-livegesture
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      paper: https://openaccess.thecvf.com/content/CVPR2026/html/Saleem_LiveGesture_Streamable_Co-Speech_Gesture_Generation_Model_CVPR_2026_paper.html
+    blocker: No official code or weights were found.
+
+  - uid: 2026-dyadit
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      code: https://github.com/puckikk1202/dyadit
+    blocker: Inference code requires external checkpoints; no official weight download or repository license is present.
+
+  - uid: 2025-being-m0
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      project: https://github.com/BeingBeyond/Being-M0
+    blocker: Official repository says code and part of the dataset will be released later.
+
+  - uid: 2025-being-m0-5
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      project: https://github.com/BeingBeyond/Being-M0.5
+    blocker: Official repository says code and part of the dataset will be released later.
+
+  - uid: 2025-omnimotion-x
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      project: https://github.com/GuoweiXu368/OmniMotion-X
+    blocker: Official code, evaluation pipeline, and model checkpoints are pending the dataset release.
+
+  - uid: 2025-motionstreamer
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      code: https://github.com/zju3dv/MotionStreamer
+      artifacts: https://huggingface.co/lxxiao/MotionStreamer/tree/main
+    blocker: The official artifacts contain TAE, evaluator, and base T2M weights but no MotionStreamer checkpoint or streaming inference demo.
+
+  - uid: 2025-motionlab
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      code: https://github.com/Diouo/MotionLab
+    blocker: Repository has code and checkpoints but no LICENSE; upstream also warns about checkpoint compatibility after bug fixes.
+
+  - uid: 2025-unimumo
+    role: registration_only
+    integration_status: registered
+    official_sources:
+      code: https://github.com/hanyangclarence/UniMuMo
+    blocker: Repository has code and checkpoint instructions but no LICENSE.

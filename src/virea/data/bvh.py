@@ -5,15 +5,14 @@ from pathlib import Path
 
 import numpy as np
 
-from virea.motion.rotation import matrix_to_quat_xyzw, quat_to_axis_angle_xyzw
 from virea.motion.canonical import HAND_BONES, HAND_INDEX
+from virea.motion.rotation import matrix_to_quat_xyzw, quat_to_axis_angle_xyzw
 from virea.motion.skeleton import (
     BODY_BONES,
     BODY_INDEX,
     CANONICAL_PARENT,
     FK_BONES,
 )
-
 
 BEAT_BODY_SOURCE_JOINT: dict[str, str] = {
     "hips": "Hips",
@@ -118,7 +117,9 @@ def parse_bvh(path: Path, max_frames: int | None = None) -> BVHMotion:
                 name = line.split(maxsplit=1)[1]
                 if name in joint_by_name:
                     raise ValueError(f"BVH contains duplicate joint {name}")
-                parent = next((item for item in reversed(stack) if item is not None), None)
+                parent = next(
+                    (item for item in reversed(stack) if item is not None), None
+                )
                 payload: dict[str, object] = {
                     "name": name,
                     "parent": parent,
@@ -142,7 +143,9 @@ def parse_bvh(path: Path, max_frames: int | None = None) -> BVHMotion:
                 current = stack[-1] if stack else None
                 if current is None:
                     continue
-                values = np.fromstring(line.removeprefix("OFFSET "), sep=" ", dtype=np.float64)
+                values = np.fromstring(
+                    line.removeprefix("OFFSET "), sep=" ", dtype=np.float64
+                )
                 if values.shape != (3,) or not np.all(np.isfinite(values)):
                     raise ValueError(f"BVH joint {current} has an invalid OFFSET")
                 joint_by_name[current]["offset"] = values.astype(np.float32)
@@ -155,29 +158,41 @@ def parse_bvh(path: Path, max_frames: int | None = None) -> BVHMotion:
                 count = int(parts[1])
                 channels = tuple(parts[2 : 2 + count])
                 if len(channels) != count:
-                    raise ValueError(f"BVH joint {current} has an incomplete CHANNELS entry")
+                    raise ValueError(
+                        f"BVH joint {current} has an incomplete CHANNELS entry"
+                    )
                 joint_by_name[current]["channels"] = channels
                 joint_by_name[current]["channel_indices"] = tuple(
                     range(channel_cursor, channel_cursor + count)
                 )
                 channel_cursor += count
                 if channel_cursor > 4096:
-                    raise ValueError("BVH channel count exceeds the supported safety bound")
+                    raise ValueError(
+                        "BVH channel count exceeds the supported safety bound"
+                    )
                 continue
         else:
             raise ValueError("BVH file has no MOTION section")
 
         frames_line = next((line.strip() for line in handle if line.strip()), "")
         frame_time_line = next((line.strip() for line in handle if line.strip()), "")
-        if not frames_line.startswith("Frames:") or not frame_time_line.startswith("Frame Time:"):
+        if not frames_line.startswith("Frames:") or not frame_time_line.startswith(
+            "Frame Time:"
+        ):
             raise ValueError("BVH MOTION header is incomplete")
         declared_frame_count = int(frames_line.split(":", 1)[1].strip())
         frame_time = float(frame_time_line.split(":", 1)[1].strip())
         if declared_frame_count < 1 or not np.isfinite(frame_time) or frame_time <= 0.0:
             raise ValueError("BVH frame count/time is invalid")
         if declared_frame_count > 1_000_000:
-            raise ValueError("BVH declared frame count exceeds the supported safety bound")
-        read_limit = declared_frame_count if max_frames is None else min(declared_frame_count, max_frames)
+            raise ValueError(
+                "BVH declared frame count exceeds the supported safety bound"
+            )
+        read_limit = (
+            declared_frame_count
+            if max_frames is None
+            else min(declared_frame_count, max_frames)
+        )
         frame_rows: list[np.ndarray] = []
         for raw_line in handle:
             if len(frame_rows) >= read_limit:
@@ -203,10 +218,14 @@ def parse_bvh(path: Path, max_frames: int | None = None) -> BVHMotion:
         joints.append(
             BVHJoint(
                 name=str(payload["name"]),
-                parent=str(payload["parent"]) if payload["parent"] is not None else None,
+                parent=str(payload["parent"])
+                if payload["parent"] is not None
+                else None,
                 offset=offset,
                 channels=tuple(str(value) for value in payload["channels"]),
-                channel_indices=tuple(int(value) for value in payload["channel_indices"]),
+                channel_indices=tuple(
+                    int(value) for value in payload["channel_indices"]
+                ),
             )
         )
     return BVHMotion(
@@ -271,7 +290,11 @@ def beat_bvh_to_body22(
 
     if not np.isfinite(translation_scale_to_meter) or translation_scale_to_meter <= 0.0:
         raise ValueError("translation scale must be finite and positive")
-    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size < 1:
+    if (
+        isinstance(chunk_size, bool)
+        or not isinstance(chunk_size, int)
+        or chunk_size < 1
+    ):
         raise ValueError("chunk_size must be a positive integer")
     joints = {joint.name: joint for joint in motion.joints}
     source_joint_mapping = {**BEAT_BODY_SOURCE_JOINT, **BEAT_HAND_SOURCE_JOINT}
@@ -282,7 +305,9 @@ def beat_bvh_to_body22(
     root_joint = joints[BEAT_BODY_SOURCE_JOINT["hips"]]
     for joint in motion.joints:
         if joint.parent is not None and joint.parent not in joints:
-            raise ValueError(f"BVH joint {joint.name} has unknown parent {joint.parent}")
+            raise ValueError(
+                f"BVH joint {joint.name} has unknown parent {joint.parent}"
+            )
 
     body_paths: dict[str, list[str]] = {}
     hand_paths: dict[str, list[str]] = {}
@@ -315,11 +340,14 @@ def beat_bvh_to_body22(
         body_paths[bone_name] = path
         collapsed_paths[bone_name] = path
         if bone_name != "hips":
-            source_rest_offsets[bone_name] = np.sum(
-                [joints[source_name].offset for source_name in path],
-                axis=0,
-                dtype=np.float32,
-            ) * scale
+            source_rest_offsets[bone_name] = (
+                np.sum(
+                    [joints[source_name].offset for source_name in path],
+                    axis=0,
+                    dtype=np.float32,
+                )
+                * scale
+            )
 
     for bone_name in HAND_BONES:
         source_joint = BEAT_HAND_SOURCE_JOINT[bone_name]
@@ -332,11 +360,14 @@ def beat_bvh_to_body22(
         path = path_below_parent(source_joint, parent_source)
         hand_paths[bone_name] = path
         collapsed_paths[bone_name] = path
-        source_rest_offsets[bone_name] = np.sum(
-            [joints[source_name].offset for source_name in path],
-            axis=0,
-            dtype=np.float32,
-        ) * scale
+        source_rest_offsets[bone_name] = (
+            np.sum(
+                [joints[source_name].offset for source_name in path],
+                axis=0,
+                dtype=np.float32,
+            )
+            * scale
+        )
 
     # Keep only contract arrays for the full clip.  Full-hierarchy local/world
     # matrices are transient and bounded by ``chunk_size``; for an 81,960-frame
@@ -357,7 +388,9 @@ def beat_bvh_to_body22(
             for joint in motion.joints
         }
         chunk_translation = np.zeros((chunk_frame_count, 3), dtype=np.float32)
-        for channel, channel_index in zip(root_joint.channels, root_joint.channel_indices):
+        for channel, channel_index in zip(
+            root_joint.channels, root_joint.channel_indices
+        ):
             if channel.endswith("position"):
                 chunk_translation[:, "XYZ".index(channel[0].upper())] = chunk_frames[
                     :, channel_index
@@ -375,7 +408,9 @@ def beat_bvh_to_body22(
                 world_rotations[joint.name] = local_rotation
             else:
                 if joint.parent not in world_positions:
-                    raise ValueError(f"BVH joint order is not parent-before-child at {joint.name}")
+                    raise ValueError(
+                        f"BVH joint order is not parent-before-child at {joint.name}"
+                    )
                 parent_rotation = world_rotations[joint.parent]
                 world_positions[joint.name] = world_positions[joint.parent] + np.einsum(
                     "tij,j->ti", parent_rotation, offset

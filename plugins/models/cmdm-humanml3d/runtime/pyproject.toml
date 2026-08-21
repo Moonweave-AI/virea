@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-cmdm-humanml3d-runtime"
+version = "0.1.2"
+description = "Managed CMDM HumanML3D Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy>=1.26,<3",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "torch>=2.2.2,<2.12",
+  "transformers>=4.57,<5",
+  "safetensors>=0.5,<1",
+  "einops>=0.8,<1",
+  "torchdiffeq>=0.2.5,<1",
+  "tqdm>=4.66,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "pyyaml>=6,<7",
+  "virea-model-pool>=0.4.0",
+]
+
+[project.scripts]
+virea-model-cmdm-humanml3d-worker = "virea_cmdm.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+virea-model-pool = { path = "../../../../packages/model_pool", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

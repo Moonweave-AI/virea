@@ -1,0 +1,117 @@
+schema_version: virea.adapter_family.v1.0.0
+id: humanml3d-motion263-body22
+display_name: HumanML3D 263D to body-22 joint positions
+source_models:
+  - flood-diffusion-tiny
+  - momadiff-humanml3d
+  - cmdm-humanml3d
+  - momask-humanml3d
+  - discord-humanml3d
+  - remomask-humanml3d
+implementation_status: production_adapter_real_checkpoint_validated
+support_status: integrated_experimental
+native_profile:
+  representation_id: humanml3d.vector263.v1
+  carrier: dense_float_tensor
+  shape: [T, 263]
+  dtype: float32
+  fps:
+    mode: fixed
+    value: 20.0
+  coordinate_system:
+    id: humanml3d.right_handed_y_up_z_forward
+    handedness: right
+    up_axis: positive_y
+    nominal_forward_axis: positive_z
+  units:
+    positions_and_velocities: meters_and_meters_per_frame_in_the_official_feature_convention
+    rotations: dimensionless
+  fields:
+    - name: root_yaw_angular_velocity
+      slice: [0, 1]
+      width: 1
+      semantics: relative_yaw_channel_consumed_only_by_official_recover_root_rot_pos
+    - name: root_facing_local_xz_velocity
+      slice: [1, 3]
+      width: 2
+      semantics: previous_frame_root_facing_velocity_rotated_to_world_during_recovery
+    - name: absolute_root_height_y
+      slice: [3, 4]
+      width: 1
+      semantics: absolute_y_coordinate
+    - name: relative_joint_coordinates
+      slice: [4, 67]
+      shape: [T, 21, 3]
+      semantics: non_root_joint_positions_in_root_facing_frame
+    - name: child_edge_rotation_6d
+      slice: [67, 193]
+      shape: [T, 21, 6]
+      semantics: HumanML3D_IK_child_edge_rotation_before_translation_not_direct_node_local_rotations
+    - name: joint_local_frame_velocity
+      slice: [193, 259]
+      shape: [T, 22, 3]
+    - name: foot_contact
+      slice: [259, 263]
+      shape: [T, 4]
+      semantics: left_heel_left_toe_right_heel_right_toe_contact_indicators
+root_semantics:
+  translation:
+    kind: relative_velocity_plus_absolute_height
+    initial_xz: [0.0, 0.0]
+    y_source_slice: [3, 4]
+    required_algorithm: upstream_recover_root_rot_pos_then_recover_from_ric
+    warning: do_not_cumsum_xz_without_applying_the_recovered_root_yaw_basis
+  rotation:
+    kind: recovered_yaw_only
+    initial_rotation: identity
+    source_slice: [0, 1]
+    required_algorithm: upstream_recover_root_rot_pos
+output_profile:
+  representation_id: humanml3d.body22.positions.v1
+  skeleton_id: humanml3d.body22.v1
+  shape: [T, 22, 3]
+  fps: 20.0
+  coordinate_system: humanml3d.right_handed_y_up_z_forward
+  units: meters
+  authoritative_geometry: recovered_joint_positions
+  per_joint_rotation_provenance: unavailable_except_recovered_root_yaw
+conversion:
+  required_steps:
+    - select_exactly_one_normalization_contract_for_the_selected_model
+    - for_checkpoint_normalized_outputs_denormalize_with_the_exact_training_mean_and_std
+    - for_upstream_vae_decoded_outputs_do_not_apply_normalization_a_second_time
+    - recover_root_yaw_and_world_root_translation_with_the_upstream_algorithm
+    - recover_22_joint_positions_from_RIC
+    - preserve_the_263D_source_artifact_and_normalization_provenance
+  prohibited_shortcuts:
+    - map_67_to_193_directly_to_gltf_local_rotations
+    - assume_root_xz_channels_are_world_space
+    - infer_unobservable_twist_from_RIC_positions
+validation:
+  exact_feature_width: 263
+  reject_non_finite: true
+  require_fps: 20.0
+  normalization_contracts:
+    checkpoint_normalized:
+      require_checkpoint_specific_mean_std: true
+    upstream_vae_decoded:
+      require_source_model_id: true
+      require_upstream_revision: true
+      values_are_already_denormalized: true
+official_sources:
+  - repository: https://github.com/EricGuo5513/HumanML3D
+    role: representation_and_recovery_origin
+  - repository: https://github.com/EricGuo5513/momask-codes
+    revision: 94a6636c9c463b7a9414c3401a6f1b67e6c51824
+    path: utils/motion_process.py
+  - repository: https://github.com/whwjdqls/DisCoRD
+    revision: 782deffca1a263a2241b6321cfe6532a022f284e
+  - repository: https://github.com/AIGeeksGroup/ReMoMask
+    revision: 630eda1f825bcc2ffb613a7270e1f5b6ac8baea2
+  - repository: https://github.com/AlayaLab/FloodDiffusion
+    revision: 836fe4e064876429bf9c02b21b3274bbc07f6b59
+    role: upstream_vae_decoded_humanml3d_vector263
+notes:
+  - The adapter declaration is shared because all three selected plugins use the HumanML3D 263D contract at 20 FPS; checkpoint normalization statistics remain model-specific artifacts.
+  - The VIREA compatibility adapter fails closed on exact 263D, 20 FPS and finite values; checkpoint-normalized producers must supply their exact statistics, while an upstream-decoded producer must supply its model identity and pinned revision.
+  - FloodDiffusionTiny's pinned VAE decode already applies its registered mean and std; its real Worker uses the explicit upstream_vae_decoded contract so VIREA does not denormalize the generated tensor twice.

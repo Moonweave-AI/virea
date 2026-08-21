@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/quality_report.schema.json",
+  "$id": "urn:virea:schema:quality-report:0.1.0",
   "title": "VIREA QualityReport",
   "type": "object",
   "required": ["schema_valid", "finite", "frame_count", "joint_count", "status"],

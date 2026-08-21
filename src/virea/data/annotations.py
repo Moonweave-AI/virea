@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import atexit
 import hashlib
 import io
 import json
 import math
 import os
 import re
+import shutil
 import tempfile
 import threading
 import time
@@ -16,7 +18,7 @@ from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
+from virea_core.paths import VireaPaths
 
 ANNOTATION_SCHEMA_VERSION = "virea.annotation.v1.0.0"
 CHANNEL_SCHEMA_VERSION = "virea.channel.v1.0.0"
@@ -31,15 +33,38 @@ MAX_INLINE_JSON_BYTES = 64 * 1024
 MAX_INLINE_CHANNEL_BYTES = 2 * 1024 * 1024
 MAX_JSON_DEPTH = 8
 MAX_JSON_ARRAY_ITEMS = 512
-_SIDECAR_CACHE_ROOT = Path(tempfile.gettempdir()) / "virea-sidecar-cache-v1"
+_SIDECAR_CACHE_PARENT = VireaPaths.discover().cache / "annotations"
+_SIDECAR_CACHE_ROOT = _SIDECAR_CACHE_PARENT / f"sidecar-cache-v1-{os.getpid()}"
 _SIDECAR_CACHE_MAX_FILE_BYTES = 64 * 1024 * 1024
 _SIDECAR_CACHE_MAX_TOTAL_BYTES = 256 * 1024 * 1024
 _SIDECAR_CACHE_LOCK = threading.RLock()
 _SECRET_TOKENS = {
-    "credential", "credentials", "token", "password", "passwd", "secret",
-    "apikey", "api_key", "privatekey", "private_key",
+    "credential",
+    "credentials",
+    "token",
+    "password",
+    "passwd",
+    "secret",
+    "apikey",
+    "api_key",
+    "privatekey",
+    "private_key",
 }
 _WINDOWS_ABSOLUTE_PATH = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+def _cleanup_process_sidecar_cache() -> None:
+    """Remove process-scoped sidecar data without touching other VIREA processes."""
+
+    shutil.rmtree(_SIDECAR_CACHE_ROOT, ignore_errors=True)
+    try:
+        _SIDECAR_CACHE_PARENT.rmdir()
+    except OSError:
+        # Another VIREA process may still own a sibling cache.
+        pass
+
+
+atexit.register(_cleanup_process_sidecar_cache)
 
 
 class SidecarCapacityError(ValueError):
@@ -63,8 +88,7 @@ def _is_absolute_path_text(value: str) -> bool:
     if stripped.casefold().startswith("file://"):
         return True
     return bool(
-        stripped.startswith(("/", "\\\\"))
-        or _WINDOWS_ABSOLUTE_PATH.match(stripped)
+        stripped.startswith(("/", "\\\\")) or _WINDOWS_ABSOLUTE_PATH.match(stripped)
     )
 
 
@@ -121,7 +145,9 @@ def _secure_unbounded(value: Any, *, key_path: str) -> Any:
         for key, item in basic.items():
             child_path = f"{key_path}.{key}" if key_path else key
             if _is_sensitive_key(key):
-                output[key] = _redaction_record(item, key_path=child_path, reason="sensitive_key")
+                output[key] = _redaction_record(
+                    item, key_path=child_path, reason="sensitive_key"
+                )
             else:
                 output[key] = _secure_unbounded(item, key_path=child_path)
         return output
@@ -131,14 +157,18 @@ def _secure_unbounded(value: Any, *, key_path: str) -> Any:
             for index, item in enumerate(basic)
         ]
     if isinstance(basic, str) and _is_absolute_path_text(basic):
-        return _redaction_record(basic, key_path=key_path, reason="absolute_path_not_exposed")
+        return _redaction_record(
+            basic, key_path=key_path, reason="absolute_path_not_exposed"
+        )
     return basic
 
 
 def _sidecar_value(value: Any, *, key_path: str) -> dict[str, Any]:
     secured = _secure_unbounded(value, key_path=key_path)
     encoded = _canonical_json_bytes(secured)
-    reference = cache_data_sidecar(encoded, media_type="application/json", encoding="utf-8", suffix=".json")
+    reference = cache_data_sidecar(
+        encoded, media_type="application/json", encoding="utf-8", suffix=".json"
+    )
     return {"sidecar": reference}
 
 
@@ -229,7 +259,11 @@ def resolve_cached_sidecar(sha256: str) -> Path | None:
     with _SIDECAR_CACHE_LOCK:
         root = _SIDECAR_CACHE_ROOT.resolve(strict=False)
         candidate = root / digest
-        if candidate.is_symlink() or not candidate.is_file() or candidate.resolve(strict=False).parent != root:
+        if (
+            candidate.is_symlink()
+            or not candidate.is_file()
+            or candidate.resolve(strict=False).parent != root
+        ):
             return None
         content = candidate.read_bytes()
         if hashlib.sha256(content).hexdigest() != digest:
@@ -263,13 +297,17 @@ def _cache_entries() -> list[tuple[Path, os.stat_result]]:
     return entries
 
 
-def _prune_sidecar_cache(*, required_bytes: int = 0, preserve_digest: str | None = None) -> None:
+def _prune_sidecar_cache(
+    *, required_bytes: int = 0, preserve_digest: str | None = None
+) -> None:
     entries = _cache_entries()
     total = sum(stat.st_size for _path, stat in entries)
     target = _SIDECAR_CACHE_MAX_TOTAL_BYTES - required_bytes
     if target < 0:
         raise ValueError("sidecar cache request exceeds the total cache budget")
-    for path, stat in sorted(entries, key=lambda entry: (entry[1].st_mtime_ns, entry[0].name)):
+    for path, stat in sorted(
+        entries, key=lambda entry: (entry[1].st_mtime_ns, entry[0].name)
+    ):
         if total <= target:
             break
         if path.name == preserve_digest:
@@ -293,12 +331,16 @@ def sidecar_cache_health() -> dict[str, Any]:
         total = sum(stat.st_size for _path, stat in entries)
         oldest = min((stat.st_mtime for _path, stat in entries), default=None)
         return {
-            "status": "healthy" if total <= _SIDECAR_CACHE_MAX_TOTAL_BYTES else "over_budget",
+            "status": "healthy"
+            if total <= _SIDECAR_CACHE_MAX_TOTAL_BYTES
+            else "over_budget",
             "entry_count": len(entries),
             "byte_length": total,
             "max_total_bytes": _SIDECAR_CACHE_MAX_TOTAL_BYTES,
             "max_file_bytes": _SIDECAR_CACHE_MAX_FILE_BYTES,
-            "oldest_age_sec": max(0.0, time.time() - oldest) if oldest is not None else None,
+            "oldest_age_sec": max(0.0, time.time() - oldest)
+            if oldest is not None
+            else None,
         }
 
 
@@ -321,9 +363,13 @@ def _bounded_json_value(value: Any, *, key_path: str, depth: int = 0) -> Any:
         for key, item in basic.items():
             child_path = f"{key_path}.{key}" if key_path else key
             if _is_sensitive_key(key):
-                output[key] = _redaction_record(item, key_path=child_path, reason="sensitive_key")
+                output[key] = _redaction_record(
+                    item, key_path=child_path, reason="sensitive_key"
+                )
             else:
-                output[key] = _bounded_json_value(item, key_path=child_path, depth=depth + 1)
+                output[key] = _bounded_json_value(
+                    item, key_path=child_path, depth=depth + 1
+                )
         if len(_canonical_json_bytes(output)) > MAX_INLINE_JSON_BYTES:
             return _sidecar_value(basic, key_path=key_path)
         return output
@@ -338,7 +384,9 @@ def _bounded_json_value(value: Any, *, key_path: str, depth: int = 0) -> Any:
             return _sidecar_value(basic, key_path=key_path)
         return output
     if isinstance(basic, str) and _is_absolute_path_text(basic):
-        return _redaction_record(basic, key_path=key_path, reason="absolute_path_not_exposed")
+        return _redaction_record(
+            basic, key_path=key_path, reason="absolute_path_not_exposed"
+        )
     return basic
 
 
@@ -368,15 +416,25 @@ def materialize_sidecars(value: Any, processed_root: Path) -> list[dict[str, Any
         if isinstance(item, dict):
             reference = item.get("sidecar")
             if not isinstance(reference, dict) and set(item) >= {
-                "path", "sha256", "byte_length", "media_type", "encoding",
+                "path",
+                "sha256",
+                "byte_length",
+                "media_type",
+                "encoding",
             }:
                 reference = item
             if isinstance(reference, dict) and set(reference) >= {
-                "path", "sha256", "byte_length", "media_type", "encoding",
+                "path",
+                "sha256",
+                "byte_length",
+                "media_type",
+                "encoding",
             }:
                 relative = Path(str(reference["path"]))
                 if relative.is_absolute() or ".." in relative.parts:
-                    raise ValueError(f"sidecar path must stay under processed root: {relative}")
+                    raise ValueError(
+                        f"sidecar path must stay under processed root: {relative}"
+                    )
                 target = (root / relative).resolve()
                 if root != target and root not in target.parents:
                     raise ValueError(f"sidecar path escaped processed root: {relative}")
@@ -412,13 +470,19 @@ def materialize_sidecars(value: Any, processed_root: Path) -> list[dict[str, Any
                             if temporary.exists():
                                 temporary.unlink(missing_ok=True)
                 elif not target.exists():
-                    raise FileNotFoundError(f"sidecar content is unavailable for {digest}")
+                    raise FileNotFoundError(
+                        f"sidecar content is unavailable for {digest}"
+                    )
                 else:
                     persisted = target.read_bytes()
                     if len(persisted) != int(reference["byte_length"]):
-                        raise ValueError(f"materialized sidecar length mismatch: {digest}")
+                        raise ValueError(
+                            f"materialized sidecar length mismatch: {digest}"
+                        )
                     if hashlib.sha256(persisted).hexdigest() != digest:
-                        raise ValueError(f"materialized sidecar hash mismatch: {digest}")
+                        raise ValueError(
+                            f"materialized sidecar hash mismatch: {digest}"
+                        )
                 found[digest] = dict(reference)
                 return
             for child in item.values():
@@ -440,7 +504,11 @@ def security_manifest(value: Any) -> dict[str, list[dict[str, Any]]]:
         if isinstance(item, dict):
             sidecar = item.get("sidecar")
             if not isinstance(sidecar, dict) and set(item) >= {
-                "path", "sha256", "byte_length", "media_type", "encoding",
+                "path",
+                "sha256",
+                "byte_length",
+                "media_type",
+                "encoding",
             }:
                 sidecar = item
             if isinstance(sidecar, dict) and sidecar.get("sha256"):
@@ -450,12 +518,21 @@ def security_manifest(value: Any) -> dict[str, list[dict[str, Any]]]:
                     cached = resolve_cached_sidecar(digest)
                     if cached is not None:
                         try:
-                            visit(json.loads(cached.read_text(encoding=str(sidecar.get("encoding") or "utf-8"))))
+                            visit(
+                                json.loads(
+                                    cached.read_text(
+                                        encoding=str(sidecar.get("encoding") or "utf-8")
+                                    )
+                                )
+                            )
                         except (OSError, UnicodeError, json.JSONDecodeError):
                             pass
             redaction = item.get("redaction")
             if isinstance(redaction, dict) and redaction.get("value_sha256"):
-                key = (str(redaction.get("key_path", "")), str(redaction["value_sha256"]))
+                key = (
+                    str(redaction.get("key_path", "")),
+                    str(redaction["value_sha256"]),
+                )
                 redactions[key] = dict(redaction)
             for child in item.values():
                 visit(child)
@@ -493,7 +570,14 @@ def _assert_bounded_json(value: Any, *, depth: int = 0) -> None:
         raise ValueError("absolute paths must be redacted before Viewer serialization")
 
 
-def _stable_id(kind: str, dataset: str, sample_id: str, source: str | None, record_key: str, ordinal: int) -> str:
+def _stable_id(
+    kind: str,
+    dataset: str,
+    sample_id: str,
+    source: str | None,
+    record_key: str,
+    ordinal: int,
+) -> str:
     identity = {
         "dataset": str(dataset),
         "kind": str(kind),
@@ -502,15 +586,21 @@ def _stable_id(kind: str, dataset: str, sample_id: str, source: str | None, reco
         "sample_id": str(sample_id),
         "source": source,
     }
-    encoded = json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(
+        identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:24]
 
 
-def annotation_id(dataset: str, sample_id: str, source: str | None, record_key: str, ordinal: int) -> str:
+def annotation_id(
+    dataset: str, sample_id: str, source: str | None, record_key: str, ordinal: int
+) -> str:
     return _stable_id("annotation", dataset, sample_id, source, record_key, ordinal)
 
 
-def channel_id(dataset: str, sample_id: str, source: str | None, record_key: str, ordinal: int) -> str:
+def channel_id(
+    dataset: str, sample_id: str, source: str | None, record_key: str, ordinal: int
+) -> str:
     return _stable_id("channel", dataset, sample_id, source, record_key, ordinal)
 
 
@@ -591,21 +681,42 @@ class AnnotationV1(BaseModel):
     @model_validator(mode="after")
     def validate_contract(self) -> "AnnotationV1":
         if (self.start_sec is None) != (self.end_sec is None):
-            raise ValueError("start_sec and end_sec must both be null or both be present")
+            raise ValueError(
+                "start_sec and end_sec must both be null or both be present"
+            )
         if (self.start_frame is None) != (self.end_frame is None):
-            raise ValueError("start_frame and end_frame must both be null or both be present")
+            raise ValueError(
+                "start_frame and end_frame must both be null or both be present"
+            )
         if self.start_sec is not None:
-            if not math.isfinite(self.start_sec) or not math.isfinite(self.end_sec or 0.0):
+            if not math.isfinite(self.start_sec) or not math.isfinite(
+                self.end_sec or 0.0
+            ):
                 raise ValueError("annotation seconds must be finite")
             if self.start_sec < 0 or (self.end_sec or 0.0) < self.start_sec:
-                raise ValueError("annotation seconds must form a non-negative half-open interval")
+                raise ValueError(
+                    "annotation seconds must form a non-negative half-open interval"
+                )
         if self.start_frame is not None:
             if self.start_frame < 0 or (self.end_frame or 0) < self.start_frame:
-                raise ValueError("annotation frames must form a non-negative half-open interval")
-        if self.provenance in {"derived", "fallback"} and not (self.reasoning or "").strip():
+                raise ValueError(
+                    "annotation frames must form a non-negative half-open interval"
+                )
+        if (
+            self.provenance in {"derived", "fallback"}
+            and not (self.reasoning or "").strip()
+        ):
             raise ValueError("derived and fallback annotations require reasoning")
-        if self.level == "metadata" and self.bodypart not in {None, "object", "audio", "face", "interaction"}:
-            raise ValueError("metadata annotations must not be attached to a human joint")
+        if self.level == "metadata" and self.bodypart not in {
+            None,
+            "object",
+            "audio",
+            "face",
+            "interaction",
+        }:
+            raise ValueError(
+                "metadata annotations must not be attached to a human joint"
+            )
         _assert_bounded_json(self.extras)
         return self
 
@@ -639,7 +750,10 @@ class ChannelV1(BaseModel):
             raise ValueError("channel frame_count must not be negative")
         if self.shape is not None and any(value < 0 for value in self.shape):
             raise ValueError("channel shape must not contain negative dimensions")
-        if self.availability == "missing" and not (self.reason_unavailable or "").strip():
+        if (
+            self.availability == "missing"
+            and not (self.reason_unavailable or "").strip()
+        ):
             raise ValueError("missing channels require reason_unavailable")
         if self.availability == "external" and self.data_ref is None:
             raise ValueError("external channels require data_ref")
@@ -728,10 +842,21 @@ def make_annotation(
         time_errors.append("native frame interval has only one endpoint")
     elif raw_sf is not None and (raw_sf < 0 or raw_ef is None or raw_ef < raw_sf):
         time_errors.append("native frame interval is invalid")
-    if fps and raw_ss is not None and raw_es is not None and raw_sf is not None and raw_ef is not None:
+    if (
+        fps
+        and raw_ss is not None
+        and raw_es is not None
+        and raw_sf is not None
+        and raw_ef is not None
+    ):
         tolerance = 0.5 / fps + 1e-9
-        if abs(raw_ss - raw_sf / fps) > tolerance or abs(raw_es - raw_ef / fps) > tolerance:
-            time_errors.append("native second and frame intervals disagree by more than half a source frame")
+        if (
+            abs(raw_ss - raw_sf / fps) > tolerance
+            or abs(raw_es - raw_ef / fps) > tolerance
+        ):
+            time_errors.append(
+                "native second and frame intervals disagree by more than half a source frame"
+            )
     ss, es, sf, ef = _canonical_interval(
         start_sec=start_sec,
         end_sec=end_sec,
@@ -746,7 +871,9 @@ def make_annotation(
         "end_frame": _optional_int(end_frame),
         "source_fps": float(fps) if fps else None,
     }
-    original_payload = _bounded_json_value(original or {}, key_path="annotation.original")
+    original_payload = _bounded_json_value(
+        original or {}, key_path="annotation.original"
+    )
     if not isinstance(original_payload, dict):
         original_payload = {"value": original_payload}
     original_payload.setdefault("time", source_time)
@@ -784,11 +911,23 @@ def _legacy_level(raw: dict[str, Any]) -> AnnotationLevel:
     type_name = str(raw.get("type") or "").lower()
     if type_name in {"dialogue", "speech", "conversation"}:
         return "context"
-    if bodypart and bodypart not in {"action", "sequence_caption", "dialogue", "object"}:
+    if bodypart and bodypart not in {
+        "action",
+        "sequence_caption",
+        "dialogue",
+        "object",
+    }:
         return "part"
     if type_name in {"object", "contact", "audio", "face_availability"}:
         return "metadata"
-    return "action" if any(raw.get(key) is not None for key in ("start_sec", "end_sec", "start_frame", "end_frame")) else "sequence"
+    return (
+        "action"
+        if any(
+            raw.get(key) is not None
+            for key in ("start_sec", "end_sec", "start_frame", "end_frame")
+        )
+        else "sequence"
+    )
 
 
 def normalize_annotation(
@@ -807,7 +946,9 @@ def normalize_annotation(
             if raw.get("original") is not None
             else None
         )
-        secured["extras"] = _bounded_json_value(raw.get("extras") or {}, key_path="annotation.extras")
+        secured["extras"] = _bounded_json_value(
+            raw.get("extras") or {}, key_path="annotation.extras"
+        )
         if not isinstance(secured["extras"], dict):
             secured["extras"] = {"value": secured["extras"]}
         model = AnnotationV1.model_validate(secured)
@@ -816,13 +957,33 @@ def normalize_annotation(
         return model.model_dump(mode="json"), warnings
     source = str(raw.get("source") or "legacy.annotation")
     known = {
-        "schema_version", "id", "level", "scope", "type", "text", "label", "bodypart",
-        "start_sec", "end_sec", "start_frame", "end_frame", "confidence", "source",
-        "provenance", "reasoning", "original", "clipped", "extras",
+        "schema_version",
+        "id",
+        "level",
+        "scope",
+        "type",
+        "text",
+        "label",
+        "bodypart",
+        "start_sec",
+        "end_sec",
+        "start_frame",
+        "end_frame",
+        "confidence",
+        "source",
+        "provenance",
+        "reasoning",
+        "original",
+        "clipped",
+        "extras",
     }
     extras = dict(raw.get("extras") or {})
-    extras.update({key: _json_value(value) for key, value in raw.items() if key not in known})
-    warnings.append(f"annotation[{ordinal}] migrated from an unversioned legacy record; provenance was not recorded")
+    extras.update(
+        {key: _json_value(value) for key, value in raw.items() if key not in known}
+    )
+    warnings.append(
+        f"annotation[{ordinal}] migrated from an unversioned legacy record; provenance was not recorded"
+    )
     migrated = make_annotation(
         dataset=dataset,
         sample_id=sample_id,
@@ -838,7 +999,9 @@ def normalize_annotation(
         start_frame=raw.get("start_frame"),
         end_frame=raw.get("end_frame"),
         fps=fps,
-        confidence=raw.get("confidence") if isinstance(raw.get("confidence"), dict) else None,
+        confidence=raw.get("confidence")
+        if isinstance(raw.get("confidence"), dict)
+        else None,
         provenance="derived",
         reasoning="Migrated from a legacy annotation whose provenance contract was not recorded.",
         original={"legacy_record": _json_value(raw)},
@@ -857,7 +1020,9 @@ def normalize_annotations(
     normalized: list[dict[str, Any]] = []
     warnings: list[str] = []
     for ordinal, raw in enumerate(values):
-        item, item_warnings = normalize_annotation(raw, dataset=dataset, sample_id=sample_id, ordinal=ordinal, fps=fps)
+        item, item_warnings = normalize_annotation(
+            raw, dataset=dataset, sample_id=sample_id, ordinal=ordinal, fps=fps
+        )
         normalized.append(item)
         warnings.extend(item_warnings)
     return normalized, warnings
@@ -871,7 +1036,9 @@ def clip_annotations(
     fps: float | None,
     frame_count: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    normalized, warnings = normalize_annotations(values, dataset=dataset, sample_id=sample_id, fps=fps)
+    normalized, warnings = normalize_annotations(
+        values, dataset=dataset, sample_id=sample_id, fps=fps
+    )
     duration = frame_count / fps if fps else None
     clipped_values: list[dict[str, Any]] = []
     clipped_out_count = 0
@@ -883,13 +1050,24 @@ def clip_annotations(
             old_start, old_end = int(item["start_frame"]), int(item["end_frame"])
             item["start_frame"] = min(max(old_start, 0), frame_count)
             item["end_frame"] = min(max(old_end, item["start_frame"]), frame_count)
-            changed = changed or item["start_frame"] != old_start or item["end_frame"] != old_end
+            changed = (
+                changed
+                or item["start_frame"] != old_start
+                or item["end_frame"] != old_end
+            )
             clipped_out = old_end <= 0 or old_start >= frame_count
         if item["start_sec"] is not None and duration is not None:
-            old_start_sec, old_end_sec = float(item["start_sec"]), float(item["end_sec"])
+            old_start_sec, old_end_sec = (
+                float(item["start_sec"]),
+                float(item["end_sec"]),
+            )
             item["start_sec"] = min(max(old_start_sec, 0.0), duration)
             item["end_sec"] = min(max(old_end_sec, item["start_sec"]), duration)
-            changed = changed or item["start_sec"] != old_start_sec or item["end_sec"] != old_end_sec
+            changed = (
+                changed
+                or item["start_sec"] != old_start_sec
+                or item["end_sec"] != old_end_sec
+            )
             clipped_out = clipped_out or old_end_sec <= 0.0 or old_start_sec >= duration
         if changed:
             item["clipped"] = True
@@ -948,8 +1126,12 @@ def make_channel(
         source=source,
         provenance=provenance,
         reason_unavailable=reason_unavailable,
-        preview=_channel_json_value(preview, key_path="channel.preview") if preview is not None else None,
-        data_ref=_bounded_json_value(data_ref, key_path="channel.data_ref") if data_ref is not None else None,
+        preview=_channel_json_value(preview, key_path="channel.preview")
+        if preview is not None
+        else None,
+        data_ref=_bounded_json_value(data_ref, key_path="channel.data_ref")
+        if data_ref is not None
+        else None,
         extras=_bounded_json_value(extras or {}, key_path="channel.extras"),
     )
     return model.model_dump(mode="json")
@@ -977,10 +1159,14 @@ def normalize_channels(
                 if raw.get("preview") is not None
                 else None
             )
-            secured["extras"] = _bounded_json_value(raw.get("extras") or {}, key_path="channel.extras")
+            secured["extras"] = _bounded_json_value(
+                raw.get("extras") or {}, key_path="channel.extras"
+            )
             normalized.append(ChannelV1.model_validate(secured).model_dump(mode="json"))
             continue
-        warnings.append(f"channel[{ordinal}] migrated from an unversioned legacy descriptor")
+        warnings.append(
+            f"channel[{ordinal}] migrated from an unversioned legacy descriptor"
+        )
         normalized.append(
             make_channel(
                 dataset=dataset,
@@ -993,7 +1179,9 @@ def normalize_channels(
                 provenance="derived",
                 representation=raw.get("representation"),
                 reason_unavailable="Legacy descriptor did not record data availability under channel v1.",
-                preview=raw.get("preview") if isinstance(raw.get("preview"), dict) else None,
+                preview=raw.get("preview")
+                if isinstance(raw.get("preview"), dict)
+                else None,
                 extras={"legacy_record": _json_value(raw)},
             )
         )
@@ -1008,7 +1196,9 @@ def clip_channels(
     fps: float | None,
     frame_count: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    normalized, warnings = normalize_channels(values, dataset=dataset, sample_id=sample_id)
+    normalized, warnings = normalize_channels(
+        values, dataset=dataset, sample_id=sample_id
+    )
     duration = frame_count / fps if fps else None
     output: list[dict[str, Any]] = []
     for raw in normalized:
@@ -1019,18 +1209,41 @@ def clip_channels(
         if duration is not None and channel_fps is not None:
             channel_limit = int(math.ceil(duration * float(channel_fps) - 1e-9))
         changed = original_count is not None and int(original_count) > channel_limit
-        is_external = item.get("availability") == "external" and item.get("data_ref") is not None
+        is_external = (
+            item.get("availability") == "external" and item.get("data_ref") is not None
+        )
         if is_external:
             effective_timebase = deepcopy(item.get("timebase"))
             if isinstance(effective_timebase, dict):
-                if effective_timebase.get("start_frame") is not None and effective_timebase.get("end_frame") is not None:
-                    start = min(max(int(effective_timebase["start_frame"]), 0), channel_limit)
-                    end = min(max(int(effective_timebase["end_frame"]), start), channel_limit)
-                    effective_timebase["start_frame"], effective_timebase["end_frame"] = start, end
-                if duration is not None and effective_timebase.get("start_sec") is not None and effective_timebase.get("end_sec") is not None:
-                    start_sec = min(max(float(effective_timebase["start_sec"]), 0.0), duration)
-                    end_sec = min(max(float(effective_timebase["end_sec"]), start_sec), duration)
-                    effective_timebase["start_sec"], effective_timebase["end_sec"] = start_sec, end_sec
+                if (
+                    effective_timebase.get("start_frame") is not None
+                    and effective_timebase.get("end_frame") is not None
+                ):
+                    start = min(
+                        max(int(effective_timebase["start_frame"]), 0), channel_limit
+                    )
+                    end = min(
+                        max(int(effective_timebase["end_frame"]), start), channel_limit
+                    )
+                    (
+                        effective_timebase["start_frame"],
+                        effective_timebase["end_frame"],
+                    ) = start, end
+                if (
+                    duration is not None
+                    and effective_timebase.get("start_sec") is not None
+                    and effective_timebase.get("end_sec") is not None
+                ):
+                    start_sec = min(
+                        max(float(effective_timebase["start_sec"]), 0.0), duration
+                    )
+                    end_sec = min(
+                        max(float(effective_timebase["end_sec"]), start_sec), duration
+                    )
+                    effective_timebase["start_sec"], effective_timebase["end_sec"] = (
+                        start_sec,
+                        end_sec,
+                    )
             preview = item.get("preview")
             if isinstance(preview, dict) and original_count is not None:
                 for key, value in list(preview.items()):
@@ -1041,11 +1254,15 @@ def clip_channels(
                 item["extras"].update(
                     {
                         "clipped": True,
-                        "data_ref_scope": item["extras"].get("data_ref_scope", "native_full_channel"),
+                        "data_ref_scope": item["extras"].get(
+                            "data_ref_scope", "native_full_channel"
+                        ),
                         "original_frame_count": original_count,
                         "original_shape": deepcopy(item.get("shape")),
                         "original_timebase": deepcopy(item.get("timebase")),
-                        "effective_frame_count": min(int(original_count), channel_limit) if original_count is not None else channel_limit,
+                        "effective_frame_count": min(int(original_count), channel_limit)
+                        if original_count is not None
+                        else channel_limit,
                         "effective_timebase": effective_timebase,
                     }
                 )
@@ -1053,17 +1270,28 @@ def clip_channels(
             continue
         if original_count is not None:
             item["frame_count"] = min(int(original_count), channel_limit)
-        if isinstance(item.get("shape"), list) and item["shape"] and original_count is not None:
+        if (
+            isinstance(item.get("shape"), list)
+            and item["shape"]
+            and original_count is not None
+        ):
             if int(item["shape"][0]) == int(original_count):
                 item["shape"][0] = min(int(item["shape"][0]), channel_limit)
         timebase = item.get("timebase")
         if isinstance(timebase, dict):
             original_timebase = deepcopy(timebase)
-            if timebase.get("start_frame") is not None and timebase.get("end_frame") is not None:
+            if (
+                timebase.get("start_frame") is not None
+                and timebase.get("end_frame") is not None
+            ):
                 start = min(max(int(timebase["start_frame"]), 0), channel_limit)
                 end = min(max(int(timebase["end_frame"]), start), channel_limit)
                 timebase["start_frame"], timebase["end_frame"] = start, end
-            if duration is not None and timebase.get("start_sec") is not None and timebase.get("end_sec") is not None:
+            if (
+                duration is not None
+                and timebase.get("start_sec") is not None
+                and timebase.get("end_sec") is not None
+            ):
                 start_sec = min(max(float(timebase["start_sec"]), 0.0), duration)
                 end_sec = min(max(float(timebase["end_sec"]), start_sec), duration)
                 timebase["start_sec"], timebase["end_sec"] = start_sec, end_sec

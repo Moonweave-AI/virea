@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-bootstrap"
+version = "0.4.0"
+description = "Machine detection and setup planning for VIREA."
+requires-python = ">=3.10"
+dependencies = [
+  "virea-contracts>=0.4.0",
+  "virea-core>=0.4.0",
+]
+
+[project.scripts]
+virea-doctor = "virea_bootstrap.doctor:main"
+
+[tool.uv.sources]
+virea-contracts = { workspace = true }
+virea-core = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

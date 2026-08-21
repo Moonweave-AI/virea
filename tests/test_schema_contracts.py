@@ -5,18 +5,49 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from _schema_validation import (
+    SCHEMA_FILENAMES,
+    load_schema_document,
+    validator_for_schema,
+)
 from jsonschema import Draft202012Validator, ValidationError
 
 from virea.data.annotations import cache_data_sidecar, make_annotation, make_channel
-
 
 SCHEMA_ROOT = Path(__file__).resolve().parents[1] / "schemas"
 
 
 def _validator(name: str) -> Draft202012Validator:
-    path = SCHEMA_ROOT / name
-    schema = json.loads(path.read_text(encoding="utf-8"))
-    return Draft202012Validator(schema)
+    return validator_for_schema(name, schema_root=SCHEMA_ROOT)
+
+
+def _walk_refs(value):  # noqa: ANN001, ANN202
+    if isinstance(value, dict):
+        if "$ref" in value:
+            yield value["$ref"]
+        for child in value.values():
+            yield from _walk_refs(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_refs(child)
+
+
+def test_schema_ids_and_cross_references_are_versioned_offline_resources() -> None:
+    documents = {
+        name: load_schema_document(name, schema_root=SCHEMA_ROOT)
+        for name in SCHEMA_FILENAMES
+    }
+    identifiers = {document["$id"] for document in documents.values()}
+    assert len(identifiers) == len(documents)
+    assert all(identifier.startswith("urn:virea:schema:") for identifier in identifiers)
+    assert all(
+        identifier.rsplit(":", 1)[-1].count(".") == 2 for identifier in identifiers
+    )
+    for name, document in documents.items():
+        validator_for_schema(name, schema_root=SCHEMA_ROOT)
+        for reference in _walk_refs(document):
+            base_reference = reference.split("#", 1)[0]
+            assert reference.startswith("#/") or base_reference in identifiers
 
 
 def test_annotation_json_schema_matches_runtime_pair_and_provenance_rules() -> None:
@@ -73,7 +104,9 @@ def test_channel_json_schema_matches_runtime_availability_rules() -> None:
     with pytest.raises(ValidationError):
         validator.validate(invalid_missing)
 
-    data_ref = cache_data_sidecar(b"{}", media_type="application/json", encoding="utf-8", suffix=".json")
+    data_ref = cache_data_sidecar(
+        b"{}", media_type="application/json", encoding="utf-8", suffix=".json"
+    )
     external = make_channel(
         dataset="motionx",
         sample_id="sample",
@@ -101,11 +134,20 @@ def test_channel_json_schema_matches_runtime_availability_rules() -> None:
 
 
 def test_canonical_artifact_sidecar_schema_rejects_traversal_and_backslashes() -> None:
-    schema = json.loads((SCHEMA_ROOT / "canonical_artifact.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads(
+        (SCHEMA_ROOT / "canonical_artifact.schema.json").read_text(encoding="utf-8")
+    )
     validator = Draft202012Validator(schema["$defs"]["dataReference"])
-    valid = cache_data_sidecar(b"canonical", media_type="application/octet-stream", encoding="binary")
+    valid = cache_data_sidecar(
+        b"canonical", media_type="application/octet-stream", encoding="binary"
+    )
     validator.validate(valid)
-    for bad_path in ("../outside.npy", "sidecars/../../outside.npy", r"sidecars\outside.npy", "C:/outside.npy"):
+    for bad_path in (
+        "../outside.npy",
+        "sidecars/../../outside.npy",
+        r"sidecars\outside.npy",
+        "C:/outside.npy",
+    ):
         invalid = deepcopy(valid)
         invalid["path"] = bad_path
         with pytest.raises(ValidationError):

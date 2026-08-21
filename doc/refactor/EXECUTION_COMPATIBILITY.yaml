@@ -1,0 +1,49 @@
+schema_version: virea.refactor_execution_compatibility.v1.0.0
+effective_date: '2026-08-20'
+status: accepted
+owner: '@Joker-of-Gotham'
+canonical_decision:
+  rfc: doc/rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md
+  adr: doc/adrs/0003-multi-package-isolated-model-runtimes.zh-CN.md
+reference_plan:
+  path: virea_refactor_package/VIREA_AGENT_EXECUTION_PLAN.yaml
+  authority: reference_only_where_not_overridden
+overrides:
+  - plan_decision: AD-006
+    disposition: rejected_for_new_0_3_paths
+    replacement: >-
+      New runtime, model-pool, result, registry, and readiness flows do not add
+      SHA-derived identities, checksum matrices, security codes, bearer-code
+      readiness checks, or equivalent process gates.
+    compatibility: >-
+      Existing canonical v3 artifact hash, tamper rejection, and replay behavior
+      remain backward compatible and are not removed.
+  - plan_rule: full_platform_and_model_check_matrix
+    disposition: replaced
+    replacement: >-
+      Run focused contract, fixture, and actually available hardware evidence;
+      untested platforms and models remain explicitly unverified.
+  - plan_rule: new_security_code_or_worker_bearer_readiness_gate
+    disposition: rejected
+    replacement: loopback_process_isolation_and_versioned_worker_protocol
+canonical_names:
+  apps:
+    api: apps/api
+    cli: apps/cli
+    web: apps/web
+  packages:
+    contracts: packages/contracts
+    core: packages/core
+    model_pool: packages/model_pool
+    model_sdk: packages/model_sdk
+    motion_ir: packages/motion_ir
+    runtime: packages/runtime
+  api_prefix: /api/v1
+  motion_ir_schema: virea.motion_ir.v2.0.0
+  worker_protocol: virea.worker_protocol.v1.0.0
+forbidden_parallel_aliases:
+  - apps/server
+  - packages/model-pool
+  - packages/model-sdk
+  - packages/motion-ir
+  - packages/worker_sdk

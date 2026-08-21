@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from functools import lru_cache
-import os
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from virea.motion.canonical import CORE_BONES, HAND_BONES, unpack_sequence
-from virea.motion.rotation import normalize_quat_xyzw, quat_apply_xyzw, quat_multiply_xyzw
+from virea.motion.rotation import (
+    normalize_quat_xyzw,
+    quat_apply_xyzw,
+    quat_multiply_xyzw,
+)
 
 CANONICAL_BODY_WITH_ROOT = [
     "hips",
@@ -90,6 +94,9 @@ CANONICAL_PARENT = {
     "rightLittleDistal": "rightLittleIntermediate",
 }
 
+CANONICAL_REST_ID = "virea_canonical_rest.v3"
+
+
 DEFAULT_REST_OFFSETS = {
     "spine": [0.0, 0.10, 0.0],
     "chest": [0.0, 0.12, 0.0],
@@ -113,35 +120,38 @@ DEFAULT_REST_OFFSETS = {
     "rightFoot": [0.0, -0.45, 0.03],
     "rightToes": [0.0, 0.0, 0.16],
     "leftThumbProximal": [0.05, -0.02, 0.03],
-    "leftThumbIntermediate": [0.04, 0.0, 0.02],
-    "leftThumbDistal": [0.03, 0.0, 0.02],
+    # The v2 hand is a normalized VRM T-pose contract.  Hand-to-proximal
+    # offsets locate knuckles in the palm; phalange offsets below define the
+    # neutral bone directions and must not bake a curled pose into identity.
+    "leftThumbIntermediate": [0.0316227766, 0.0, 0.0316227766],
+    "leftThumbDistal": [0.0254950976, 0.0, 0.0254950976],
     "leftIndexProximal": [0.06, 0.0, 0.04],
-    "leftIndexIntermediate": [0.04, 0.0, 0.02],
-    "leftIndexDistal": [0.03, 0.0, 0.02],
+    "leftIndexIntermediate": [0.0447213595, 0.0, 0.0],
+    "leftIndexDistal": [0.0360555128, 0.0, 0.0],
     "leftMiddleProximal": [0.065, 0.0, 0.015],
-    "leftMiddleIntermediate": [0.045, 0.0, 0.01],
-    "leftMiddleDistal": [0.035, 0.0, 0.01],
+    "leftMiddleIntermediate": [0.0460977223, 0.0, 0.0],
+    "leftMiddleDistal": [0.0364005494, 0.0, 0.0],
     "leftRingProximal": [0.06, 0.0, -0.01],
-    "leftRingIntermediate": [0.04, 0.0, -0.01],
-    "leftRingDistal": [0.03, 0.0, -0.01],
+    "leftRingIntermediate": [0.0412310563, 0.0, 0.0],
+    "leftRingDistal": [0.0316227766, 0.0, 0.0],
     "leftLittleProximal": [0.055, 0.0, -0.035],
-    "leftLittleIntermediate": [0.035, 0.0, -0.02],
-    "leftLittleDistal": [0.025, 0.0, -0.015],
+    "leftLittleIntermediate": [0.0403112887, 0.0, 0.0],
+    "leftLittleDistal": [0.0291547595, 0.0, 0.0],
     "rightThumbProximal": [-0.05, -0.02, 0.03],
-    "rightThumbIntermediate": [-0.04, 0.0, 0.02],
-    "rightThumbDistal": [-0.03, 0.0, 0.02],
+    "rightThumbIntermediate": [-0.0316227766, 0.0, 0.0316227766],
+    "rightThumbDistal": [-0.0254950976, 0.0, 0.0254950976],
     "rightIndexProximal": [-0.06, 0.0, 0.04],
-    "rightIndexIntermediate": [-0.04, 0.0, 0.02],
-    "rightIndexDistal": [-0.03, 0.0, 0.02],
+    "rightIndexIntermediate": [-0.0447213595, 0.0, 0.0],
+    "rightIndexDistal": [-0.0360555128, 0.0, 0.0],
     "rightMiddleProximal": [-0.065, 0.0, 0.015],
-    "rightMiddleIntermediate": [-0.045, 0.0, 0.01],
-    "rightMiddleDistal": [-0.035, 0.0, 0.01],
+    "rightMiddleIntermediate": [-0.0460977223, 0.0, 0.0],
+    "rightMiddleDistal": [-0.0364005494, 0.0, 0.0],
     "rightRingProximal": [-0.06, 0.0, -0.01],
-    "rightRingIntermediate": [-0.04, 0.0, -0.01],
-    "rightRingDistal": [-0.03, 0.0, -0.01],
+    "rightRingIntermediate": [-0.0412310563, 0.0, 0.0],
+    "rightRingDistal": [-0.0316227766, 0.0, 0.0],
     "rightLittleProximal": [-0.055, 0.0, -0.035],
-    "rightLittleIntermediate": [-0.035, 0.0, -0.02],
-    "rightLittleDistal": [-0.025, 0.0, -0.015],
+    "rightLittleIntermediate": [-0.0403112887, 0.0, 0.0],
+    "rightLittleDistal": [-0.0291547595, 0.0, 0.0],
 }
 
 BODY_SOURCE_REST_OFFSETS = {
@@ -174,10 +184,20 @@ FK_EDGES = [
 ]
 
 
-def merged_offsets(rest_offsets: Mapping[str, list[float] | np.ndarray] | None = None) -> dict[str, np.ndarray]:
-    offsets = {key: np.asarray(value, dtype=np.float32) for key, value in DEFAULT_REST_OFFSETS.items()}
+def merged_offsets(
+    rest_offsets: Mapping[str, list[float] | np.ndarray] | None = None,
+) -> dict[str, np.ndarray]:
+    offsets = {
+        key: np.asarray(value, dtype=np.float32)
+        for key, value in DEFAULT_REST_OFFSETS.items()
+    }
     if rest_offsets:
-        offsets.update({key: np.asarray(value, dtype=np.float32) for key, value in rest_offsets.items()})
+        offsets.update(
+            {
+                key: np.asarray(value, dtype=np.float32)
+                for key, value in rest_offsets.items()
+            }
+        )
     return offsets
 
 
@@ -192,9 +212,15 @@ def forward_kinematics(
     frame_count = int(np.asarray(root_translation).shape[0])
     # Canonical FK is intentionally independent from locally installed avatars.
     # A concrete VRM applies its own rest pose in the viewer/visual audit path.
-    offsets = merged_offsets(DEFAULT_REST_OFFSETS if rest_offsets is None else rest_offsets)
-    world_pos: dict[str, np.ndarray] = {"hips": np.asarray(root_translation, dtype=np.float32)}
-    world_rot: dict[str, np.ndarray] = {"hips": normalize_quat_xyzw(np.asarray(root_rotation_xyzw, dtype=np.float32))}
+    offsets = merged_offsets(
+        DEFAULT_REST_OFFSETS if rest_offsets is None else rest_offsets
+    )
+    world_pos: dict[str, np.ndarray] = {
+        "hips": np.asarray(root_translation, dtype=np.float32)
+    }
+    world_rot: dict[str, np.ndarray] = {
+        "hips": normalize_quat_xyzw(np.asarray(root_rotation_xyzw, dtype=np.float32))
+    }
 
     for bone in [*CORE_BONES, *HAND_BONES]:
         parent = CANONICAL_PARENT[bone]
@@ -242,7 +268,9 @@ def _default_vrm_model_root() -> Path:
 def vrm_control_rest_source() -> dict[str, Any]:
     descriptors = _inspect_vrm_descriptors()
     return {
-        "mode": "vrm_control_rest_template" if vrm_control_rest_available() else "default_rest_template",
+        "mode": "vrm_control_rest_template"
+        if vrm_control_rest_available()
+        else "default_rest_template",
         "source_token": "local_vrm_control" if descriptors else "canonical_default",
         "inspected_vrm_count": len(descriptors),
         "models": [
@@ -267,9 +295,15 @@ def _inspect_vrm_descriptors() -> tuple[dict[str, Any], ...]:
 
     descriptors: list[dict[str, Any]] = []
     try:
-        candidates = [root] if root.is_file() else [
-            path for path in root.iterdir() if path.is_file() and path.suffix.lower() == ".vrm"
-        ]
+        candidates = (
+            [root]
+            if root.is_file()
+            else [
+                path
+                for path in root.iterdir()
+                if path.is_file() and path.suffix.lower() == ".vrm"
+            ]
+        )
     except OSError:
         return ()
     for path in sorted(candidates):
@@ -292,8 +326,7 @@ def baseline_rest_world_positions() -> dict[str, np.ndarray]:
     root_rotation = np.zeros((1, 4), dtype=np.float32)
     root_rotation[:, 3] = 1.0
     local_quats = {
-        bone: _identity_quat_array(1, 1)[:, 0]
-        for bone in [*CORE_BONES, *HAND_BONES]
+        bone: _identity_quat_array(1, 1)[:, 0] for bone in [*CORE_BONES, *HAND_BONES]
     }
     positions = forward_kinematics(
         root_translation=root_translation,
@@ -302,14 +335,26 @@ def baseline_rest_world_positions() -> dict[str, np.ndarray]:
         rest_offsets=DEFAULT_REST_OFFSETS,
         joint_names=FK_BONES,
     )
-    return {bone: positions[0, index].astype(np.float32) for index, bone in enumerate(FK_BONES)}
+    return {
+        bone: positions[0, index].astype(np.float32)
+        for index, bone in enumerate(FK_BONES)
+    }
 
 
-def _solve_similarity_transform_np(source_points: np.ndarray, target_points: np.ndarray) -> dict[str, Any]:
+def _solve_similarity_transform_np(
+    source_points: np.ndarray, target_points: np.ndarray
+) -> dict[str, Any]:
     source = np.asarray(source_points, dtype=np.float64)
     target = np.asarray(target_points, dtype=np.float64)
-    if source.shape != target.shape or source.ndim != 2 or source.shape[0] < 3 or source.shape[1] != 3:
-        raise ValueError(f"expected matching point clouds with shape (N, 3), got {source.shape} and {target.shape}")
+    if (
+        source.shape != target.shape
+        or source.ndim != 2
+        or source.shape[0] < 3
+        or source.shape[1] != 3
+    ):
+        raise ValueError(
+            f"expected matching point clouds with shape (N, 3), got {source.shape} and {target.shape}"
+        )
     source_mean = source.mean(axis=0)
     target_mean = target.mean(axis=0)
     source_centered = source - source_mean
@@ -321,7 +366,11 @@ def _solve_similarity_transform_np(source_points: np.ndarray, target_points: np.
         correction[-1, -1] = -1.0
     rotation = u @ correction @ vt
     source_variance = float(np.mean(np.sum(source_centered * source_centered, axis=1)))
-    scale = 1.0 if source_variance < 1e-12 else float(np.sum(singular_values * np.diag(correction)) / source_variance)
+    scale = (
+        1.0
+        if source_variance < 1e-12
+        else float(np.sum(singular_values * np.diag(correction)) / source_variance)
+    )
     translation = target_mean - scale * (rotation @ source_mean)
     return {
         "scale": float(scale),
@@ -331,7 +380,9 @@ def _solve_similarity_transform_np(source_points: np.ndarray, target_points: np.
     }
 
 
-def _apply_similarity_transform_np(points: np.ndarray, transform: dict[str, Any]) -> np.ndarray:
+def _apply_similarity_transform_np(
+    points: np.ndarray, transform: dict[str, Any]
+) -> np.ndarray:
     pts = np.asarray(points, dtype=np.float64)
     rotation = np.asarray(transform["rotation_matrix"], dtype=np.float64)
     translation = np.asarray(transform["translation"], dtype=np.float64)
@@ -346,11 +397,19 @@ def control_rest_world_positions() -> dict[str, np.ndarray]:
 
     for descriptor in _inspect_vrm_descriptors():
         graph = descriptor.get("humanoid_bone_nodes") or {}
-        fit_bones = [bone for bone in CANONICAL_BODY_WITH_ROOT if bone in graph and bone in baseline]
+        fit_bones = [
+            bone
+            for bone in CANONICAL_BODY_WITH_ROOT
+            if bone in graph and bone in baseline
+        ]
         if len(fit_bones) < 3:
             continue
-        source_points = np.asarray([graph[bone]["world_position"] for bone in fit_bones], dtype=np.float64)
-        target_points = np.asarray([baseline[bone] for bone in fit_bones], dtype=np.float64)
+        source_points = np.asarray(
+            [graph[bone]["world_position"] for bone in fit_bones], dtype=np.float64
+        )
+        target_points = np.asarray(
+            [baseline[bone] for bone in fit_bones], dtype=np.float64
+        )
         try:
             transform = _solve_similarity_transform_np(source_points, target_points)
         except ValueError:
@@ -389,23 +448,34 @@ def control_rest_offsets() -> dict[str, list[float]]:
     offsets: dict[str, list[float]] = {}
     for bone in [*CORE_BONES, *HAND_BONES]:
         parent = CANONICAL_PARENT[bone]
-        parent_position = control_world["hips"] if parent == "hips" else control_world[parent]
+        parent_position = (
+            control_world["hips"] if parent == "hips" else control_world[parent]
+        )
         offsets[bone] = (
-            np.asarray(control_world[bone], dtype=np.float32)
-            - np.asarray(parent_position, dtype=np.float32)
-        ).astype(np.float32).tolist()
+            (
+                np.asarray(control_world[bone], dtype=np.float32)
+                - np.asarray(parent_position, dtype=np.float32)
+            )
+            .astype(np.float32)
+            .tolist()
+        )
     return offsets
 
 
 def target_rest_offset(bone_name: str) -> np.ndarray:
     return np.asarray(
-        control_rest_offsets().get(bone_name, DEFAULT_REST_OFFSETS.get(bone_name, [0.0, 0.0, 0.0])),
+        control_rest_offsets().get(
+            bone_name, DEFAULT_REST_OFFSETS.get(bone_name, [0.0, 0.0, 0.0])
+        ),
         dtype=np.float32,
     )
 
 
 def target_rest_offsets_map() -> dict[str, list[float]]:
-    offsets = {name: list(np.asarray(value, dtype=np.float32).tolist()) for name, value in DEFAULT_REST_OFFSETS.items()}
+    offsets = {
+        name: list(np.asarray(value, dtype=np.float32).tolist())
+        for name, value in DEFAULT_REST_OFFSETS.items()
+    }
     offsets.update(control_rest_offsets())
     return offsets
 
@@ -414,7 +484,9 @@ def vrm_control_rest_available() -> bool:
     return bool(_inspect_vrm_descriptors())
 
 
-def _direction_angle_deg(source_vector: np.ndarray, target_vector: np.ndarray) -> float | None:
+def _direction_angle_deg(
+    source_vector: np.ndarray, target_vector: np.ndarray
+) -> float | None:
     source = np.asarray(source_vector, dtype=np.float64)
     target = np.asarray(target_vector, dtype=np.float64)
     source_norm = float(np.linalg.norm(source))
@@ -433,7 +505,11 @@ def control_rest_alignment_audit() -> dict[str, Any]:
 
     for descriptor in descriptors:
         graph = descriptor.get("humanoid_bone_nodes") or {}
-        fit_bones = [bone for bone in CANONICAL_BODY_WITH_ROOT if bone in graph and bone in baseline]
+        fit_bones = [
+            bone
+            for bone in CANONICAL_BODY_WITH_ROOT
+            if bone in graph and bone in baseline
+        ]
         if len(fit_bones) < 3:
             descriptor_reports.append(
                 {
@@ -445,7 +521,9 @@ def control_rest_alignment_audit() -> dict[str, Any]:
             )
             continue
         transform = _solve_similarity_transform_np(
-            np.asarray([graph[bone]["world_position"] for bone in fit_bones], dtype=np.float64),
+            np.asarray(
+                [graph[bone]["world_position"] for bone in fit_bones], dtype=np.float64
+            ),
             np.asarray([baseline[bone] for bone in fit_bones], dtype=np.float64),
         )
         aligned: dict[str, np.ndarray] = {}
@@ -469,9 +547,16 @@ def control_rest_alignment_audit() -> dict[str, Any]:
         edge_angles = []
         for child in [*CORE_BONES, *HAND_BONES]:
             parent = CANONICAL_PARENT[child]
-            if child not in aligned or parent not in aligned or child not in control or parent not in control:
+            if (
+                child not in aligned
+                or parent not in aligned
+                or child not in control
+                or parent not in control
+            ):
                 continue
-            angle = _direction_angle_deg(aligned[child] - aligned[parent], control[child] - control[parent])
+            angle = _direction_angle_deg(
+                aligned[child] - aligned[parent], control[child] - control[parent]
+            )
             if angle is not None:
                 edge_angles.append(angle)
         descriptor_reports.append(
@@ -485,9 +570,13 @@ def control_rest_alignment_audit() -> dict[str, Any]:
                 "similarity_scale": float(transform["scale"]),
                 "similarity_determinant": float(transform["determinant"]),
                 "max_position_error_mm": round(max(position_errors, default=0.0), 6),
-                "mean_position_error_mm": round(float(np.mean(position_errors)) if position_errors else 0.0, 6),
+                "mean_position_error_mm": round(
+                    float(np.mean(position_errors)) if position_errors else 0.0, 6
+                ),
                 "max_edge_direction_error_deg": round(max(edge_angles, default=0.0), 6),
-                "mean_edge_direction_error_deg": round(float(np.mean(edge_angles)) if edge_angles else 0.0, 6),
+                "mean_edge_direction_error_deg": round(
+                    float(np.mean(edge_angles)) if edge_angles else 0.0, 6
+                ),
             }
         )
 
@@ -505,12 +594,16 @@ def control_rest_alignment_audit() -> dict[str, Any]:
         "source": vrm_control_rest_source(),
         "target_joint_count": len(CANONICAL_POSE_WITH_ROOT),
         "max_delta_from_default_template_mm": round(max(default_delta, default=0.0), 6),
-        "mean_delta_from_default_template_mm": round(float(np.mean(default_delta)) if default_delta else 0.0, 6),
+        "mean_delta_from_default_template_mm": round(
+            float(np.mean(default_delta)) if default_delta else 0.0, 6
+        ),
         "left_right_axis_passed": bool(float(left[0]) > float(right[0])),
         "head_above_hips_passed": bool(float(head[1] - hips[1]) > 0.20),
         "descriptors": descriptor_reports,
         "passed": bool(descriptors)
-        and all(item.get("status") in {"passed", "skipped"} for item in descriptor_reports)
+        and all(
+            item.get("status") in {"passed", "skipped"} for item in descriptor_reports
+        )
         and bool(float(left[0]) > float(right[0]))
         and bool(float(head[1] - hips[1]) > 0.20),
     }

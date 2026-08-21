@@ -105,7 +105,9 @@ def quat_from_two_vectors_xyzw(source: np.ndarray, target: np.ndarray) -> np.nda
         fallback[nearly_parallel] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         axis = np.cross(src, fallback, axis=-1)
         axis = axis / np.clip(np.linalg.norm(axis, axis=-1, keepdims=True), EPS, None)
-        opposite_quat = np.concatenate([axis, np.zeros((*axis.shape[:-1], 1), dtype=np.float32)], axis=-1)
+        opposite_quat = np.concatenate(
+            [axis, np.zeros((*axis.shape[:-1], 1), dtype=np.float32)], axis=-1
+        )
         quat[opposite] = opposite_quat[opposite]
     return normalize_quat_xyzw(quat)
 
@@ -144,7 +146,9 @@ def quat_apply_xyzw(quat: np.ndarray, vector: np.ndarray) -> np.ndarray:
     return np.matmul(matrix, np.expand_dims(vec, axis=-1)).squeeze(-1)
 
 
-def _orthonormal_axes_from_sixd(sixd: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _orthonormal_axes_from_sixd(
+    sixd: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     arr = np.asarray(sixd, dtype=np.float32)
     if arr.shape[-1:] != (6,):
         raise ValueError(f"6D rotations must end in 6 components, got {arr.shape}")
@@ -202,9 +206,18 @@ def matrix_to_quat_xyzw(matrix: np.ndarray) -> np.ndarray:
         q[positive, 2] = (m[positive, 1, 0] - m[positive, 0, 1]) / s
 
     not_positive = ~positive
-    cond_x = not_positive & (m[..., 0, 0] > m[..., 1, 1]) & (m[..., 0, 0] > m[..., 2, 2])
+    cond_x = (
+        not_positive & (m[..., 0, 0] > m[..., 1, 1]) & (m[..., 0, 0] > m[..., 2, 2])
+    )
     if np.any(cond_x):
-        s = np.sqrt(np.clip(1.0 + m[cond_x, 0, 0] - m[cond_x, 1, 1] - m[cond_x, 2, 2], EPS, None)) * 2.0
+        s = (
+            np.sqrt(
+                np.clip(
+                    1.0 + m[cond_x, 0, 0] - m[cond_x, 1, 1] - m[cond_x, 2, 2], EPS, None
+                )
+            )
+            * 2.0
+        )
         q[cond_x, 3] = (m[cond_x, 2, 1] - m[cond_x, 1, 2]) / s
         q[cond_x, 0] = 0.25 * s
         q[cond_x, 1] = (m[cond_x, 0, 1] + m[cond_x, 1, 0]) / s
@@ -212,7 +225,14 @@ def matrix_to_quat_xyzw(matrix: np.ndarray) -> np.ndarray:
 
     cond_y = not_positive & ~cond_x & (m[..., 1, 1] > m[..., 2, 2])
     if np.any(cond_y):
-        s = np.sqrt(np.clip(1.0 + m[cond_y, 1, 1] - m[cond_y, 0, 0] - m[cond_y, 2, 2], EPS, None)) * 2.0
+        s = (
+            np.sqrt(
+                np.clip(
+                    1.0 + m[cond_y, 1, 1] - m[cond_y, 0, 0] - m[cond_y, 2, 2], EPS, None
+                )
+            )
+            * 2.0
+        )
         q[cond_y, 3] = (m[cond_y, 0, 2] - m[cond_y, 2, 0]) / s
         q[cond_y, 0] = (m[cond_y, 0, 1] + m[cond_y, 1, 0]) / s
         q[cond_y, 1] = 0.25 * s
@@ -220,7 +240,14 @@ def matrix_to_quat_xyzw(matrix: np.ndarray) -> np.ndarray:
 
     cond_z = not_positive & ~cond_x & ~cond_y
     if np.any(cond_z):
-        s = np.sqrt(np.clip(1.0 + m[cond_z, 2, 2] - m[cond_z, 0, 0] - m[cond_z, 1, 1], EPS, None)) * 2.0
+        s = (
+            np.sqrt(
+                np.clip(
+                    1.0 + m[cond_z, 2, 2] - m[cond_z, 0, 0] - m[cond_z, 1, 1], EPS, None
+                )
+            )
+            * 2.0
+        )
         q[cond_z, 3] = (m[cond_z, 1, 0] - m[cond_z, 0, 1]) / s
         q[cond_z, 0] = (m[cond_z, 0, 2] + m[cond_z, 2, 0]) / s
         q[cond_z, 1] = (m[cond_z, 1, 2] + m[cond_z, 2, 1]) / s

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:representation_profile:1.0.0",
+  "title": "VIREA RepresentationProfile v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "kind",
+    "skeleton_id",
+    "dtype",
+    "frame_shape",
+    "root_translation_semantics",
+    "root_rotation_semantics",
+    "coordinate_system_id",
+    "units"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.representation_profile.v1.0.0" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+(?:[.-][a-z0-9_]+)*$"
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "minLength": 1 },
+    "skeleton_id": { "type": "string", "minLength": 1 },
+    "dtype": { "type": "string", "minLength": 1 },
+    "frame_shape": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "type": "integer", "minimum": 1 },
+          { "type": "string", "minLength": 1 }
+        ]
+      }
+    },
+    "rotation_representation": { "type": ["string", "null"] },
+    "rotation_layout": { "type": ["string", "null"] },
+    "rotation_space": { "type": ["string", "null"] },
+    "root_translation_semantics": { "type": "string", "minLength": 1 },
+    "root_rotation_semantics": { "type": "string", "minLength": 1 },
+    "coordinate_system_id": { "type": "string", "minLength": 1 },
+    "units": { "type": "string", "minLength": 1 },
+    "fps": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "timebase": { "$ref": "#/$defs/nullable_timebase" },
+    "source_urls": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "validation_status": {
+      "enum": ["draft", "source_verified", "regression_verified", "release_ready"],
+      "default": "draft"
+    }
+  },
+  "$defs": {
+    "nullable_timebase": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

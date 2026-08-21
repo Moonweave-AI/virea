@@ -6,13 +6,15 @@
 
 # VIREA Showcase
 
-### Canonical v3 retargeting results across seven motion sources
+### Canonical v3 inventory across seven sources; all twenty-eight retargeted GIFs
 
-Each dataset presents four distinct data entries, all rendered as full-body overview showing the VRM's overall posture.
+The v3 inventory records four distinct entries per dataset. All seven groups are embedded. AMASS, BABEL, GRAB and
+HumanML3D are displayed by explicit repository-owner direction while upstream publication permission remains unverified;
+their inclusion is not a claim that those rights were granted.
 
 </div>
 
-The gallery shows modified retargeted motion on **"Unnamed Character 6" by Reira**. Source motion was coordinate-normalized, converted to VIREA canonical v3, transferred to the VRM humanoid, and rendered in a whole-body view. Neither source datasets nor the `.vrm` model are distributed here. All twenty-eight GIFs (four per dataset × seven datasets) are listed with exact provenance and SHA-256 values in the [media manifest](media/manifest.json).
+The gallery shows modified retargeted motion on **"Unnamed Character 6" by Reira**. Source motion was coordinate-normalized, converted to VIREA canonical v3, transferred to the VRM humanoid, and rendered in a whole-body view. Neither source datasets nor the `.vrm` model are distributed here. The [v3 media manifest](media/manifest.json) inventories twenty-eight files; the public Markdown allowlist covers those exact renderings and is checked without a content-hash gate.
 
 ---
 
@@ -69,14 +71,17 @@ SuSuInterActs © 2026 **Shandong SentiPulse Technology Development Co., Ltd.** i
 
 ## AMASS
 
+> **Permission boundary:** displayed by explicit repository-owner direction on 2026-08-21. Upstream publication
+> permission has not been verified; the AMASS terms remain controlling.
+
 <table>
   <tr>
-    <td width="50%" align="center"><img src="media/amass/hero.gif" width="100%" alt="AMASS stand to skip — full-body overview"><br><sub><strong>Stand to skip</strong></sub></td>
+    <td width="50%" align="center"><img src="media/amass/hero.gif" width="100%" alt="AMASS stand-to-skip motion — full-body overview"><br><sub><strong>Stand to skip</strong></sub></td>
     <td width="50%" align="center"><img src="media/amass/hands.gif" width="100%" alt="AMASS upper-body swing — full-body overview"><br><sub><strong>Upper-body swing</strong></sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="media/amass/feet.gif" width="100%" alt="AMASS lie to crouch — full-body overview"><br><sub><strong>Lie to crouch</strong></sub></td>
-    <td width="50%" align="center"><img src="media/amass/facing.gif" width="100%" alt="AMASS crawl forward — full-body overview"><br><sub><strong>Crawl forward</strong></sub></td>
+    <td width="50%" align="center"><img src="media/amass/feet.gif" width="100%" alt="AMASS lie-to-crouch motion — full-body overview"><br><sub><strong>Lie to crouch</strong></sub></td>
+    <td width="50%" align="center"><img src="media/amass/facing.gif" width="100%" alt="AMASS crawl-forward motion — full-body overview"><br><sub><strong>Crawl forward</strong></sub></td>
   </tr>
 </table>
 
@@ -86,14 +91,17 @@ AMASS © Max Planck Gesellschaft. [License terms](https://amass.is.tue.mpg.de/li
 
 ## BABEL
 
+> **Permission boundary:** displayed by explicit repository-owner direction on 2026-08-21. Upstream publication
+> permission has not been verified; the BABEL and carrier-dataset terms remain controlling.
+
 <table>
   <tr>
-    <td width="50%" align="center"><img src="media/babel/hero.gif" width="100%" alt="BABEL walk cycle — full-body overview"><br><sub><strong>Walk cycle</strong></sub></td>
-    <td width="50%" align="center"><img src="media/babel/hands.gif" width="100%" alt="BABEL urban gestures — full-body overview"><br><sub><strong>Urban gestures</strong></sub></td>
+    <td width="50%" align="center"><img src="media/babel/hero.gif" width="100%" alt="BABEL walk-cycle motion — full-body overview"><br><sub><strong>Walk cycle</strong></sub></td>
+    <td width="50%" align="center"><img src="media/babel/hands.gif" width="100%" alt="BABEL urban-gesture motion — full-body overview"><br><sub><strong>Urban gestures</strong></sub></td>
   </tr>
   <tr>
     <td width="50%" align="center"><img src="media/babel/feet.gif" width="100%" alt="BABEL run motion — full-body overview"><br><sub><strong>Run motion</strong></sub></td>
-    <td width="50%" align="center"><img src="media/babel/facing.gif" width="100%" alt="BABEL walk to stand — full-body overview"><br><sub><strong>Walk to stand</strong></sub></td>
+    <td width="50%" align="center"><img src="media/babel/facing.gif" width="100%" alt="BABEL walk-to-stand motion — full-body overview"><br><sub><strong>Walk to stand</strong></sub></td>
   </tr>
 </table>
 
@@ -103,14 +111,17 @@ BABEL © Max Planck Gesellschaft. [License terms](https://babel.is.tue.mpg.de/li
 
 ## GRAB
 
+> **Permission boundary:** displayed by explicit repository-owner direction on 2026-08-21. Upstream publication
+> permission has not been verified; the GRAB terms remain controlling.
+
 <table>
   <tr>
-    <td width="50%" align="center"><img src="media/grab/hero.gif" width="100%" alt="GRAB airplane fly — full-body overview"><br><sub><strong>Airplane fly</strong></sub></td>
-    <td width="50%" align="center"><img src="media/grab/hands.gif" width="100%" alt="GRAB airplane lift — full-body overview"><br><sub><strong>Airplane lift</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/hero.gif" width="100%" alt="GRAB airplane-fly interaction — full-body overview"><br><sub><strong>Airplane fly</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/hands.gif" width="100%" alt="GRAB airplane-lift interaction — full-body overview"><br><sub><strong>Airplane lift</strong></sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="media/grab/feet.gif" width="100%" alt="GRAB airplane off-hand — full-body overview"><br><sub><strong>Airplane off-hand</strong></sub></td>
-    <td width="50%" align="center"><img src="media/grab/facing.gif" width="100%" alt="GRAB airplane pass — full-body overview"><br><sub><strong>Airplane pass</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/feet.gif" width="100%" alt="GRAB airplane off-hand interaction — full-body overview"><br><sub><strong>Airplane off-hand</strong></sub></td>
+    <td width="50%" align="center"><img src="media/grab/facing.gif" width="100%" alt="GRAB airplane-pass interaction — full-body overview"><br><sub><strong>Airplane pass</strong></sub></td>
   </tr>
 </table>
 
@@ -120,13 +131,16 @@ GRAB © Max Planck Gesellschaft. [License terms](https://grab.is.tue.mpg.de/lice
 
 ## HumanML3D
 
+> **Permission boundary:** displayed by explicit repository-owner direction on 2026-08-21. Publication permission for
+> the AMASS-carried source motion has not been verified; HumanML3D and source-dataset terms remain controlling.
+
 <table>
   <tr>
-    <td width="50%" align="center"><img src="media/humanml3d/hero.gif" width="100%" alt="HumanML3D sample 0 — full-body overview"><br><sub><strong>Text-motion sample 0</strong></sub></td>
-    <td width="50%" align="center"><img src="media/humanml3d/hands.gif" width="100%" alt="HumanML3D sample 3 — full-body overview"><br><sub><strong>Text-motion sample 3</strong></sub></td>
+    <td width="50%" align="center"><img src="media/humanml3d/hero.gif" width="100%" alt="HumanML3D text-motion sample 0 — full-body overview"><br><sub><strong>Text-motion sample 0</strong></sub></td>
+    <td width="50%" align="center"><img src="media/humanml3d/hands.gif" width="100%" alt="HumanML3D text-motion sample 3 — full-body overview"><br><sub><strong>Text-motion sample 3</strong></sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="media/humanml3d/feet.gif" width="100%" alt="HumanML3D sample 4 — full-body overview"><br><sub><strong>Text-motion sample 4</strong></sub></td>
+    <td width="50%" align="center"><img src="media/humanml3d/feet.gif" width="100%" alt="HumanML3D text-motion sample 4 — full-body overview"><br><sub><strong>Text-motion sample 4</strong></sub></td>
     <td width="50%" align="center"><img src="media/humanml3d/facing.gif" width="100%" alt="HumanML3D turning sample 7 — full-body overview"><br><sub><strong>Turning sample 7</strong></sub></td>
   </tr>
 </table>
@@ -155,13 +169,13 @@ type: eval-report
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
-updated: 2026-08-10
-last_reviewed: 2026-08-10
+updated: 2026-08-21
+last_reviewed: 2026-08-21
 review_cycle_days: 30
 title: VIREA Showcase — canonical v3 retargeting results
 audience: Researchers, motion engineers, dataset users, and reviewers
 visibility: Public
-summary: 七个数据集在指定 VRM Avatar 上的 canonical v3 重定向结果，含公开与待许可两类。
+summary: 七个数据集在指定 VRM Avatar 上的 canonical v3 重定向结果；28 个 GIF 全部展示，四组明确标注许可未核实边界。
 canonical: doc/showcase/README.md
 related:
   - ../../README.md

@@ -1,0 +1,82 @@
+schema_version: virea.registry_index.v1.0.0
+snapshot_date: '2026-08-22'
+naming:
+  schema_ids: dotted_snake_case
+  python_paths: underscore
+  registry_files: lowercase_kebab_case
+contracts:
+  v1:
+    - packages/contracts/schemas/v1/machine_report.schema.json
+    - packages/contracts/schemas/v1/model_definition.schema.json
+    - packages/contracts/schemas/v1/runtime_spec.schema.json
+    - packages/contracts/schemas/v1/model_result.schema.json
+    - packages/contracts/schemas/v1/skeleton_profile.schema.json
+    - packages/contracts/schemas/v1/representation_profile.schema.json
+    - packages/contracts/schemas/v1/job_request.schema.json
+    - packages/contracts/schemas/v1/worker_protocol.schema.json
+    - packages/contracts/schemas/v1/vrm_motion_result.schema.json
+    - packages/contracts/schemas/v1/production_browser_observation.schema.json
+    - packages/contracts/schemas/v1/production_e2e_evidence.schema.json
+  v2:
+    - packages/contracts/schemas/v2/motion_ir.schema.json
+registries:
+  evidence:
+    - registries/evidence/production-e2e.v1.yaml
+  platforms:
+    - registries/platforms/execution-targets.v1.yaml
+  models:
+    - registries/models/motion-model-registry.v1.0.0.yaml
+  skeletons:
+    - registries/skeletons/vrm1-required15.v1.yaml
+    - registries/skeletons/vrm1-body22.v1.yaml
+    - registries/skeletons/vrm1-humanoid52.v1.yaml
+    - registries/skeletons/vrm1-full55.v1.yaml
+    - registries/skeletons/humanml3d-body22.v1.yaml
+    - registries/skeletons/motionx-smplx53.v1.yaml
+    - registries/skeletons/susu-body25-hands40.v1.yaml
+    - registries/skeletons/interhuman-actor22.v1.yaml
+    - registries/skeletons/smplx-body22.v1.yaml
+    - registries/skeletons/smplh-body22.v1.yaml
+    - registries/skeletons/hy-motion-wooden-body22.v1.yaml
+  representations:
+    - registries/representations/canonical211-v3.yaml
+    - registries/representations/humanml3d-positions22.v1.yaml
+    - registries/representations/humanml3d-vector263.v1.yaml
+    - registries/representations/motionx-smplx322.v1.yaml
+    - registries/representations/susu-body25-hands40.v1.yaml
+    - registries/representations/interhuman-two-actor22.v1.yaml
+    - registries/representations/fake-root-translation.v1.yaml
+    - registries/representations/mardm-ric67.v1.yaml
+    - registries/representations/hy-motion-body22.v1.yaml
+    - registries/representations/hy-motion-latent201.v1.yaml
+    - registries/representations/dart-smplx-primitives.v1.yaml
+    - registries/representations/dart-smplx-body22.v1.yaml
+    - registries/representations/interhuman-position-velocity132.v1.yaml
+    - registries/representations/interhuman-motion262.v1.yaml
+    - registries/representations/smplx-expression50.v1.yaml
+    - registries/representations/arkit-blendshape51.v1.yaml
+    - registries/representations/prism-smplh-body22-axis-angle69.v1.yaml
+  runtimes:
+    - registries/runtimes/fake-runtime-v1.yaml
+    - registries/runtimes/flood-diffusion-tiny-cu128.yaml
+    - registries/runtimes/flood-diffusion-tiny-cpu.yaml
+    - registries/runtimes/mardm-humanml3d-cu128.yaml
+    - registries/runtimes/mardm-humanml3d-cpu.yaml
+    - registries/runtimes/momadiff-humanml3d-cu128.yaml
+    - registries/runtimes/momadiff-humanml3d-cpu.yaml
+    - registries/runtimes/acmdm-humanml3d-cu128.yaml
+    - registries/runtimes/acmdm-humanml3d-cpu.yaml
+    - registries/runtimes/cmdm-humanml3d-cu128.yaml
+    - registries/runtimes/cmdm-humanml3d-cpu.yaml
+    - registries/runtimes/prism-tp2m-1-4b-cu128-component-split.yaml
+    - registries/runtimes/prism-tp2m-1-4b-cpu.yaml
+  bundles: []
+legacy_registries:
+  datasets: registries/datasets.yaml
+  licenses: registries/licenses.yaml
+  citations: registries/citations.yaml
+invariants:
+  registration_is_not_implementation: true
+  managed_models_require_explicit_profiles: true
+  new_path_content_identity_is_not_a_readiness_gate: true
+  legacy_canonical_v3_integrity_compatibility: true

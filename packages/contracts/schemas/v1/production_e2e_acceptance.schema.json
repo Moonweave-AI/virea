@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:production_e2e_acceptance:1.0.0",
+  "title": "VIREA ProductionE2EAcceptance v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "request",
+    "expected",
+    "required_stages",
+    "timeout_seconds"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "virea.production_e2e_acceptance.v1.0.0"
+    },
+    "kind": { "const": "production_e2e" },
+    "request": { "$ref": "#/$defs/jobRequest" },
+    "expected": { "$ref": "#/$defs/expectation" },
+    "required_stages": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "environment_detection",
+          "artifact_installation",
+          "runtime_build",
+          "model_load",
+          "inference",
+          "native_artifact_validation",
+          "motion_ir_conversion",
+          "retarget_validation",
+          "vrma_export",
+          "web_playback"
+        ]
+      }
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 7200
+    }
+  },
+  "$defs": {
+    "jobRequest": {
+      "type": "object",
+      "required": ["schema_version", "model_id", "task"],
+      "properties": {
+        "schema_version": { "const": "virea.job_request.v1.0.0" },
+        "model_id": { "type": "string", "minLength": 1 },
+        "task": { "type": "string", "minLength": 1 },
+        "input": { "type": "object", "default": {} },
+        "parameters": { "type": "object", "default": {} },
+        "avatar_id": { "type": ["string", "null"] },
+        "idempotency_key": { "type": ["string", "null"] },
+        "execution_target": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["schema_version", "execution_domain_id"],
+              "properties": {
+                "schema_version": { "const": "virea.execution_target_selection.v1.0.0" },
+                "execution_domain_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+                "runtime_variant_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 },
+                "resource_profile_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "expectation": {
+      "type": "object",
+      "required": [
+        "representation_id",
+        "skeleton_id",
+        "min_frames",
+        "artifacts"
+      ],
+      "properties": {
+        "representation_id": { "type": "string", "minLength": 1 },
+        "skeleton_id": { "type": "string", "minLength": 1 },
+        "min_frames": { "type": "integer", "minimum": 1 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "native_motion",
+              "motion_ir",
+              "retargeted_motion",
+              "vrma"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

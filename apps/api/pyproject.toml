@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-api"
+version = "0.4.0"
+description = "Local VIREA control-plane API."
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "numpy>=1.26",
+  "uvicorn>=0.27",
+  "virea>=0.4.0",
+  "virea-bootstrap>=0.4.0",
+  "virea-compatibility>=0.4.0",
+  "virea-contracts>=0.4.0",
+  "virea-core>=0.4.0",
+  "virea-model-pool>=0.4.0",
+  "virea-motion-ir>=0.4.0",
+  "virea-runtime>=0.4.0",
+  "virea-retarget>=0.4.0",
+  "virea-vrm>=0.4.0",
+  "virea-observability>=0.4.0",
+]
+
+[tool.uv.sources]
+virea = { workspace = true }
+virea-bootstrap = { workspace = true }
+virea-compatibility = { workspace = true }
+virea-contracts = { workspace = true }
+virea-core = { workspace = true }
+virea-model-pool = { workspace = true }
+virea-motion-ir = { workspace = true }
+virea-runtime = { workspace = true }
+virea-retarget = { workspace = true }
+virea-vrm = { workspace = true }
+virea-observability = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]

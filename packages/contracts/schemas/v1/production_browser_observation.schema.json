@@ -1,0 +1,941 @@
+{
+  "$defs": {
+    "AvatarEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "usage_basis": {
+          "title": "Usage Basis",
+          "type": "string"
+        },
+        "redistributed": {
+          "const": false,
+          "default": false,
+          "title": "Redistributed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "filename",
+        "usage_basis"
+      ],
+      "title": "AvatarEvidence",
+      "type": "object"
+    },
+    "BrowserApplicationJavascriptHttpGetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "url_path": {
+          "pattern": "^/app/assets/index-[A-Za-z0-9_-]+\\.js$",
+          "title": "Url Path",
+          "type": "string"
+        },
+        "method": {
+          "const": "GET",
+          "title": "Method",
+          "type": "string"
+        },
+        "status": {
+          "const": 200,
+          "title": "Status",
+          "type": "integer"
+        },
+        "body_byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Body Byte Length",
+          "type": "integer"
+        },
+        "content_length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Length"
+        },
+        "unique_request_count": {
+          "const": 1,
+          "title": "Unique Request Count",
+          "type": "integer"
+        },
+        "unique_response_count": {
+          "const": 1,
+          "title": "Unique Response Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "url_path",
+        "method",
+        "status",
+        "body_byte_length",
+        "content_length",
+        "unique_request_count",
+        "unique_response_count"
+      ],
+      "title": "BrowserApplicationJavascriptHttpGetObservation",
+      "type": "object"
+    },
+    "BrowserApplicationObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "application_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Application Version",
+          "type": "string"
+        },
+        "visible_version_label": {
+          "title": "Visible Version Label",
+          "type": "string"
+        },
+        "javascript": {
+          "$ref": "#/$defs/BrowserApplicationJavascriptHttpGetObservation"
+        }
+      },
+      "required": [
+        "application_version",
+        "visible_version_label",
+        "javascript"
+      ],
+      "title": "BrowserApplicationObservation",
+      "type": "object"
+    },
+    "BrowserConsoleObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Errors",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Warnings",
+          "type": "array"
+        },
+        "page_errors": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Page Errors",
+          "type": "array"
+        },
+        "request_failures": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Request Failures",
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors",
+        "warnings",
+        "page_errors",
+        "request_failures"
+      ],
+      "title": "BrowserConsoleObservation",
+      "type": "object"
+    },
+    "BrowserEvidenceProducer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "virea.production_browser_e2e_runner",
+          "default": "virea.production_browser_e2e_runner",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Version",
+          "type": "string"
+        },
+        "capture_mode": {
+          "const": "out_of_process_browser_automation",
+          "default": "out_of_process_browser_automation",
+          "title": "Capture Mode",
+          "type": "string"
+        },
+        "client_self_report_accepted": {
+          "const": false,
+          "default": false,
+          "title": "Client Self Report Accepted",
+          "type": "boolean"
+        }
+      },
+      "title": "BrowserEvidenceProducer",
+      "type": "object"
+    },
+    "BrowserJobBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "state": {
+          "const": "SUCCEEDED",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "title": "BrowserJobBinding",
+      "type": "object"
+    },
+    "BrowserModelBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "plugin_version": {
+          "title": "Plugin Version",
+          "type": "string"
+        },
+        "upstream_revision": {
+          "title": "Upstream Revision",
+          "type": "string"
+        },
+        "runtime_id": {
+          "title": "Runtime Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "plugin_version",
+        "upstream_revision",
+        "runtime_id"
+      ],
+      "title": "BrowserModelBinding",
+      "type": "object"
+    },
+    "BrowserResultBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "result_id": {
+          "title": "Result Id",
+          "type": "string"
+        },
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "title": "Model Version",
+          "type": "string"
+        },
+        "runtime_variant_id": {
+          "title": "Runtime Variant Id",
+          "type": "string"
+        },
+        "checkpoint_revision": {
+          "title": "Checkpoint Revision",
+          "type": "string"
+        },
+        "native_representation_id": {
+          "title": "Native Representation Id",
+          "type": "string"
+        },
+        "native_skeleton_id": {
+          "title": "Native Skeleton Id",
+          "type": "string"
+        },
+        "target_representation_id": {
+          "title": "Target Representation Id",
+          "type": "string"
+        },
+        "target_skeleton_id": {
+          "title": "Target Skeleton Id",
+          "type": "string"
+        },
+        "resource_profile_id": {
+          "title": "Resource Profile Id",
+          "type": "string"
+        },
+        "memory_strategy": {
+          "$ref": "#/$defs/MemoryStrategy"
+        },
+        "device": {
+          "title": "Device",
+          "type": "string"
+        },
+        "frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Frame Count",
+          "type": "integer"
+        },
+        "vrma": {
+          "$ref": "#/$defs/BrowserVrmaBinding"
+        }
+      },
+      "required": [
+        "result_id",
+        "job_id",
+        "model_id",
+        "model_version",
+        "runtime_variant_id",
+        "checkpoint_revision",
+        "native_representation_id",
+        "native_skeleton_id",
+        "target_representation_id",
+        "target_skeleton_id",
+        "resource_profile_id",
+        "memory_strategy",
+        "device",
+        "frame_count",
+        "vrma"
+      ],
+      "title": "BrowserResultBinding",
+      "type": "object"
+    },
+    "BrowserRuntimeObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "user_agent": {
+          "title": "User Agent",
+          "type": "string"
+        },
+        "headless": {
+          "title": "Headless",
+          "type": "boolean"
+        },
+        "viewport": {
+          "$ref": "#/$defs/BrowserViewport"
+        },
+        "webgl": {
+          "$ref": "#/$defs/BrowserWebGLObservation"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "user_agent",
+        "headless",
+        "viewport",
+        "webgl"
+      ],
+      "title": "BrowserRuntimeObservation",
+      "type": "object"
+    },
+    "BrowserViewport": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "device_scale_factor": {
+          "exclusiveMinimum": 0,
+          "title": "Device Scale Factor",
+          "type": "number"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "device_scale_factor"
+      ],
+      "title": "BrowserViewport",
+      "type": "object"
+    },
+    "BrowserVrmaHttpGetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "url_path": {
+          "title": "Url Path",
+          "type": "string"
+        },
+        "method": {
+          "const": "GET",
+          "title": "Method",
+          "type": "string"
+        },
+        "status": {
+          "const": 200,
+          "title": "Status",
+          "type": "integer"
+        },
+        "body_byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Body Byte Length",
+          "type": "integer"
+        },
+        "content_length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Length"
+        },
+        "unique_request_count": {
+          "const": 1,
+          "title": "Unique Request Count",
+          "type": "integer"
+        },
+        "unique_response_count": {
+          "const": 1,
+          "title": "Unique Response Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "url_path",
+        "method",
+        "status",
+        "body_byte_length",
+        "content_length",
+        "unique_request_count",
+        "unique_response_count"
+      ],
+      "title": "BrowserVrmaHttpGetObservation",
+      "type": "object"
+    },
+    "BrowserVrmaBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "http_get": {
+          "$ref": "#/$defs/BrowserVrmaHttpGetObservation"
+        }
+      },
+      "required": [
+        "actor_id",
+        "locator",
+        "byte_length",
+        "http_get"
+      ],
+      "title": "BrowserVrmaBinding",
+      "type": "object"
+    },
+    "BrowserWebGLObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "enum": [
+            "webgl",
+            "webgl2"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "vendor": {
+          "title": "Vendor",
+          "type": "string"
+        },
+        "renderer": {
+          "title": "Renderer",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "shading_language_version": {
+          "title": "Shading Language Version",
+          "type": "string"
+        },
+        "context_lost": {
+          "const": false,
+          "default": false,
+          "title": "Context Lost",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "context",
+        "vendor",
+        "renderer",
+        "version",
+        "shading_language_version"
+      ],
+      "title": "BrowserWebGLObservation",
+      "type": "object"
+    },
+    "CanvasPlaybackObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "css_width": {
+          "exclusiveMinimum": 0,
+          "title": "Css Width",
+          "type": "number"
+        },
+        "css_height": {
+          "exclusiveMinimum": 0,
+          "title": "Css Height",
+          "type": "number"
+        },
+        "backing_width": {
+          "exclusiveMinimum": 0,
+          "title": "Backing Width",
+          "type": "integer"
+        },
+        "backing_height": {
+          "exclusiveMinimum": 0,
+          "title": "Backing Height",
+          "type": "integer"
+        },
+        "render_frame_count": {
+          "minimum": 2,
+          "title": "Render Frame Count",
+          "type": "integer"
+        },
+        "render_calls": {
+          "minimum": 1,
+          "title": "Render Calls",
+          "type": "integer"
+        },
+        "render_triangles": {
+          "minimum": 1,
+          "title": "Render Triangles",
+          "type": "integer"
+        },
+        "fully_visible": {
+          "const": true,
+          "title": "Fully Visible",
+          "type": "boolean"
+        },
+        "projected_bounds": {
+          "$ref": "#/$defs/ProjectedAvatarBounds"
+        }
+      },
+      "required": [
+        "css_width",
+        "css_height",
+        "backing_width",
+        "backing_height",
+        "render_frame_count",
+        "render_calls",
+        "render_triangles",
+        "fully_visible",
+        "projected_bounds"
+      ],
+      "title": "CanvasPlaybackObservation",
+      "type": "object"
+    },
+    "EvidenceScreenshot": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "job_result",
+            "viewer",
+            "canvas"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "locator",
+        "byte_length"
+      ],
+      "title": "EvidenceScreenshot",
+      "type": "object"
+    },
+    "ExecutionTargetSelection": {
+      "additionalProperties": false,
+      "description": "One user-selected execution domain with optional advanced overrides.\n\nThe canonical domain id is the public selector.  Kind, platform and WSL\ndistribution remain properties of the independently detected\n:class:`ExecutionDomainReport`; accepting those fields again here would\ncreate two potentially conflicting identities for the same target.",
+      "properties": {
+        "schema_version": {
+          "const": "virea.execution_target_selection.v1.0.0",
+          "default": "virea.execution_target_selection.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "execution_domain_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Execution Domain Id",
+          "type": "string"
+        },
+        "runtime_variant_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Variant Id"
+        },
+        "resource_profile_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Profile Id"
+        }
+      },
+      "required": [
+        "execution_domain_id"
+      ],
+      "title": "ExecutionTargetSelection",
+      "type": "object"
+    },
+    "JobRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.job_request.v1.0.0",
+          "default": "virea.job_request.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "avatar_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar Id"
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "execution_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionTargetSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "model_id",
+        "task"
+      ],
+      "title": "JobRequest",
+      "type": "object"
+    },
+    "MemoryStrategy": {
+      "description": "Worker execution strategies with materially different memory placement.\n\nDeclaring an offload strategy is a runtime capability claim.  The control\nplane never infers it from spare system RAM, and a Worker must implement\nthe selected strategy before its RuntimeSpec may advertise it.",
+      "enum": [
+        "cuda_full",
+        "cuda_component_split",
+        "cuda_cpu_offload",
+        "cuda_sequential_cpu_offload",
+        "rocm_full",
+        "mps_full",
+        "cpu"
+      ],
+      "title": "MemoryStrategy",
+      "type": "string"
+    },
+    "PlaybackObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "viewer_telemetry_version": {
+          "const": "virea.viewer_telemetry.v1.0.0",
+          "title": "Viewer Telemetry Version",
+          "type": "string"
+        },
+        "state": {
+          "const": "playing",
+          "title": "State",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "mixer_time_before_seconds": {
+          "minimum": 0,
+          "title": "Mixer Time Before Seconds",
+          "type": "number"
+        },
+        "mixer_time_after_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Mixer Time After Seconds",
+          "type": "number"
+        },
+        "observed_interval_ms": {
+          "minimum": 250,
+          "title": "Observed Interval Ms",
+          "type": "integer"
+        },
+        "canvas": {
+          "$ref": "#/$defs/CanvasPlaybackObservation"
+        }
+      },
+      "required": [
+        "viewer_telemetry_version",
+        "state",
+        "duration_seconds",
+        "mixer_time_before_seconds",
+        "mixer_time_after_seconds",
+        "observed_interval_ms",
+        "canvas"
+      ],
+      "title": "PlaybackObservation",
+      "type": "object"
+    },
+    "ProjectedAvatarBounds": {
+      "additionalProperties": false,
+      "properties": {
+        "min_x": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min X",
+          "type": "number"
+        },
+        "min_y": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Y",
+          "type": "number"
+        },
+        "min_z": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Z",
+          "type": "number"
+        },
+        "max_x": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max X",
+          "type": "number"
+        },
+        "max_y": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max Y",
+          "type": "number"
+        },
+        "max_z": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_x",
+        "min_y",
+        "min_z",
+        "max_x",
+        "max_y",
+        "max_z"
+      ],
+      "title": "ProjectedAvatarBounds",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Raw out-of-process browser observation.\n\nIt intentionally has no promotion flag.  Only the independent\n``ProductionE2EEvidence`` validator output can be recorded by the evidence\nregistry.",
+  "properties": {
+    "schema_version": {
+      "const": "virea.production_browser_observation.v1.0.0",
+      "default": "virea.production_browser_observation.v1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "kind": {
+      "const": "production_browser_observation",
+      "default": "production_browser_observation",
+      "title": "Kind",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "generation_mode": {
+      "enum": [
+        "fresh_web_job",
+        "persisted_result_replay"
+      ],
+      "title": "Generation Mode",
+      "type": "string"
+    },
+    "producer": {
+      "$ref": "#/$defs/BrowserEvidenceProducer"
+    },
+    "base_url": {
+      "pattern": "^https?://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::[0-9]{1,5})?/?$",
+      "title": "Base Url",
+      "type": "string"
+    },
+    "application": {
+      "$ref": "#/$defs/BrowserApplicationObservation"
+    },
+    "model": {
+      "$ref": "#/$defs/BrowserModelBinding"
+    },
+    "request": {
+      "$ref": "#/$defs/JobRequest"
+    },
+    "job": {
+      "$ref": "#/$defs/BrowserJobBinding"
+    },
+    "result": {
+      "$ref": "#/$defs/BrowserResultBinding"
+    },
+    "browser": {
+      "$ref": "#/$defs/BrowserRuntimeObservation"
+    },
+    "avatar": {
+      "$ref": "#/$defs/AvatarEvidence"
+    },
+    "playback": {
+      "$ref": "#/$defs/PlaybackObservation"
+    },
+    "console": {
+      "$ref": "#/$defs/BrowserConsoleObservation"
+    },
+    "screenshots": {
+      "items": {
+        "$ref": "#/$defs/EvidenceScreenshot"
+      },
+      "title": "Screenshots",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "started_at",
+    "completed_at",
+    "generation_mode",
+    "producer",
+    "base_url",
+    "application",
+    "model",
+    "request",
+    "job",
+    "result",
+    "browser",
+    "avatar",
+    "playback",
+    "console",
+    "screenshots"
+  ],
+  "title": "ProductionBrowserObservation",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:production_browser_observation:1.0.0"
+}

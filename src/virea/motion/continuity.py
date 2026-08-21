@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 from typing import Any, Sequence
 
 import numpy as np
 
 from virea.motion.canonical import CORE_BONES, unpack_sequence
-
 
 CONTINUITY_SCHEMA_VERSION = "virea.motion_continuity.v1.0.0"
 CONTINUITY_POLICY_VERSION = "virea.human_motion_continuity_policy.v1.0.0"
@@ -61,8 +60,7 @@ def _normalized_quaternions(root_rotation_xyzw: np.ndarray) -> np.ndarray:
     quaternions = np.asarray(root_rotation_xyzw, dtype=np.float64)
     if quaternions.ndim != 2 or quaternions.shape[1] != 4:
         raise ValueError(
-            "root_rotation_xyzw must have shape (T, 4), "
-            f"got {quaternions.shape}"
+            f"root_rotation_xyzw must have shape (T, 4), got {quaternions.shape}"
         )
     if not np.isfinite(quaternions).all():
         raise ValueError("root_rotation_xyzw contains NaN or infinity")
@@ -131,7 +129,9 @@ def _root_centered_joint_speed(
     return speed.mean(axis=1), speed.max(axis=1)
 
 
-def _segments(frame_count: int, break_frames: list[int], fps: float) -> list[dict[str, Any]]:
+def _segments(
+    frame_count: int, break_frames: list[int], fps: float
+) -> list[dict[str, Any]]:
     boundaries = [0, *break_frames, frame_count]
     return [
         {
@@ -213,9 +213,7 @@ def analyze_motion_continuity(
     heading_delta_deg = np.degrees(
         np.arctan2(np.sin(np.diff(heading)), np.cos(np.diff(heading)))
     )
-    heading_observed = (
-        horizontal_norm[:-1] >= policy.heading_horizontal_norm_min
-    ) & (
+    heading_observed = (horizontal_norm[:-1] >= policy.heading_horizontal_norm_min) & (
         horizontal_norm[1:] >= policy.heading_horizontal_norm_min
     )
     up_delta_deg = np.degrees(
@@ -228,14 +226,10 @@ def analyze_motion_continuity(
         frame_count,
     )
 
-    orientation_break = (
-        root_geodesic_deg >= policy.root_rotation_step_deg
-    ) & (
+    orientation_break = (root_geodesic_deg >= policy.root_rotation_step_deg) & (
         root_angular_speed_deg_s >= policy.root_angular_speed_deg_s
     )
-    translation_break = (
-        translation_delta >= policy.root_translation_step_m
-    ) & (
+    translation_break = (translation_delta >= policy.root_translation_step_m) & (
         translation_speed >= policy.root_translation_speed_m_s
     )
     break_indices = np.flatnonzero(orientation_break | translation_break)
@@ -248,14 +242,18 @@ def analyze_motion_continuity(
             reasons.append("root_rotation_discontinuity")
         if translation_break[index]:
             reasons.append("root_translation_discontinuity")
-        heading_value = float(heading_delta_deg[index]) if heading_observed[index] else None
+        heading_value = (
+            float(heading_delta_deg[index]) if heading_observed[index] else None
+        )
         event: dict[str, Any] = {
             "previous_frame": int(index),
             "frame": int(index + 1),
             "boundary_time_sec": round(float((index + 1) / effective_fps), 9),
             "reasons": reasons,
             "root_rotation_geodesic_deg": round(float(root_geodesic_deg[index]), 6),
-            "root_angular_speed_deg_s": round(float(root_angular_speed_deg_s[index]), 6),
+            "root_angular_speed_deg_s": round(
+                float(root_angular_speed_deg_s[index]), 6
+            ),
             "heading_yaw_delta_deg": (
                 round(heading_value, 6) if heading_value is not None else None
             ),

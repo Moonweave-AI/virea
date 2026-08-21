@@ -1,0 +1,117 @@
+schema_version: virea.adapter_family.v1.0.0
+id: sentiavatar-susu-mta63
+display_name: SentiAvatar SuSu body, hands, root delta, and ARKit face
+source_models:
+  - sentiavatar-susu
+implementation_status: pinned_upstream_contract_adapter_implemented
+support_status: runnable_upstream
+native_profile:
+  representation_id: susu.body25_hands40.cont6d_root_delta.v1
+  carrier: synchronized_named_tensor_streams
+  fps:
+    mode: fixed
+    value: 20.0
+  coordinate_system:
+    id: susu_native_xyz_with_official_bvh_export_xzy_swizzle
+    handedness: right
+    native_axes: [x, y, z]
+    official_BVH_root_axes: [x, z, y]
+  units:
+    native_root_offset: centimeters_in_the_pinned_inference_and_BVH_template_path
+    rotations: dimensionless_6D_first_two_columns
+    face: ARKit_blendshape_coefficients
+  fields:
+    - name: body
+      shape: [T, 153]
+      subfields:
+        - name: root_offset_delta
+          slice: [0, 3]
+          shape: [T, 3]
+        - name: body_rotation_6d
+          slice: [3, 153]
+          shape: [T, 25, 6]
+          semantics: parent_local_6D_rotations
+    - name: left
+      shape: [T, 120]
+      semantics: 20_parent_local_hand_joint_6D_rotations_with_joint_zero_repeating_the_body_left_wrist
+    - name: right
+      shape: [T, 120]
+      semantics: 20_parent_local_hand_joint_6D_rotations_with_joint_zero_repeating_the_body_right_wrist
+    - name: face
+      shape: [T, 51]
+      optional: true
+      representation_id: arkit.blendshape51.v1
+root_semantics:
+  translation:
+    kind: differential_displacement
+    source_slice: [0, 3]
+    integration: cumulative_sum_in_frame_order
+    pinned_inference_initial_native_offset: [0.0, 0.0, 102.0]
+    official_BVH_export_axis_map: [0, 2, 1]
+    warning: older_local_SuSu_variants_with_absolute_roots_require_a_distinct_explicit_profile
+  rotation:
+    kind: first_body_joint_parent_local_6D
+    body_rotation_index: 0
+    official_export_correction: fixed_pelvis_quaternion_correction_then_global_axis_swizzle
+output_profile:
+  representation_id: virea.canonical211.v3
+  skeleton_id: vrm1.humanoid52.v1
+  fps: 20.0
+  frame_shape: [T, 211]
+  rotation_representation: quaternion_xyzw
+  rotation_layout: xyzw
+  units: meters
+  fields:
+    - name: root_translation_m
+      slice: [0, 3]
+      shape: [T, 3]
+      units: meters
+    - name: humanoid_joint_quaternion_xyzw
+      slice: [3, 211]
+      shape: [T, 52, 4]
+      provenance: rest_relative_parent_local_canonical211
+  optional_side_tracks:
+    - name: face_arkit51
+      representation_id: arkit.blendshape51.v1
+      shape: [T, 51]
+      optional: true
+conversion:
+  required_steps:
+    - denormalize_the_153D_body_stream_with_the_exact_checkpoint_mean_and_std
+    - require_left_and_right_120D_hand_streams_to_be_explicitly_already_denormalized_as_in_the_pinned_inference_path
+    - cumulatively_integrate_the_three_root_delta_channels_before_resampling
+    - convert_6D_first-two-column_rotations_to_quaternions
+    - merge_25_body_and_two_20_joint_hand_streams_by_dropping_only_the_two_duplicated_wrist_entries
+    - apply_the_pinned_pelvis_correction_and_xzy_BVH_axis_mapping_only_at_the_declared_export_boundary
+    - keep_ARKit51_on_the_same_20_FPS_timeline_or_record_explicit_resampling
+  prohibited_shortcuts:
+    - treat_root_deltas_as_absolute_positions
+    - retain_both_duplicated_wrist_entries_as_65_unique_joints
+    - auto_detect_absolute_versus_delta_roots_by_value_magnitude
+    - interpret_6D_values_as_rows_or_global_rotations
+validation:
+  exact_body_width: 153
+  exact_hand_width: 120
+  exact_body_joint_count: 25
+  exact_hand_stream_joint_count: 20
+  exact_unique_joint_count_after_wrist_merge: 63
+  reject_non_finite: true
+  require_fps: 20.0
+  require_explicit_root_profile: true
+  require_checkpoint_specific_body_mean_std_width: 153
+  require_explicit_denormalized_hand_streams: true
+official_sources:
+  - repository: https://github.com/SentiAvatar/SentiAvatar
+    revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
+    path: README.md
+  - repository: https://github.com/SentiAvatar/SentiAvatar
+    revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
+    path: motion_generation/infer.py
+  - repository: https://github.com/SentiAvatar/SentiAvatar
+    revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
+    path: motion_generation/actions/postprocess.py
+notes:
+  - The official README's 63-joint count and the 65 generated stream joints are consistent because each hand stream repeats one body wrist.
+  - The pinned inference code establishes differential root semantics and centimeter-scale template offset; incompatible legacy files must use a separate adapter profile.
+  - The 63-joint body-hand merge and BVH-axis centimeter path are native/intermediate provenance only; the declared output is the registered 52-bone, meter, quaternion-xyzw Canonical211 representation.
+  - The VIREA compatibility adapter requires the official 153D body checkpoint statistics, explicit already-denormalized hand streams, and 20 FPS; it cumulatively integrates the pinned centimeter root deltas before the explicit axis/unit boundary and preserves body-hand-face native artifacts. No upstream checkpoint golden or Worker production acceptance exists yet.

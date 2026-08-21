@@ -1,0 +1,19 @@
+schema_version: virea.representation_profile.v1.0.0
+id: humanml3d.body22.positions.v1
+version: 1.0.0
+kind: joint_positions
+skeleton_id: humanml3d.body22.v1
+dtype: float32
+frame_shape: [22, 3]
+rotation_representation: null
+rotation_layout: null
+rotation_space: null
+root_translation_semantics: recovered_world_absolute
+root_rotation_semantics: derived_from_root_facing
+coordinate_system_id: humanml3d.normalized_y_up_z_forward.v1
+units: meters
+fps: 20.0
+timebase: [1, 20]
+source_urls:
+  - https://github.com/EricGuo5513/HumanML3D
+validation_status: source_verified

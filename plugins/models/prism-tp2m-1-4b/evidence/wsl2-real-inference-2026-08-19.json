@@ -1,0 +1,94 @@
+{
+  "schema_version": "virea.prism_migration_evidence.v1.0.0",
+  "captured_at": "2026-08-21",
+  "source_deployment": {
+    "platform": "WSL2 Ubuntu-24.04",
+    "runtime_root_reference": "${PRISM_MIGRATION_ROOT}",
+    "model_id": "prism-tp2m-1-4b",
+    "source_revision": "3c58bc5d946f0827171a3712ed36314f4b1a5186",
+    "checkpoint_revision": "825daaa27f4f3845eb0978674c3acb378a12cda6",
+    "tokenizer_revision": "66cb9e7e85526fe440a945569e42c72fb6cbc0ad",
+    "statistics_revision": "c3f6c8eb8a4ba9e5ca521cdc0af9264756b66726",
+    "memory_strategy": "UMT5 CPU; motion transformer and VAE CUDA"
+  },
+  "ram_admission_calibration": {
+    "observation_date": "2026-08-21",
+    "recorded_wsl_mem_total_bytes": 33353256960,
+    "recorded_wsl_mem_available_bytes_at_recheck": 32522579968,
+    "umt5_weight_file_bytes": 26924267472,
+    "preflight_min_free_ram_gib": 28.0,
+    "post_load_min_available_ram_gib": 2.0,
+    "basis": "checkpoint-size lower bound plus successful recovered inference in the same 31.063 GiB WSL guest",
+    "limitation": "legacy peak RSS was not recorded; the fresh managed Worker records current and peak RSS after load and inference"
+  },
+  "existing_external_artifact_roots": {
+    "execution_domain": "${PRISM_EXECUTION_DOMAIN}",
+    "execution_domain_kind": "wsl",
+    "recorded_distribution": "Ubuntu-24.04",
+    "injection_contract": "VIREA_ARTIFACT_ROOTS_JSON",
+    "copy_large_assets_into_repository": false,
+    "roots": {
+      "prism-source": {
+        "root_reference": "${PRISM_MIGRATION_ROOT}/vendor/prism",
+        "relative_to_migration_root": "vendor/prism"
+      },
+      "prism-tp2m-1-4b-official-hf": {
+        "root_reference": "${PRISM_MIGRATION_ROOT}/runtime/models/prism_1.4b",
+        "relative_to_migration_root": "runtime/models/prism_1.4b"
+      },
+      "prism-umt5-xxl-tokenizer": {
+        "root_reference": "${PRISM_MIGRATION_ROOT}/runtime/models/prism_1.4b/tokenizer",
+        "relative_to_migration_root": "runtime/models/prism_1.4b/tokenizer"
+      },
+      "prism-motionhub-smplh-stats": {
+        "root_reference": "${PRISM_MIGRATION_ROOT}/runtime/aux/motionhub/statistics",
+        "relative_to_migration_root": "runtime/aux/motionhub/statistics"
+      }
+    }
+  },
+  "jobs": [
+    {
+      "job_id": "53ea9f553f8544b6",
+      "frame_count": 453,
+      "fps": 30.0,
+      "finite": true,
+      "artifacts": ["source_prism_smplx_raw.npz", "prism_amass_body22.npz", "canonical_virea_211d.npz", "combined_preview_payload.json", "source_vs_retarget_quality.json"]
+    },
+    {
+      "job_id": "254a0061aed945dc",
+      "frame_count": 393,
+      "fps": 30.0,
+      "finite": true,
+      "artifacts": ["source_prism_smplx_raw.npz", "prism_amass_body22.npz", "canonical_virea_211d.npz", "combined_preview_payload.json", "source_vs_retarget_quality.json"]
+    },
+    {
+      "job_id": "e609576544804d8a",
+      "frame_count": 333,
+      "fps": 30.0,
+      "finite": true,
+      "artifacts": ["source_prism_smplx_raw.npz", "prism_amass_body22.npz", "canonical_virea_211d.npz", "combined_preview_payload.json", "source_vs_retarget_quality.json"]
+    }
+  ],
+  "captured_public_payload_excerpt": {
+    "source_job_id": "254a0061aed945dc",
+    "transl": [
+      [-0.875, 1.0390625, -0.5390625],
+      [-0.87890625, 1.0546875, -0.53515625]
+    ],
+    "global_orient": [
+      [-0.234375, -1.1171875, -0.1416015625],
+      [-0.21484375, -1.109375, -0.1376953125]
+    ],
+    "body_pose": [
+      [-0.79296875, -0.1357421875, 0.0830078125, -0.83203125, 0.06396484375, -0.150390625, 0.63671875, 0.0036163330078125, -0.031494140625, 1.65625, -0.1376953125, -0.466796875, 1.734375, 0.23046875, 0.376953125, -0.095703125, -0.01190185546875, -0.0140380859375, -0.6484375, 0.2255859375, 0.16015625, -0.7109375, -0.05078125, -0.1708984375, -0.068359375, 0.00433349609375, 0.01708984375, 0.01287841796875, 0.029296875, -0.0341796875, 0.0185546875, -0.019287109375, 0.049072265625, 0.009521484375, 0.037109375, -0.040771484375, -0.18359375, -0.2412109375, 0.1474609375, -0.14453125, 0.34375, -0.166015625, -0.12353515625, -0.030029296875, 0.026611328125, -0.24609375, -0.462890625, -0.0128173828125, -0.34375, 0.451171875, -0.1279296875, 0.10107421875, -0.29296875, -0.053466796875, 0.1044921875, 0.54296875, 0.052978515625, 0.265625, -0.3046875, 0.025146484375, 0.2314453125, 0.30859375, -0.0771484375],
+      [-0.6875, -0.11767578125, 0.080078125, -0.71875, 0.05126953125, -0.1318359375, 0.5390625, 0.005767822265625, -0.030517578125, 1.5703125, -0.169921875, -0.451171875, 1.6015625, 0.2333984375, 0.35546875, -0.03857421875, -0.015625, -0.00897216796875, -0.609375, 0.20703125, 0.15234375, -0.6875, -0.049560546875, -0.169921875, -0.0712890625, 0.00677490234375, 0.0185546875, 0.015869140625, 0.029541015625, -0.033203125, 0.02099609375, -0.018798828125, 0.050537109375, 0.010009765625, 0.04833984375, -0.035400390625, -0.1787109375, -0.267578125, 0.1552734375, -0.13671875, 0.3671875, -0.17578125, -0.11328125, -0.03662109375, 0.0257568359375, -0.2333984375, -0.4609375, -0.01416015625, -0.337890625, 0.443359375, -0.1142578125, 0.10302734375, -0.3359375, -0.041015625, 0.1044921875, 0.5625, 0.03857421875, 0.265625, -0.3046875, -0.0050048828125, 0.2158203125, 0.3046875, -0.064453125]
+    ]
+  },
+  "claims": {
+    "real_checkpoint_inference": "passed_in_source_WSL2_deployment",
+    "public_payload_contract": "captured_and_finite",
+    "managed_external_root_staging": "passed_reference_only_in_recorded_WSL2_execution_domain",
+    "new_managed_control_plane_e2e": "pending_rerun",
+    "browser_playback_acceptance_for_new_runtime": "pending_rerun"
+  }
+}

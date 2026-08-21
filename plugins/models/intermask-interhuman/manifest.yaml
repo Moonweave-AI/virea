@@ -1,0 +1,77 @@
+schema_version: virea.model_plugin.v1.0.0
+model:
+  id: intermask-interhuman
+  display_name: InterMask InterHuman
+  plugin_version: 0.1.0
+  upstream:
+    repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    release: ICLR 2025
+  tasks:
+    - text_to_two_person_interaction
+    - interaction_reaction_generation
+  adapter_family: intermask-interhuman-two-actor
+  status: runnable_upstream
+inputs:
+  - schema_version: virea.job_request.v1.0.0
+    task: text_to_two_person_interaction
+    fields:
+      prompt:
+        type: string
+        required: true
+      duration_seconds:
+        type: number
+        default: 3.0
+  - schema_version: virea.job_request.v1.0.0
+    task: interaction_reaction_generation
+    fields:
+      prompt:
+        type: string
+        required: true
+      conditioning_actor_motion:
+        representation_id: interhuman.body22.position_velocity132.v1
+        required: true
+output:
+  envelope: virea.model_result.v1.0.0
+  representation_id: interhuman.motion262.v1
+  skeleton_id: interhuman.two_actor_smpl22.v1
+  fps: 30.0
+  coordinate_system: interhuman.actor1_initial_heading_positive_z_y_up
+  units: meters
+  root_translation_semantics: actor1_initial_root_xz_zeroed_and_actor2_rigidly_transformed_into_actor1_canonical_interaction_frame
+  root_rotation_semantics: root_rotation_absent_non_root_rotation6d_present_in_native_262D_channel
+  face_representation_ids: []
+runtime_variants: []
+artifacts:
+  - id: intermask-interhuman-pretrained
+    kind: manual
+    repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    url: https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/prepare/download_models.py
+    expected_files:
+      - checkpoints/interhuman/**
+licenses:
+  code: MIT
+  weights: upstream_does_not_state_a_separate_weight_license
+  dataset_lineage:
+    - InterHuman
+  body_model:
+    - SMPL-X is required only by the separate Inter-X path and is not part of this InterHuman plugin
+  commercial_allowed: null
+  redistribution_allowed: null
+  requires_acceptance: false
+  source_urls:
+    - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/LICENSE
+    - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/README.md
+resources:
+  upstream_tested_python: 3.7.7
+  upstream_tested_pytorch: 1.13.1
+  upstream_inference_entrypoint: infer.py
+  native_per_actor_feature_dim: 262
+  actor_count: 2
+  official_export_per_actor_shape: [T, 22, 9]
+  official_export_fields: [position_xyz, root_zero_sentinel_then_non_root_rotation_6d_pass_through]
+notes:
+  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
+  - The two-actor Motion IR conversion has synthetic contract coverage; runnable_upstream still does not claim a VIREA Worker, artifact installation, isolated runtime, real upstream checkpoint result, or production end-to-end acceptance.
+  - The pinned 262D carrier contains positions, velocities, 21 non-root rotation6d values, and contacts; the 22x9 export prepends an all-zero root rotation sentinel and copies the non-root rotation block. VIREA records that pass-through provenance without claiming runtime BVH recomputation.

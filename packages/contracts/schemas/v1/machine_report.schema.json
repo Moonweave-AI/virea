@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:machine_report:1.0.0",
+  "title": "VIREA MachineReport v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "recorded_at",
+    "platform",
+    "os_name",
+    "os_version",
+    "architecture",
+    "python_version",
+    "is_wsl",
+    "cpu_count",
+    "memory_total_bytes",
+    "storage_root",
+    "storage_free_bytes",
+    "accelerators",
+    "tools",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": { "const": "virea.machine_report.v1.0.0" },
+    "report_id": { "type": "string", "minLength": 1 },
+    "recorded_at": { "type": "string", "minLength": 1 },
+    "platform": { "enum": ["windows", "linux", "macos"] },
+    "os_name": { "type": "string", "minLength": 1 },
+    "os_version": { "type": "string" },
+    "architecture": { "type": "string", "minLength": 1 },
+    "python_version": { "type": "string", "minLength": 1 },
+    "is_wsl": { "type": "boolean" },
+    "cpu_count": { "type": ["integer", "null"], "minimum": 1 },
+    "memory_total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "memory_available_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "swap_total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "swap_free_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "storage_root": { "type": "string", "minLength": 1 },
+    "storage_free_bytes": { "type": "integer", "minimum": 0 },
+    "accelerators": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/accelerator" }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "host_execution_domain": { "type": ["string", "null"] },
+    "execution_domains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/executionDomain" }
+    }
+  },
+  "$defs": {
+    "executionDomain": {
+      "type": "object",
+      "required": [
+        "schema_version", "id", "kind", "platform", "architecture", "is_host",
+        "distribution", "launcher_argv", "virea_home", "python_candidates", "memory_total_bytes",
+        "memory_available_bytes", "swap_total_bytes", "swap_free_bytes",
+        "storage_root", "storage_free_bytes", "accelerators", "tools", "warnings"
+      ],
+      "properties": {
+        "schema_version": { "const": "virea.execution_domain_report.v1.0.0" },
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["windows-native", "linux-native", "macos-native", "wsl"] },
+        "platform": { "type": "string", "minLength": 1 },
+        "architecture": { "type": "string", "minLength": 1 },
+        "is_host": { "type": "boolean" },
+        "distribution": { "type": ["string", "null"] },
+        "launcher_argv": { "type": "array", "items": { "type": "string" } },
+        "virea_home": { "type": "string", "minLength": 1 },
+        "python_candidates": { "type": "array", "items": { "type": "object" } },
+        "memory_total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "memory_available_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "swap_total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "swap_free_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "storage_root": { "type": "string", "minLength": 1 },
+        "storage_free_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "accelerators": { "type": "array", "items": { "$ref": "#/$defs/accelerator" } },
+        "tools": { "type": "object", "additionalProperties": { "type": ["string", "null"] } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "accelerator": {
+      "type": "object",
+      "required": [
+        "kind",
+        "status",
+        "name",
+        "memory_total_bytes",
+        "driver_version",
+        "runtime_version",
+        "probe",
+        "details"
+      ],
+      "properties": {
+        "kind": { "enum": ["cpu", "nvidia", "rocm", "mps"] },
+        "status": { "enum": ["available", "candidate", "unavailable", "unknown"] },
+        "name": { "type": ["string", "null"] },
+        "memory_total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "driver_version": { "type": ["string", "null"] },
+        "runtime_version": { "type": ["string", "null"] },
+        "probe": { "type": "string", "minLength": 1 },
+        "details": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

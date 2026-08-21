@@ -1,0 +1,1137 @@
+plan_version: virea.agent-execution-plan.v1.0.0
+project:
+  name: VIREA
+  repository: Moonweave-AI/virea
+  baseline:
+    branch: main
+    commit: bba6c414dd99ec632046825f43ea11e711b56afe
+  blueprint: VIREA_REFACTOR_BLUEPRINT.zh-CN.md
+  snapshot_date: '2026-08-20'
+  target_release_line: 0.3.x
+
+purpose: >-
+  将现有 VIREA 数据适配、canonical v3、重定向、验证、服务端和 VRM Viewer
+  逐步迁移为本地优先、跨平台、多模型运行时隔离、显式 Motion IR、可审计 VRM
+  重定向与统一交互入口的平台。本文档供代码智能体、模型适配智能体、测试智能体和
+  架构评审者共同执行。
+
+normative_language:
+  must: 必须满足，否则工作包不得合并
+  must_not: 明确禁止
+  should: 原则上满足，偏离时必须在 ADR 或 PR 中解释
+  may: 可选能力
+
+architecture_decisions:
+  - id: AD-001
+    decision: 单仓库、多包、每个模型独立不可变运行时
+  - id: AD-002
+    decision: 核心控制面不得依赖 PyTorch、CUDA、Transformers 或任一具体模型
+  - id: AD-003
+    decision: 受管理模型必须声明精确输出 schema；启发式结构检测只用于外部导入
+  - id: AD-004
+    decision: 现有 T×211 canonical v3 冻结为 virea.canonical211.v3 兼容配置
+  - id: AD-005
+    decision: 新中间层采用具名骨骼、可扩展轨道的 Motion IR v2
+  - id: AD-006
+    decision: 权重、运行时、结果和 bundle 使用内容寻址及完整 SHA-256
+  - id: AD-007
+    decision: 一键配置只修改用户态资源，不静默安装驱动或接受第三方许可
+  - id: AD-008
+    decision: 模型 worker 独立进程运行，控制面通过版本化协议调用
+  - id: AD-009
+    decision: 重定向数学在服务端/核心包完成，Viewer 不得包含数据集专用修正
+  - id: AD-010
+    decision: 原始数据和第三方模型视为不可信输入，读取、反序列化和路径处理 fail-closed
+
+repository_invariants:
+  - 根 pyproject.toml 不得聚合模型依赖
+  - 控制面进程不得直接 import 模型插件的 torch 模块
+  - current canonical v3 reader 在 0.x 重构期间必须持续可用
+  - 新旧 artifact 必须通过明确版本路由，不得用 shape 猜版本
+  - 模型定义、权重 artifact、runtime、installation 和 alias 必须是独立实体
+  - runtime_id 必须由规范化 runtime spec 的完整 SHA-256 生成
+  - 目录创建必须使用 staging、校验、原子 rename；失败状态不得标记 READY
+  - Hugging Face token、私有源凭据和 worker bearer token 不得进入日志或 manifest
+  - 未知骨架、单位、basis、root semantics 或许可证状态必须拒绝正式执行
+  - 非商业或受限模型不得进入默认商业 bundle
+  - Worker 崩溃不得使控制面、Viewer 或其他 Worker 崩溃
+  - 每个模型插件必须提供 smoke fixture、schema contract 和固定 revision
+  - 任何重定向变更必须给出数值回归，不得仅用截图验收
+
+supported_platform_policy:
+  tier_1:
+    - ubuntu_lts_nvidia
+    - ubuntu_lts_cpu
+    - wsl2_nvidia
+    - macos_apple_silicon
+  tier_2:
+    - arch_linux_nvidia
+    - arch_linux_cpu
+    - windows_native_nvidia
+    - windows_native_cpu
+    - linux_rocm
+  notes:
+    - Tier 1 必须进入正式发布门禁
+    - Tier 2 必须准确检测并给出受支持模型矩阵，不得错误宣称可用
+    - 每个具体模型可以声明比平台总体更窄的支持范围
+
+release_bundles:
+  minimal:
+    purpose: 仅安装核心、Viewer、fake worker 与示例 fixture
+    commercial_safe: true
+  text_motion_research:
+    purpose: MoMask、MDM、MotionLCM 等文本动作模型的研究 bundle
+    commercial_safe: false
+  avatar_research:
+    purpose: SentiAvatar、EMAGE 等语音/文本驱动虚拟人研究 bundle
+    commercial_safe: false
+  offline_demo:
+    purpose: 固定 revision、可离线演示的最小模型与样例
+    commercial_safe: false
+
+common_definition_of_done:
+  required_evidence:
+    - 关联的工作包 ID、issue 或 ADR
+    - 变更计划和影响范围
+    - schema/registry diff（如适用）
+    - 测试命令、退出码和结果摘要
+    - 兼容性、迁移和 rollback 说明
+    - 新增下载源的固定 revision、hash 和许可证据
+    - 模型变更的 runtime lock、weight digest 和 smoke 结果
+    - 重定向变更的 source/target skeleton、golden 数值和质量报告
+    - UI 变更的 Playwright 证据或可重复验证步骤
+  merge_gates:
+    - formatting
+    - lint
+    - typecheck
+    - unit_tests
+    - contract_tests
+    - integration_tests
+    - security_checks
+    - license_checks
+    - compatibility_tests
+  required_commands_initial:
+    - uv run ruff check .
+    - uv run mypy packages apps
+    - uv run pytest -q
+    - npm run check
+    - npm run test:viewer
+  note: 命令可随工具链 ADR 调整，但 PR 必须记录实际执行命令。
+
+artifact_identity:
+  algorithms:
+    digest: sha256
+    manifest_canonicalization: RFC8785_or_equivalent_canonical_json
+  runtime_id_formula: sha256(canonical_json(runtime_spec))
+  model_artifact_id_formula: sha256(downloaded_bytes_or_merkle_manifest)
+  installation_id_formula: sha256(model_definition_id + artifact_id + runtime_id + plugin_version)
+  result_id_formula: sha256(canonical_result_manifest + referenced_payload_hashes)
+  path_rule: 物理目录使用完整摘要；短摘要只能用于 UI 显示
+
+state_machines:
+  model_installation:
+    states:
+      - RESOLVING
+      - AWAITING_CONSENT
+      - DOWNLOADING
+      - VERIFYING
+      - BUILDING_RUNTIME
+      - SMOKE_TESTING
+      - READY
+      - FAILED
+      - CANCELLED
+      - QUARANTINED
+    terminal_states:
+      - READY
+      - FAILED
+      - CANCELLED
+      - QUARANTINED
+    rule: 只有全部校验和 smoke 通过后才能进入 READY
+  job:
+    states:
+      - QUEUED
+      - ADMITTED
+      - STARTING_WORKER
+      - RUNNING_MODEL
+      - NORMALIZING_IR
+      - RETARGETING
+      - VALIDATING
+      - STREAMING
+      - SUCCEEDED
+      - FAILED
+      - CANCEL_REQUESTED
+      - CANCELLED
+    terminal_states:
+      - SUCCEEDED
+      - FAILED
+      - CANCELLED
+  worker:
+    states:
+      - STOPPED
+      - STARTING
+      - HEALTHY
+      - BUSY
+      - DRAINING
+      - CRASHED
+      - BACKOFF
+
+schema_targets:
+  model_definition: virea.model-definition.v1.0.0
+  runtime_spec: virea.runtime-spec.v1.0.0
+  model_result: virea.model-result.v1.0.0
+  motion_ir: virea.motion-ir.v2.0.0
+  skeleton_profile: virea.skeleton-profile.v1.0.0
+  representation_profile: virea.representation-profile.v1.0.0
+  vrm_motion_result: virea.vrm-motion-result.v1.0.0
+  worker_protocol: virea.worker-protocol.v1.0.0
+  canonical_compat: virea.canonical211.v3
+
+work_packages:
+  - id: WP00
+    title: 基线冻结与 Characterization
+    priority: P0
+    estimated_engineering_days: 4-7
+    depends_on: []
+    parallelizable_with: []
+    goal: >-
+      在改动目录和边界前冻结当前行为、schema、artifact、CLI、服务端和 Viewer 的可验证基线，
+      为 brownfield migration 提供防回归证据。
+    scope:
+      include:
+        - 当前仓库目录、依赖和入口盘点
+        - canonical v3 pack/unpack、重采样与骨骼顺序
+        - 七类 dataset adapter 的最小真实或脱敏 fixture
+        - server preview 端点与二进制 codec
+        - Viewer normalized humanoid 播放
+        - artifact reader/replay/hash 行为
+      exclude:
+        - 新模型池实现
+        - 新 UI 重写
+    tasks:
+      - id: WP00-T01
+        action: 记录 baseline commit、Python/Node 版本、现有测试命令和已知失败
+      - id: WP00-T02
+        action: 为 canonical211 创建固定 golden NPZ/JSON，覆盖 identity、root motion、body、hands、重采样
+      - id: WP00-T03
+        action: 为每个现有 adapter 建立最小 fixture 与 discover/load contract
+      - id: WP00-T04
+        action: 冻结旧 CLI 命令、HTTP 路由、payload schema 和 Viewer 读取行为
+      - id: WP00-T05
+        action: 添加 tests/characterization/，失败测试必须标记原因而非静默跳过
+      - id: WP00-T06
+        action: 生成 BASELINE_REPORT.md，区分通过、已知缺陷、未验证和外部数据依赖
+    deliverables:
+      - tests/characterization/
+      - tests/fixtures/legacy_canonical211/
+      - doc/migration/BASELINE_REPORT.md
+      - doc/migration/KNOWN_BEHAVIOR.md
+    tests:
+      commands:
+        - uv run pytest tests/characterization -q
+        - npm run check
+        - npm run test:viewer
+      required_cases:
+        - canonical211 roundtrip byte/float tolerance
+        - old artifact reader acceptance and tamper rejection
+        - old preview API response snapshot
+        - existing Viewer pose mutation count remains zero
+    acceptance:
+      - baseline 报告可从干净 clone 重现
+      - 旧 canonical 资产有固定 golden hash
+      - 已知失败有 issue/原因/预期处理，不存在无解释 xfail
+      - 后续工作包可引用稳定 fixture
+    forbidden_changes:
+      - 删除或改名现有公开 schema
+      - 大规模移动生产代码
+      - 修复与 characterization 无关的功能
+
+  - id: WP01
+    title: ADR、契约与注册表骨架
+    priority: P0
+    estimated_engineering_days: 5-8
+    depends_on: [WP00]
+    parallelizable_with: [WP03]
+    goal: >-
+      建立新架构的版本化事实源：ADR、JSON Schema、Pydantic/TypeScript 类型生成、模型/骨架/
+      表示/运行时/许可注册表及兼容策略。
+    tasks:
+      - id: WP01-T01
+        action: 编写并接受 runtime isolation、Motion IR、content addressing、worker protocol、VRM profiles ADR
+      - id: WP01-T02
+        action: 新建 packages/contracts，定义 schema URI、版本规则和兼容矩阵
+      - id: WP01-T03
+        action: 定义 ModelDefinition、RuntimeSpec、ModelResult、MotionIR、SkeletonProfile、RepresentationProfile、VrmMotionResult
+      - id: WP01-T04
+        action: 建立 registries/models、skeletons、representations、licenses、runtimes、bundles
+      - id: WP01-T05
+        action: 生成 Python 与 TypeScript 类型，增加 schema examples 和 roundtrip tests
+      - id: WP01-T06
+        action: 将旧 schemas 以兼容 URI 纳入 contracts，不改变旧 reader 语义
+    deliverables:
+      - doc/adrs/0003-runtime-isolation.md
+      - doc/adrs/0004-motion-ir-v2.md
+      - doc/adrs/0005-content-addressed-model-pool.md
+      - doc/adrs/0006-worker-protocol.md
+      - doc/adrs/0007-vrm-skeleton-profiles.md
+      - packages/contracts/
+      - registries/models/
+      - registries/representations/
+      - registries/runtimes/
+      - registries/bundles/
+    tests:
+      commands:
+        - uv run pytest packages/contracts/tests -q
+        - npm run contracts:check
+      required_cases:
+        - 所有 example 均通过 schema
+        - 未知额外字段按各 schema 的明确策略处理
+        - Python/TypeScript serialization 等价
+        - schema version mismatch fail-closed
+    acceptance:
+      - 每个核心实体均有独立 ID 与 schema version
+      - managed model 输出不依赖 tensor shape 猜测
+      - canonical211 v3 有正式兼容 profile
+      - VRM body22、humanoid52、full55 profile 已注册
+    forbidden_changes:
+      - 在 schema 中使用含糊的 any/object 代替核心字段
+      - 用文件夹名充当唯一身份
+      - 将上游模型版本与 VIREA plugin 版本合并为一个字段
+
+  - id: WP02
+    title: VIREA_HOME、路径与事务状态层
+    priority: P0
+    estimated_engineering_days: 5-8
+    depends_on: [WP01]
+    parallelizable_with: []
+    goal: >-
+      建立跨平台、无名称碰撞、可恢复、可迁移的本地状态目录和 SQLite 元数据层。
+    tasks:
+      - id: WP02-T01
+        action: 使用 platformdirs/XDG 规则实现 VIREA_HOME，支持显式 VIREA_HOME 覆盖
+      - id: WP02-T02
+        action: 实现 artifacts、runtimes、installations、results、cache、logs、tmp、locks 目录规范
+      - id: WP02-T03
+        action: 建立 SQLite WAL 数据库与 migration framework
+      - id: WP02-T04
+        action: 实现 staging、fsync、hash verification、atomic rename 和 crash recovery
+      - id: WP02-T05
+        action: 实现跨进程文件锁、安装租约和 stale staging 清理
+      - id: WP02-T06
+        action: 实现旧 configs/project.yaml 与 VIREA_* 数据路径的只读迁移/导入器
+      - id: WP02-T07
+        action: 提供 virea state inspect、migrate、gc --dry-run
+    deliverables:
+      - packages/state/
+      - packages/core/virea_core/paths.py
+      - packages/core/virea_core/db/
+      - apps/cli/commands/state.py
+      - tests/integration/test_atomic_installation.py
+    tests:
+      commands:
+        - uv run pytest packages/state tests/integration/test_atomic_installation.py -q
+      required_cases:
+        - 两个同名不同内容模型不冲突
+        - 相同 runtime spec 去重
+        - 中断下载/构建不出现 READY
+        - Windows 长路径与文件锁测试
+        - WAL 并发读写和进程崩溃恢复
+    acceptance:
+      - 所有物理目录由完整 digest 标识
+      - alias 改名不移动底层 artifact
+      - state DB 可重建索引但不丢失内容寻址对象
+      - gc 在 dry-run 中说明引用链和预计释放空间
+    forbidden_changes:
+      - 使用 model_name 作为运行时目录名
+      - 使用短 hash 作为物理身份
+      - 在事务提交前更新 READY 状态
+
+  - id: WP03
+    title: 机器检测、Bootstrap 与 Doctor
+    priority: P0
+    estimated_engineering_days: 6-10
+    depends_on: [WP01]
+    parallelizable_with: [WP02, WP07]
+    goal: >-
+      对 Ubuntu、Arch、macOS、Windows 和 WSL2 建立事实化能力检测，输出机器能力而非替用户猜测安装方案。
+    tasks:
+      - id: WP03-T01
+        action: 定义 MachineProfile schema，覆盖 OS、distro、kernel、arch、WSL、CPU、RAM、swap、disk
+      - id: WP03-T02
+        action: 检测 NVIDIA driver/runtime/VRAM、ROCm、Apple Metal/MPS、CPU 指令集
+      - id: WP03-T03
+        action: 区分 hardware_present、driver_available、framework_usable、model_supported 四层状态
+      - id: WP03-T04
+        action: 实现 virea doctor --json、--explain、--repair-plan
+      - id: WP03-T05
+        action: 实现 bootstrap 安装计划，不静默执行 root/admin 操作
+      - id: WP03-T06
+        action: 集成 HF auth 状态检测，但 token 仅来自 keyring、HF 标准存储或环境变量
+      - id: WP03-T07
+        action: 根据 model manifest 生成 variant compatibility 与资源提示
+    deliverables:
+      - packages/bootstrap/
+      - packages/hardware/
+      - schemas/machine-profile.schema.json
+      - apps/cli/commands/doctor.py
+      - tests/platform/
+    tests:
+      commands:
+        - uv run pytest packages/hardware tests/platform -q
+      required_cases:
+        - Ubuntu NVIDIA
+        - WSL2 NVIDIA
+        - Arch 无 GPU
+        - macOS Apple Silicon
+        - Windows native CPU/NVIDIA
+        - 存在 GPU 但 driver 不可用
+        - 磁盘或内存不足
+    acceptance:
+      - 检测结果可序列化、可缓存、可解释
+      - 不把 WSL2 错识别为普通 Linux
+      - 不根据 nvidia-smi 存在就宣称 PyTorch CUDA 可用
+      - repair plan 区分自动、需要确认、需要管理员和人工步骤
+    forbidden_changes:
+      - 静默安装/升级显卡驱动
+      - 在探测代码中下载大型模型
+      - 把平台字符串直接当模型兼容结论
+
+  - id: WP04
+    title: 隔离运行时后端
+    priority: P0
+    estimated_engineering_days: 10-16
+    depends_on: [WP02, WP03]
+    parallelizable_with: [WP05, WP08]
+    goal: >-
+      实现 uv-native 与 pixi-native 后端，按 RuntimeSpec 构建不可变、可验证、可复用的模型环境。
+    tasks:
+      - id: WP04-T01
+        action: 定义 RuntimeBackend 接口：resolve、plan、build、verify、run、remove、diagnose
+      - id: WP04-T02
+        action: 实现 uv-native，使用固定 Python、lockfile、index 与 wheel hash
+      - id: WP04-T03
+        action: 实现 pixi-native，支持旧 PyTorch、Conda CUDA 和原生依赖
+      - id: WP04-T04
+        action: 运行时 ID 由 canonical RuntimeSpec 计算，不含机器临时路径
+      - id: WP04-T05
+        action: 将 platform/accelerator variant 选择与 runtime spec 分离并记录解析证据
+      - id: WP04-T06
+        action: 实现 build staging、日志、超时、取消、校验和 smoke command
+      - id: WP04-T07
+        action: 实现 runtime dedup、引用计数、quarantine 和诊断包
+      - id: WP04-T08
+        action: 预留 OCI backend interface，但不阻塞 P0
+    deliverables:
+      - packages/runtime/
+      - packages/runtime/backends/uv_native.py
+      - packages/runtime/backends/pixi_native.py
+      - schemas/runtime-spec.schema.json
+      - tests/runtime/
+    tests:
+      commands:
+        - uv run pytest packages/runtime tests/runtime -q
+      required_cases:
+        - 两个依赖冲突的 fake model 可同时安装和运行
+        - 相同 runtime spec 跨模型复用
+        - lock 或 artifact hash 改变会生成新 runtime_id
+        - 构建取消与失败回滚
+        - 无网络的已构建运行时可再次启动
+    acceptance:
+      - 核心环境 pip list 不包含模型专用依赖
+      - runtime manifest 记录 Python、包、平台、后端、lock digest
+      - worker 只能从对应 runtime 启动
+      - 运行时验证失败进入 QUARANTINED 或 FAILED
+    forbidden_changes:
+      - conda env 名称作为唯一标识
+      - 共享可变 site-packages
+      - 自动降级到未声明的 Python/PyTorch 版本
+
+  - id: WP05
+    title: 模型池、Artifact Store 与安装事务
+    priority: P0
+    estimated_engineering_days: 8-13
+    depends_on: [WP02, WP03]
+    parallelizable_with: [WP04, WP07, WP08]
+    goal: >-
+      实现模型选择、多选安装、固定 revision 下载、验证、许可门禁、安装状态机和离线复用。
+    tasks:
+      - id: WP05-T01
+        action: 实现 ModelCatalog、ModelResolver、ArtifactStore、InstallationService
+      - id: WP05-T02
+        action: 支持 Hugging Face snapshot、GitHub Release、HTTPS 和本地路径 source
+      - id: WP05-T03
+        action: 所有远程源固定 revision/commit/tag，并验证文件大小、SHA-256、allow/ignore patterns
+      - id: WP05-T04
+        action: 实现许可证、gated repo、SMPL/数据集前置条件与 AWAITING_CONSENT
+      - id: WP05-T05
+        action: 实现多模型安装计划、共享 artifact/runtime 去重、并发下载和断点恢复
+      - id: WP05-T06
+        action: 实现 list、info、install、remove、verify、repair、gc、bundle 命令
+      - id: WP05-T07
+        action: 建立 fake models 作为 deterministic contract fixtures
+      - id: WP05-T08
+        action: 禁止 manifest 任意 shell；仅允许受控 entrypoint 和参数模板
+    deliverables:
+      - packages/model_pool/
+      - registries/models/fake-motion.yaml
+      - registries/bundles/minimal.yaml
+      - apps/cli/commands/model.py
+      - tests/model_pool/
+    tests:
+      commands:
+        - uv run pytest packages/model_pool tests/model_pool -q
+      required_cases:
+        - 一次选择多个模型并正确汇总空间、许可和 runtime
+        - gated HF source 缺 token 时进入等待而非失败堆栈
+        - 下载内容被篡改时拒绝安装
+        - 断点续传后 hash 一致
+        - 删除 alias 不误删共享 artifact
+    acceptance:
+      - READY installation 可在离线状态验证和启动
+      - 每个安装可追溯到 model definition、artifact、runtime 和 plugin version
+      - 安装计划明确显示下载量、磁盘量、平台 variant 和许可
+      - 非商业模型不会进入 commercial-safe bundle
+    forbidden_changes:
+      - 跟随 mutable latest/main 而不固定 revision
+      - 将 token 写入数据库或安装 manifest
+      - 直接执行远程 manifest 提供的 shell 字符串
+
+  - id: WP06
+    title: Worker SDK、进程监督与协议
+    priority: P0
+    estimated_engineering_days: 8-12
+    depends_on: [WP04, WP05, WP01]
+    parallelizable_with: [WP07, WP08]
+    goal: >-
+      建立模型进程隔离、健康检查、元数据、推理、取消、流式事件和故障恢复的稳定协议。
+    tasks:
+      - id: WP06-T01
+        action: 定义 KServe V2 风格 health/metadata/infer 子集与 VIREA async/stream 扩展
+      - id: WP06-T02
+        action: 建立 Python Worker SDK，插件只实现 load、infer、unload、capabilities
+      - id: WP06-T03
+        action: 实现 Supervisor，以 loopback 随机端口和一次性 bearer token 启动 worker
+      - id: WP06-T04
+        action: 实现 stdout/stderr capture、结构化日志、心跳、启动超时、backoff、drain
+      - id: WP06-T05
+        action: 实现单 worker 资源声明、GPU admission、并发上限和显存 OOM 分类
+      - id: WP06-T06
+        action: 实现 fake deterministic、fake streaming、fake crash、fake OOM workers
+      - id: WP06-T07
+        action: 协议版本不匹配必须拒绝，不得隐式兼容
+    deliverables:
+      - packages/worker_sdk/
+      - packages/supervisor/
+      - schemas/worker-protocol.schema.json
+      - plugins/fake_*/
+      - tests/worker_protocol/
+    tests:
+      commands:
+        - uv run pytest packages/worker_sdk packages/supervisor tests/worker_protocol -q
+      required_cases:
+        - 启动、健康、推理、流式、取消、卸载
+        - worker crash 后控制面保持健康
+        - bearer token 错误拒绝访问
+        - 协议版本不匹配
+        - OOM 与普通模型错误区分
+    acceptance:
+      - 控制面不 import worker 模型代码
+      - worker 只能绑定 loopback，除非显式远程部署模式
+      - 日志包含 installation/job correlation id 且不含 secret
+      - fake workers 可支撑 API 和 UI 并行开发
+    forbidden_changes:
+      - 通过 Python multiprocessing 共享控制面解释器和模型对象
+      - worker 监听 0.0.0.0 作为默认值
+      - 无限重启崩溃模型
+
+  - id: WP07
+    title: Motion IR v2 与 canonical211 兼容桥
+    priority: P0
+    estimated_engineering_days: 10-15
+    depends_on: [WP01, WP00]
+    parallelizable_with: [WP03, WP05, WP06]
+    goal: >-
+      实现可扩展、具名、可审计的 Motion IR，并保证现有 canonical211 v3 双向兼容。
+    tasks:
+      - id: WP07-T01
+        action: 定义 MotionIR header、timebase、skeleton、root/local transforms、confidence 和 provenance
+      - id: WP07-T02
+        action: 定义 body、hands、face、expressions、gaze、contacts、objects、events、audio alignment 轨道
+      - id: WP07-T03
+        action: 数组采用 sidecar（二进制/NPZ/Arrow）与内容 hash，JSON 只保存 descriptor
+      - id: WP07-T04
+        action: 实现 canonical211 v3 → MotionIR 和 MotionIR → canonical211 v3 bridge
+      - id: WP07-T05
+        action: 实现 HumanML3D-263、SMPL-H、SMPL-X、BVH、SuSu 6D representation profiles
+      - id: WP07-T06
+        action: 明确 unknown/missing/synthesized/dropped channel report
+      - id: WP07-T07
+        action: 实现 IR validator、time continuity、unit/basis/quaternion checks
+      - id: WP07-T08
+        action: 为多角色和对象轨道预留 actor/entity ID，但 P0 只执行单角色
+    deliverables:
+      - packages/motion_ir/
+      - packages/motion_ir/bridges/canonical211.py
+      - registries/representations/*.yaml
+      - registries/skeletons/*.yaml
+      - tests/motion_ir/
+    tests:
+      commands:
+        - uv run pytest packages/motion_ir tests/motion_ir -q
+      required_cases:
+        - canonical211 → IR → canonical211 在容差内无损
+        - 52/55 VRM profile 映射明确
+        - HumanML3D 263D 维数公式与官方 decoder 对齐
+        - SuSu body/hands/face 轨道保持原生信息
+        - NaN、非单位四元数、非单调时间轴拒绝
+    acceptance:
+      - IR 不要求所有模型拥有同一固定 D 维张量
+      - 每个轨道能区分 source、generated、derived 和 synthesized
+      - 未知骨架不得进入重定向
+      - 旧 artifact reader 仍通过 WP00 golden
+    forbidden_changes:
+      - 把 face/object/contact 强塞进 canonical211
+      - 仅以 tensor shape 决定 representation
+      - 丢弃 source timing 或 provenance
+
+  - id: WP08
+    title: 重定向核心包提取与 VRM Profile
+    priority: P0
+    estimated_engineering_days: 10-16
+    depends_on: [WP01, WP07, WP00]
+    parallelizable_with: [WP04, WP05, WP06]
+    goal: >-
+      将现有 basis、rest、body/hand solver、验证和 artifact replay 提取为独立、可测试、与服务/UI 解耦的重定向核心。
+    tasks:
+      - id: WP08-T01
+        action: 从 src/virea/motion 提取 packages/retarget，先移动再重构，保留旧 import shim
+      - id: WP08-T02
+        action: 定义 body22、humanoid52、full55 VRM skeleton profile 与 required/optional policy
+      - id: WP08-T03
+        action: 实现 VRM avatar inspector，读取 humanoid mapping、rest local/world transforms 和 expressions
+      - id: WP08-T04
+        action: 建立 validate→normalize→rest/FK→mapping→scale/root→retarget→IK/constraints→quality pipeline
+      - id: WP08-T05
+        action: 将现有 hand solver certificate/replay 接入 MotionIR 输入和 VrmMotionResult 输出
+      - id: WP08-T06
+        action: 定义 missing bone policy、eyes/jaw/face expression mapping 与 dropped/synthesized report
+      - id: WP08-T07
+        action: 添加 foot contact、joint limits、temporal continuity 和 target-avatar golden tests
+      - id: WP08-T08
+        action: Viewer 只消费 normalized result，删除/禁止 dataset-specific runtime repair
+    deliverables:
+      - packages/retarget/
+      - packages/vrm/
+      - packages/quality/
+      - compatibility shims under src/virea/motion/
+      - tests/retarget/
+      - tests/fixtures/vrm/
+    tests:
+      commands:
+        - uv run pytest packages/retarget packages/vrm packages/quality tests/retarget -q
+        - npm run test:viewer
+      required_cases:
+        - legacy seven-dataset golden 不退化
+        - VRM required bones 缺失时拒绝
+        - optional bone 缺失按 profile 退化并记录
+        - hand certificate replay 一致
+        - source/target rest pose 差异被正确处理
+        - Viewer pose mutation count 为零
+    acceptance:
+      - retarget 包不依赖 FastAPI 或浏览器代码
+      - 同一 MotionIR 对不同 VRM 产生独立可验证结果
+      - 所有数学修正在核心完成
+      - canonical211 legacy path 与 MotionIR path 均通过回归
+    forbidden_changes:
+      - 在 Viewer 中新增数据集/模型专用骨骼修正
+      - 用 VRM 节点名称启发式替代 humanoid mapping 作为正式路径
+      - 删除 artifact replay 或 hand certificate 门禁
+
+  - id: WP09
+    title: MoMask 首个工程纵向闭环
+    priority: P0
+    estimated_engineering_days: 7-12
+    depends_on: [WP04, WP05, WP06, WP07, WP08]
+    parallelizable_with: [WP10]
+    goal: >-
+      以 MoMask 验证文本请求、模型池、隔离运行时、HumanML3D 原生输出、Motion IR、重定向和 VRM 播放的完整链路。
+    tasks:
+      - id: WP09-T01
+        action: 固定 MoMask 官方 source revision、权重 revision、许可证与依赖
+      - id: WP09-T02
+        action: 编写 model definition、runtime spec、plugin manifest 和 resource variants
+      - id: WP09-T03
+        action: 实现 worker adapter，输出明确 HumanML3D-263 或官方 22×3 decode，不在控制面猜测
+      - id: WP09-T04
+        action: 实现文本、长度、seed、sampling 参数验证和 deterministic metadata
+      - id: WP09-T05
+        action: 建立 smoke prompt、固定 seed golden、CPU 小样本和 GPU 性能基线
+      - id: WP09-T06
+        action: 将结果桥接到 MotionIR、VrmMotionResult 和现有/新 Viewer
+      - id: WP09-T07
+        action: 记录上游 SMPL/HumanML3D 数据许可依赖，不把数据集自动打包
+    deliverables:
+      - plugins/momask/
+      - registries/models/momask.yaml
+      - registries/runtimes/momask-*.yaml
+      - tests/models/test_momask_contract.py
+      - tests/golden/momask/
+      - doc/models/momask.md
+    tests:
+      commands:
+        - virea model install momask --variant cpu-test
+        - virea model verify momask
+        - uv run pytest tests/models/test_momask_contract.py -q
+      required_cases:
+        - 文本到 ModelResult
+        - ModelResult 到 MotionIR
+        - MotionIR 到 VRM body22/humanoid52
+        - 相同 seed/config 的结构与 hash 可复现策略明确
+        - CPU smoke 与至少一个 NVIDIA 实机验证
+    acceptance:
+      - 从干净机器到 Viewer 播放不需要用户手工创建模型环境
+      - 模型依赖不出现在核心环境
+      - 模型输出 skeleton/representation 可追溯
+      - 失败/OOM/取消通过统一 job 语义呈现
+    forbidden_changes:
+      - 把 MoMask requirements 合并进根 pyproject
+      - 通过猜测 263D shape 跳过插件 manifest
+      - 将 HumanML3D/SMPL 资产作为无许可内置数据发布
+
+  - id: WP10
+    title: 控制面 API、任务、事件与流式传输
+    priority: P0
+    estimated_engineering_days: 8-13
+    depends_on: [WP05, WP06, WP07, WP08]
+    parallelizable_with: [WP09]
+    goal: >-
+      将 bootstrap、model pool、worker supervisor、Motion IR 和 retarget 统一为持久化任务服务，供 CLI/TUI/Web 共用。
+    tasks:
+      - id: WP10-T01
+        action: 重构 FastAPI app factory、依赖注入、版本路由和 lifespan
+      - id: WP10-T02
+        action: 实现 /v1/system、/v1/models、/v1/installations、/v1/jobs、/v1/avatars、/v1/results
+      - id: WP10-T03
+        action: 实现 job queue、admission、cancel、timeout、retry policy 和 crash recovery
+      - id: WP10-T04
+        action: 实现 SSE 进度事件与 WebSocket motion chunks，定义序号、timebase、backpressure
+      - id: WP10-T05
+        action: 结果写入内容寻址 store，API 只返回 descriptor/stream，不复制大型数组进 JSON
+      - id: WP10-T06
+        action: 保留旧 preview API compatibility router 和 deprecation header
+      - id: WP10-T07
+        action: 生成 OpenAPI、TypeScript client 和 protocol contract tests
+      - id: WP10-T08
+        action: 默认只监听 loopback；非本地模式必须显式认证和配置
+    deliverables:
+      - apps/server/
+      - packages/jobs/
+      - packages/events/
+      - generated/typescript-client/
+      - tests/api/
+    tests:
+      commands:
+        - uv run pytest apps/server packages/jobs tests/api -q
+      required_cases:
+        - fake worker end-to-end job
+        - stream reconnect/sequence continuity
+        - cancel during download、model inference、retarget
+        - server restart 后恢复非终态任务
+        - old preview route compatibility
+        - unauthorized non-loopback request rejection
+    acceptance:
+      - CLI/TUI/Web 不直接操作 SQLite 或 worker
+      - 每个 job 有完整 state history 和 correlation id
+      - 大型数组不被内嵌到普通 JSON 响应
+      - API 与 worker 协议版本各自独立
+    forbidden_changes:
+      - 在 HTTP handler 中直接加载模型
+      - 让浏览器读取本地 token/secret
+      - 默认对局域网公开服务
+
+  - id: WP11
+    title: 统一 CLI、首次运行 TUI 与 Web 控制台
+    priority: P1
+    estimated_engineering_days: 10-16
+    depends_on: [WP10, WP03, WP05]
+    parallelizable_with: [WP12, WP13]
+    goal: >-
+      提供运行 `virea` 即进入的统一体验：首次检测、认证与许可、多模型选择、安装、启动和生成预览。
+    tasks:
+      - id: WP11-T01
+        action: 将 CLI 拆为 bootstrap、doctor、model、runtime、serve、run、result、avatar、state 命令
+      - id: WP11-T02
+        action: 无配置运行 virea 时进入 first-run TUI，已有配置时启动/连接本地服务并打开 Web
+      - id: WP11-T03
+        action: TUI 展示 machine profile、推荐 bundle、下载/磁盘估算、HF auth 和许可摘要
+      - id: WP11-T04
+        action: Web 实现模型管理、prompt/audio 输入、参数表单、任务时间线、VRM Viewer、质量/警告面板
+      - id: WP11-T05
+        action: 模型表单由 ModelDefinition capability/schema 动态生成，不写模型名称分支
+      - id: WP11-T06
+        action: 实现多模型批量安装、取消、恢复、日志导出和 doctor 报告
+      - id: WP11-T07
+        action: 将现有 Viewer 迁移为 TypeScript 模块，保持 three-vrm normalized humanoid 边界
+      - id: WP11-T08
+        action: 提供 headless 和 --no-open-browser 模式
+    deliverables:
+      - apps/cli/
+      - apps/tui/
+      - apps/web/
+      - tests/e2e/first_run.spec.ts
+      - tests/e2e/generation.spec.ts
+    tests:
+      commands:
+        - npm run typecheck
+        - npm run test
+        - npm run test:e2e
+      required_cases:
+        - 首次运行 minimal bundle
+        - HF 未登录/gated model 提示
+        - 多选安装及失败恢复
+        - fake streaming worker 实时播放
+        - 已安装状态离线启动
+        - 键盘与基础可访问性
+    acceptance:
+      - 用户无需选择环境名、Python 或 CUDA 小版本
+      - 所有 UI 状态来自控制面 API
+      - 模型特定参数由 schema 驱动
+      - 失败信息包含可执行诊断而非原始堆栈
+    forbidden_changes:
+      - Web 直接执行 shell 或访问本地文件系统
+      - 以模型名称硬编码表单和输出解析
+      - 在前端修复动作数学
+
+  - id: WP12
+    title: SentiAvatar/SuSu 产品纵向闭环
+    priority: P1
+    estimated_engineering_days: 10-18
+    depends_on: [WP04, WP05, WP06, WP07, WP08, WP10]
+    parallelizable_with: [WP11, WP13]
+    goal: >-
+      以 SentiAvatar 验证语音/文本标签到 SuSu 63-joint 6D、ARKit 51、流式 Motion IR、VRM 身体/手/表情的产品主路径。
+    tasks:
+      - id: WP12-T01
+        action: 固定 SentiAvatar 官方 source、weights、SuSuInterActs/SentiPulse 非商业许可和 gated prerequisites
+      - id: WP12-T02
+        action: 定义 body25×6D、left20×6D、right20×6D、root offset、20 FPS、ARKit51 representation profile
+      - id: WP12-T03
+        action: 实现音频、文本动作标签、seed/风格等 request schema 和预处理
+      - id: WP12-T04
+        action: Worker 输出原生 body/hands/face 分轨 ModelResult，并保留音频时间对齐
+      - id: WP12-T05
+        action: 实现 SuSu skeleton → MotionIR → VRM humanoid52/full55 + expression mapping
+      - id: WP12-T06
+        action: 定义流式 chunk 边界、overlap、连续性、迟到和 backpressure 策略
+      - id: WP12-T07
+        action: 建立真实样本 golden、手部证据/solver、面部表达和音频同步质量报告
+      - id: WP12-T08
+        action: UI 显示 non-commercial 限制，禁止加入 commercial-safe bundle
+    deliverables:
+      - plugins/sentiavatar/
+      - registries/models/sentiavatar.yaml
+      - registries/representations/susu-63j-6d.yaml
+      - tests/models/test_sentiavatar_contract.py
+      - tests/golden/sentiavatar/
+      - doc/models/sentiavatar.md
+    tests:
+      commands:
+        - virea model install sentiavatar
+        - virea model verify sentiavatar
+        - uv run pytest tests/models/test_sentiavatar_contract.py -q
+      required_cases:
+        - 音频/文本到 body+hands+face ModelResult
+        - 20 FPS 与音频时间轴对齐
+        - 6D rotation 到 quaternion 数值稳定
+        - ARKit51 到 VRM expressions 显式映射和未映射报告
+        - 流式 chunk 连续播放
+        - 非商业许可门禁
+    acceptance:
+      - 原生 63-joint/ARKit 信息在 IR 中未被 canonical211 丢失
+      - VRM 播放包含身体、手和可用表情
+      - 未支持的 face coefficient 被记录而非静默丢弃
+      - 模型不能在未同意许可时安装/运行
+    forbidden_changes:
+      - 将 SentiAvatar 标记为 OSI 开源或商业安全
+      - 将 face 数据压进 211D 兼容张量
+      - 用样例文件名或 shape 猜测 SuSu 变体
+
+  - id: WP13
+    title: VrmMotionResult、VRMA 与通用导出
+    priority: P1
+    estimated_engineering_days: 7-12
+    depends_on: [WP07, WP08, WP10]
+    parallelizable_with: [WP11, WP12]
+    goal: >-
+      将内部可审计结果与便携播放格式分离，提供 VRMA 为主的导出以及 NPZ/BVH/JSON 辅助导出。
+    tasks:
+      - id: WP13-T01
+        action: 定义 VrmMotionResult manifest、avatar identity、tracks、quality、provenance、warnings
+      - id: WP13-T02
+        action: 实现 VRMA exporter，使用 VRM 1.0 humanoid/expression 语义
+      - id: WP13-T03
+        action: 实现 canonical211 NPZ、MotionIR bundle、BVH body export 和 diagnostics JSON
+      - id: WP13-T04
+        action: 导出前验证时间、骨骼、quaternion、target rest、hand certificate 和 expression range
+      - id: WP13-T05
+        action: 建立 VRMA roundtrip/reference player 测试和跨 avatar 播放策略
+      - id: WP13-T06
+        action: UI/CLI 支持导出任务、文件名模板、许可和 provenance sidecar
+    deliverables:
+      - packages/export/
+      - schemas/vrm-motion-result.schema.json
+      - tests/export/
+      - apps/cli/commands/export.py
+    tests:
+      commands:
+        - uv run pytest packages/export tests/export -q
+        - npm run test:vrma
+      required_cases:
+        - body22、humanoid52、full55
+        - 缺少 optional bones 的合法降级
+        - expression track
+        - VRMA roundtrip time/rotation tolerance
+        - tampered result 拒绝导出
+    acceptance:
+      - 内部 artifact 保留完整 IR/provenance，VRMA 只承载可播放子集
+      - 导出明确记录 dropped/synthesized channels
+      - 导出不依赖 Viewer 运行时修改 pose
+      - avatar 与 motion 许可提示可追溯
+    forbidden_changes:
+      - 宣称 VRMA 能无损承载全部 MotionIR 通道
+      - 在导出器中绕过重定向质量门禁
+      - 静默裁剪超范围 expression 或 quaternion
+
+  - id: WP14
+    title: 安全、许可与供应链硬化
+    priority: P0_release_gate
+    estimated_engineering_days: 8-14
+    depends_on: [WP02, WP04, WP05, WP06, WP07, WP08, WP10]
+    parallelizable_with: [WP09, WP11, WP12, WP13]
+    goal: >-
+      对下载、反序列化、插件、进程、secret、路径、许可证、哈希和发布链建立独立安全门禁。
+    tasks:
+      - id: WP14-T01
+        action: 编写 threat model，覆盖恶意模型仓库、pickle、路径穿越、token 泄露、worker 逃逸、依赖投毒
+      - id: WP14-T02
+        action: 默认优先 safetensors；torch.load 使用 weights_only 和固定 allowlist；不可信 pickle fail-closed
+      - id: WP14-T03
+        action: 验证所有 archive extraction 路径、symlink/hardlink、压缩炸弹和磁盘配额
+      - id: WP14-T04
+        action: 远程 manifest 使用严格 schema，不允许任意命令、动态 Python import path 或未固定 URL
+      - id: WP14-T05
+        action: 实现 secret redaction、keyring/HF 标准 token 使用和日志扫描
+      - id: WP14-T06
+        action: 建立 SPDX license registry、bundle compatibility、NOTICE/SBOM 生成
+      - id: WP14-T07
+        action: 对 release artifact、manifest 和 provenance 使用 Sigstore 或等价签名方案
+      - id: WP14-T08
+        action: 运行依赖漏洞扫描、源码安全扫描和恶意 fixture 测试
+    deliverables:
+      - SECURITY.md update
+      - doc/security/threat-model.md
+      - packages/security/
+      - registries/licenses/
+      - scripts/generate_sbom.py
+      - tests/security/
+    tests:
+      commands:
+        - uv run pytest tests/security -q
+        - pip-audit
+        - npm audit --audit-level=high
+        - scripts/check_licenses.sh
+      required_cases:
+        - pickle payload 拒绝
+        - archive path traversal 拒绝
+        - hash mismatch/quarantine
+        - token 不出现在日志/diagnostic bundle
+        - 非商业 bundle compatibility
+        - 未签名/签名错误的发布 metadata 策略
+    acceptance:
+      - threat model 经评审并关联测试
+      - 下载与安装有 source revision、digest、license、SBOM
+      - public/remote server 模式不允许 trusted raw pickle 开关
+      - release 前 security/license gate 全绿
+    forbidden_changes:
+      - 为兼容上游而默认 allow_pickle=True
+      - 在 manifest 中接受任意 shell
+      - 将非商业许可简化为普通开源许可
+      - 将 secret 写入 crash report
+
+  - id: WP15
+    title: CI 矩阵、发布、文档与 0.3 验收
+    priority: P0_release_gate
+    estimated_engineering_days: 8-14
+    depends_on: [WP09, WP10, WP11, WP13, WP14]
+    parallelizable_with: []
+    goal: >-
+      建立跨平台、分层、可缓存、可复现的 CI/CD 和最终 0.3 发布门禁；SentiAvatar 可作为 0.3.x
+      后续 P1，但若宣称 avatar product bundle 则必须纳入验收。
+    tasks:
+      - id: WP15-T01
+        action: 建立 lint/type/unit/contract/integration/e2e/security/license/release CI 分层
+      - id: WP15-T02
+        action: 建立 Ubuntu、Windows、macOS CPU CI 与受控 NVIDIA self-hosted CI
+      - id: WP15-T03
+        action: 对 runtime/model 大型测试使用固定 cache key 和 nightly 标签，不伪造成功
+      - id: WP15-T04
+        action: 构建 pipx/uv tool 安装路径、平台 bootstrap 脚本和可选 standalone 包
+      - id: WP15-T05
+        action: 生成 SBOM、provenance、checksums、签名和 release notes
+      - id: WP15-T06
+        action: 更新 README、Getting Started、Model Catalog、Skeleton/IR/Plugin SDK、Troubleshooting
+      - id: WP15-T07
+        action: 执行从干净机器的首次运行、离线重启、多模型、崩溃隔离和 rollback 验收
+      - id: WP15-T08
+        action: 发布 compatibility/deprecation matrix 和 0.4 后续路线
+    deliverables:
+      - .github/workflows/
+      - scripts/install.sh
+      - scripts/install.ps1
+      - doc/getting-started/
+      - doc/plugin-sdk/
+      - doc/model-catalog/
+      - release/SBOM.*
+      - release/SHA256SUMS
+      - release/ACCEPTANCE_REPORT.md
+    tests:
+      commands:
+        - scripts/ci/all.sh
+        - scripts/release/verify.sh
+      required_cases:
+        - Ubuntu LTS NVIDIA/CPU
+        - WSL2 NVIDIA manual or self-hosted gate
+        - macOS Apple Silicon
+        - Windows native CPU/NVIDIA support statement
+        - Arch detection/support statement
+        - clean install and offline second start
+        - two conflicting fake models plus MoMask
+        - worker crash isolation
+        - legacy canonical211 playback
+    acceptance:
+      - 发布包可由空白用户环境按文档安装
+      - checksums、SBOM、provenance 和许可清单完整
+      - Tier 1 平台全部通过，Tier 2 有准确状态
+      - 0.3 不宣称未实机验证的平台/模型
+      - 回滚到旧 processed root/旧 reader 路径有文档和测试
+    forbidden_changes:
+      - 用单平台 CI 代替跨平台声明
+      - 将 large-model tests 全部永久 skip
+      - 发布 mutable dependency 或未固定模型 revision
+
+critical_path:
+  - WP00
+  - WP01
+  - WP02
+  - WP03
+  - WP04
+  - WP05
+  - WP06
+  - WP07
+  - WP08
+  - WP09
+  - WP10
+  - WP11
+  - WP14
+  - WP15
+
+recommended_pr_sequence:
+  - PR-001: WP00 baseline fixtures and report
+  - PR-002: WP01 ADRs and contracts skeleton
+  - PR-003: WP02 VIREA_HOME and SQLite migrations
+  - PR-004: WP03 MachineProfile and doctor JSON
+  - PR-005: WP04 runtime backend interfaces plus fake uv runtime
+  - PR-006: WP05 model pool and fake model installation
+  - PR-007: WP06 fake worker protocol and supervisor
+  - PR-008: WP07 Motion IR core and canonical211 bridge
+  - PR-009: WP08 retarget package extraction with compatibility shims
+  - PR-010: WP10 fake-worker end-to-end API
+  - PR-011: WP09 MoMask plugin vertical slice
+  - PR-012: WP11 first-run TUI and Web generation flow
+  - PR-013: WP13 VrmMotionResult and VRMA export
+  - PR-014: WP14 security/license release gate
+  - PR-015: WP15 release matrix and 0.3 acceptance
+  - PR-016: WP12 SentiAvatar product vertical slice, may land in 0.3.x after core release
+
+agent_operating_protocol:
+  before_edit:
+    - 阅读 blueprint 对应章节、相关 ADR、现有代码和 characterization tests
+    - 输出拟修改文件、公开接口、迁移风险和测试计划
+    - 确认该 PR 只覆盖一个工作包或一个可独立验收的切片
+  during_edit:
+    - 先更新契约和样例，再实现生产代码
+    - 保持旧 import/schema/route shim，除非工作包明确批准删除
+    - 所有外部 revision、hash、license 写入 registry，而非散落硬编码
+    - 数学和格式转换使用显式 profile，不使用模型名分支或 shape 猜测
+  after_edit:
+    - 执行工作包测试和受影响的全局门禁
+    - 生成机器可读测试结果或日志摘要
+    - 更新迁移、rollback、兼容和风险说明
+    - 未达到 acceptance 时状态必须为 partial/blocked，不得标记 completed
+  handoff_template:
+    fields:
+      - work_package
+      - task_ids
+      - baseline_commit
+      - changed_files
+      - schema_changes
+      - registry_changes
+      - commands_run
+      - tests_passed
+      - tests_failed
+      - compatibility
+      - migration
+      - rollback
+      - security_license_notes
+      - unresolved_risks
+      - next_slice
+
+risk_register:
+  - id: R-001
+    risk: 上游动作模型依赖陈旧且相互冲突
+    mitigation: pixi/uv 隔离运行时、固定 lock、fake conflict test
+  - id: R-002
+    risk: 不同模型输出骨架和坐标语义含糊
+    mitigation: managed plugin 显式 RepresentationProfile；ambiguous import fail-closed
+  - id: R-003
+    risk: GPU 驱动和 PyTorch wheel 不匹配
+    mitigation: MachineProfile 分层检测，runtime variant resolution 与 smoke
+  - id: R-004
+    risk: 非商业/受限许可阻碍分发
+    mitigation: license registry、consent gate、bundle compatibility、权重不随核心发布
+  - id: R-005
+    risk: 旧 canonical 重定向回归
+    mitigation: WP00 golden、compat bridge、旧 reader/shim、数值回归
+  - id: R-006
+    risk: Web 实时流导致时间轴和动作不连续
+    mitigation: chunk sequence/timebase/overlap contract、backpressure 和 reconnect tests
+  - id: R-007
+    risk: 模型仓库中的 pickle 或任意代码造成供应链风险
+    mitigation: safetensors 优先、weights_only、strict manifest、隔离 worker、签名与 SBOM
+  - id: R-008
+    risk: 一次性大重写使仓库长期不可用
+    mitigation: brownfield 小 PR、characterization、兼容 shim、每阶段纵向可运行
+
+final_release_acceptance:
+  installation:
+    - 安装后运行 virea 可进入向导或已配置控制台
+    - 环境、权重和缓存无需用户手工拼接
+    - 环境物理名称无碰撞且可审计
+    - 多模型安装可恢复、可验证、可离线复用
+  generation:
+    - 至少 fake worker 与 MoMask 完整闭环
+    - ModelResult、MotionIR、VrmMotionResult 版本化并持久化
+    - 模型崩溃、OOM、取消均通过统一任务状态呈现
+  retarget:
+    - canonical211 v3 兼容回归通过
+    - VRM body22/humanoid52/full55 profile 可验证
+    - Viewer 不做 dataset/model-specific pose repair
+    - 输出含质量、provenance、dropped/synthesized report
+  security_and_license:
+    - token/secret 不落日志
+    - 不可信 pickle 默认拒绝
+    - 所有远程 artifact 固定 revision 与 digest
+    - 非商业模型不进入商业安全 bundle
+    - 发布包含 SBOM、checksums 和 provenance
+  platform:
+    - Tier 1 全部完成真实或受控硬件验收
+    - Tier 2 只声明实际验证的能力

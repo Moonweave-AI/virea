@@ -1,0 +1,32 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: vrm1.required15.v1
+version: 1.0.0
+joints:
+  - {name: hips, parent: null, semantic: hips, required: true}
+  - {name: spine, parent: hips, semantic: spine, required: true}
+  - {name: head, parent: spine, semantic: head, required: true}
+  - {name: leftUpperLeg, parent: hips, semantic: leftUpperLeg, required: true}
+  - {name: leftLowerLeg, parent: leftUpperLeg, semantic: leftLowerLeg, required: true}
+  - {name: leftFoot, parent: leftLowerLeg, semantic: leftFoot, required: true}
+  - {name: rightUpperLeg, parent: hips, semantic: rightUpperLeg, required: true}
+  - {name: rightLowerLeg, parent: rightUpperLeg, semantic: rightLowerLeg, required: true}
+  - {name: rightFoot, parent: rightLowerLeg, semantic: rightFoot, required: true}
+  - {name: leftUpperArm, parent: spine, semantic: leftUpperArm, required: true}
+  - {name: leftLowerArm, parent: leftUpperArm, semantic: leftLowerArm, required: true}
+  - {name: leftHand, parent: leftLowerArm, semantic: leftHand, required: true}
+  - {name: rightUpperArm, parent: spine, semantic: rightUpperArm, required: true}
+  - {name: rightLowerArm, parent: rightUpperArm, semantic: rightLowerArm, required: true}
+  - {name: rightHand, parent: rightLowerArm, semantic: rightHand, required: true}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: avatar_normalized_humanoid
+rotation:
+  representation: quaternion_xyzw
+  layout: xyzw
+  space: parent_local_rest_relative
+root_motion:
+  translation: world_absolute
+  rotation: local_to_world
+source_urls:
+  - https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm-1.0/humanoid.md
+validation_status: source_verified

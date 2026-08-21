@@ -1,0 +1,69 @@
+schema_version: virea.skeleton_profile.v1.0.0
+id: vrm1.humanoid52.v1
+version: 1.0.0
+joints:
+  - {name: hips, parent: null, semantic: hips, required: true}
+  - {name: leftUpperLeg, parent: hips, semantic: leftUpperLeg, required: true}
+  - {name: rightUpperLeg, parent: hips, semantic: rightUpperLeg, required: true}
+  - {name: spine, parent: hips, semantic: spine, required: true}
+  - {name: leftLowerLeg, parent: leftUpperLeg, semantic: leftLowerLeg, required: true}
+  - {name: rightLowerLeg, parent: rightUpperLeg, semantic: rightLowerLeg, required: true}
+  - {name: chest, parent: spine, semantic: chest, required: false}
+  - {name: leftFoot, parent: leftLowerLeg, semantic: leftFoot, required: true}
+  - {name: rightFoot, parent: rightLowerLeg, semantic: rightFoot, required: true}
+  - {name: upperChest, parent: chest, semantic: upperChest, required: false}
+  - {name: leftToes, parent: leftFoot, semantic: leftToes, required: false}
+  - {name: rightToes, parent: rightFoot, semantic: rightToes, required: false}
+  - {name: neck, parent: upperChest, semantic: neck, required: false}
+  - {name: leftShoulder, parent: upperChest, semantic: leftShoulder, required: false}
+  - {name: rightShoulder, parent: upperChest, semantic: rightShoulder, required: false}
+  - {name: head, parent: neck, semantic: head, required: true}
+  - {name: leftUpperArm, parent: leftShoulder, semantic: leftUpperArm, required: true}
+  - {name: rightUpperArm, parent: rightShoulder, semantic: rightUpperArm, required: true}
+  - {name: leftLowerArm, parent: leftUpperArm, semantic: leftLowerArm, required: true}
+  - {name: rightLowerArm, parent: rightUpperArm, semantic: rightLowerArm, required: true}
+  - {name: leftHand, parent: leftLowerArm, semantic: leftHand, required: true}
+  - {name: rightHand, parent: rightLowerArm, semantic: rightHand, required: true}
+  - {name: leftThumbProximal, parent: leftHand, semantic: leftThumbProximal, required: false}
+  - {name: leftThumbIntermediate, parent: leftThumbProximal, semantic: leftThumbIntermediate, required: false}
+  - {name: leftThumbDistal, parent: leftThumbIntermediate, semantic: leftThumbDistal, required: false}
+  - {name: leftIndexProximal, parent: leftHand, semantic: leftIndexProximal, required: false}
+  - {name: leftIndexIntermediate, parent: leftIndexProximal, semantic: leftIndexIntermediate, required: false}
+  - {name: leftIndexDistal, parent: leftIndexIntermediate, semantic: leftIndexDistal, required: false}
+  - {name: leftMiddleProximal, parent: leftHand, semantic: leftMiddleProximal, required: false}
+  - {name: leftMiddleIntermediate, parent: leftMiddleProximal, semantic: leftMiddleIntermediate, required: false}
+  - {name: leftMiddleDistal, parent: leftMiddleIntermediate, semantic: leftMiddleDistal, required: false}
+  - {name: leftRingProximal, parent: leftHand, semantic: leftRingProximal, required: false}
+  - {name: leftRingIntermediate, parent: leftRingProximal, semantic: leftRingIntermediate, required: false}
+  - {name: leftRingDistal, parent: leftRingIntermediate, semantic: leftRingDistal, required: false}
+  - {name: leftLittleProximal, parent: leftHand, semantic: leftLittleProximal, required: false}
+  - {name: leftLittleIntermediate, parent: leftLittleProximal, semantic: leftLittleIntermediate, required: false}
+  - {name: leftLittleDistal, parent: leftLittleIntermediate, semantic: leftLittleDistal, required: false}
+  - {name: rightThumbProximal, parent: rightHand, semantic: rightThumbProximal, required: false}
+  - {name: rightThumbIntermediate, parent: rightThumbProximal, semantic: rightThumbIntermediate, required: false}
+  - {name: rightThumbDistal, parent: rightThumbIntermediate, semantic: rightThumbDistal, required: false}
+  - {name: rightIndexProximal, parent: rightHand, semantic: rightIndexProximal, required: false}
+  - {name: rightIndexIntermediate, parent: rightIndexProximal, semantic: rightIndexIntermediate, required: false}
+  - {name: rightIndexDistal, parent: rightIndexIntermediate, semantic: rightIndexDistal, required: false}
+  - {name: rightMiddleProximal, parent: rightHand, semantic: rightMiddleProximal, required: false}
+  - {name: rightMiddleIntermediate, parent: rightMiddleProximal, semantic: rightMiddleIntermediate, required: false}
+  - {name: rightMiddleDistal, parent: rightMiddleIntermediate, semantic: rightMiddleDistal, required: false}
+  - {name: rightRingProximal, parent: rightHand, semantic: rightRingProximal, required: false}
+  - {name: rightRingIntermediate, parent: rightRingProximal, semantic: rightRingIntermediate, required: false}
+  - {name: rightRingDistal, parent: rightRingIntermediate, semantic: rightRingDistal, required: false}
+  - {name: rightLittleProximal, parent: rightHand, semantic: rightLittleProximal, required: false}
+  - {name: rightLittleIntermediate, parent: rightLittleProximal, semantic: rightLittleIntermediate, required: false}
+  - {name: rightLittleDistal, parent: rightLittleIntermediate, semantic: rightLittleDistal, required: false}
+coordinate_system: {handedness: right, up: y, forward: z}
+units: meters
+rest_pose_source: virea_canonical_rest.v3
+rotation:
+  representation: quaternion_xyzw
+  layout: xyzw
+  space: parent_local_rest_relative
+root_motion:
+  translation: world_absolute
+  rotation: local_to_world
+source_urls:
+  - https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm-1.0/humanoid.md
+validation_status: regression_verified

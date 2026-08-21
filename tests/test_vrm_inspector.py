@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import struct
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -77,7 +77,9 @@ def _clear_control_rest_caches() -> None:
     skeleton.control_rest_offsets.cache_clear()
 
 
-def test_inspect_vrm0_applies_column_major_matrix_and_ancestor_trs(tmp_path: Path) -> None:
+def test_inspect_vrm0_applies_column_major_matrix_and_ancestor_trs(
+    tmp_path: Path,
+) -> None:
     vrm_path = tmp_path / "avatar.vrm"
     _write_glb(vrm_path, _vrm0_payload())
 
@@ -93,7 +95,9 @@ def test_inspect_vrm0_applies_column_major_matrix_and_ancestor_trs(tmp_path: Pat
     assert graph["head"]["nearest_humanoid_parent_canonical"] == "spine"
 
 
-def test_inspect_vrm1_uses_trs_rotation_and_version_native_thumb_names(tmp_path: Path) -> None:
+def test_inspect_vrm1_uses_trs_rotation_and_version_native_thumb_names(
+    tmp_path: Path,
+) -> None:
     vrm_path = tmp_path / "avatar-v1.vrm"
     payload = {
         "asset": {"version": "2.0"},
@@ -130,7 +134,9 @@ def test_inspect_vrm1_uses_trs_rotation_and_version_native_thumb_names(tmp_path:
     graph = descriptor["humanoid_bone_nodes"]
 
     assert descriptor["vrm_version"] == "1.0"
-    np.testing.assert_allclose(graph["hips"]["world_position"], [2.0, 1.0, 0.0], atol=1e-6)
+    np.testing.assert_allclose(
+        graph["hips"]["world_position"], [2.0, 1.0, 0.0], atol=1e-6
+    )
     assert graph["leftThumbProximal"]["node_index"] == 2
     assert graph["leftThumbIntermediate"]["node_index"] == 3
     assert graph["leftThumbDistal"]["node_index"] == 4

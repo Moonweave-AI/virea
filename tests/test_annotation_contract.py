@@ -17,13 +17,6 @@ from virea.data.adapters.grab import GRABAdapter
 from virea.data.adapters.humanml3d import HumanML3DAdapter
 from virea.data.adapters.motionx import MotionXAdapter
 from virea.data.adapters.susuinteracts import SuSuInterActsAdapter
-from virea.data.bvh import (
-    BEAT_BODY_SOURCE_JOINT,
-    BEAT_HAND_SOURCE_JOINT,
-    BVHMotion,
-    beat_bvh_to_body22,
-    parse_bvh,
-)
 from virea.data.annotations import (
     AnnotationV1,
     cache_data_sidecar,
@@ -35,6 +28,13 @@ from virea.data.annotations import (
     resolve_cached_sidecar,
     security_manifest,
     sidecar_cache_health,
+)
+from virea.data.bvh import (
+    BEAT_BODY_SOURCE_JOINT,
+    BEAT_HAND_SOURCE_JOINT,
+    BVHMotion,
+    beat_bvh_to_body22,
+    parse_bvh,
 )
 from virea.data.types import DatasetRecord, PreviewPayload, RawClip, SampleRef
 from virea.motion.canonical import (
@@ -68,7 +68,9 @@ class _MarkerOnUnpickle:
 
     def __reduce__(self):  # noqa: ANN204
         expression = (
-            "__import__('pathlib').Path(" + repr(str(self.marker)) + ").write_text('executed', encoding='utf-8')"
+            "__import__('pathlib').Path("
+            + repr(str(self.marker))
+            + ").write_text('executed', encoding='utf-8')"
         )
         return eval, (expression,)
 
@@ -89,9 +91,23 @@ def test_annotation_v1_has_stable_identity_and_requires_reasoning() -> None:
     translated = make_annotation(**base, text="walking")
     assert first["id"] == translated["id"]
     assert set(first) == {
-        "schema_version", "id", "level", "type", "text", "bodypart",
-        "start_sec", "end_sec", "start_frame", "end_frame", "confidence",
-        "source", "provenance", "reasoning", "original", "clipped", "extras",
+        "schema_version",
+        "id",
+        "level",
+        "type",
+        "text",
+        "bodypart",
+        "start_sec",
+        "end_sec",
+        "start_frame",
+        "end_frame",
+        "confidence",
+        "source",
+        "provenance",
+        "reasoning",
+        "original",
+        "clipped",
+        "extras",
     }
     invalid = dict(first)
     invalid["reasoning"] = None
@@ -187,15 +203,29 @@ def test_annotation_clip_retains_outside_records_for_detail_audit() -> None:
     )
     assert len(clipped) == 3
     partial, outside, boundary = clipped
-    assert (partial["start_frame"], partial["end_frame"], partial["clipped"]) == (10, 20, True)
-    assert (outside["start_frame"], outside["end_frame"], outside["clipped"]) == (20, 20, True)
+    assert (partial["start_frame"], partial["end_frame"], partial["clipped"]) == (
+        10,
+        20,
+        True,
+    )
+    assert (outside["start_frame"], outside["end_frame"], outside["clipped"]) == (
+        20,
+        20,
+        True,
+    )
     assert outside["extras"]["clipped_out"] is True
     assert outside["original"]["time"]["start_frame"] == 30
-    assert (boundary["start_frame"], boundary["end_frame"], boundary["clipped"]) == (0, 20, False)
+    assert (boundary["start_frame"], boundary["end_frame"], boundary["clipped"]) == (
+        0,
+        20,
+        False,
+    )
     assert any("retained as clipped-out" in warning for warning in warnings)
 
 
-def test_unknown_json_is_bounded_redacted_and_materialized_as_sidecar(tmp_path: Path) -> None:
+def test_unknown_json_is_bounded_redacted_and_materialized_as_sidecar(
+    tmp_path: Path,
+) -> None:
     annotation = make_annotation(
         dataset="beat",
         sample_id="sample",
@@ -232,7 +262,42 @@ def test_unknown_json_is_bounded_redacted_and_materialized_as_sidecar(tmp_path: 
         assert (tmp_path / reference["path"]).is_file()
 
 
-def test_sidecar_cache_is_atomic_bounded_and_lru(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_default_sidecar_cache_stays_outside_the_repository() -> None:
+    import virea.data.annotations as annotation_module
+
+    project_root = Path(__file__).resolve().parents[1]
+    cache_parent = annotation_module._SIDECAR_CACHE_ROOT.parent
+    assert cache_parent == annotation_module._SIDECAR_CACHE_PARENT
+    assert not cache_parent.is_relative_to(project_root)
+    assert annotation_module._SIDECAR_CACHE_ROOT.name.startswith("sidecar-cache-v1-")
+    assert cache_parent.name == "annotations"
+
+
+def test_process_sidecar_cleanup_preserves_other_processes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import virea.data.annotations as annotation_module
+
+    parent = tmp_path / ".virea-runtime"
+    own_cache = parent / "sidecar-cache-v1-100"
+    sibling_cache = parent / "sidecar-cache-v1-200"
+    own_cache.mkdir(parents=True)
+    sibling_cache.mkdir()
+    (own_cache / "blob").write_bytes(b"owned")
+    (sibling_cache / "blob").write_bytes(b"other")
+    monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_PARENT", parent)
+    monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_ROOT", own_cache)
+
+    annotation_module._cleanup_process_sidecar_cache()
+
+    assert not own_cache.exists()
+    assert (sibling_cache / "blob").read_bytes() == b"other"
+
+
+def test_sidecar_cache_is_atomic_bounded_and_lru(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     import virea.data.annotations as annotation_module
 
     cache_root = tmp_path / "cache"
@@ -240,12 +305,18 @@ def test_sidecar_cache_is_atomic_bounded_and_lru(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_MAX_FILE_BYTES", 64)
     monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_MAX_TOTAL_BYTES", 130)
 
-    first = cache_data_sidecar(b"a" * 60, media_type="application/octet-stream", encoding="binary")
-    second = cache_data_sidecar(b"b" * 60, media_type="application/octet-stream", encoding="binary")
+    first = cache_data_sidecar(
+        b"a" * 60, media_type="application/octet-stream", encoding="binary"
+    )
+    second = cache_data_sidecar(
+        b"b" * 60, media_type="application/octet-stream", encoding="binary"
+    )
     second_path = cache_root / second["sha256"]
     os.utime(second_path, ns=(1, 1))
     assert resolve_cached_sidecar(first["sha256"]) is not None
-    third = cache_data_sidecar(b"c" * 60, media_type="application/octet-stream", encoding="binary")
+    third = cache_data_sidecar(
+        b"c" * 60, media_type="application/octet-stream", encoding="binary"
+    )
     assert resolve_cached_sidecar(second["sha256"]) is None
     assert resolve_cached_sidecar(first["sha256"]) is not None
     assert resolve_cached_sidecar(third["sha256"]) is not None
@@ -274,7 +345,9 @@ def test_sidecar_cache_is_atomic_bounded_and_lru(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(ValueError, match="materialized sidecar.*mismatch"):
         materialize_sidecars({"sidecar": references[0]}, processed_root)
     with pytest.raises(ValueError, match="per file"):
-        cache_data_sidecar(b"x" * 65, media_type="application/octet-stream", encoding="binary")
+        cache_data_sidecar(
+            b"x" * 65, media_type="application/octet-stream", encoding="binary"
+        )
 
 
 def test_numpy_sidecar_uses_lossless_compression_before_capacity_failure(
@@ -321,11 +394,20 @@ def test_oversized_contact_and_audio_degrade_explicitly_without_crashing(
         framerate=30.0,
     )
     grab_clip = GRABAdapter(_record("grab"), grab_root).load("s1/large_contact")
-    contact_channels = [item for item in grab_clip.channels if item["representation"] == "categorical_per_element"]
+    contact_channels = [
+        item
+        for item in grab_clip.channels
+        if item["representation"] == "categorical_per_element"
+    ]
     assert len(contact_channels) == 2
     assert all(item["availability"] == "metadata_only" for item in contact_channels)
-    assert all("capacity" in str(item["reason_unavailable"]).lower() for item in contact_channels)
-    assert all(len(item["extras"]["native_array_sha256"]) == 64 for item in contact_channels)
+    assert all(
+        "capacity" in str(item["reason_unavailable"]).lower()
+        for item in contact_channels
+    )
+    assert all(
+        len(item["extras"]["native_array_sha256"]) == 64 for item in contact_channels
+    )
 
     audio_path = tmp_path / "large.wav"
     with wave.open(str(audio_path), "wb") as handle:
@@ -333,7 +415,9 @@ def test_oversized_contact_and_audio_degrade_explicitly_without_crashing(
         handle.setsampwidth(2)
         handle.setframerate(16000)
         handle.writeframes(b"\x00\x00" * 100)
-    beat_channel = BEATAdapter(_record("beat"), tmp_path)._audio_channel("sample", audio_path, 30.0, 1)
+    beat_channel = BEATAdapter(_record("beat"), tmp_path)._audio_channel(
+        "sample", audio_path, 30.0, 1
+    )
     assert beat_channel["availability"] == "metadata_only"
     assert len(beat_channel["extras"]["native_sha256"]) == 64
 
@@ -360,8 +444,12 @@ def test_large_face_curves_remain_lossless_external_channels(
 
     monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_ROOT", tmp_path / "cache")
-    monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_MAX_FILE_BYTES", 64 * 1024 * 1024)
-    monkeypatch.setattr(annotation_module, "_SIDECAR_CACHE_MAX_TOTAL_BYTES", 128 * 1024 * 1024)
+    monkeypatch.setattr(
+        annotation_module, "_SIDECAR_CACHE_MAX_FILE_BYTES", 64 * 1024 * 1024
+    )
+    monkeypatch.setattr(
+        annotation_module, "_SIDECAR_CACHE_MAX_TOTAL_BYTES", 128 * 1024 * 1024
+    )
 
     motionx_id = "motion_data/smplx_322/source/sample"
     motionx_path = tmp_path / "motionx" / f"{motionx_id}.npy"
@@ -369,8 +457,14 @@ def test_large_face_curves_remain_lossless_external_channels(
     motionx_values = np.zeros((10_500, 322), dtype=np.float32)
     motionx_values[:, 159:209] = 0.25
     np.save(motionx_path, motionx_values)
-    motionx_clip = MotionXAdapter(_record("motionx"), tmp_path / "motionx").load(motionx_id, max_frames=1)
-    motionx_face = next(item for item in motionx_clip.channels if item["source"] == "motionx.smplx_322.face_expression_slice")
+    motionx_clip = MotionXAdapter(_record("motionx"), tmp_path / "motionx").load(
+        motionx_id, max_frames=1
+    )
+    motionx_face = next(
+        item
+        for item in motionx_clip.channels
+        if item["source"] == "motionx.smplx_322.face_expression_slice"
+    )
     assert motionx_face["availability"] == "external"
     assert motionx_face["shape"] == [10_500, 50]
     assert resolve_cached_sidecar(motionx_face["data_ref"]["sha256"]) is not None
@@ -384,7 +478,9 @@ def test_large_face_curves_remain_lossless_external_channels(
     susu_face_path = susu_root / "arkit_data" / "sample.npy"
     susu_face_path.parent.mkdir(parents=True)
     np.save(susu_face_path, np.full((11_000, 51), 0.5, dtype=np.float32))
-    susu_clip = SuSuInterActsAdapter(_record("susuinteracts"), susu_root).load("sample", max_frames=1)
+    susu_clip = SuSuInterActsAdapter(_record("susuinteracts"), susu_root).load(
+        "sample", max_frames=1
+    )
     susu_face = next(item for item in susu_clip.channels if item["kind"] == "face")
     assert susu_face["availability"] == "external"
     assert susu_face["shape"] == [11_000, 51]
@@ -403,13 +499,17 @@ def test_large_face_curves_remain_lossless_external_channels(
         ),
         encoding="utf-8",
     )
-    beat_face = BEATAdapter(_record("beat"), tmp_path)._face_channel("sample", beat_face_path)
+    beat_face = BEATAdapter(_record("beat"), tmp_path)._face_channel(
+        "sample", beat_face_path
+    )
     assert beat_face["availability"] == "external"
     assert beat_face["shape"] == [11_000, 51]
     assert resolve_cached_sidecar(beat_face["data_ref"]["sha256"]) is not None
 
 
-def test_preview_sample_snapshot_never_exposes_raw_absolute_paths_or_secrets(tmp_path: Path) -> None:
+def test_preview_sample_snapshot_never_exposes_raw_absolute_paths_or_secrets(
+    tmp_path: Path,
+) -> None:
     source_path = (tmp_path / "raw" / "clip.npz").resolve()
     sample = SampleRef(
         dataset="amass",
@@ -434,7 +534,10 @@ def test_preview_sample_snapshot_never_exposes_raw_absolute_paths_or_secrets(tmp
     serialized = json.dumps(payload, ensure_ascii=False)
     assert str(source_path) not in serialized
     assert "private-value" not in serialized
-    assert payload["sample"]["source_path"]["redaction"]["reason"] == "absolute_path_not_exposed"
+    assert (
+        payload["sample"]["source_path"]["redaction"]["reason"]
+        == "absolute_path_not_exposed"
+    )
 
 
 def test_adapter_sample_id_cannot_escape_dataset_root(tmp_path: Path) -> None:
@@ -444,7 +547,9 @@ def test_adapter_sample_id_cannot_escape_dataset_root(tmp_path: Path) -> None:
     amass_root = tmp_path / "amass"
     amass_root.mkdir()
     with pytest.raises(ValueError, match="escaped raw root"):
-        AMASSAdapter(_record("amass"), amass_root).load("../beat/pose/escape", max_frames=1)
+        AMASSAdapter(_record("amass"), amass_root).load(
+            "../beat/pose/escape", max_frames=1
+        )
 
 
 def test_raw_numpy_pickle_is_disabled_by_default_and_never_executes(
@@ -465,7 +570,9 @@ def test_raw_numpy_pickle_is_disabled_by_default_and_never_executes(
     grab_path.parent.mkdir(parents=True)
     body = {"params": {"fullpose": np.zeros((1, 165)), "transl": np.zeros((1, 3))}}
     np.savez(grab_path, body=np.asarray(body, dtype=object), framerate=30.0)
-    with pytest.raises(PermissionError, match="VIREA_ALLOW_TRUSTED_RAW_PICKLE=1") as blocked:
+    with pytest.raises(
+        PermissionError, match="VIREA_ALLOW_TRUSTED_RAW_PICKLE=1"
+    ) as blocked:
         GRABAdapter(_record("grab"), grab_root).load("s1/safe")
     assert str(grab_path) not in str(blocked.value)
     monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
@@ -476,7 +583,12 @@ def test_raw_numpy_pickle_is_disabled_by_default_and_never_executes(
 def test_amass_156_keeps_hands_and_marks_filename_as_derived(tmp_path: Path) -> None:
     path = tmp_path / "subject" / "wave_poses.npz"
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(path, poses=np.zeros((2, 156), dtype=np.float32), trans=np.zeros((2, 3)), mocap_framerate=20.0)
+    np.savez(
+        path,
+        poses=np.zeros((2, 156), dtype=np.float32),
+        trans=np.zeros((2, 3)),
+        mocap_framerate=20.0,
+    )
     clip = AMASSAdapter(_record("amass"), tmp_path).load("subject/wave_poses")
     assert clip.sample.codec_key == "smplh_body_hands"
     assert clip.sample.metadata["dataset_profile"] == "amass_smplh156"
@@ -484,19 +596,30 @@ def test_amass_156_keeps_hands_and_marks_filename_as_derived(tmp_path: Path) -> 
     assert "filename" in clip.annotations[0]["reasoning"].lower()
 
 
-def test_babel_resolves_amass_alias_and_keeps_seq_and_frame_annotations(tmp_path: Path) -> None:
+def test_babel_resolves_amass_alias_and_keeps_seq_and_frame_annotations(
+    tmp_path: Path,
+) -> None:
     babel_root = tmp_path / "babel"
     amass_path = tmp_path / "amass" / "BMLrub" / "rub001" / "clip.npz"
     amass_path.parent.mkdir(parents=True)
-    np.savez(amass_path, poses=np.zeros((2, 156), dtype=np.float32), trans=np.zeros((2, 3)), mocap_framerate=20.0)
+    np.savez(
+        amass_path,
+        poses=np.zeros((2, 156), dtype=np.float32),
+        trans=np.zeros((2, 3)),
+        mocap_framerate=20.0,
+    )
     annotation_dir = babel_root / "babel-teach"
     annotation_dir.mkdir(parents=True)
     record = {
         "1": {
             "feat_p": "BMLrub/BioMotionLab_NTroje/rub001/clip.npz",
             "dur": 0.1,
-            "seq_ann": {"labels": [{"raw_label": "walk", "proc_label": "walk", "extra": 1}]},
-            "frame_ann": {"labels": [{"raw_label": "turn", "start_t": 0.0, "end_t": 0.1}]},
+            "seq_ann": {
+                "labels": [{"raw_label": "walk", "proc_label": "walk", "extra": 1}]
+            },
+            "frame_ann": {
+                "labels": [{"raw_label": "turn", "start_t": 0.0, "end_t": 0.1}]
+            },
         }
     }
     (annotation_dir / "train.json").write_text(json.dumps(record), encoding="utf-8")
@@ -504,7 +627,10 @@ def test_babel_resolves_amass_alias_and_keeps_seq_and_frame_annotations(tmp_path
     adapter = BABELAdapter(_record("babel"), babel_root)
     clip = adapter.load("babel-teach/train/1")
     assert clip.sample.codec_key == "smplh_body_hands"
-    assert clip.sample.metadata["carrier_path_rule"] == "mapped_dataset_drop_archive_wrapper"
+    assert (
+        clip.sample.metadata["carrier_path_rule"]
+        == "mapped_dataset_drop_archive_wrapper"
+    )
     assert [item["level"] for item in clip.annotations] == ["sequence", "action"]
     assert all(item["provenance"] == "native" for item in clip.annotations)
 
@@ -521,7 +647,12 @@ def test_babel_accepts_nullable_or_empty_annotation_blocks(
     babel_root = tmp_path / "babel"
     carrier = tmp_path / "amass" / "BMLrub" / "rub001" / "clip.npz"
     carrier.parent.mkdir(parents=True)
-    np.savez(carrier, poses=np.zeros((2, 156), dtype=np.float32), trans=np.zeros((2, 3)), mocap_framerate=20.0)
+    np.savez(
+        carrier,
+        poses=np.zeros((2, 156), dtype=np.float32),
+        trans=np.zeros((2, 3)),
+        mocap_framerate=20.0,
+    )
     annotation_dir = babel_root / "babel-teach"
     annotation_dir.mkdir(parents=True)
     record = {
@@ -534,7 +665,9 @@ def test_babel_accepts_nullable_or_empty_annotation_blocks(
     }
     (annotation_dir / "train.json").write_text(json.dumps(record), encoding="utf-8")
     (annotation_dir / "val.json").write_text("{}", encoding="utf-8")
-    clip = BABELAdapter(_record("babel"), babel_root).load("babel-teach/train/1", max_frames=2)
+    clip = BABELAdapter(_record("babel"), babel_root).load(
+        "babel-teach/train/1", max_frames=2
+    )
     assert clip.annotations == []
 
 
@@ -552,7 +685,11 @@ def test_beat_preserves_full_tsv_and_semantic_score_scale(tmp_path: Path) -> Non
     item = annotations[0]
     assert item["confidence"] is None
     assert item["extras"]["semantic_relevancy_score"] == 0.7
-    assert item["extras"]["semantic_relevancy_scale"] == {"min": 0.0, "max": 10.0, "unit": "ordinal"}
+    assert item["extras"]["semantic_relevancy_scale"] == {
+        "min": 0.0,
+        "max": 10.0,
+        "unit": "ordinal",
+    }
     assert item["original"]["line"].endswith("extra")
 
 
@@ -651,7 +788,9 @@ def _write_beat_body_fixture(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def test_beat_loads_full_bvh_and_composes_skipped_joint_rotations(tmp_path: Path) -> None:
+def test_beat_loads_full_bvh_and_composes_skipped_joint_rotations(
+    tmp_path: Path,
+) -> None:
     _write_beat_body_fixture(tmp_path / "hf" / "speaker" / "clip.bvh")
     adapter = BEATAdapter(_record("beat"), tmp_path)
     discovered = adapter.discover()
@@ -786,7 +925,9 @@ def test_beat_loads_full_bvh_and_composes_skipped_joint_rotations(tmp_path: Path
         )
 
 
-def test_beat_chunked_decoder_matches_single_chunk_across_boundaries(tmp_path: Path) -> None:
+def test_beat_chunked_decoder_matches_single_chunk_across_boundaries(
+    tmp_path: Path,
+) -> None:
     bvh_path = tmp_path / "chunked.bvh"
     _write_beat_body_fixture(bvh_path)
     parsed = parse_bvh(bvh_path)
@@ -818,17 +959,22 @@ def test_beat_chunked_decoder_matches_single_chunk_across_boundaries(tmp_path: P
         assert actual.shape == expected_shape
         assert np.all(np.isfinite(actual))
         np.testing.assert_allclose(actual, single_chunk[key], atol=1e-6, rtol=1e-6)
-    assert chunked["source_rest_offsets"].keys() == single_chunk[
-        "source_rest_offsets"
-    ].keys()
+    assert (
+        chunked["source_rest_offsets"].keys()
+        == single_chunk["source_rest_offsets"].keys()
+    )
     for bone_name, offset in chunked["source_rest_offsets"].items():
-        np.testing.assert_array_equal(offset, single_chunk["source_rest_offsets"][bone_name])
+        np.testing.assert_array_equal(
+            offset, single_chunk["source_rest_offsets"][bone_name]
+        )
     assert chunked["collapsed_paths"] == single_chunk["collapsed_paths"]
     with pytest.raises(ValueError, match="chunk_size must be a positive integer"):
         beat_bvh_to_body22(motion, chunk_size=0)
 
 
-def test_beat_reports_declared_actual_and_intentionally_decoded_frames(tmp_path: Path) -> None:
+def test_beat_reports_declared_actual_and_intentionally_decoded_frames(
+    tmp_path: Path,
+) -> None:
     bvh_path = tmp_path / "hf" / "speaker" / "short.bvh"
     _write_beat_body_fixture(
         bvh_path,
@@ -843,7 +989,9 @@ def test_beat_reports_declared_actual_and_intentionally_decoded_frames(tmp_path:
     assert short.sample.metadata["bvh_decoded_frame_count"] == 2
     assert short.sample.metadata["bvh_actual_payload_frame_count"] == 2
     assert short.sample.metadata["bvh_payload_ended_early"] is True
-    assert any("actual readable frame count" in item for item in short.validation_warnings)
+    assert any(
+        "actual readable frame count" in item for item in short.validation_warnings
+    )
 
     complete_path = tmp_path / "hf" / "speaker" / "complete.bvh"
     _write_beat_body_fixture(complete_path)
@@ -868,9 +1016,25 @@ def test_grab_exposes_object_pose_and_honest_categorical_contact(
     monkeypatch.setenv("VIREA_ALLOW_TRUSTED_RAW_PICKLE", "1")
     path = tmp_path / "s1" / "cup_lift.npz"
     path.parent.mkdir(parents=True)
-    body = {"params": {"fullpose": np.zeros((2, 165)), "transl": np.asarray([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])}, "vtemp": "body"}
-    obj = {"params": {"transl": np.asarray([[2.0, 4.0, 6.0], [2.0, 4.0, 6.0]]), "global_orient": np.zeros((2, 3))}, "object_mesh": "cup.ply"}
-    contact = {"body": np.zeros((2, 4), dtype=np.int8), "object": np.asarray([[0, 1, 2], [3, 0, 0]], dtype=np.int8), "threshold": 0.01}
+    body = {
+        "params": {
+            "fullpose": np.zeros((2, 165)),
+            "transl": np.asarray([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0]]),
+        },
+        "vtemp": "body",
+    }
+    obj = {
+        "params": {
+            "transl": np.asarray([[2.0, 4.0, 6.0], [2.0, 4.0, 6.0]]),
+            "global_orient": np.zeros((2, 3)),
+        },
+        "object_mesh": "cup.ply",
+    }
+    contact = {
+        "body": np.zeros((2, 4), dtype=np.int8),
+        "object": np.asarray([[0, 1, 2], [3, 0, 0]], dtype=np.int8),
+        "threshold": 0.01,
+    }
     np.savez(
         path,
         body=np.asarray(body, dtype=object),
@@ -884,11 +1048,23 @@ def test_grab_exposes_object_pose_and_honest_categorical_contact(
     )
     clip = GRABAdapter(_record("grab"), tmp_path).load("s1/cup_lift", max_frames=1)
     object_pose = next(item for item in clip.channels if item["kind"] == "object_pose")
-    canonical_object_pose = next(item for item in clip.channels if item["source"] == "virea.transform(grab.object.params)")
-    contact_channel = next(item for item in clip.channels if item["representation"] == "categorical_per_element")
+    canonical_object_pose = next(
+        item
+        for item in clip.channels
+        if item["source"] == "virea.transform(grab.object.params)"
+    )
+    contact_channel = next(
+        item
+        for item in clip.channels
+        if item["representation"] == "categorical_per_element"
+    )
     assert object_pose["availability"] == "inline"
-    assert object_pose["extras"]["source_to_canonical"]["body_root_first_translation_m"] == [1.0, 2.0, 3.0]
-    np.testing.assert_allclose(canonical_object_pose["preview"]["translation_m"][0], [1.0, 3.0, -2.0])
+    assert object_pose["extras"]["source_to_canonical"][
+        "body_root_first_translation_m"
+    ] == [1.0, 2.0, 3.0]
+    np.testing.assert_allclose(
+        canonical_object_pose["preview"]["translation_m"][0], [1.0, 3.0, -2.0]
+    )
     assert contact_channel["availability"] == "external"
     assert contact_channel["data_ref"]["path"].startswith("sidecars/")
     assert contact_channel["data_ref"]["media_type"] == "application/x-npy"
@@ -897,17 +1073,26 @@ def test_grab_exposes_object_pose_and_honest_categorical_contact(
     assert contact_channel["extras"]["effective_frame_count"] == 1
     cached_contact = resolve_cached_sidecar(contact_channel["data_ref"]["sha256"])
     assert cached_contact is not None
-    assert list(np.load(cached_contact, allow_pickle=False).shape) == contact_channel["shape"]
+    assert (
+        list(np.load(cached_contact, allow_pickle=False).shape)
+        == contact_channel["shape"]
+    )
     assert contact_channel["extras"]["heatmap_supported"] is False
-    body_contact = next(item for item in clip.channels if item["source"] == "grab.contact.body")
+    body_contact = next(
+        item for item in clip.channels if item["source"] == "grab.contact.body"
+    )
     assert body_contact["availability"] == "external"
     assert body_contact["shape"] == [2, 4]
 
 
 def test_humanml_only_uses_valid_native_ranges(tmp_path: Path) -> None:
     adapter = HumanML3DAdapter(_record("humanml3d"), tmp_path)
-    caption = "whole clip#tokens#0.0#0.0\nvalid action#tokens#0.0#1.0\noutside#tokens#0.0#9.0"
-    annotations = adapter._caption_annotations("train/x/0", caption, fps=20.0, duration_sec=2.0)
+    caption = (
+        "whole clip#tokens#0.0#0.0\nvalid action#tokens#0.0#1.0\noutside#tokens#0.0#9.0"
+    )
+    annotations = adapter._caption_annotations(
+        "train/x/0", caption, fps=20.0, duration_sec=2.0
+    )
     assert [item["level"] for item in annotations] == ["sequence", "action", "sequence"]
     assert annotations[1]["end_frame"] == 20
     assert annotations[2]["extras"]["native_interval_valid"] is False
@@ -939,8 +1124,13 @@ def test_motionx_reorders_fullpose_and_uses_aist_unit_profile(tmp_path: Path) ->
     )
     assert clip.sample.metadata["dataset_profile"] == "motionx_aist_smplx322"
     assert clip.sample.metadata["translation_scale"] == pytest.approx(1.0 / 94.0)
-    assert clip.sample.metadata["translation_transform"] == "motionx_official_aist_div94_flip_z"
-    source_parameters = next(item for item in clip.channels if item["kind"] == "source_parameters")
+    assert (
+        clip.sample.metadata["translation_transform"]
+        == "motionx_official_aist_div94_flip_z"
+    )
+    source_parameters = next(
+        item for item in clip.channels if item["kind"] == "source_parameters"
+    )
     assert source_parameters["availability"] == "external"
     assert source_parameters["shape"] == [2, 324]
     assert source_parameters["frame_count"] == 2
@@ -966,7 +1156,9 @@ def test_motionx_exact_discovery_is_direct_and_reports_frame_count(
     adapter = MotionXAdapter(_record("motionx"), tmp_path)
 
     def reject_tree_scan(_self, _pattern):  # noqa: ANN001
-        raise AssertionError("exact Motion-X discovery must not traverse the dataset tree")
+        raise AssertionError(
+            "exact Motion-X discovery must not traverse the dataset tree"
+        )
 
     monkeypatch.setattr(Path, "rglob", reject_tree_scan)
     samples = adapter.discover(limit=500, query=sample_id)
@@ -995,10 +1187,16 @@ def test_susu_exact_discovery_is_direct_under_explicit_local_trust(
     adapter = SuSuInterActsAdapter(_record("susuinteracts"), tmp_path)
 
     def reject_tree_scan(_self, _pattern):  # noqa: ANN001
-        raise AssertionError("exact SuSu discovery must not traverse split lists or the motion tree")
+        raise AssertionError(
+            "exact SuSu discovery must not traverse split lists or the motion tree"
+        )
 
     monkeypatch.setattr(Path, "rglob", reject_tree_scan)
-    monkeypatch.setattr(adapter, "_split_items", lambda _split: (_ for _ in ()).throw(AssertionError("split scan")))
+    monkeypatch.setattr(
+        adapter,
+        "_split_items",
+        lambda _split: (_ for _ in ()).throw(AssertionError("split scan")),
+    )
     samples = adapter.discover(limit=500, query=sample_id)
     assert len(samples) == 1
     assert samples[0].sample_id == sample_id
@@ -1024,11 +1222,19 @@ def test_susu_separates_dialogue_face_and_audio_availability(
     np.save(face_path, np.zeros((2, 51), dtype=np.float32))
     text_path = tmp_path / "text_data" / "motion2text.json"
     text_path.parent.mkdir(parents=True)
-    text_path.write_text(json.dumps({sample_id: "你好"}, ensure_ascii=False), encoding="utf-8")
+    text_path.write_text(
+        json.dumps({sample_id: "你好"}, ensure_ascii=False), encoding="utf-8"
+    )
     clip = SuSuInterActsAdapter(_record("susuinteracts"), tmp_path).load(sample_id)
     assert clip.sample.metadata["dataset_profile"] == "susu_retarget_maya_rotation_only"
     assert any("DRAFT PROFILE" in warning for warning in clip.validation_warnings)
     assert clip.annotations[0]["type"] == "dialogue"
     assert clip.annotations[0]["provenance"] == "native"
-    assert next(item for item in clip.channels if item["kind"] == "face")["availability"] == "inline"
-    assert next(item for item in clip.channels if item["kind"] == "audio")["availability"] == "missing"
+    assert (
+        next(item for item in clip.channels if item["kind"] == "face")["availability"]
+        == "inline"
+    )
+    assert (
+        next(item for item in clip.channels if item["kind"] == "audio")["availability"]
+        == "missing"
+    )

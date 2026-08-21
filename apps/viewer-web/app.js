@@ -103,7 +103,11 @@ function formatErrorTable(quality) {
   lines.push(`Frames: ${quality.frame_count} | Joints: ${quality.joint_count}`);
   if (quality.retarget_direction_error) {
     const re = quality.retarget_direction_error;
-    lines.push(`Direction Error: mean=${re.overall_mean_deg?.toFixed(4)}° max=${re.overall_max_deg?.toFixed(4)}° (${re.max_as_pct_of_full_rotation?.toFixed(4)}%)`);
+    lines.push(`Body Direction Error: mean=${re.overall_mean_deg?.toFixed(4)}° max=${re.overall_max_deg?.toFixed(4)}° (${re.max_as_pct_of_full_rotation?.toFixed(4)}%)`);
+  }
+  if (quality.retarget_hand_direction_error) {
+    const hand = quality.retarget_hand_direction_error;
+    lines.push(`Observable Hand Direction Error: mean=${hand.overall_mean_deg?.toFixed(4)}° max=${hand.overall_max_deg?.toFixed(4)}° (${hand.status})`);
   }
   return lines.join("\n");
 }
@@ -120,15 +124,24 @@ function renderQualityPanel(quality) {
   panel.style.display = "";
 
   const rde = quality.retarget_direction_error;
+  const handRde = quality.retarget_hand_direction_error;
   const heroEl = $("qualityHeroValue");
   const heroSub = $("qualityHeroSub");
 
-  if (rde) {
-    const maxDeg = rde.overall_max_deg ?? 0;
-    const pct = rde.max_as_pct_of_full_rotation ?? 0;
+  if (rde || handRde) {
+    const bodyMax = rde?.overall_max_deg ?? 0;
+    const handMax = handRde?.overall_max_deg ?? 0;
+    const showHand = Boolean(handRde && (handRde.status === "failed" || handMax > bodyMax));
+    const selected = showHand ? handRde : rde;
+    const maxDeg = selected?.overall_max_deg ?? 0;
+    const meanDeg = selected?.overall_mean_deg ?? 0;
+    const failed = selected?.status === "failed";
+    const warned = selected?.status === "diagnostic" || maxDeg > 0.5;
     heroEl.textContent = `${maxDeg.toFixed(4)}°`;
-    heroEl.className = "quality-hero-value" + (pct > 1 ? " bad" : pct > 0.1 ? " warn" : "");
-    heroSub.textContent = `Mean: ${(rde.overall_mean_deg ?? 0).toFixed(4)}° | ${pct.toFixed(4)}% of full rotation | ${rde.bones_evaluated ?? 0} bones`;
+    heroEl.className = "quality-hero-value" + (failed ? " bad" : warned ? " warn" : "");
+    heroSub.textContent = showHand
+      ? `Observable hand mean: ${meanDeg.toFixed(4)}° | ${handRde.edges_evaluated ?? 0} segments | ${handRde.status}`
+      : `Body mean: ${meanDeg.toFixed(4)}° | ${rde?.bones_evaluated ?? 0} bones | ${rde?.status ?? "diagnostic"}`;
   } else {
     heroEl.textContent = "N/A";
     heroEl.className = "quality-hero-value";
@@ -171,7 +184,10 @@ function renderQualityPanel(quality) {
     symBody.textContent = "--";
   }
 
-  const bones = quality.per_bone_direction_errors || [];
+  const bones = [
+    ...(quality.per_bone_direction_errors || []),
+    ...(quality.retarget_hand_direction_error?.per_edge || []),
+  ];
   const chartEl = $("qualityBoneChart");
   const tableBody = $("qualityBoneTableBody");
 
@@ -1587,7 +1603,15 @@ async function init() {
     skeletonObserver.observe($("processedCanvas"));
   }
   window.__vireaShowcase = {
-    async loadSample({ dataSource = "demo", dataset, sampleId, maxFrames = "", previewSeconds = "" }) {
+    async loadSample({
+      dataSource = "demo",
+      dataset,
+      sampleId,
+      maxFrames = "",
+      previewSeconds = "",
+      fps = null,
+      previewFpsFallback = null,
+    }) {
       ++state.sampleListRequest;
       const requestId = ++state.previewRequest;
       stopPlayback();
@@ -1601,7 +1625,13 @@ async function init() {
       }
       if (dataset) $("datasetSelect").value = dataset;
       $("previewSecondsInput").value = previewSeconds ? String(previewSeconds) : "";
-      state.selected = { sample_id: sampleId };
+      state.selected = {
+        sample_id: sampleId,
+        fps: Number.isFinite(Number(fps)) && Number(fps) > 0 ? Number(fps) : null,
+        preview_fps_fallback: Number.isFinite(Number(previewFpsFallback)) && Number(previewFpsFallback) > 0
+          ? Number(previewFpsFallback)
+          : null,
+      };
       state.samples = [state.selected];
       $("sampleTitle").textContent = sampleId;
       $("sampleText").textContent = "";
@@ -1620,6 +1650,13 @@ async function init() {
     },
     vrmDiagnostics() {
       return vrmViewer?.getDiagnostics?.() || { unavailable: true };
+    },
+    clearVrmAnnotationsForQa() {
+      vrmViewer?.setAnnotations?.([]);
+      return vrmViewer?.getDiagnostics?.() || { unavailable: true };
+    },
+    focusVrmBoneForQa(boneName, distanceScale = 0.42) {
+      return Boolean(vrmViewer?.focusBone?.(String(boneName || ""), Number(distanceScale)));
     },
     setAnnotationFixture(annotations) {
       state.annotations = normalizeAnnotations(

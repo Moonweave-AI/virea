@@ -1,0 +1,1472 @@
+{
+  "$defs": {
+    "AvatarEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "usage_basis": {
+          "title": "Usage Basis",
+          "type": "string"
+        },
+        "redistributed": {
+          "const": false,
+          "default": false,
+          "title": "Redistributed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "filename",
+        "usage_basis"
+      ],
+      "title": "AvatarEvidence",
+      "type": "object"
+    },
+    "BackendEvidenceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "validator_id": {
+          "const": "virea.production_e2e_evidence_validator.v1.1.0",
+          "default": "virea.production_e2e_evidence_validator.v1.1.0",
+          "title": "Validator Id",
+          "type": "string"
+        },
+        "status": {
+          "const": "passed",
+          "default": "passed",
+          "title": "Status",
+          "type": "string"
+        },
+        "acceptance_schema_version": {
+          "const": "virea.real_e2e_acceptance.v1.0.0",
+          "title": "Acceptance Schema Version",
+          "type": "string"
+        },
+        "doctor_report_id": {
+          "title": "Doctor Report Id",
+          "type": "string"
+        },
+        "doctor_recorded_at": {
+          "title": "Doctor Recorded At",
+          "type": "string"
+        },
+        "installation_id": {
+          "title": "Installation Id",
+          "type": "string"
+        },
+        "installation_created_at": {
+          "title": "Installation Created At",
+          "type": "string"
+        },
+        "installation_ready_at": {
+          "title": "Installation Ready At",
+          "type": "string"
+        },
+        "acceptance_job_id": {
+          "title": "Acceptance Job Id",
+          "type": "string"
+        },
+        "acceptance_job_created_at": {
+          "title": "Acceptance Job Created At",
+          "type": "string"
+        },
+        "acceptance_result_id": {
+          "title": "Acceptance Result Id",
+          "type": "string"
+        },
+        "acceptance_result_created_at": {
+          "title": "Acceptance Result Created At",
+          "type": "string"
+        },
+        "acceptance_runtime_selection_at": {
+          "title": "Acceptance Runtime Selection At",
+          "type": "string"
+        },
+        "acceptance_worker_instance_id": {
+          "title": "Acceptance Worker Instance Id",
+          "type": "string"
+        },
+        "acceptance_worker_started_at": {
+          "title": "Acceptance Worker Started At",
+          "type": "string"
+        },
+        "acceptance_worker_stopped_at": {
+          "title": "Acceptance Worker Stopped At",
+          "type": "string"
+        },
+        "acceptance_runtime_core": {
+          "$ref": "#/$defs/RuntimeCoreEvidenceBinding"
+        },
+        "license_acceptance_required": {
+          "title": "License Acceptance Required",
+          "type": "boolean"
+        },
+        "license_explicitly_accepted": {
+          "title": "License Explicitly Accepted",
+          "type": "boolean"
+        },
+        "license_acceptance_satisfied": {
+          "const": true,
+          "title": "License Acceptance Satisfied",
+          "type": "boolean"
+        },
+        "license_source_urls": {
+          "items": {
+            "type": "string"
+          },
+          "title": "License Source Urls",
+          "type": "array"
+        },
+        "worker_instance_id": {
+          "title": "Worker Instance Id",
+          "type": "string"
+        },
+        "worker_process_identity_verifiable": {
+          "const": true,
+          "title": "Worker Process Identity Verifiable",
+          "type": "boolean"
+        },
+        "execution_domain_id": {
+          "title": "Execution Domain Id",
+          "type": "string"
+        },
+        "execution_domain_kind": {
+          "$ref": "#/$defs/ExecutionDomainKind"
+        },
+        "execution_platform": {
+          "title": "Execution Platform",
+          "type": "string"
+        },
+        "execution_architecture": {
+          "title": "Execution Architecture",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "runtime_id": {
+          "title": "Runtime Id",
+          "type": "string"
+        },
+        "resource_profile_id": {
+          "title": "Resource Profile Id",
+          "type": "string"
+        },
+        "memory_strategy": {
+          "$ref": "#/$defs/MemoryStrategy"
+        },
+        "device": {
+          "title": "Device",
+          "type": "string"
+        },
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_created_at": {
+          "title": "Job Created At",
+          "type": "string"
+        },
+        "runtime_selection_at": {
+          "title": "Runtime Selection At",
+          "type": "string"
+        },
+        "generation_runtime_core": {
+          "$ref": "#/$defs/RuntimeCoreEvidenceBinding"
+        },
+        "worker_started_at": {
+          "title": "Worker Started At",
+          "type": "string"
+        },
+        "worker_stopped_at": {
+          "title": "Worker Stopped At",
+          "type": "string"
+        },
+        "result_id": {
+          "title": "Result Id",
+          "type": "string"
+        },
+        "result_created_at": {
+          "title": "Result Created At",
+          "type": "string"
+        },
+        "native_frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Native Frame Count",
+          "type": "integer"
+        },
+        "vrma_locator": {
+          "title": "Vrma Locator",
+          "type": "string"
+        },
+        "vrma_byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Vrma Byte Length",
+          "type": "integer"
+        },
+        "observation_locator": {
+          "title": "Observation Locator",
+          "type": "string"
+        },
+        "backend_report_locator": {
+          "title": "Backend Report Locator",
+          "type": "string"
+        },
+        "managed_api_lifecycle_schema_version": {
+          "const": "virea.managed_api_lifecycle.v1.0.0",
+          "title": "Managed Api Lifecycle Schema Version",
+          "type": "string"
+        },
+        "managed_api_lifecycle_locator": {
+          "title": "Managed Api Lifecycle Locator",
+          "type": "string"
+        },
+        "managed_api_process_spawned": {
+          "const": true,
+          "title": "Managed Api Process Spawned",
+          "type": "boolean"
+        },
+        "managed_api_started_at": {
+          "title": "Managed Api Started At",
+          "type": "string"
+        },
+        "managed_api_stopped_at": {
+          "title": "Managed Api Stopped At",
+          "type": "string"
+        },
+        "managed_api_pid": {
+          "exclusiveMinimum": 0,
+          "title": "Managed Api Pid",
+          "type": "integer"
+        },
+        "managed_api_loopback_port": {
+          "exclusiveMinimum": 0,
+          "maximum": 65535,
+          "title": "Managed Api Loopback Port",
+          "type": "integer"
+        },
+        "managed_api_stdin_eof_requested": {
+          "const": true,
+          "title": "Managed Api Stdin Eof Requested",
+          "type": "boolean"
+        },
+        "managed_api_graceful": {
+          "const": true,
+          "title": "Managed Api Graceful",
+          "type": "boolean"
+        },
+        "managed_api_forced": {
+          "const": false,
+          "title": "Managed Api Forced",
+          "type": "boolean"
+        },
+        "managed_api_exit_code": {
+          "const": 0,
+          "title": "Managed Api Exit Code",
+          "type": "integer"
+        },
+        "managed_api_exit_signal": {
+          "title": "Managed Api Exit Signal",
+          "type": "null"
+        },
+        "managed_api_port_closed": {
+          "const": true,
+          "title": "Managed Api Port Closed",
+          "type": "boolean"
+        },
+        "managed_api_port_close_method": {
+          "enum": [
+            "connection_refused",
+            "exclusive_bind_available"
+          ],
+          "title": "Managed Api Port Close Method",
+          "type": "string"
+        },
+        "backend_observed_port_close_method": {
+          "enum": [
+            "connection_refused",
+            "exclusive_bind_available"
+          ],
+          "title": "Backend Observed Port Close Method",
+          "type": "string"
+        },
+        "control_plane_owner_lock_count": {
+          "const": 0,
+          "title": "Control Plane Owner Lock Count",
+          "type": "integer"
+        },
+        "resource_lock_count": {
+          "const": 0,
+          "title": "Resource Lock Count",
+          "type": "integer"
+        },
+        "client_self_report_accepted": {
+          "const": false,
+          "default": false,
+          "title": "Client Self Report Accepted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "acceptance_schema_version",
+        "doctor_report_id",
+        "doctor_recorded_at",
+        "installation_id",
+        "installation_created_at",
+        "installation_ready_at",
+        "acceptance_job_id",
+        "acceptance_job_created_at",
+        "acceptance_result_id",
+        "acceptance_result_created_at",
+        "acceptance_runtime_selection_at",
+        "acceptance_worker_instance_id",
+        "acceptance_worker_started_at",
+        "acceptance_worker_stopped_at",
+        "acceptance_runtime_core",
+        "license_acceptance_required",
+        "license_explicitly_accepted",
+        "license_acceptance_satisfied",
+        "license_source_urls",
+        "worker_instance_id",
+        "worker_process_identity_verifiable",
+        "execution_domain_id",
+        "execution_domain_kind",
+        "execution_platform",
+        "execution_architecture",
+        "model_id",
+        "runtime_id",
+        "resource_profile_id",
+        "memory_strategy",
+        "device",
+        "job_id",
+        "job_created_at",
+        "runtime_selection_at",
+        "generation_runtime_core",
+        "worker_started_at",
+        "worker_stopped_at",
+        "result_id",
+        "result_created_at",
+        "native_frame_count",
+        "vrma_locator",
+        "vrma_byte_length",
+        "observation_locator",
+        "backend_report_locator",
+        "managed_api_lifecycle_schema_version",
+        "managed_api_lifecycle_locator",
+        "managed_api_process_spawned",
+        "managed_api_started_at",
+        "managed_api_stopped_at",
+        "managed_api_pid",
+        "managed_api_loopback_port",
+        "managed_api_stdin_eof_requested",
+        "managed_api_graceful",
+        "managed_api_forced",
+        "managed_api_exit_code",
+        "managed_api_exit_signal",
+        "managed_api_port_closed",
+        "managed_api_port_close_method",
+        "backend_observed_port_close_method",
+        "control_plane_owner_lock_count",
+        "resource_lock_count"
+      ],
+      "title": "BackendEvidenceBinding",
+      "type": "object"
+    },
+    "BrowserApplicationJavascriptHttpGetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "url_path": {
+          "title": "Url Path",
+          "type": "string"
+        },
+        "method": {
+          "const": "GET",
+          "title": "Method",
+          "type": "string"
+        },
+        "status": {
+          "const": 200,
+          "title": "Status",
+          "type": "integer"
+        },
+        "body_byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Body Byte Length",
+          "type": "integer"
+        },
+        "content_length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Length"
+        },
+        "unique_request_count": {
+          "const": 1,
+          "title": "Unique Request Count",
+          "type": "integer"
+        },
+        "unique_response_count": {
+          "const": 1,
+          "title": "Unique Response Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "url_path",
+        "method",
+        "status",
+        "body_byte_length",
+        "content_length",
+        "unique_request_count",
+        "unique_response_count"
+      ],
+      "title": "BrowserApplicationJavascriptHttpGetObservation",
+      "type": "object"
+    },
+    "BrowserApplicationObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "application_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Application Version",
+          "type": "string"
+        },
+        "visible_version_label": {
+          "title": "Visible Version Label",
+          "type": "string"
+        },
+        "javascript": {
+          "$ref": "#/$defs/BrowserApplicationJavascriptHttpGetObservation"
+        }
+      },
+      "required": [
+        "application_version",
+        "visible_version_label",
+        "javascript"
+      ],
+      "title": "BrowserApplicationObservation",
+      "type": "object"
+    },
+    "BrowserConsoleObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Errors",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Warnings",
+          "type": "array"
+        },
+        "page_errors": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Page Errors",
+          "type": "array"
+        },
+        "request_failures": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Request Failures",
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors",
+        "warnings",
+        "page_errors",
+        "request_failures"
+      ],
+      "title": "BrowserConsoleObservation",
+      "type": "object"
+    },
+    "BrowserEvidenceProducer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "virea.production_browser_e2e_runner",
+          "default": "virea.production_browser_e2e_runner",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Version",
+          "type": "string"
+        },
+        "capture_mode": {
+          "const": "out_of_process_browser_automation",
+          "default": "out_of_process_browser_automation",
+          "title": "Capture Mode",
+          "type": "string"
+        },
+        "client_self_report_accepted": {
+          "const": false,
+          "default": false,
+          "title": "Client Self Report Accepted",
+          "type": "boolean"
+        }
+      },
+      "title": "BrowserEvidenceProducer",
+      "type": "object"
+    },
+    "BrowserJobBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "state": {
+          "const": "SUCCEEDED",
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "title": "BrowserJobBinding",
+      "type": "object"
+    },
+    "BrowserModelBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "plugin_version": {
+          "title": "Plugin Version",
+          "type": "string"
+        },
+        "upstream_revision": {
+          "title": "Upstream Revision",
+          "type": "string"
+        },
+        "runtime_id": {
+          "title": "Runtime Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "plugin_version",
+        "upstream_revision",
+        "runtime_id"
+      ],
+      "title": "BrowserModelBinding",
+      "type": "object"
+    },
+    "BrowserResultBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "result_id": {
+          "title": "Result Id",
+          "type": "string"
+        },
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_version": {
+          "title": "Model Version",
+          "type": "string"
+        },
+        "runtime_variant_id": {
+          "title": "Runtime Variant Id",
+          "type": "string"
+        },
+        "checkpoint_revision": {
+          "title": "Checkpoint Revision",
+          "type": "string"
+        },
+        "native_representation_id": {
+          "title": "Native Representation Id",
+          "type": "string"
+        },
+        "native_skeleton_id": {
+          "title": "Native Skeleton Id",
+          "type": "string"
+        },
+        "target_representation_id": {
+          "title": "Target Representation Id",
+          "type": "string"
+        },
+        "target_skeleton_id": {
+          "title": "Target Skeleton Id",
+          "type": "string"
+        },
+        "resource_profile_id": {
+          "title": "Resource Profile Id",
+          "type": "string"
+        },
+        "memory_strategy": {
+          "$ref": "#/$defs/MemoryStrategy"
+        },
+        "device": {
+          "title": "Device",
+          "type": "string"
+        },
+        "frame_count": {
+          "exclusiveMinimum": 0,
+          "title": "Frame Count",
+          "type": "integer"
+        },
+        "vrma": {
+          "$ref": "#/$defs/BrowserVrmaBinding"
+        }
+      },
+      "required": [
+        "result_id",
+        "job_id",
+        "model_id",
+        "model_version",
+        "runtime_variant_id",
+        "checkpoint_revision",
+        "native_representation_id",
+        "native_skeleton_id",
+        "target_representation_id",
+        "target_skeleton_id",
+        "resource_profile_id",
+        "memory_strategy",
+        "device",
+        "frame_count",
+        "vrma"
+      ],
+      "title": "BrowserResultBinding",
+      "type": "object"
+    },
+    "BrowserRuntimeObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "user_agent": {
+          "title": "User Agent",
+          "type": "string"
+        },
+        "headless": {
+          "title": "Headless",
+          "type": "boolean"
+        },
+        "viewport": {
+          "$ref": "#/$defs/BrowserViewport"
+        },
+        "webgl": {
+          "$ref": "#/$defs/BrowserWebGLObservation"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "user_agent",
+        "headless",
+        "viewport",
+        "webgl"
+      ],
+      "title": "BrowserRuntimeObservation",
+      "type": "object"
+    },
+    "BrowserViewport": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "device_scale_factor": {
+          "exclusiveMinimum": 0,
+          "title": "Device Scale Factor",
+          "type": "number"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "device_scale_factor"
+      ],
+      "title": "BrowserViewport",
+      "type": "object"
+    },
+    "BrowserVrmaBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        },
+        "http_get": {
+          "$ref": "#/$defs/BrowserVrmaHttpGetObservation"
+        }
+      },
+      "required": [
+        "actor_id",
+        "locator",
+        "byte_length",
+        "http_get"
+      ],
+      "title": "BrowserVrmaBinding",
+      "type": "object"
+    },
+    "BrowserVrmaHttpGetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "url_path": {
+          "title": "Url Path",
+          "type": "string"
+        },
+        "method": {
+          "const": "GET",
+          "title": "Method",
+          "type": "string"
+        },
+        "status": {
+          "const": 200,
+          "title": "Status",
+          "type": "integer"
+        },
+        "body_byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Body Byte Length",
+          "type": "integer"
+        },
+        "content_length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Length"
+        },
+        "unique_request_count": {
+          "const": 1,
+          "title": "Unique Request Count",
+          "type": "integer"
+        },
+        "unique_response_count": {
+          "const": 1,
+          "title": "Unique Response Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "url_path",
+        "method",
+        "status",
+        "body_byte_length",
+        "content_length",
+        "unique_request_count",
+        "unique_response_count"
+      ],
+      "title": "BrowserVrmaHttpGetObservation",
+      "type": "object"
+    },
+    "BrowserWebGLObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "enum": [
+            "webgl",
+            "webgl2"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "vendor": {
+          "title": "Vendor",
+          "type": "string"
+        },
+        "renderer": {
+          "title": "Renderer",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "shading_language_version": {
+          "title": "Shading Language Version",
+          "type": "string"
+        },
+        "context_lost": {
+          "const": false,
+          "default": false,
+          "title": "Context Lost",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "context",
+        "vendor",
+        "renderer",
+        "version",
+        "shading_language_version"
+      ],
+      "title": "BrowserWebGLObservation",
+      "type": "object"
+    },
+    "CanvasPlaybackObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "css_width": {
+          "exclusiveMinimum": 0,
+          "title": "Css Width",
+          "type": "number"
+        },
+        "css_height": {
+          "exclusiveMinimum": 0,
+          "title": "Css Height",
+          "type": "number"
+        },
+        "backing_width": {
+          "exclusiveMinimum": 0,
+          "title": "Backing Width",
+          "type": "integer"
+        },
+        "backing_height": {
+          "exclusiveMinimum": 0,
+          "title": "Backing Height",
+          "type": "integer"
+        },
+        "render_frame_count": {
+          "minimum": 2,
+          "title": "Render Frame Count",
+          "type": "integer"
+        },
+        "render_calls": {
+          "minimum": 1,
+          "title": "Render Calls",
+          "type": "integer"
+        },
+        "render_triangles": {
+          "minimum": 1,
+          "title": "Render Triangles",
+          "type": "integer"
+        },
+        "fully_visible": {
+          "const": true,
+          "title": "Fully Visible",
+          "type": "boolean"
+        },
+        "projected_bounds": {
+          "$ref": "#/$defs/ProjectedAvatarBounds"
+        }
+      },
+      "required": [
+        "css_width",
+        "css_height",
+        "backing_width",
+        "backing_height",
+        "render_frame_count",
+        "render_calls",
+        "render_triangles",
+        "fully_visible",
+        "projected_bounds"
+      ],
+      "title": "CanvasPlaybackObservation",
+      "type": "object"
+    },
+    "EvidencePromotionDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "eligible": {
+          "const": true,
+          "title": "Eligible",
+          "type": "boolean"
+        },
+        "maximum_model_status": {
+          "const": "integrated_experimental",
+          "title": "Maximum Model Status",
+          "type": "string"
+        },
+        "completed_stages": {
+          "items": {
+            "$ref": "#/$defs/ProductionE2EStage"
+          },
+          "title": "Completed Stages",
+          "type": "array"
+        },
+        "ordinary_client_report_eligible": {
+          "const": false,
+          "default": false,
+          "title": "Ordinary Client Report Eligible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "eligible",
+        "maximum_model_status",
+        "completed_stages"
+      ],
+      "title": "EvidencePromotionDecision",
+      "type": "object"
+    },
+    "EvidenceScreenshot": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "job_result",
+            "viewer",
+            "canvas"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "byte_length": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Length",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "locator",
+        "byte_length"
+      ],
+      "title": "EvidenceScreenshot",
+      "type": "object"
+    },
+    "ExecutionDomainKind": {
+      "description": "Where commands and resource observations actually belong.\n\nA WSL distribution is an execution domain, not another platform label on\nthe Windows host.  Concrete WSL ids include the distribution name while\nthis enum describes the stable domain class.",
+      "enum": [
+        "windows-native",
+        "linux-native",
+        "macos-native",
+        "wsl"
+      ],
+      "title": "ExecutionDomainKind",
+      "type": "string"
+    },
+    "ExecutionTargetSelection": {
+      "additionalProperties": false,
+      "description": "One user-selected execution domain with optional advanced overrides.\n\nThe canonical domain id is the public selector.  Kind, platform and WSL\ndistribution remain properties of the independently detected\n:class:`ExecutionDomainReport`; accepting those fields again here would\ncreate two potentially conflicting identities for the same target.",
+      "properties": {
+        "schema_version": {
+          "const": "virea.execution_target_selection.v1.0.0",
+          "default": "virea.execution_target_selection.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "execution_domain_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Execution Domain Id",
+          "type": "string"
+        },
+        "runtime_variant_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Variant Id"
+        },
+        "resource_profile_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Profile Id"
+        }
+      },
+      "required": [
+        "execution_domain_id"
+      ],
+      "title": "ExecutionTargetSelection",
+      "type": "object"
+    },
+    "JobRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.job_request.v1.0.0",
+          "default": "virea.job_request.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "avatar_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar Id"
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "execution_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionTargetSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "model_id",
+        "task"
+      ],
+      "title": "JobRequest",
+      "type": "object"
+    },
+    "MemoryStrategy": {
+      "description": "Worker execution strategies with materially different memory placement.\n\nDeclaring an offload strategy is a runtime capability claim.  The control\nplane never infers it from spare system RAM, and a Worker must implement\nthe selected strategy before its RuntimeSpec may advertise it.",
+      "enum": [
+        "cuda_full",
+        "cuda_component_split",
+        "cuda_cpu_offload",
+        "cuda_sequential_cpu_offload",
+        "rocm_full",
+        "mps_full",
+        "cpu"
+      ],
+      "title": "MemoryStrategy",
+      "type": "string"
+    },
+    "PlaybackObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "viewer_telemetry_version": {
+          "const": "virea.viewer_telemetry.v1.0.0",
+          "title": "Viewer Telemetry Version",
+          "type": "string"
+        },
+        "state": {
+          "const": "playing",
+          "title": "State",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "mixer_time_before_seconds": {
+          "minimum": 0,
+          "title": "Mixer Time Before Seconds",
+          "type": "number"
+        },
+        "mixer_time_after_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Mixer Time After Seconds",
+          "type": "number"
+        },
+        "observed_interval_ms": {
+          "minimum": 250,
+          "title": "Observed Interval Ms",
+          "type": "integer"
+        },
+        "canvas": {
+          "$ref": "#/$defs/CanvasPlaybackObservation"
+        }
+      },
+      "required": [
+        "viewer_telemetry_version",
+        "state",
+        "duration_seconds",
+        "mixer_time_before_seconds",
+        "mixer_time_after_seconds",
+        "observed_interval_ms",
+        "canvas"
+      ],
+      "title": "PlaybackObservation",
+      "type": "object"
+    },
+    "ProductionBrowserObservation": {
+      "additionalProperties": false,
+      "description": "Raw out-of-process browser observation.\n\nIt intentionally has no promotion flag.  Only the independent\n``ProductionE2EEvidence`` validator output can be recorded by the evidence\nregistry.",
+      "properties": {
+        "schema_version": {
+          "const": "virea.production_browser_observation.v1.0.0",
+          "default": "virea.production_browser_observation.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "kind": {
+          "const": "production_browser_observation",
+          "default": "production_browser_observation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "started_at": {
+          "title": "Started At",
+          "type": "string"
+        },
+        "completed_at": {
+          "title": "Completed At",
+          "type": "string"
+        },
+        "generation_mode": {
+          "enum": [
+            "fresh_web_job",
+            "persisted_result_replay"
+          ],
+          "title": "Generation Mode",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/BrowserEvidenceProducer"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "application": {
+          "$ref": "#/$defs/BrowserApplicationObservation"
+        },
+        "model": {
+          "$ref": "#/$defs/BrowserModelBinding"
+        },
+        "request": {
+          "$ref": "#/$defs/JobRequest"
+        },
+        "job": {
+          "$ref": "#/$defs/BrowserJobBinding"
+        },
+        "result": {
+          "$ref": "#/$defs/BrowserResultBinding"
+        },
+        "browser": {
+          "$ref": "#/$defs/BrowserRuntimeObservation"
+        },
+        "avatar": {
+          "$ref": "#/$defs/AvatarEvidence"
+        },
+        "playback": {
+          "$ref": "#/$defs/PlaybackObservation"
+        },
+        "console": {
+          "$ref": "#/$defs/BrowserConsoleObservation"
+        },
+        "screenshots": {
+          "items": {
+            "$ref": "#/$defs/EvidenceScreenshot"
+          },
+          "title": "Screenshots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "started_at",
+        "completed_at",
+        "generation_mode",
+        "producer",
+        "base_url",
+        "application",
+        "model",
+        "request",
+        "job",
+        "result",
+        "browser",
+        "avatar",
+        "playback",
+        "console",
+        "screenshots"
+      ],
+      "title": "ProductionBrowserObservation",
+      "type": "object"
+    },
+    "ProductionE2EStage": {
+      "description": "Required observable stages of a production model acceptance run.",
+      "enum": [
+        "environment_detection",
+        "artifact_installation",
+        "runtime_build",
+        "model_load",
+        "inference",
+        "native_artifact_validation",
+        "motion_ir_conversion",
+        "retarget_validation",
+        "vrma_export",
+        "web_playback"
+      ],
+      "title": "ProductionE2EStage",
+      "type": "string"
+    },
+    "ProjectedAvatarBounds": {
+      "additionalProperties": false,
+      "properties": {
+        "min_x": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min X",
+          "type": "number"
+        },
+        "min_y": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Y",
+          "type": "number"
+        },
+        "min_z": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Z",
+          "type": "number"
+        },
+        "max_x": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max X",
+          "type": "number"
+        },
+        "max_y": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max Y",
+          "type": "number"
+        },
+        "max_z": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Max Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_x",
+        "min_y",
+        "min_z",
+        "max_x",
+        "max_y",
+        "max_z"
+      ],
+      "title": "ProjectedAvatarBounds",
+      "type": "object"
+    },
+    "RuntimeCoreEvidenceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "runtime_id": {
+          "title": "Runtime Id",
+          "type": "string"
+        },
+        "project_package": {
+          "title": "Project Package",
+          "type": "string"
+        },
+        "project_version": {
+          "title": "Project Version",
+          "type": "string"
+        },
+        "runtime_core_epoch": {
+          "title": "Runtime Core Epoch",
+          "type": "string"
+        },
+        "observed": {
+          "$ref": "#/$defs/RuntimeCoreIdentity"
+        }
+      },
+      "required": [
+        "runtime_id",
+        "project_package",
+        "project_version",
+        "runtime_core_epoch",
+        "observed"
+      ],
+      "title": "RuntimeCoreEvidenceBinding",
+      "type": "object"
+    },
+    "RuntimeCoreIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.runtime_core_identity.v1.0.0",
+          "default": "virea.runtime_core_identity.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "contracts_epoch": {
+          "minLength": 1,
+          "title": "Contracts Epoch",
+          "type": "string"
+        },
+        "model_sdk_epoch": {
+          "minLength": 1,
+          "title": "Model Sdk Epoch",
+          "type": "string"
+        },
+        "contracts_source": {
+          "minLength": 1,
+          "title": "Contracts Source",
+          "type": "string"
+        },
+        "model_sdk_source": {
+          "minLength": 1,
+          "title": "Model Sdk Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contracts_epoch",
+        "model_sdk_epoch",
+        "contracts_source",
+        "model_sdk_source"
+      ],
+      "title": "RuntimeCoreIdentity",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.production_e2e_evidence.v1.1.0",
+      "default": "virea.production_e2e_evidence.v1.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "kind": {
+      "const": "validated_production_e2e",
+      "default": "validated_production_e2e",
+      "title": "Kind",
+      "type": "string"
+    },
+    "evidence_id": {
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "recorded_at": {
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "outcome": {
+      "const": "passed",
+      "default": "passed",
+      "title": "Outcome",
+      "type": "string"
+    },
+    "observation": {
+      "$ref": "#/$defs/ProductionBrowserObservation"
+    },
+    "backend": {
+      "$ref": "#/$defs/BackendEvidenceBinding"
+    },
+    "promotion": {
+      "$ref": "#/$defs/EvidencePromotionDecision"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "recorded_at",
+    "observation",
+    "backend",
+    "promotion"
+  ],
+  "title": "ProductionE2EEvidence",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:production_e2e_evidence:1.1.0"
+}

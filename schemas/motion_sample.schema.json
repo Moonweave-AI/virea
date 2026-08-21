@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/motion_sample.schema.json",
-  "title": "VIREA MotionSample",
+  "$id": "urn:virea:schema:motion-sample:3.0.0",
+  "title": "VIREA MotionSample v3",
   "type": "object",
-  "required": ["schema_version", "artifact_schema_version", "motion_uid", "manifest_sha256", "array_sha256", "source_fingerprint", "sample", "source", "time", "skeleton", "annotations", "channels", "validation_warnings", "sidecars", "redactions", "canonical_artifact", "files", "quality", "processing"],
+  "required": ["schema_version", "artifact_schema_version", "motion_uid", "manifest_sha256", "array_sha256", "source_fingerprint", "sample", "source", "time", "skeleton", "annotations", "channels", "validation_warnings", "sidecars", "redactions", "canonical_artifact", "files", "quality", "processing", "preview", "hand_retarget"],
   "properties": {
-    "schema_version": { "const": "virea.motion_sample.v1.0.0" },
-    "artifact_schema_version": { "const": "virea.canonical_artifact.v1.0.0" },
+    "schema_version": { "const": "virea.motion_sample.v3.0.0" },
+    "artifact_schema_version": { "const": "virea.canonical_artifact.v3.0.0" },
     "motion_uid": { "type": "string" },
     "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "array_sha256": { "type": "object" },
@@ -39,25 +39,36 @@
     },
     "skeleton": {
       "type": "object",
-      "required": ["canonical_skeleton", "target_skeleton", "coordinate_system", "rotation_format", "unit"],
+      "required": ["canonical_skeleton", "target_skeleton", "coordinate_system", "rotation_format", "unit", "rotation_semantics", "rest_source"],
       "properties": {
         "source_skeleton": { "type": ["string", "null"] },
-        "canonical_skeleton": { "const": "virea_canonical_skeleton.v1" },
+        "canonical_skeleton": { "const": "virea_canonical_skeleton.v3" },
         "target_skeleton": { "type": "string" },
         "coordinate_system": { "type": "string" },
         "rotation_format": { "type": "string" },
-        "unit": { "type": "string" }
+        "unit": { "type": "string" },
+        "rotation_semantics": { "const": "rest_relative_normalized_pose_delta" },
+        "rest_source": { "const": "virea_canonical_rest.v3" }
       },
       "additionalProperties": true
     },
-    "annotations": { "type": "array", "items": { "$ref": "annotation.schema.json" } },
-    "channels": { "type": "array", "items": { "$ref": "channel.schema.json" } },
+    "annotations": { "type": "array", "items": { "$ref": "urn:virea:schema:annotation:1.0.0" } },
+    "channels": { "type": "array", "items": { "$ref": "urn:virea:schema:channel:1.0.0" } },
     "validation_warnings": { "type": "array", "items": { "type": "string" } },
     "sidecars": { "type": "array" },
     "redactions": { "type": "array" },
     "canonical_artifact": {
       "type": "object",
-      "required": ["schema_version", "manifest", "manifest_sha256"]
+      "required": ["schema_version", "manifest", "manifest_sha256"],
+      "properties": {
+        "schema_version": { "const": "virea.canonical_artifact.v3.0.0" },
+        "manifest": {
+          "type": "string",
+          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"
+        },
+        "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
     },
     "files": {
       "type": "object",
@@ -73,7 +84,29 @@
       "additionalProperties": true
     },
     "quality": { "type": "object" },
-    "processing": { "type": "object" }
+    "hand_retarget": {
+      "$ref": "urn:virea:schema:canonical-artifact:3.0.0#/$defs/handRetarget"
+    },
+    "processing": {
+      "type": "object",
+      "required": ["version", "profile", "profile_sha256", "artifact_schema_version"],
+      "properties": {
+        "version": { "const": "v0.4.0" },
+        "profile": { "$ref": "urn:virea:schema:dataset-profile:2.0.0" },
+        "profile_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "artifact_schema_version": { "const": "virea.canonical_artifact.v3.0.0" }
+      },
+      "additionalProperties": true
+    },
+    "preview": {
+      "type": "object",
+      "required": ["source_metadata", "processed_metadata"],
+      "properties": {
+        "source_metadata": { "type": "object" },
+        "processed_metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }

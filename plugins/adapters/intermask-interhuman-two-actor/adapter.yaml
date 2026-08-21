@@ -1,0 +1,99 @@
+schema_version: virea.adapter_family.v1.0.0
+id: intermask-interhuman-two-actor
+display_name: InterMask InterHuman canonical two-actor output
+source_models:
+  - intermask-interhuman
+implementation_status: pinned_upstream_contract_adapter_implemented
+support_status: runnable_upstream
+native_profile:
+  representation_id: interhuman.motion262.v1
+  carrier: two_actor_dense_float_tensors
+  per_actor_shape: [T, 262]
+  actor_count: 2
+  dtype: float32
+  fps:
+    mode: fixed
+    value: 30.0
+  coordinate_system:
+    id: interhuman.actor1_initial_heading_positive_z_y_up
+    handedness: right
+    up_axis: positive_y
+    forward_axis_after_normalization: positive_z
+  units:
+    positions: meters
+    velocities: meters_per_frame
+  fields:
+    - name: joint_positions
+      slice: [0, 66]
+      shape: [T, 22, 3]
+    - name: joint_velocities
+      slice: [66, 132]
+      shape: [T, 22, 3]
+    - name: non_root_joint_rotation_6d
+      slice: [132, 258]
+      shape: [T, 21, 6]
+      semantics: pinned_source_non_root_rotation_channel_preserved_without_runtime_recomputation
+    - name: foot_contact
+      slice: [258, 262]
+      shape: [T, 4]
+root_semantics:
+  translation:
+    actor_1: initial_root_xz_removed_then_absolute_in_canonical_interaction_frame
+    actor_2: rigidly_transformed_by_the_same_actor_1_initial_frame_transform_and_remains_relative_to_actor_1
+    y: preserved_from_the_processed_positions
+  rotation:
+    generated_channel: none
+    canonical_heading: actor_1_initial_facing_is_aligned_to_positive_z
+    root_export_channel: absent_all_zero_sentinel_mapped_to_explicit_identity
+    non_root_export_channel: copied_from_native_262D_slice_132_to_258
+output_profile:
+  representation_id: interhuman.two_actor_smpl22.pos3_rot6d.v1
+  skeleton_id: interhuman.two_actor_smpl22.v1
+  actor_count: 2
+  per_actor_shape: [T, 22, 9]
+  fields_per_joint:
+    - slice: [0, 3]
+      name: position_xyz
+      provenance: generated_geometry
+    - slice: [3, 9]
+      name: rotation_6d
+      provenance: root_absent_zero_sentinel_then_21_non_root_values_copied_from_native_262D
+  fps: 30.0
+  coordinate_system: interhuman.actor1_initial_heading_positive_z_y_up
+  units: meters
+conversion:
+  required_steps:
+    - preserve_both_actors_and_a_single_shared_interaction_frame
+    - preserve_actor_identity_and_temporal_alignment
+    - treat_positions_as_authoritative
+    - mark_non_root_rotations_as_pinned_source_channels_not_runtime_BVH_recomputation
+    - map_the_absent_zero_root_rotation_sentinel_to_identity_with_explicit_provenance
+  prohibited_shortcuts:
+    - center_each_actor_independently
+    - discard_actor_2_root_offset
+    - claim_the_adapter_ran_BVH_or_IK_when_it_only_copied_the_pinned_source_channel
+validation:
+  exact_per_actor_width: 262
+  exact_actor_count: 2
+  reject_non_finite: true
+  require_fps: 30.0
+  require_shared_canonical_transform_provenance: true
+official_sources:
+  - repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    path: data/utils.py
+  - repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    path: utils/plot_script.py
+  - repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    path: data/interhuman.py
+  - repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    path: infer.py
+  - repository: https://github.com/gohar-malik/intermask
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    path: visualization/joints2bvh.py
+notes:
+  - The declaration covers InterHuman only; Inter-X has different SMPL-X carrier and licensing requirements.
+  - The VIREA compatibility adapter validates and preserves the 262D source tensor and shared actor-1 frame transform, copies its 21 non-root rotation channels, and maps the official all-zero root rotation sentinel to an explicitly absent identity. It does not claim to run BVH or IK at adaptation time; no upstream checkpoint golden or Worker production acceptance exists yet.

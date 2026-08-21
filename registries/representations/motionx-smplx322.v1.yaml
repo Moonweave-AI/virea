@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: motionx.smplx322.v1
+version: 1.0.0
+kind: packed_smplx_parameters
+skeleton_id: motionx.smplx53.v1
+dtype: float32
+frame_shape: [322]
+rotation_representation: axis_angle
+rotation_layout: component_slices
+rotation_space: parent_local
+root_translation_semantics: source_absolute_with_subsource_calibration
+root_rotation_semantics: local_to_world
+coordinate_system_id: motionx.subsource_declared.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/IDEA-Research/Motion-X
+  - https://github.com/vchoutas/smplx
+validation_status: draft

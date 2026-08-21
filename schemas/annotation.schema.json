@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Moonweave-AI/virea/schemas/annotation.schema.json",
+  "$id": "urn:virea:schema:annotation:1.0.0",
   "title": "VIREA Annotation v1",
   "type": "object",
   "required": [

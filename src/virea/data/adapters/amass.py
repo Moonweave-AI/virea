@@ -18,8 +18,13 @@ def amass_pose_codec(payload: np.lib.npyio.NpzFile, width: int) -> tuple[str, st
     model_tokens: list[str] = []
     for key in ("model_type", "surface_model_type", "body_model"):
         if key in payload.files:
-            model_tokens.extend(str(value).casefold() for value in np.asarray(payload[key]).reshape(-1).tolist())
-    if width >= 165 and any("smplx" in token or "smpl-x" in token for token in model_tokens):
+            model_tokens.extend(
+                str(value).casefold()
+                for value in np.asarray(payload[key]).reshape(-1).tolist()
+            )
+    if width >= 165 and any(
+        "smplx" in token or "smpl-x" in token for token in model_tokens
+    ):
         return "smplx_fullpose", "smplx_fullpose_npz"
     return "axis_angle_body22", "smplh_axis_angle_npz"
 
@@ -85,7 +90,11 @@ class AMASSAdapter(BaseDatasetAdapter):
             )
             if len(samples) >= limit:
                 return samples
-        for path in sorted((self.raw_root / "humanact12").rglob("*.npy")) if (self.raw_root / "humanact12").exists() else []:
+        for path in (
+            sorted((self.raw_root / "humanact12").rglob("*.npy"))
+            if (self.raw_root / "humanact12").exists()
+            else []
+        ):
             sample_id = self._rel_id(path)
             if not self._matches(sample_id, query):
                 continue
@@ -109,8 +118,16 @@ class AMASSAdapter(BaseDatasetAdapter):
         if npz_path.exists():
             payload = np.load(npz_path, allow_pickle=False)
             poses = np.asarray(payload["poses"], dtype=np.float32)
-            trans = np.asarray(payload.get("trans", np.zeros((poses.shape[0], 3))), dtype=np.float32)
-            fps = float(np.asarray(payload.get("mocap_framerate", payload.get("mocap_frame_rate", 60.0))).reshape(-1)[0])
+            trans = np.asarray(
+                payload.get("trans", np.zeros((poses.shape[0], 3))), dtype=np.float32
+            )
+            fps = float(
+                np.asarray(
+                    payload.get(
+                        "mocap_framerate", payload.get("mocap_frame_rate", 60.0)
+                    )
+                ).reshape(-1)[0]
+            )
             codec_key, source_format = amass_pose_codec(payload, poses.shape[1])
             profile_key = amass_profile_key(codec_key)
             sample = self._sample(
@@ -140,7 +157,9 @@ class AMASSAdapter(BaseDatasetAdapter):
             )
             return clip.limited(max_frames)
         if npy_path.exists():
-            positions = np.asarray(np.load(npy_path, allow_pickle=False), dtype=np.float32)
+            positions = np.asarray(
+                np.load(npy_path, allow_pickle=False), dtype=np.float32
+            )
             sample = self._sample(
                 sample_id,
                 npy_path,
@@ -150,7 +169,11 @@ class AMASSAdapter(BaseDatasetAdapter):
                 frame_count=positions.shape[0],
                 metadata={"dataset_profile": "amass_humanact12_positions"},
             )
-            edges = [edge for edge in BODY_EDGES if edge[0] < positions.shape[1] and edge[1] < positions.shape[1]]
+            edges = [
+                edge
+                for edge in BODY_EDGES
+                if edge[0] < positions.shape[1] and edge[1] < positions.shape[1]
+            ]
             clip = RawClip(
                 sample=sample,
                 motion={"positions": positions, "fps": 20.0},
