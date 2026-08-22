@@ -3,12 +3,13 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: 环境、权重、缓存、日志、job、结果和 QA 证据的仓库外位置与保留策略。
 canonical: doc/operations/runtime-data-and-retention.zh-CN.md
 related:
+  - runtime-data-and-retention.en.md
   - troubleshooting.zh-CN.md
   - ../getting-started/installation.zh-CN.md
 supersedes: []
@@ -16,6 +17,8 @@ superseded_by: []
 ---
 
 # Runtime 数据与保留策略
+
+> [中文](runtime-data-and-retention.zh-CN.md) · [English](runtime-data-and-retention.en.md)
 
 源码 checkout 只保存代码、轻量 manifest/registry、锁文件、测试和文档。以下内容一律写入外部
 `VIREA_HOME` 或操作系统临时目录：
@@ -57,10 +60,13 @@ superseded_by: []
 
 ## 清理
 
-```text
-virea model gc --dry-run --older-than-hours 168 --virea-home <external-home>
-virea model gc --apply --older-than-hours 168 --virea-home <external-home>
-virea state gc --dry-run --older-than-hours 168 --virea-home <external-home>
+```bash
+# 预览超过 168 小时且不再引用的模型数据；不会删除任何内容。
+uv run virea model gc --dry-run --older-than-hours 168 --virea-home <external-home>
+# 审核预览后才应用模型数据清理；会修改外部状态目录。
+uv run virea model gc --apply --older-than-hours 168 --virea-home <external-home>
+# 预览状态/日志保留策略；同样不删除数据。
+uv run virea state gc --dry-run --older-than-hours 168 --virea-home <external-home>
 ```
 
 先 dry-run，确认不会删除 READY snapshot 或当前 evidence。失败安装的 staging 必须清理或转入 quarantine，

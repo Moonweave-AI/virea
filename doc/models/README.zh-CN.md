@@ -3,12 +3,13 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: 模型选择、状态语义、原生骨骼/表示和逐模型文档入口。
 canonical: doc/models/README.zh-CN.md
 related:
+  - README.en.md
   - support-matrix.generated.md
   - prism.zh-CN.md
   - ../reference/status-semantics.zh-CN.md
@@ -18,6 +19,8 @@ superseded_by: []
 ---
 
 # 模型目录
+
+> [中文](README.zh-CN.md) · [English model catalog](README.en.md)
 
 从 [自动生成支持矩阵](support-matrix.generated.md) 选择模型。矩阵同时显示模型状态、任务、原生骨骼、原生
 表示、Runtime 与资源策略；不要仅按显示名称选择环境或解释结果。

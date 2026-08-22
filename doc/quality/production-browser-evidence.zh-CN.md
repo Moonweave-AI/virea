@@ -3,12 +3,13 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: 真实 Web 生成、VRM/VRMA 播放观察、后端不可变状态绑定与 evidence registry 晋级边界。
 canonical: doc/quality/production-browser-evidence.zh-CN.md
 related:
+  - production-browser-evidence.en.md
   - production-e2e.zh-CN.md
   - ../getting-started/browser-playback.zh-CN.md
   - ../reference/status-semantics.zh-CN.md
@@ -17,6 +18,8 @@ superseded_by: []
 ---
 
 # Production browser evidence
+
+> [中文](production-browser-evidence.zh-CN.md) · [English](production-browser-evidence.en.md)
 
 浏览器显示“正在播放”不是生产证据。VIREA 把一次验收拆成两个互不替代的记录：
 

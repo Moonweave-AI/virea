@@ -3,13 +3,15 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: VIREA README、文档信息架构、机器事实源、元数据和持续验证规范。
 canonical: doc/development/documentation.zh-CN.md
 related:
   - ../../README.md
+  - documentation.en.md
+  - ../reference/cli.zh-CN.md
   - ../README.zh-CN.md
   - ../reference/status-semantics.zh-CN.md
   - ../quality/production-e2e.zh-CN.md
@@ -19,8 +21,29 @@ superseded_by: []
 
 # 文档设计与维护规范
 
+> [中文](documentation.zh-CN.md) · [English policy](documentation.en.md)
+
 VIREA 的文档不是发布后的说明附件，而是模型身份、平台能力、资源边界和真实验收证据的可审查入口。
 文档可以解释机器事实，但不能覆盖或创造机器事实。
+
+## 双语与命令合同
+
+所有**当前用户工作流**都必须成对提供 English（`.en.md`）与简体中文（`.zh-CN.md`）入口，并在标题下直接互链。
+新教程、How-to、CLI/API 使用说明不得只新增一种语言；翻译未完成时保持 `InReview`，不能伪装成已发布的 Active
+用户路径。历史 ADR、RFC、研究记录和第三方 notice 保留原始证据语言，但中英文文档中心必须给出双语标题、用途、
+状态和导航，不能把读者直接丢给没有上下文的原文。
+
+每条面向用户的命令必须同时写清：
+
+1. 从 clean clone 开始的前提、Shell 与仓库外状态目录；
+2. 命令前的有效 Shell 注释，说明它要做什么；
+3. 所有位置占位符（如 `MODEL`、`DOMAIN`、`PATH`）的来源；
+4. 每个参数的意义、取值/冲突/默认限制和读写副作用；
+5. 预期输出、状态变化与下一步，不把未实测的模型能力写成保证。
+
+完整语法和选项只以[中文 CLI 参数参考](../reference/cli.zh-CN.md)与
+[English CLI reference](../reference/cli.en.md)为准；教程只保留最短命令并链接回参考页，禁止在多处复制一份
+未维护的参数表。
 
 ## 设计原则
 

@@ -3,12 +3,13 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: 真模型从环境检测到浏览器播放的单链验收、证据结构和晋级门槛。
 canonical: doc/quality/production-e2e.zh-CN.md
 related:
+  - production-e2e.en.md
   - ../models/README.zh-CN.md
   - ../platforms/README.zh-CN.md
   - ../operations/troubleshooting.zh-CN.md
@@ -17,6 +18,8 @@ superseded_by: []
 ---
 
 # Production E2E
+
+> [中文](production-e2e.zh-CN.md) · [English](production-e2e.en.md)
 
 完整流程必须由同一个 run/evidence identity 关联：
 

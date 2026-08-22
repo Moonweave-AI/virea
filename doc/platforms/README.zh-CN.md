@@ -3,12 +3,13 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-22
-last_reviewed: 2026-08-22
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: Windows、Linux、WSL2、macOS 的统一执行域选择、Runtime 能力与观测证据边界。
 canonical: doc/platforms/README.zh-CN.md
 related:
+  - README.en.md
   - windows.zh-CN.md
   - linux.zh-CN.md
   - wsl2.zh-CN.md
@@ -19,6 +20,8 @@ superseded_by: []
 ---
 
 # 平台与执行域
+
+> [中文](README.zh-CN.md) · [English platform guide](README.en.md)
 
 VIREA 的产品目标是 Windows、Linux、WSL2 与 macOS，而不是“只在 Windows 运行，其他平台提前拒绝”。
 模型、checkpoint 与版本身份不属于某个操作系统；execution domain 只决定隔离 Runtime、路径视图、资源域
@@ -48,8 +51,11 @@ VIREA 的产品目标是 Windows、Linux、WSL2 与 macOS，而不是“只在 W
 CLI 的真实选择参数为：
 
 ```bash
+# 在明确的 DOMAIN 中预览安装；DOMAIN 必须是 doctor 返回的一个准确 ID。
 uv run virea model install MODEL --execution-domain DOMAIN [--runtime RUNTIME] [--resource-profile PROFILE]
+# 在同一 DOMAIN 中预览修复；方括号表示可选高级覆盖项，不要逐字复制方括号。
 uv run virea model repair MODEL --execution-domain DOMAIN [--runtime RUNTIME] [--resource-profile PROFILE]
+# 向同一 DOMAIN 的 Runtime 提交生成请求；必须把 MODEL 等占位符替换成真实值。
 uv run virea generate --model MODEL --execution-domain DOMAIN [--runtime RUNTIME] [--resource-profile PROFILE]
 ```
 

@@ -3,13 +3,14 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
 canonical: doc/README.zh-CN.md
 related:
   - ../README.md
+  - README.en.md
   - models/README.zh-CN.md
   - platforms/README.zh-CN.md
   - quality/production-e2e.zh-CN.md
@@ -19,11 +20,14 @@ superseded_by: []
 
 <div align="center">
 
-# VIREA Documentation
+# VIREA 文档中心
+
+> [中文](README.zh-CN.md) · [English documentation hub](README.en.md)
 
 ### 从环境检测、真实模型安装和 Motion IR，到可审计的 VRMA 浏览器播放
 
-[开始使用](getting-started/installation.zh-CN.md) ·
+[从 clone 开始](getting-started.zh-CN.md) ·
+[CLI 参数参考](reference/cli.zh-CN.md) ·
 [选择模型](models/README.zh-CN.md) ·
 [部署平台](platforms/README.zh-CN.md) ·
 [排查问题](operations/troubleshooting.zh-CN.md) ·

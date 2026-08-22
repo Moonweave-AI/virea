@@ -3,12 +3,13 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: 环境探测、资源准入、安装、Worker、结果和浏览器播放的分层排错入口。
 canonical: doc/operations/troubleshooting.zh-CN.md
 related:
+  - troubleshooting.en.md
   - runtime-data-and-retention.zh-CN.md
   - ../platforms/README.zh-CN.md
   - ../quality/production-e2e.zh-CN.md
@@ -17,6 +18,8 @@ superseded_by: []
 ---
 
 # 排错
+
+> [中文](troubleshooting.zh-CN.md) · [English](troubleshooting.en.md)
 
 按失败发生的层级处理，不要通过关闭验证或修改结果文件绕过。
 
@@ -32,10 +35,13 @@ superseded_by: []
 
 收集诊断：
 
-```text
-virea support --virea-home <external-home>
-virea state inspect --virea-home <external-home>
-virea model verify <model-id> --virea-home <external-home>
+```bash
+# 输出本地支持摘要；<external-home> 是 checkout 外的 VIREA_HOME。
+uv run virea support --virea-home <external-home>
+# 只读查看状态数据库和迁移状态。
+uv run virea state inspect --virea-home <external-home>
+# 只读验证指定模型的最新 READY 安装；将 <model-id> 替换为 manifest ID。
+uv run virea model verify <model-id> --virea-home <external-home>
 ```
 
 报告问题时附 model/result identity、执行域、doctor report ID、installation/job/result ID 与最小日志尾部，

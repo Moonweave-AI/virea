@@ -3,12 +3,13 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: Windows native 执行域的外部环境、资源探测、CUDA/CPU 路径和故障恢复。
 canonical: doc/platforms/windows.zh-CN.md
 related:
+  - windows.en.md
   - README.zh-CN.md
   - wsl2.zh-CN.md
   - ../getting-started/installation.zh-CN.md
@@ -18,15 +19,22 @@ superseded_by: []
 
 # Windows
 
+> [中文](windows.zh-CN.md) · [English](windows.en.md)
+
 ## 推荐目录
 
 生产状态默认位于用户数据目录。源码开发时也把 uv 环境放到 checkout 之外：
 
 ```powershell
+# 将 uv 开发环境放到 checkout 外。
 $env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
+# 指定 checkout 外状态目录。
 $vireaHome = "$env:LOCALAPPDATA\VIREA\home"
+# 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
+# 初始化外部状态目录。
 uv run virea setup --virea-home $vireaHome
+# 探测 Windows native 执行域、资源和可修复问题。
 uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaHome
 ```
 

@@ -65,6 +65,58 @@ METADATA_EXEMPT = {
     "plugins/models/momadiff-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
     "plugins/models/prism-tp2m-1-4b/runtime/THIRD_PARTY_NOTICES.md",
 }
+BILINGUAL_DOCUMENT_PAIRS = {
+    "README.md": "README.zh-CN.md",
+    "doc/README.en.md": "doc/README.zh-CN.md",
+    "doc/getting-started.en.md": "doc/getting-started.zh-CN.md",
+    "doc/getting-started/installation.en.md": "doc/getting-started/installation.zh-CN.md",
+    "doc/getting-started/first-generation.en.md": "doc/getting-started/first-generation.zh-CN.md",
+    "doc/getting-started/browser-playback.en.md": "doc/getting-started/browser-playback.zh-CN.md",
+    "doc/reference/cli.en.md": "doc/reference/cli.zh-CN.md",
+    "doc/platforms/README.en.md": "doc/platforms/README.zh-CN.md",
+    "doc/platforms/windows.en.md": "doc/platforms/windows.zh-CN.md",
+    "doc/platforms/linux.en.md": "doc/platforms/linux.zh-CN.md",
+    "doc/platforms/wsl2.en.md": "doc/platforms/wsl2.zh-CN.md",
+    "doc/platforms/macos.en.md": "doc/platforms/macos.zh-CN.md",
+    "doc/models/README.en.md": "doc/models/README.zh-CN.md",
+    "doc/development/documentation.en.md": "doc/development/documentation.zh-CN.md",
+    "doc/operations/troubleshooting.en.md": "doc/operations/troubleshooting.zh-CN.md",
+    "doc/operations/runtime-data-and-retention.en.md": "doc/operations/runtime-data-and-retention.zh-CN.md",
+    "doc/quality/production-e2e.en.md": "doc/quality/production-e2e.zh-CN.md",
+    "doc/quality/production-browser-evidence.en.md": "doc/quality/production-browser-evidence.zh-CN.md",
+}
+COMMAND_GUIDE_DOCUMENTS = {
+    "README.md",
+    "README.zh-CN.md",
+    "doc/getting-started.en.md",
+    "doc/getting-started.zh-CN.md",
+    "doc/getting-started/installation.en.md",
+    "doc/getting-started/installation.zh-CN.md",
+    "doc/getting-started/first-generation.en.md",
+    "doc/getting-started/first-generation.zh-CN.md",
+    "doc/getting-started/browser-playback.en.md",
+    "doc/getting-started/browser-playback.zh-CN.md",
+    "doc/reference/cli.en.md",
+    "doc/reference/cli.zh-CN.md",
+    "doc/platforms/README.en.md",
+    "doc/platforms/README.zh-CN.md",
+    "doc/platforms/windows.en.md",
+    "doc/platforms/windows.zh-CN.md",
+    "doc/platforms/linux.en.md",
+    "doc/platforms/linux.zh-CN.md",
+    "doc/platforms/wsl2.en.md",
+    "doc/platforms/wsl2.zh-CN.md",
+    "doc/platforms/macos.en.md",
+    "doc/platforms/macos.zh-CN.md",
+    "doc/models/README.en.md",
+    "doc/models/README.zh-CN.md",
+    "doc/operations/troubleshooting.en.md",
+    "doc/operations/troubleshooting.zh-CN.md",
+    "doc/operations/runtime-data-and-retention.en.md",
+    "doc/operations/runtime-data-and-retention.zh-CN.md",
+    "doc/quality/production-e2e.en.md",
+    "doc/quality/production-browser-evidence.en.md",
+}
 FORBIDDEN_MATH = {
     "\\operatorname": "target renderer rejects operatorname",
     "\\mathcal": "target renderer has unstable mathcal support",
@@ -79,6 +131,7 @@ HTML_LINK_ATTRIBUTE_RE = re.compile(
 )
 HTML_IMAGE_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 HTML_ALT_RE = re.compile(r"\balt=[\"']([^\"']*)[\"']", re.IGNORECASE)
+FENCED_CODE_RE = re.compile(r"```[^\n]*\n(?P<body>.*?)```", re.DOTALL)
 PUBLIC_MEDIA_RE = re.compile(
     r"\.(?:gif|webm|png|jpe?g|webp|avif|apng|svg|bmp|tiff?|mp4|m4v|mov|ogv|mkv|avi|mp3|wav|ogg|m4a|flac)(?:[?#].*)?$",
     re.IGNORECASE,
@@ -399,6 +452,58 @@ def check_markdown(path: Path) -> list[str]:
             anchors = github_heading_anchors(target.read_text(encoding="utf-8"))
             if fragment not in anchors:
                 errors.append(f"{rel}: missing Markdown anchor {raw_target}")
+    return errors
+
+
+def check_bilingual_document_contract(repository_paths: set[str]) -> list[str]:
+    """Keep active clone-first user paths available in both supported languages."""
+
+    errors: list[str] = []
+    for english, chinese in BILINGUAL_DOCUMENT_PAIRS.items():
+        for path in (english, chinese):
+            if path not in repository_paths:
+                errors.append(f"bilingual documentation pair is missing {path}")
+        if english not in repository_paths or chinese not in repository_paths:
+            continue
+        english_text = (ROOT / english).read_text(encoding="utf-8")
+        chinese_text = (ROOT / chinese).read_text(encoding="utf-8")
+        chinese_link = Path(chinese).relative_to(Path(english).parent).as_posix()
+        english_link = Path(english).relative_to(Path(chinese).parent).as_posix()
+        if chinese_link not in english_text:
+            errors.append(
+                f"{english}: missing direct Chinese counterpart link {chinese_link}"
+            )
+        if english_link not in chinese_text:
+            errors.append(
+                f"{chinese}: missing direct English counterpart link {english_link}"
+            )
+    return errors
+
+
+def check_command_guides() -> list[str]:
+    """Require a shell comment immediately before each user-facing VIREA command."""
+
+    errors: list[str] = []
+    for rel in sorted(COMMAND_GUIDE_DOCUMENTS):
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for block_index, match in enumerate(FENCED_CODE_RE.finditer(text), start=1):
+            previous_nonempty = ""
+            for line in match.group("body").splitlines():
+                stripped = line.strip()
+                if re.search(r"^(?:uv\s+run\s+)?virea(?:\s|$)", stripped):
+                    if not (
+                        previous_nonempty.startswith("#")
+                        or previous_nonempty.lower().startswith("rem ")
+                        or previous_nonempty.startswith("::")
+                    ):
+                        errors.append(
+                            f"{rel}: command block {block_index} has an uncommented VIREA command {stripped!r}"
+                        )
+                if stripped:
+                    previous_nonempty = stripped
     return errors
 
 
@@ -768,6 +873,8 @@ def main() -> int:
                 )
             else:
                 canonical_owners[canonical] = rel
+    errors.extend(check_bilingual_document_contract(repository_paths))
+    errors.extend(check_command_guides())
     errors.extend(check_showcase())
     if errors:
         print("Documentation checks failed:")

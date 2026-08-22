@@ -3,12 +3,14 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: 在不污染 checkout 的前提下安装 VIREA、初始化外部状态并记录机器报告。
 canonical: doc/getting-started/installation.zh-CN.md
 related:
+  - installation.en.md
+  - ../getting-started.zh-CN.md
   - first-generation.zh-CN.md
   - ../platforms/README.zh-CN.md
   - ../operations/runtime-data-and-retention.zh-CN.md
@@ -17,6 +19,8 @@ superseded_by: []
 ---
 
 # 安装
+
+> [中文](installation.zh-CN.md) · [English](installation.en.md) · [完整 clone 教程](../getting-started.zh-CN.md)
 
 ## 前置
 
@@ -27,14 +31,19 @@ superseded_by: []
 
 ## 源码开发
 
-先按 [平台文档](../platforms/README.zh-CN.md) 把 `UV_PROJECT_ENVIRONMENT` 和 `VIREA_HOME` 指向
+先按[完整 clone 教程](../getting-started.zh-CN.md)克隆项目，并把 `UV_PROJECT_ENVIRONMENT` 和 `VIREA_HOME` 指向
 checkout 之外，再执行：
 
-```text
+```bash
+# 严格按 uv.lock 安装 Python workspace 与开发依赖；不会下载模型权重。
 uv sync --locked --all-packages --extra dev
+# 严格按 pnpm-lock.yaml 安装当前 Web workspace；不允许改锁文件。
 pnpm install --frozen-lockfile
+# 构建浏览器静态资源，不启动服务。
 pnpm --filter @virea/web build
+# 初始化外部状态目录；将 PATH 换成你的 VIREA_HOME。
 uv run virea setup --virea-home <external-home>
+# 探测执行域与资源，并将报告记录到外部状态目录。
 uv run virea doctor --json --record --explain --repair-plan --virea-home <external-home>
 ```
 
@@ -43,8 +52,10 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home <extern
 
 ## 检查
 
-```text
+```bash
+# 列出模型 manifest；--json 便于脚本读取且不产生安装副作用。
 uv run virea model list --json
+# 只读检查外部状态数据库。
 uv run virea state inspect --virea-home <external-home>
 ```
 

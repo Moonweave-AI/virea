@@ -3,12 +3,14 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: 启动 Web、加载真实 VRM 与生成 VRMA，并验证可见播放和浏览器错误。
 canonical: doc/getting-started/browser-playback.zh-CN.md
 related:
+  - browser-playback.en.md
+  - ../getting-started.zh-CN.md
   - first-generation.zh-CN.md
   - ../quality/production-e2e.zh-CN.md
 supersedes: []
@@ -17,7 +19,10 @@ superseded_by: []
 
 # 浏览器播放
 
-```text
+> [中文](browser-playback.zh-CN.md) · [English](browser-playback.en.md) · [完整教程](../getting-started.zh-CN.md)
+
+```bash
+# 在 loopback 启动本地 API 与 Web UI；--port 决定浏览器 URL，<external-home> 是仓库外状态目录。
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home <external-home>
 ```
 

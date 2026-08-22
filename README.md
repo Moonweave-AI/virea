@@ -14,15 +14,17 @@ converts the result through Motion IR, and exports validated VRMA for browser pl
 [![Version](https://img.shields.io/badge/version-0.4.0-3456a4)](CHANGELOG.md)
 [![Canonical](https://img.shields.io/badge/canonical-211_v3-167d73)](doc/math-retarget/README.zh-CN.md)
 [![Motion IR](https://img.shields.io/badge/Motion_IR-v2-6957d8)](packages/contracts/schemas/v2/motion_ir.schema.json)
-[![Platforms](https://img.shields.io/badge/target-Windows_%7C_Linux_%7C_WSL2_%7C_macOS-20293f)](doc/platforms/README.zh-CN.md)
-[![Docs](https://img.shields.io/badge/docs-task_oriented-9f6a2e)](doc/README.zh-CN.md)
+[![Platforms](https://img.shields.io/badge/target-Windows_%7C_Linux_%7C_WSL2_%7C_macOS-20293f)](doc/platforms/README.en.md)
+[![Docs](https://img.shields.io/badge/docs-bilingual-9f6a2e)](doc/README.en.md)
 
-[Get started](doc/getting-started/installation.zh-CN.md) ·
-[Models](doc/models/README.zh-CN.md) ·
-[Platforms](doc/platforms/README.zh-CN.md) ·
+[English](README.md) · [简体中文](README.zh-CN.md) ·
+[Get started](doc/getting-started.en.md) ·
+[CLI reference](doc/reference/cli.en.md) ·
+[Models](doc/models/README.en.md) ·
+[Platforms](doc/platforms/README.en.md) ·
 [Architecture](#architecture) ·
-[Evidence](doc/quality/production-e2e.zh-CN.md) ·
-[Documentation](doc/README.zh-CN.md)
+[Evidence](doc/quality/production-e2e.en.md) ·
+[Documentation](doc/README.en.md)
 
 </div>
 
@@ -47,12 +49,12 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 
 | I want to… | Start here |
 |---|---|
-| Generate motion with an integrated model | [Installation](doc/getting-started/installation.zh-CN.md) → [First generation](doc/getting-started/first-generation.zh-CN.md) |
-| Pick the correct model and skeleton | [Model directory](doc/models/README.zh-CN.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
-| Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.zh-CN.md) |
-| Load a result in a real Avatar | [Browser playback](doc/getting-started/browser-playback.zh-CN.md) |
+| Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
+| Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
+| Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
+| Load a result in a real Avatar | [Browser playback](doc/getting-started.en.md#6-play-a-result-in-the-browser) |
 | Integrate another model | [Model adapter guide](doc/development/model-adapter.zh-CN.md) |
-| Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.zh-CN.md) |
+| Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
 | Explore datasets and retargeting | [Dataset pipeline](doc/pipeline.zh-CN.md) and [showcase](doc/showcase/README.md) |
 
 ## Architecture
@@ -107,7 +109,7 @@ Status dimensions are deliberately separate:
 
 Model status can preserve a previous bounded acceptance, while the current release still requires a fresh browser/backend
 record for the latest manifest and Runtime selection. Read the versioned production evidence registry through the
-[E2E documentation](doc/quality/production-e2e.zh-CN.md); never infer current evidence from this table alone.
+[E2E documentation](doc/quality/production-e2e.en.md); never infer current evidence from this table alone.
 
 The current validated-evidence and validator policy is `v1.1.0`. The six legacy `v1.0.0` records are invalid for current
 promotion because they do not bind both acceptance and generation to the installed Runtime core epoch; until new records
@@ -151,18 +153,31 @@ VIREA still cannot claim that every model has completed operation on every targe
 
 ### 1. Keep the checkout clean
 
-Set `UV_PROJECT_ENVIRONMENT` to an external directory before syncing a source checkout.
+Start from a clean clone, then set `UV_PROJECT_ENVIRONMENT` to an external directory before syncing a source checkout.
+The full bilingual walkthrough and parameter tables are in the [English tutorial](doc/getting-started.en.md),
+[中文教程](doc/getting-started.zh-CN.md), and [CLI reference](doc/reference/cli.en.md).
 
 <details>
 <summary><strong>Windows PowerShell</strong></summary>
 
 ```powershell
+# Clone the repository once and enter its root before running the remaining setup commands.
+git clone https://github.com/Moonweave-AI/virea.git
+Set-Location virea
+
+# Keep uv's development environment outside the clone.
 $env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
+# Choose the external home for local state, assets, Runtimes, logs and results.
 $vireaHome = "$env:LOCALAPPDATA\VIREA\home"
+# Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
+# Install the Web workspace from its locked pnpm dependency graph.
 pnpm install --frozen-lockfile
+# Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
+# Initialize the external VIREA state directory.
 uv run virea setup --virea-home $vireaHome
+# Detect execution domains/resources and record a local diagnostic report.
 uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaHome
 ```
 
@@ -172,12 +187,23 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaH
 <summary><strong>Linux / WSL2</strong></summary>
 
 ```bash
+# Clone the repository once and enter its root before running the remaining setup commands.
+git clone https://github.com/Moonweave-AI/virea.git
+cd virea
+
+# Keep uv's development environment outside the clone.
 export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
+# Choose the external home for local state, assets, Runtimes, logs and results.
 VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
+# Install the Web workspace from its locked pnpm dependency graph.
 pnpm install --frozen-lockfile
+# Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
+# Initialize the external VIREA state directory.
 uv run virea setup --virea-home "$VIREA_HOME"
+# Detect execution domains/resources and record a local diagnostic report.
 uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
 ```
 
@@ -187,12 +213,23 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA
 <summary><strong>macOS</strong></summary>
 
 ```bash
+# Clone the repository once and enter its root before running the remaining setup commands.
+git clone https://github.com/Moonweave-AI/virea.git
+cd virea
+
+# Keep uv's development environment outside the clone.
 export UV_PROJECT_ENVIRONMENT="$HOME/Library/Application Support/VIREA/dev-venv"
+# Choose the external home for local state, assets, Runtimes, logs and results.
 VIREA_HOME="$HOME/Library/Application Support/VIREA/home"
+# Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
+# Install the Web workspace from its locked pnpm dependency graph.
 pnpm install --frozen-lockfile
+# Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
+# Initialize the external VIREA state directory.
 uv run virea setup --virea-home "$VIREA_HOME"
+# Detect execution domains/resources and record a local diagnostic report.
 uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
 ```
 
@@ -202,9 +239,12 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA
 
 Inspect the model first; installation performs resource admission before downloading artifacts.
 
-```text
+```bash
+# Inspect declared Runtimes and resource profiles before selecting/installing a model.
 uv run virea model info flood-diffusion-tiny
+# Apply a reviewed installation in one explicit domain; replace <external-home> with your VIREA_HOME.
 uv run virea model install flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --apply --virea-home <external-home>
+# Verify that the latest installation is still READY and accessible.
 uv run virea model verify flood-diffusion-tiny --virea-home <external-home>
 ```
 
@@ -219,8 +259,10 @@ an impossible configuration appear sufficient.
 
 ### 3. Generate and validate
 
-```text
+```bash
+# Submit a bounded text-to-motion job; --timeout is an end-to-end limit in seconds.
 uv run virea generate --model flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --task text_to_motion --prompt "A person walks forward, turns left, and waves with the right hand." --seconds 4 --fps 20 --seed 42 --timeout 1800 --virea-home <external-home>
+# Read-only validation of the persisted generation chain; replace <job-id> with the returned value.
 uv run virea validate-real-e2e --virea-home <external-home> --job-id <job-id>
 ```
 
@@ -229,13 +271,14 @@ skeleton/representation, execution domain, resource profile and device.
 
 ### 4. Play the result
 
-```text
+```bash
+# Start the local API and browser UI on loopback; --port chooses the browser URL port.
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home <external-home>
 ```
 
 Open `http://127.0.0.1:8000/app/`, load a local `.vrm`, and select the generated result. Production browser evidence must
 show a visible full Avatar, advancing animation time, validated duration, finite tracks and zero console errors. A client
-cannot promote itself by reporting `playing=true`; see the [E2E contract](doc/quality/production-e2e.zh-CN.md).
+cannot promote itself by reporting `playing=true`; see the [E2E contract](doc/quality/production-e2e.en.md).
 
 ## Resource admission and fallback
 
@@ -301,17 +344,17 @@ pnpm --filter @virea/web build
 ```
 
 Exact current release evidence and any unvalidated platforms are recorded in the
-[quality documentation](doc/quality/production-e2e.zh-CN.md), not copied into multiple README paragraphs.
+[quality documentation](doc/quality/production-e2e.en.md), not copied into multiple README paragraphs.
 
 ## Documentation
 
 The [Documentation Hub](doc/README.zh-CN.md) is organized by task:
 
 - [Getting started](doc/getting-started/installation.zh-CN.md)
-- [Models and skeleton identities](doc/models/README.zh-CN.md)
-- [Platforms and execution domains](doc/platforms/README.zh-CN.md)
-- [Runtime data and retention](doc/operations/runtime-data-and-retention.zh-CN.md)
-- [Troubleshooting](doc/operations/troubleshooting.zh-CN.md)
+- [Models and skeleton identities](doc/models/README.en.md)
+- [Platforms and execution domains](doc/platforms/README.en.md)
+- [Runtime data and retention](doc/operations/runtime-data-and-retention.en.md)
+- [Troubleshooting](doc/operations/troubleshooting.en.md)
 - [Motion/retarget mathematics](doc/math-retarget/README.zh-CN.md)
 - [Documentation design](doc/development/documentation.zh-CN.md)
 - [Research registry](doc/model-catalog/motion-generation-registry-2026-08-20.zh-CN.md)

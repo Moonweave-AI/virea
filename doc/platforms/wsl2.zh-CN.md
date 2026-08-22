@@ -3,12 +3,13 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: WSL2 作为独立 Linux 执行域时的构建、路径、GPU、状态与浏览器边界。
 canonical: doc/platforms/wsl2.zh-CN.md
 related:
+  - wsl2.en.md
   - README.zh-CN.md
   - windows.zh-CN.md
   - linux.zh-CN.md
@@ -18,6 +19,8 @@ superseded_by: []
 ---
 
 # WSL2
+
+> [中文](wsl2.zh-CN.md) · [English](wsl2.en.md)
 
 WSL2 是独立执行域，不是 Windows Python 的一个 accelerator 标签。doctor、`uv`、模型缓存、隔离环境、Worker
 和资源探测必须全部位于同一个发行版。

@@ -3,12 +3,13 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: 原生 Linux 的外部环境、CUDA/ROCm/CPU Runtime 与 system lifecycle 要求。
 canonical: doc/platforms/linux.zh-CN.md
 related:
+  - linux.en.md
   - README.zh-CN.md
   - wsl2.zh-CN.md
   - ../getting-started/installation.zh-CN.md
@@ -18,11 +19,18 @@ superseded_by: []
 
 # Linux
 
+> [中文](linux.zh-CN.md) · [English](linux.en.md)
+
 ```bash
+# 将 uv 开发环境放到 checkout 外。
 export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
+# 指定 checkout 外的 Linux 本地状态目录。
 VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
+# 初始化外部状态目录。
 uv run virea setup --virea-home "$VIREA_HOME"
+# 探测 Linux native 域、资源和可修复问题。
 uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
 ```
 
