@@ -21,10 +21,14 @@ superseded_by: []
 > [中文](macos.zh-CN.md) · [English](macos.en.md)
 
 ```bash
-# 将 uv 开发环境放到 checkout 外。
-export UV_PROJECT_ENVIRONMENT="$HOME/Library/Application Support/VIREA/dev-venv"
-# 指定 checkout 外的 macOS 本地状态目录。
-VIREA_HOME="$HOME/Library/Application Support/VIREA/home"
+# 选择已挂载且容量充足的数据卷；将 /Volumes/VIREA 换成实际卷。
+export VIREA_DATA_ROOT="/Volumes/VIREA/virea"
+# 将 uv 开发环境放到 checkout 与系统卷之外。
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# 将 uv 的下载与构建缓存也放到所选数据卷。
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+# 将模型资产、Runtime、下载、日志和结果放到所选数据卷。
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 初始化外部状态目录。

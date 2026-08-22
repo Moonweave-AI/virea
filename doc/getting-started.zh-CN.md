@@ -34,7 +34,8 @@ superseded_by: []
 ## 2. 克隆项目并设置仓库外本地目录
 
 仓库只保存源码、锁文件、注册表与轻量文档。虚拟环境、模型资产、隔离 Runtime、job、结果和日志都应位于
-仓库外的 `VIREA_HOME`。
+仓库外、位于容量充足数据盘上的 `VIREA_HOME`。持久命令在未给出 `VIREA_HOME`/`--virea-home` 时会拒绝执行，
+不会再静默使用 `LOCALAPPDATA`、`$HOME` 或 clone。
 
 ### Windows PowerShell
 
@@ -45,11 +46,21 @@ git clone https://github.com/Moonweave-AI/virea.git
 # 进入刚克隆的项目根目录；后续命令都从此目录执行。
 Set-Location virea
 
-# 将 uv 开发环境放到 checkout 外，避免仓库根出现 .venv。
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
+# 显示本机文件系统卷和可用空间，再选择自己的数据盘。
+Get-PSDrive -PSProvider FileSystem
 
-# 将本地状态、模型资产、Runtime、日志和结果放到 checkout 外。
-$env:VIREA_HOME = "$env:LOCALAPPDATA\VIREA\home"
+# 读取所选数据盘的根路径，并在其下创建 VIREA 目录。
+$vireaDataVolume = Read-Host "输入所选数据盘的根路径"
+$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
+
+# 将 uv 的锁定项目环境放在 checkout 与 Windows 用户应用数据目录之外。
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+
+# 将 uv 的下载 wheel 与构建缓存也放在所选数据盘。
+$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
+
+# 将模型资产、Runtime、下载、日志和结果写入所选数据盘。
+$env:VIREA_HOME = Join-Path $vireaDataRoot "home"
 
 # 完全按 uv.lock 安装 Python workspace 与开发依赖；--locked 禁止重新解析版本。
 uv sync --locked --all-packages --extra dev
@@ -71,11 +82,17 @@ pnpm --filter @virea/web build
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# 使用仓库外的 uv 环境。macOS 也可改用 ~/Library/Application\ Support/VIREA/dev-venv。
-export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
+# 选择已挂载且容量充足的数据盘；将 /data/virea 换成实际路径。
+export VIREA_DATA_ROOT="/data/virea"
 
-# 指定仓库外的 VIREA 状态目录。
-export VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# 将 uv 的锁定项目环境放在 clone 和系统盘之外。
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+
+# 将 uv 的下载与构建缓存也放在所选数据盘。
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+
+# 将所有 VIREA 状态写入选定的数据盘。
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 
 # 依次复现 Python、Viewer、Web 依赖并构建浏览器界面。
 uv sync --locked --all-packages --extra dev

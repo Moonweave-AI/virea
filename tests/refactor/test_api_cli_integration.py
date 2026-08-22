@@ -22,7 +22,13 @@ from starlette.routing import WebSocketRoute
 from virea_api import create_app
 from virea_api.routes import jobs_router
 from virea_api.service import ControlPlane, _vrma_export_filename
-from virea_cli.main import build_parser
+from virea_cli.main import (
+    _requires_explicit_virea_home,
+    build_parser,
+)
+from virea_cli.main import (
+    main as cli_main,
+)
 from virea_contracts import JobRequest, ManagedApiLifecycle
 from virea_contracts.execution import ExecutionTargetSelection
 from virea_contracts.installation import InstallationState
@@ -827,6 +833,40 @@ def test_unified_cli_parser_command_surface_and_defaults(capsys) -> None:
     with pytest.raises(SystemExit) as removed_test_behavior:
         parser.parse_args(["generate", "--behavior", "success"])
     assert removed_test_behavior.value.code == 2
+
+
+def test_cli_requires_an_explicit_data_home_before_persistent_work(
+    monkeypatch, capsys
+) -> None:
+    """A model install must never silently choose LOCALAPPDATA as its data disk."""
+
+    parser = build_parser()
+    assert _requires_explicit_virea_home(parser.parse_args(["setup"]))
+    assert _requires_explicit_virea_home(
+        parser.parse_args(["model", "install", "flood-diffusion-tiny"])
+    )
+    assert _requires_explicit_virea_home(parser.parse_args(["generate"]))
+    assert not _requires_explicit_virea_home(parser.parse_args(["doctor"]))
+    assert not _requires_explicit_virea_home(parser.parse_args(["model", "list"]))
+
+    monkeypatch.delenv("VIREA_HOME", raising=False)
+    monkeypatch.setattr(sys, "argv", ["virea", "setup"])
+    with pytest.raises(SystemExit) as rejected:
+        cli_main()
+
+    assert rejected.value.code == 2
+    assert "--virea-home PATH or set VIREA_HOME" in capsys.readouterr().err
+
+
+def test_api_lifespan_requires_an_explicit_data_home(monkeypatch) -> None:
+    """An ASGI launch cannot bypass the CLI's selected-data-volume contract."""
+
+    monkeypatch.delenv("VIREA_HOME", raising=False)
+    application = create_app(include_legacy_preview=False)
+
+    with pytest.raises(RuntimeError, match="set VIREA_HOME or pass virea_home"):
+        with TestClient(application):
+            pass
 
 
 def test_cli_serve_factory_resolves_requested_home_after_stale_app_import(

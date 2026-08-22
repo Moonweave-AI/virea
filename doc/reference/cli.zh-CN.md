@@ -22,7 +22,8 @@ superseded_by: []
 > [中文](cli.zh-CN.md) · [English CLI reference](cli.en.md) · [从 clone 到结果](../getting-started.zh-CN.md)
 
 在 clean clone 中先执行 `uv sync --locked --all-packages --extra dev`。所有示例使用 `uv run`，确保调用的是锁定的
-项目环境。自动化场景请把 `VIREA_HOME` 放到 checkout 外，并显式传入 `--virea-home PATH`。
+项目环境。自动化场景请把 `VIREA_HOME` 放在容量足够的数据盘且 checkout 外，并显式传入 `--virea-home PATH`。
+会创建或访问持久状态的命令在未给出该路径时会拒绝执行，不会静默把模型数据写入 `LOCALAPPDATA` 或 `$HOME`。
 
 ```bash
 # 显示完整命令树和内建帮助；不会修改状态或访问网络。
@@ -36,7 +37,7 @@ uv run virea --version
 
 | 项目 | 含义 |
 |---|---|
-| `PATH` | checkout 外、当前用户可写的目录；保存状态、资产、Runtime、日志和结果。 |
+| `PATH` | 位于用户选定数据盘、checkout 外且可写的目录；保存状态、模型资产、Runtime、下载、日志和结果。 |
 | `MODEL` | `virea model list` 返回的 manifest ID，例如 `flood-diffusion-tiny`。 |
 | `DOMAIN` | `virea doctor --json` 返回的 canonical 执行域 ID：`windows-native`、`linux-native`、`macos-native` 或 `wsl:<distribution>`。 |
 | `RUNTIME` | 对 `MODEL` 在 `DOMAIN` 中有效的可选 Runtime variant ID。 |

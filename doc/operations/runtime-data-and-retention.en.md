@@ -23,7 +23,9 @@ superseded_by: []
 
 The source checkout contains code, manifests/registries, locks, tests and documentation. Keep environments, checkpoints,
 upstream source snapshots, Worker logs, job/results, Motion IR/VRMA artifacts, browser evidence and QA workspaces in an
-external `VIREA_HOME` or system temporary directory.
+external `VIREA_HOME` on a user-selected data volume or system temporary directory. `VIREA_HOME` is the capacity-bearing
+data root, not a configuration-only directory: model installation and generation require it to be explicit and never
+implicitly use `LOCALAPPDATA`/`$HOME`.
 
 | Directory under `VIREA_HOME` | Contents | Safe action |
 |---|---|---|

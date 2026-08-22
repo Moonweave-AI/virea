@@ -21,7 +21,8 @@ superseded_by: []
 > [中文](runtime-data-and-retention.zh-CN.md) · [English](runtime-data-and-retention.en.md)
 
 源码 checkout 只保存代码、轻量 manifest/registry、锁文件、测试和文档。以下内容一律写入外部
-`VIREA_HOME` 或操作系统临时目录：
+位于用户选定数据盘的 `VIREA_HOME` 或操作系统临时目录。`VIREA_HOME` 是承载容量的数据根，而非仅配置目录：
+模型安装和生成必须显式提供它，绝不会隐式使用 `LOCALAPPDATA`/`$HOME`：
 
 - Python/uv Runtime 环境；
 - checkpoint、Hugging Face cache 和上游源码快照；

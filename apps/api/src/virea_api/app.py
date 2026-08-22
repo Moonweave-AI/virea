@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -58,6 +59,7 @@ def create_app(
     runtime_source_root: str | Path | None = None,
     include_legacy_preview: bool = True,
 ) -> FastAPI:
+    configured_virea_home = bool(virea_home or os.getenv("VIREA_HOME"))
     paths = VireaPaths.discover(virea_home)
     plugins = Path(plugin_root) if plugin_root is not None else _default_plugin_root()
     runtime_sources = (
@@ -68,6 +70,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if not configured_virea_home:
+            raise RuntimeError(
+                "persistent VIREA data needs an explicit location: set VIREA_HOME "
+                "or pass virea_home on a volume with sufficient capacity; model "
+                "assets are not stored implicitly in LOCALAPPDATA"
+            )
         control = ControlPlane(
             paths=paths,
             plugin_root=plugins,

@@ -23,13 +23,21 @@ superseded_by: []
 
 ## 推荐目录
 
-生产状态默认位于用户数据目录。源码开发时也把 uv 环境放到 checkout 之外：
+选择有足够容量的数据盘作为生产状态目录；不要把模型写到 C 盘用户目录。`LOCALAPPDATA` 仅是小型只读探测的
+兼容回退，持久命令必须显式给出 `VIREA_HOME` 或 `--virea-home`：
 
 ```powershell
-# 将 uv 开发环境放到 checkout 外。
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
-# 指定 checkout 外状态目录。
-$vireaHome = "$env:LOCALAPPDATA\VIREA\home"
+# 列出文件系统卷和可用空间，再选择实际数据盘。
+Get-PSDrive -PSProvider FileSystem
+# 读取所选数据盘根路径，并在其下创建开发环境和持久数据共用的目录。
+$vireaDataVolume = Read-Host "输入所选数据盘的根路径"
+$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
+# 将 uv 开发环境放到 checkout 与 Windows 用户应用数据目录之外。
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+# 将 uv 的下载 wheel 与构建缓存也放到所选数据盘。
+$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
+# 将模型资产、Runtime、下载、日志和结果写到所选数据盘。
+$vireaHome = Join-Path $vireaDataRoot "home"
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 初始化外部状态目录。

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -8,6 +9,45 @@ from . import __version__, production_e2e_evidence_validator, real_e2e_validator
 from .commands import doctor, generate, model, serve, setup, state, support
 
 _LEGACY_COMMANDS = {"process", "build-demo"}
+
+
+def _requires_explicit_virea_home(args: argparse.Namespace) -> bool:
+    """Return whether a CLI invocation can create or access persistent data.
+
+    ``VIREA_HOME`` owns model assets, isolated Runtimes, SQLite state, results,
+    and logs.  Falling back to the operating system's application-data directory
+    is reasonable for a small read-only probe, but it is unsafe as an implicit
+    destination for model downloads.  Keep the pure catalog commands and an
+    unrecorded ``doctor`` usable before a user has selected a data volume.
+    """
+
+    if args.command in {"setup", "generate", "serve", "support", "state"}:
+        return True
+    if args.command == "doctor":
+        return bool(args.record)
+    return args.command == "model" and args.model_command in {
+        "install",
+        "verify",
+        "remove",
+        "repair",
+        "gc",
+    }
+
+
+def _has_explicit_virea_home(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "virea_home", None) or os.getenv("VIREA_HOME"))
+
+
+def _require_explicit_virea_home(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    if _requires_explicit_virea_home(args) and not _has_explicit_virea_home(args):
+        parser.error(
+            "persistent VIREA data needs an explicit location: pass "
+            "--virea-home PATH or set VIREA_HOME to a directory on a "
+            "volume with sufficient capacity; model assets are not stored "
+            "implicitly in LOCALAPPDATA"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -228,7 +268,9 @@ def main() -> None:
 
         legacy_main()
         return
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    _require_explicit_virea_home(parser, args)
     raise SystemExit(args.func(args))
 
 

@@ -153,8 +153,10 @@ VIREA still cannot claim that every model has completed operation on every targe
 
 ### 1. Keep the checkout clean
 
-Start from a clean clone, then set `UV_PROJECT_ENVIRONMENT` to an external directory before syncing a source checkout.
-The full bilingual walkthrough and parameter tables are in the [English tutorial](doc/getting-started.en.md),
+Start from a clean clone, then choose a data volume with enough free space *before* syncing or installing a model.
+`VIREA_HOME` owns model assets, isolated Runtimes, downloads, results and logs; it is not a small configuration
+directory. Persistent commands require `--virea-home PATH` or `VIREA_HOME`, so they never silently download models to
+`LOCALAPPDATA`, `$HOME`, or the clone. The full bilingual walkthrough and parameter tables are in the [English tutorial](doc/getting-started.en.md),
 [中文教程](doc/getting-started.zh-CN.md), and [CLI reference](doc/reference/cli.en.md).
 
 <details>
@@ -165,10 +167,17 @@ The full bilingual walkthrough and parameter tables are in the [English tutorial
 git clone https://github.com/Moonweave-AI/virea.git
 Set-Location virea
 
-# Keep uv's development environment outside the clone.
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
-# Choose the external home for local state, assets, Runtimes, logs and results.
-$vireaHome = "$env:LOCALAPPDATA\VIREA\home"
+# List local file-system volumes and their free space before choosing a data volume.
+Get-PSDrive -PSProvider FileSystem
+# Read the selected data-volume root, then create one VIREA directory beneath it.
+$vireaDataVolume = Read-Host "Enter the selected data-volume root"
+$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
+# Keep uv's locked development environment outside both the clone and the Windows user application-data directory.
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+# Keep uv's downloaded-wheel and build cache on the same data volume.
+$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
+# Store model assets, isolated Runtimes, downloads, results and logs on the selected data volume.
+$vireaHome = Join-Path $vireaDataRoot "home"
 # Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
 # Install the Web workspace from its locked pnpm dependency graph.
@@ -191,10 +200,14 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaH
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# Keep uv's development environment outside the clone.
-export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
-# Choose the external home for local state, assets, Runtimes, logs and results.
-VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# Choose a mounted data volume with enough space; replace /data/virea with your own mount point.
+export VIREA_DATA_ROOT="/data/virea"
+# Keep uv's locked development environment outside the clone and the system disk.
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# Keep uv's downloaded-wheel and build cache on the same data volume.
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+# Store model assets, isolated Runtimes, downloads, results and logs on that data volume.
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 # Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
 # Install the Web workspace from its locked pnpm dependency graph.
@@ -217,10 +230,14 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# Keep uv's development environment outside the clone.
-export UV_PROJECT_ENVIRONMENT="$HOME/Library/Application Support/VIREA/dev-venv"
-# Choose the external home for local state, assets, Runtimes, logs and results.
-VIREA_HOME="$HOME/Library/Application Support/VIREA/home"
+# Choose a mounted data volume with enough space; replace /Volumes/VIREA with your chosen volume.
+export VIREA_DATA_ROOT="/Volumes/VIREA/virea"
+# Keep uv's locked development environment outside the clone and the system disk.
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# Keep uv's downloaded-wheel and build cache on the same data volume.
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+# Store model assets, isolated Runtimes, downloads, results and logs on that data volume.
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 # Install all locked Python workspace packages and the development dependencies.
 uv sync --locked --all-packages --extra dev
 # Install the Web workspace from its locked pnpm dependency graph.

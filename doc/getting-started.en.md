@@ -34,7 +34,9 @@ the driver and ABI required by the selected Runtime; the initial `doctor` comman
 ## 2. Clone and prepare an external local home
 
 The repository intentionally contains source, locks, registries and lightweight documentation only. Environments, model
-assets, isolated Runtime environments, jobs, results and logs belong in an external `VIREA_HOME`.
+assets, isolated Runtime environments, jobs, results and logs belong in an external `VIREA_HOME`. Choose that path on a
+volume intended for model data: persistent commands reject an omitted `VIREA_HOME`/`--virea-home` instead of silently
+using `LOCALAPPDATA`, `$HOME`, or the clone.
 
 ### Windows PowerShell
 
@@ -45,11 +47,21 @@ git clone https://github.com/Moonweave-AI/virea.git
 # Make the cloned directory the current working directory for every later command.
 Set-Location virea
 
-# Put uv's development virtual environment outside the checkout; this avoids creating .venv in the project.
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
+# Show local file-system volumes and their free space before choosing a data volume.
+Get-PSDrive -PSProvider FileSystem
 
-# Put VIREA state, model assets, Runtimes, logs and results outside the checkout.
-$env:VIREA_HOME = "$env:LOCALAPPDATA\VIREA\home"
+# Read the selected data-volume root, then create one VIREA directory beneath it.
+$vireaDataVolume = Read-Host "Enter the selected data-volume root"
+$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
+
+# Put uv's locked project environment outside the checkout and the Windows user application-data directory.
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+
+# Put uv's downloaded-wheel and build cache on the selected data volume too.
+$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
+
+# Put model assets, Runtimes, downloads, logs and results on the selected data volume.
+$env:VIREA_HOME = Join-Path $vireaDataRoot "home"
 
 # Install every locked Python workspace package plus the development extra. --locked refuses dependency re-resolution.
 uv sync --locked --all-packages --extra dev
@@ -71,11 +83,17 @@ pnpm --filter @virea/web build
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# Keep uv's environment outside the clone. On macOS, ~/Library/Application Support/VIREA/dev-venv is also a suitable path.
-export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
+# Choose a mounted data volume; replace /data/virea with your own path.
+export VIREA_DATA_ROOT="/data/virea"
 
-# Keep all user-local VIREA state outside the clone.
-export VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# Keep uv's locked project environment outside the clone and the system disk.
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+
+# Keep uv's downloaded-wheel and build cache on the selected data volume too.
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+
+# Keep all user-local VIREA state on the selected data volume.
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 
 # Reproduce the Python, Viewer and Web dependency graphs, then build the Web UI.
 uv sync --locked --all-packages --extra dev

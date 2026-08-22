@@ -22,7 +22,9 @@ superseded_by: []
 > [中文 CLI 参考](cli.zh-CN.md) · [English](cli.en.md) · [Clone-to-result tutorial](../getting-started.en.md)
 
 Run every command from a clean clone after `uv sync --locked --all-packages --extra dev`. Prefixing with `uv run` uses the
-locked project environment. Set `VIREA_HOME` outside the clone and pass it explicitly as `--virea-home PATH` in automation.
+locked project environment. Set `VIREA_HOME` on a volume with enough model-data capacity, outside the clone, and pass it
+explicitly as `--virea-home PATH` in automation. Commands that create or access persistent state reject an omitted home;
+they do not silently place model data in `LOCALAPPDATA` or `$HOME`.
 
 ```bash
 # Print the command tree and built-in help. This has no state or network side effect.
@@ -36,7 +38,7 @@ uv run virea --version
 
 | Item | Meaning |
 |---|---|
-| `PATH` | A user-writable directory outside the checkout. It stores state, assets, Runtimes, logs and results. |
+| `PATH` | A user-writable directory on a chosen data volume, outside the checkout. It stores state, model assets, Runtimes, downloads, logs and results. |
 | `MODEL` | A manifest ID returned by `virea model list`, for example `flood-diffusion-tiny`. |
 | `DOMAIN` | A canonical execution-domain ID returned by `virea doctor --json`: `windows-native`, `linux-native`, `macos-native`, or `wsl:<distribution>`. |
 | `RUNTIME` | An optional Runtime variant ID valid for `MODEL` in `DOMAIN`. |

@@ -21,11 +21,17 @@ superseded_by: []
 > [English](macos.en.md) · [中文](macos.zh-CN.md)
 
 ```bash
-# Keep uv's development environment outside the cloned repository.
-export UV_PROJECT_ENVIRONMENT="$HOME/Library/Application Support/VIREA/dev-venv"
+# Choose a mounted data volume; replace /Volumes/VIREA with your chosen volume.
+export VIREA_DATA_ROOT="/Volumes/VIREA/virea"
 
-# Select the external macOS state root.
-export VIREA_HOME="$HOME/Library/Application Support/VIREA/home"
+# Keep uv's development environment outside both the clone and the system volume.
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+
+# Keep uv's downloaded-wheel and build cache on the selected data volume too.
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+
+# Store model assets, Runtimes, downloads, logs and results on the selected data volume.
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev

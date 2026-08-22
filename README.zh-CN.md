@@ -60,11 +60,21 @@ git clone https://github.com/Moonweave-AI/virea.git
 # 进入刚克隆的项目根目录，后续命令均从这里运行。
 Set-Location virea
 
-# 把 uv 的开发环境放到仓库外，避免在项目中创建 .venv。
-$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\VIREA\dev-venv"
+# 列出本机文件系统卷和可用空间，再选择容量充足的数据盘。
+Get-PSDrive -PSProvider FileSystem
 
-# 指定用户本地状态目录：安装记录、隔离 Runtime、结果和日志都写到这里。
-$env:VIREA_HOME = "$env:LOCALAPPDATA\VIREA\home"
+# 读取所选数据盘根路径，并在其下创建 VIREA 目录；不要使用 Windows 用户应用数据目录或源码 checkout。
+$vireaDataVolume = Read-Host "输入所选数据盘的根路径"
+$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
+
+# 把 uv 的开发环境放到所选数据盘，避免在仓库或 C 盘用户目录创建 .venv。
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+
+# 将 uv 的下载 wheel 与构建缓存也放到同一数据盘。
+$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
+
+# 模型资产、隔离 Runtime、下载、结果和日志都会写到这里；持久命令必须显式给出此路径。
+$env:VIREA_HOME = Join-Path $vireaDataRoot "home"
 
 # 按 uv.lock 创建所有 Python workspace 包和开发依赖；--locked 禁止重新解析版本。
 uv sync --locked --all-packages --extra dev
@@ -92,11 +102,17 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home $env:VI
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# 使用仓库外的开发环境。Linux/WSL 用 XDG 数据目录；macOS 可改为 ~/Library/Application\ Support/VIREA/dev-venv。
-export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
+# 选择已挂载且容量充足的数据盘；把 /data/virea 换成你的实际挂载路径。
+export VIREA_DATA_ROOT="/data/virea"
 
-# 用户本地 VIREA 状态目录；模型资产、Runtime、日志和结果不会写到 clone 中。
-export VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# 使用所选数据盘中的开发环境；不要把 .venv 写入 clone 或系统盘用户目录。
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+
+# 将 uv 的下载与构建缓存放到同一数据盘。
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+
+# 模型资产、Runtime、下载、日志和结果都写入这一数据盘目录。
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 
 # 按锁文件安装 Python、Node/Viewer 与 Web 依赖，并构建 Web 静态资源。
 uv sync --locked --all-packages --extra dev

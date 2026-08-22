@@ -22,10 +22,14 @@ superseded_by: []
 > [中文](linux.zh-CN.md) · [English](linux.en.md)
 
 ```bash
-# 将 uv 开发环境放到 checkout 外。
-export UV_PROJECT_ENVIRONMENT="${XDG_DATA_HOME:-$HOME/.local/share}/virea/dev-venv"
-# 指定 checkout 外的 Linux 本地状态目录。
-VIREA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/virea/home"
+# 选择已挂载且容量充足的数据盘；将 /data/virea 换成实际挂载路径。
+export VIREA_DATA_ROOT="/data/virea"
+# 将 uv 开发环境放到 checkout 与系统盘之外。
+export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# 将 uv 的下载与构建缓存也放到所选数据盘。
+export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
+# 将模型资产、Runtime、下载、日志和结果放到所选数据盘。
+export VIREA_HOME="$VIREA_DATA_ROOT/home"
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 初始化外部状态目录。
