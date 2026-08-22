@@ -29,21 +29,16 @@ superseded_by: []
 ```powershell
 # 列出文件系统卷和可用空间，再选择实际数据盘。
 Get-PSDrive -PSProvider FileSystem
-# 读取所选数据盘根路径，并在其下创建开发环境和持久数据共用的目录。
+# 一次性读取所选数据盘根路径；脚本会在其下创建开发环境和持久数据目录。
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
-$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
-# 将 uv 开发环境放到 checkout 与 Windows 用户应用数据目录之外。
-$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
-# 将 uv 的下载 wheel 与构建缓存也放到所选数据盘。
-$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
-# 将模型资产、Runtime、下载、日志和结果写到所选数据盘。
-$vireaHome = Join-Path $vireaDataRoot "home"
+# 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；以后 Windows 终端自动继承。
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 初始化外部状态目录。
-uv run virea setup --virea-home $vireaHome
+uv run virea setup
 # 探测 Windows native 执行域、资源和可修复问题。
-uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaHome
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 不要在仓库根目录创建 `.venv`、权重缓存、日志或 job。模型安装器会在下载前分别检查可用显存、物理内存、

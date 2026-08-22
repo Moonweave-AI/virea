@@ -69,6 +69,7 @@ BILINGUAL_DOCUMENT_PAIRS = {
     "README.md": "README.zh-CN.md",
     "doc/README.en.md": "doc/README.zh-CN.md",
     "doc/getting-started.en.md": "doc/getting-started.zh-CN.md",
+    "doc/getting-started/persistent-data-root.en.md": "doc/getting-started/persistent-data-root.zh-CN.md",
     "doc/getting-started/installation.en.md": "doc/getting-started/installation.zh-CN.md",
     "doc/getting-started/first-generation.en.md": "doc/getting-started/first-generation.zh-CN.md",
     "doc/getting-started/browser-playback.en.md": "doc/getting-started/browser-playback.zh-CN.md",
@@ -90,6 +91,8 @@ COMMAND_GUIDE_DOCUMENTS = {
     "README.zh-CN.md",
     "doc/getting-started.en.md",
     "doc/getting-started.zh-CN.md",
+    "doc/getting-started/persistent-data-root.en.md",
+    "doc/getting-started/persistent-data-root.zh-CN.md",
     "doc/getting-started/installation.en.md",
     "doc/getting-started/installation.zh-CN.md",
     "doc/getting-started/first-generation.en.md",
@@ -142,6 +145,9 @@ DOUBLE_SUBSCRIPT_RE = re.compile(
     r"(?:[A-Za-z]|\})_(?:\{[^{}\n]+\}|[A-Za-z0-9])_(?:\{|[A-Za-z0-9])"
 )
 WINDOWS_ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\/]")
+# These are deliberately non-machine-specific documentation examples. Keep this
+# narrow so the normal scan still prevents contributor-local Windows paths.
+WINDOWS_PATH_EXAMPLE_RE = re.compile(r"X:\\(?:VIREA-DATA|My AI Data)")
 HEADING_RE = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*#*\s*$")
 HTML_ANCHOR_RE = re.compile(
     r"<(?:a|[A-Za-z][A-Za-z0-9:-]*)\b[^>]*(?:id|name)=[\"']([^\"']+)[\"']",
@@ -400,7 +406,8 @@ def check_markdown(path: Path) -> list[str]:
 
     if re.search(r"(?m)^#{1,6} .*\$", prose):
         errors.append(f"{rel}: math is not allowed in headings")
-    if WINDOWS_ABSOLUTE_PATH_RE.search(text):
+    text_without_documented_path_examples = WINDOWS_PATH_EXAMPLE_RE.sub("", text)
+    if WINDOWS_ABSOLUTE_PATH_RE.search(text_without_documented_path_examples):
         errors.append(f"{rel}: contains a machine-specific absolute Windows path")
     if MALFORMED_63_HEX_RE.search(prose):
         errors.append(f"{rel}: contains a malformed 63-character hexadecimal digest")

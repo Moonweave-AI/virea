@@ -30,6 +30,7 @@ counterpart; the command reference is complete in both languages.
 | Goal | English | 中文 |
 |---|---|---|
 | Clone to first result | [Tutorial](getting-started.en.md) | [教程](getting-started.zh-CN.md) |
+| Choose a persistent data root and enter copied paths safely | [Data-root guide](getting-started/persistent-data-root.en.md) | [数据根指南](getting-started/persistent-data-root.zh-CN.md) |
 | Learn every command and option | [CLI reference](reference/cli.en.md) | [CLI 参数参考](reference/cli.zh-CN.md) |
 | Select Windows, Linux, WSL2, or macOS | [Platform guide](platforms/README.en.md) | [平台指南](platforms/README.zh-CN.md) |
 | Select a model or inspect its Runtime | [Model catalog](models/README.en.md) | [模型目录](models/README.zh-CN.md) |

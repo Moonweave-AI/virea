@@ -22,6 +22,9 @@ superseded_by: []
 
 > [中文](getting-started.zh-CN.md) · [English tutorial](getting-started.en.md) · [完整 CLI 参数参考](reference/cli.zh-CN.md)
 
+复制任何命令前，请先阅读[数据根路径与引号规则](getting-started/persistent-data-root.zh-CN.md)：其中明确说明 Windows
+复制路径该输入什么、引号是否属于路径，以及一次配置如何在新终端持续生效。
+
 本页是新用户的唯一入口。它将可变数据放在 checkout 之外，先检测你的实际执行域，再由你显式选择目标域后
 安装模型或创建任务。英文逐步说明见 [English tutorial](getting-started.en.md)。
 
@@ -49,18 +52,11 @@ Set-Location virea
 # 显示本机文件系统卷和可用空间，再选择自己的数据盘。
 Get-PSDrive -PSProvider FileSystem
 
-# 读取所选数据盘的根路径，并在其下创建 VIREA 目录。
+# 一次性读取所选数据盘根路径；脚本会在其下创建 VIREA 目录。
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
-$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
 
-# 将 uv 的锁定项目环境放在 checkout 与 Windows 用户应用数据目录之外。
-$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
-
-# 将 uv 的下载 wheel 与构建缓存也放在所选数据盘。
-$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
-
-# 将模型资产、Runtime、下载、日志和结果写入所选数据盘。
-$env:VIREA_HOME = Join-Path $vireaDataRoot "home"
+# 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；当前与以后 Windows 终端都会继承。
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
 # 完全按 uv.lock 安装 Python workspace 与开发依赖；--locked 禁止重新解析版本。
 uv sync --locked --all-packages --extra dev
@@ -82,17 +78,15 @@ pnpm --filter @virea/web build
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# 选择已挂载且容量充足的数据盘；将 /data/virea 换成实际路径。
-export VIREA_DATA_ROOT="/data/virea"
+# 一次性读取已挂载数据盘的根路径。
+printf '%s' "输入所选数据盘根路径: "
+read -r virea_data_root
 
-# 将 uv 的锁定项目环境放在 clone 和系统盘之外。
-export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# 创建 VIREA 目录并安装 shell hook；之后新终端会自动继承所有持久目录设置。
+./scripts/configure-virea.sh --data-root "$virea_data_root"
 
-# 将 uv 的下载与构建缓存也放在所选数据盘。
-export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
-
-# 将所有 VIREA 状态写入选定的数据盘。
-export VIREA_HOME="$VIREA_DATA_ROOT/home"
+# 立即在当前 shell 载入生成的设置；以后 shell 将通过已安装的 hook 自动载入。
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 
 # 依次复现 Python、Viewer、Web 依赖并构建浏览器界面。
 uv sync --locked --all-packages --extra dev

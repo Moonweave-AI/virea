@@ -33,15 +33,16 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 | Avatar disappears/crops | VRM rest pose, VRMA absolute hips and console | Re-run Viewer QA against the real artifact. |
 
 ```bash
-# Produce a local diagnostic summary; PATH is the external VIREA_HOME.
-uv run virea support --virea-home PATH
+# Produce a local diagnostic summary from the persistent home configured once after cloning.
+uv run virea support
 
 # Inspect local state without changing it.
-uv run virea state inspect --virea-home PATH
+uv run virea state inspect
 
-# Verify the newest READY installation for MODEL without changing it.
-uv run virea model verify MODEL --virea-home PATH
+# Verify the newest flood-diffusion-tiny READY installation without changing it; replace its model ID only if diagnosing another manifest.
+uv run virea model verify flood-diffusion-tiny
 ```
 
 When reporting an issue, provide model/result identity, execution domain, doctor report ID, installation/job/result IDs and
 the smallest relevant log tail. Do not upload checkpoints, private Avatars, raw datasets or the complete state database.
+For the one-time root setup and copied-path quotation rules, see [the data-root guide](../getting-started/persistent-data-root.en.md).

@@ -24,27 +24,20 @@ superseded_by: []
 # List available file-system volumes before choosing one with adequate free space.
 Get-PSDrive -PSProvider FileSystem
 
-# Read the selected volume root, then create the VIREA data directory beneath it.
+# Read the selected volume root once. The setup script creates the VIREA data directory beneath it.
 $vireaDataVolume = Read-Host "Enter the selected data-volume root"
-$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
 
-# Keep the uv development environment outside the clone and the Windows user application-data directory.
-$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
-
-# Keep uv's downloaded-wheel and build cache on the selected data volume too.
-$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
-
-# Store model assets, Runtimes, downloads, logs and results on the selected data volume.
-$vireaHome = Join-Path $vireaDataRoot "home"
+# Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR and HF_HOME for this user and future Windows terminals.
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 
 # Initialize external local state.
-uv run virea setup --virea-home $vireaHome
+uv run virea setup
 
 # Detect the Windows-native domain, resources and non-mutating repair suggestions.
-uv run virea doctor --json --record --explain --repair-plan --virea-home $vireaHome
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 `LOCALAPPDATA` is a compatibility fallback for small read-only probes; persistent commands require this explicit home and

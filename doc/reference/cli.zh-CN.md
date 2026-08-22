@@ -25,6 +25,9 @@ superseded_by: []
 项目环境。自动化场景请把 `VIREA_HOME` 放在容量足够的数据盘且 checkout 外，并显式传入 `--virea-home PATH`。
 会创建或访问持久状态的命令在未给出该路径时会拒绝执行，不会静默把模型数据写入 `LOCALAPPDATA` 或 `$HOME`。
 
+一次性路径输入的精确规则（Windows 复制路径、外层引号、空格和后续新终端）见[选择并持久化 VIREA 数据根目录](../getting-started/persistent-data-root.zh-CN.md)。
+完成后，下面普通交互命令刻意省略 `--virea-home`，因为它们会使用持久化的 `VIREA_HOME`。
+
 ```bash
 # 显示完整命令树和内建帮助；不会修改状态或访问网络。
 uv run virea --help
@@ -48,22 +51,60 @@ uv run virea --version
 `--resource-profile` 时必须提供 `--execution-domain`。显式选择无效时只会在该域内失败，不会悄悄改用其他
 操作系统、加速器或 profile。
 
+以下交互式示例使用持久化 home，因此无需传路径参数。自动化也应沿用已配置变量，避免再次手工复制路径：
+
+```powershell
+# Windows 自动化：$env:VIREA_HOME 已配置为一个参数，即使目录含空格也不会被拆分。
+uv run virea state inspect --virea-home $env:VIREA_HOME
+```
+
+```bash
+# Linux、WSL2 与 macOS 自动化：引号让已配置目录始终作为一个参数传入。
+uv run virea state inspect --virea-home "$VIREA_HOME"
+```
+
+## 一次性数据根配置
+
+clone 后、`uv sync` 前只运行一次对应脚本。它会在用户选择的数据根下创建 `home/`、`dev-venv/`、`uv-cache/`、
+`npm-cache/` 与 `pnpm-store/`：`home/` 即 `VIREA_HOME`，承载模型数据及 `HF_HOME` 缓存；其余目录承载 Python/Node
+开发环境与依赖缓存。
+只有迁移到另一块数据盘时才需要重新运行。
+
+不要把引号粘贴到 `Read-Host` 或 `read` 的回答中。例如选定 Windows 根显示为 `'X:\VIREA-DATA'` 时，输入
+`X:\VIREA-DATA`；外层引号只是源码文本界定符。含空格路径的完整复制/粘贴案例见上面的数据根指南。
+
+```powershell
+# 直接值示例：引号只是 PowerShell 语法，不是文件夹名字符。将 X: 换成你选定的数据盘。
+$vireaDataVolume = 'X:\VIREA-DATA'
+# -DataRoot 是必填参数且必须位于 clone 外；以后 Windows 终端自动继承这些路径。
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
+```
+
+```bash
+# 直接值示例：引号只是 shell 语法，不属于目录名。替换成你选定的挂载数据盘。
+virea_data_root='/mnt/virea-data'
+# --data-root 为必填参数；仅在探测到的 shell 启动文件不合适时才传可选 --shell-profile PATH。
+./scripts/configure-virea.sh --data-root "$virea_data_root"
+# 立即载入生成变量；以后兼容 shell 通过已安装的 hook 自动载入。
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+```
+
 ## `setup`
 
 ```bash
-# 创建或迁移 PATH 下的本地状态目录；不安装模型，也不修改系统软件。
-uv run virea setup --virea-home PATH
+# 在一次配置的持久 VIREA_HOME 下创建或迁移本地状态；不安装模型，也不修改系统软件。
+uv run virea setup
 ```
 
 | 选项 | 含义 |
 |---|---|
-| `--virea-home PATH` | 要初始化的状态根目录；省略时使用当前平台默认的 VIREA 本地目录。 |
+| `--virea-home PATH` | 要初始化的状态根目录；仅在一次性配置已设置 `VIREA_HOME` 后才可省略，否则持久命令会拒绝请求。 |
 
 ## `doctor`
 
 ```bash
 # 检查执行域、Python、驱动和资源，写入本地报告并附带不会自动执行的修复建议。
-uv run virea doctor --json --record --explain --repair-plan --virea-home PATH
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 | 选项 | 含义 |
@@ -82,14 +123,14 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home PATH
 # 用 JSON 列出整个模型目录；脚本可读取，且没有安装副作用。
 uv run virea model list --json
 
-# 用 QUERY 搜索目录，例如 text_to_motion；省略 QUERY 时请先查看 help。
-uv run virea model search QUERY --json
+# 用具体任务 text_to_motion 搜索目录；--json 让脚本可读取结果。
+uv run virea model search text_to_motion --json
 
-# 显示一个模型的资产、许可门、Runtime、profile 和逐域阻断原因。
-uv run virea model info MODEL
+# 显示 flood-diffusion-tiny 的资产、许可门、Runtime、profile 和逐域阻断原因。
+uv run virea model info flood-diffusion-tiny
 
-# 不带 ID 时列出 release bundle；带 BUNDLE_ID 时查看该 bundle。
-uv run virea model bundle [BUNDLE_ID]
+# 列出所有声明的 release bundle；之后要查看某个 bundle 时再追加这里返回的精确 ID。
+uv run virea model bundle
 ```
 
 | 命令 / 参数 | 含义 |
@@ -104,14 +145,14 @@ uv run virea model bundle [BUNDLE_ID]
 ## `model install` 与 `model repair`
 
 ```bash
-# 仅预览全新安装；没有 --apply 时只输出所选域、Runtime、资源和动作。
-uv run virea model install MODEL --execution-domain DOMAIN --virea-home PATH
+# Windows 示例：仅预览 flood-diffusion-tiny 的原生 Windows 域。Linux、WSL2、macOS 必须改用 doctor 输出的域。
+uv run virea model install flood-diffusion-tiny --execution-domain windows-native
 
-# 对已审核的计划执行安装，并显式锁定高级 Runtime/profile 选择。
-uv run virea model install MODEL --execution-domain DOMAIN --runtime RUNTIME --resource-profile PROFILE --apply --virea-home PATH
+# Windows NVIDIA 示例：仅在 model info 与预览确认该精确 Runtime/profile 可用后才执行安装。
+uv run virea model install flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --apply
 
-# 预览最新模型安装的修复。确认计划后才添加 --apply。
-uv run virea model repair MODEL --execution-domain DOMAIN --virea-home PATH
+# 预览最新 Windows 域安装的修复。确认计划后才添加 --apply。
+uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 ```
 
 `install` 可能获取或引用资产、构建隔离 Runtime、运行定义的验收请求并发布 READY 安装。`repair` 在最新安装不健康时
@@ -138,20 +179,20 @@ uv run virea model repair MODEL --execution-domain DOMAIN --virea-home PATH
 ## `model verify`、`remove` 与垃圾回收
 
 ```bash
-# 读取 MODEL 的最新安装，验证 READY 状态、资产和验收事实。
-uv run virea model verify MODEL --virea-home PATH
+# 读取 flood-diffusion-tiny 的最新安装，验证 READY 状态、资产和验收事实。
+uv run virea model verify flood-diffusion-tiny
 
 # 预览移除 MODEL 的最新安装；预览不会删除数据。
-uv run virea model remove MODEL --virea-home PATH
+uv run virea model remove flood-diffusion-tiny
 
 # 应用审核过的移除计划；会修改本地状态，但不会递归删除无关共享资产。
-uv run virea model remove MODEL --apply --virea-home PATH
+uv run virea model remove flood-diffusion-tiny --apply
 
 # 预览回收超过 7 天（168 小时）、且不再引用的模型数据。
-uv run virea model gc --dry-run --older-than-hours 168 --virea-home PATH
+uv run virea model gc --dry-run --older-than-hours 168
 
 # 应用审核过的模型数据保留策略。
-uv run virea model gc --apply --older-than-hours 168 --virea-home PATH
+uv run virea model gc --apply --older-than-hours 168
 ```
 
 | 选项 | 含义 |
@@ -166,8 +207,8 @@ uv run virea model gc --apply --older-than-hours 168 --virea-home PATH
 ## `generate`
 
 ```bash
-# 向一个已 READY 的 Runtime 提交 text-to-motion 任务。
-uv run virea generate --model MODEL --execution-domain DOMAIN --task text_to_motion --prompt "A person walks forward" --seconds 4 --fps 20 --seed 42 --timeout 1800 --virea-home PATH
+# Windows 示例：向一个已 READY 的原生 Windows 安装提交受限 text-to-motion 任务。
+uv run virea generate --model flood-diffusion-tiny --execution-domain windows-native --task text_to_motion --prompt "A person walks forward" --seconds 4 --fps 20 --seed 42 --timeout 1800
 ```
 
 | 选项 | 含义 |
@@ -194,7 +235,7 @@ uv run virea generate --model MODEL --execution-domain DOMAIN --task text_to_mot
 
 ```bash
 # 在回环地址提供本地 API 与浏览器 UI；浏览器打开 http://127.0.0.1:8000/app/。
-uv run virea serve --host 127.0.0.1 --port 8000 --virea-home PATH
+uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
 | 选项 | 含义 |
@@ -209,16 +250,16 @@ uv run virea serve --host 127.0.0.1 --port 8000 --virea-home PATH
 
 ```bash
 # 只读查看当前本地数据库/状态摘要。
-uv run virea state inspect --virea-home PATH
+uv run virea state inspect
 
 # 应用已知本地 schema migration；设计为可重复执行。
-uv run virea state migrate --virea-home PATH
+uv run virea state migrate
 
 # 预览状态/日志清理；只在审核完路径后使用 --apply。
-uv run virea state gc --dry-run --older-than-hours 168 --virea-home PATH
+uv run virea state gc --dry-run --older-than-hours 168
 
 # 输出简洁本地诊断摘要，最多包含 20 条近期 job。
-uv run virea support --jobs 20 --virea-home PATH
+uv run virea support --jobs 20
 ```
 
 | 选项 | 含义 |
@@ -233,11 +274,11 @@ uv run virea support --jobs 20 --virea-home PATH
 ## 证据校验器
 
 ```bash
-# 校验一条持久化真实安装/生成链。--job-id 与 --result-id 二选一。
-uv run virea validate-real-e2e --virea-home PATH --job-id JOB_ID --expect success
+# 校验一条持久化真实安装/生成链。将 job_123 换成 generate 返回的精确 job_id；--job-id 与 --result-id 二选一。
+uv run virea validate-real-e2e --job-id job_123 --expect success
 
-# 将独立采集的生产浏览器 observation 与后端持久化事实绑定。
-uv run virea validate-production-e2e-evidence --virea-home PATH --observation OBSERVATION_JSON --output VALIDATED_JSON
+# 将独立采集的浏览器 observation 文件与后端持久化事实绑定；--output 指定要写入的已校验 JSON。
+uv run virea validate-production-e2e-evidence --observation browser-observation.json --output validated-browser-evidence.json
 ```
 
 | 选项 | 含义 |

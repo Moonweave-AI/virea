@@ -88,6 +88,7 @@ flowchart LR
 | 文档 | 内容 |
 |---|---|
 | [安装与环境检测](getting-started/installation.zh-CN.md) | checkout 外环境、`VIREA_HOME`、setup、doctor、资源准入 |
+| [数据根与路径引号](getting-started/persistent-data-root.zh-CN.md) | 一次配置、Windows 复制路径、空格、引号与后续终端继承 |
 | [第一次真实生成](getting-started/first-generation.zh-CN.md) | model install/verify、exact request、结果与 artifact |
 | [真实 Avatar 播放](getting-started/browser-playback.zh-CN.md) | Web、VRM、VRMA、可见帧和浏览器证据 |
 | [完整入门与运维命令](getting-started.zh-CN.md) | 0.4.0 CLI/API 的较完整任务索引与恢复路径 |

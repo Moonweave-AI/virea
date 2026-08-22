@@ -36,13 +36,14 @@ superseded_by: []
 收集诊断：
 
 ```bash
-# 输出本地支持摘要；<external-home> 是 checkout 外的 VIREA_HOME。
-uv run virea support --virea-home <external-home>
+# 从 clone 后一次配置的持久 home 输出本地支持摘要。
+uv run virea support
 # 只读查看状态数据库和迁移状态。
-uv run virea state inspect --virea-home <external-home>
-# 只读验证指定模型的最新 READY 安装；将 <model-id> 替换为 manifest ID。
-uv run virea model verify <model-id> --virea-home <external-home>
+uv run virea state inspect
+# 只读验证 flood-diffusion-tiny 的最新 READY 安装；诊断其他 manifest 时才替换它的 ID。
+uv run virea model verify flood-diffusion-tiny
 ```
 
 报告问题时附 model/result identity、执行域、doctor report ID、installation/job/result ID 与最小日志尾部，
 不要上传 checkpoint、私有 Avatar、原始数据或整个状态数据库。
+一次性数据根配置、复制路径和引号规则见[数据根路径与引号规则](../getting-started/persistent-data-root.zh-CN.md)。

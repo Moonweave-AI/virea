@@ -22,20 +22,19 @@ superseded_by: []
 > [中文](linux.zh-CN.md) · [English](linux.en.md)
 
 ```bash
-# 选择已挂载且容量充足的数据盘；将 /data/virea 换成实际挂载路径。
-export VIREA_DATA_ROOT="/data/virea"
-# 将 uv 开发环境放到 checkout 与系统盘之外。
-export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
-# 将 uv 的下载与构建缓存也放到所选数据盘。
-export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
-# 将模型资产、Runtime、下载、日志和结果放到所选数据盘。
-export VIREA_HOME="$VIREA_DATA_ROOT/home"
+# 一次性读取已挂载数据盘的根路径。
+printf '%s' "输入所选数据盘根路径: "
+read -r virea_data_root
+# 创建 VIREA 目录并安装 shell hook；之后新终端自动继承目录设置。
+./scripts/configure-virea.sh --data-root "$virea_data_root"
+# 在当前 shell 立即加载生成的设置；之后兼容 shell 将自动加载 hook。
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 初始化外部状态目录。
-uv run virea setup --virea-home "$VIREA_HOME"
+uv run virea setup
 # 探测 Linux native 域、资源和可修复问题。
-uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 原生 Linux 执行域内完成 `uv` 构建、framework probe、Worker、`/proc` 进程身份和浏览器服务。NVIDIA CUDA、

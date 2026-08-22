@@ -32,7 +32,7 @@ superseded_by: []
 ## 源码开发
 
 先按[完整 clone 教程](../getting-started.zh-CN.md)克隆项目，并把 `UV_PROJECT_ENVIRONMENT` 和 `VIREA_HOME` 指向
-checkout 之外，再执行：
+checkout 之外；Windows/Unix 的精确路径输入、复制路径和空格规则见[数据根路径与引号规则](persistent-data-root.zh-CN.md)，再执行：
 
 ```bash
 # 严格按 uv.lock 安装 Python workspace 与开发依赖；不会下载模型权重。
@@ -41,10 +41,10 @@ uv sync --locked --all-packages --extra dev
 pnpm install --frozen-lockfile
 # 构建浏览器静态资源，不启动服务。
 pnpm --filter @virea/web build
-# 初始化外部状态目录；将 PATH 换成你的 VIREA_HOME。
-uv run virea setup --virea-home <external-home>
+# 初始化已配置的外部状态目录。
+uv run virea setup
 # 探测执行域与资源，并将报告记录到外部状态目录。
-uv run virea doctor --json --record --explain --repair-plan --virea-home <external-home>
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 `doctor --record` 在 `machine/reports/` 保存不可覆盖报告；安装验收会选择安装开始前最新的有效报告，而不是
@@ -56,7 +56,7 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home <extern
 # 列出模型 manifest；--json 便于脚本读取且不产生安装副作用。
 uv run virea model list --json
 # 只读检查外部状态数据库。
-uv run virea state inspect --virea-home <external-home>
+uv run virea state inspect
 ```
 
 仓库根目录不得出现 `.venv`、模型缓存、日志、SQLite、job/result 或 pytest 临时目录。

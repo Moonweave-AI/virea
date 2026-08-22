@@ -21,26 +21,24 @@ superseded_by: []
 > [English](macos.en.md) · [中文](macos.zh-CN.md)
 
 ```bash
-# Choose a mounted data volume; replace /Volumes/VIREA with your chosen volume.
-export VIREA_DATA_ROOT="/Volumes/VIREA/virea"
+# Read a mounted data-volume root once.
+printf '%s' "Enter the selected data-volume root: "
+read -r virea_data_root
 
-# Keep uv's development environment outside both the clone and the system volume.
-export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
+# Create the VIREA layout and install a shell hook for all future terminals.
+./scripts/configure-virea.sh --data-root "$virea_data_root"
 
-# Keep uv's downloaded-wheel and build cache on the selected data volume too.
-export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
-
-# Store model assets, Runtimes, downloads, logs and results on the selected data volume.
-export VIREA_HOME="$VIREA_DATA_ROOT/home"
+# Load the generated settings now; new compatible shells load the hook automatically.
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 
 # Initialize external local state.
-uv run virea setup --virea-home "$VIREA_HOME"
+uv run virea setup
 
 # Detect the macOS-native domain, resources and non-mutating repair suggestions.
-uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 Apple Silicon MPS, Apple/Intel CPU and CUDA are separate Runtime choices. VIREA selects MPS or CPU only when the Worker

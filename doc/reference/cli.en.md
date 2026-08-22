@@ -26,6 +26,10 @@ locked project environment. Set `VIREA_HOME` on a volume with enough model-data 
 explicitly as `--virea-home PATH` in automation. Commands that create or access persistent state reject an omitted home;
 they do not silently place model data in `LOCALAPPDATA` or `$HOME`.
 
+For the exact one-time path entry procedure (including copied Windows paths, outer quotation marks, spaces, and future
+terminals), use [Choose and persist the VIREA data root](../getting-started/persistent-data-root.en.md). After that
+procedure, normal interactive commands below intentionally omit `--virea-home`: they use the persisted `VIREA_HOME`.
+
 ```bash
 # Print the command tree and built-in help. This has no state or network side effect.
 uv run virea --help
@@ -49,22 +53,61 @@ The `--execution-domain`, `--runtime`, and `--resource-profile` selection is one
 `--resource-profile` is present, `--execution-domain` is required. A bad explicit selection fails in that domain; VIREA
 does not silently use another OS, accelerator or profile.
 
+Interactive examples below use the persisted home and need no path argument. In automation, retain the same quoting
+rules without copying a path again:
+
+```powershell
+# Windows automation: $env:VIREA_HOME is one already-configured argument, even when its directory contains spaces.
+uv run virea state inspect --virea-home $env:VIREA_HOME
+```
+
+```bash
+# Linux, WSL2, and macOS automation: quotes keep the already-configured directory as one argument.
+uv run virea state inspect --virea-home "$VIREA_HOME"
+```
+
+## One-time data-root configuration
+
+Run the applicable script once immediately after cloning, before `uv sync`. It creates `home/`, `dev-venv/`, `uv-cache/`,
+`npm-cache/` and `pnpm-store/` beneath the selected data root. `home/` is `VIREA_HOME` and holds model data plus the
+`HF_HOME` cache; the other directories hold Python/Node development environments and dependency caches. Re-run the script only to move to a different data volume.
+
+Do not paste quotation marks into a `Read-Host` or `read` response. For example, when the chosen Windows root is shown
+as `'X:\VIREA-DATA'`, enter `X:\VIREA-DATA`; the outer quotes only delimit source-code text. The full copy/paste examples
+and paths with spaces are in the linked data-root guide.
+
+```powershell
+# Example direct value: the quotes are PowerShell syntax, not folder-name characters. Replace X: with your chosen data drive.
+$vireaDataVolume = 'X:\VIREA-DATA'
+# -DataRoot is required and must be outside the clone; future Windows terminals inherit the configured paths.
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
+```
+
+```bash
+# Example direct value: quotes are shell syntax, not part of the directory. Replace it with your selected mounted volume.
+virea_data_root='/mnt/virea-data'
+# --data-root is required; --shell-profile is optional when the detected shell startup file is not the desired one.
+./scripts/configure-virea.sh --data-root "$virea_data_root"
+# Load the generated variables now; the installed shell hook loads them in future compatible terminals.
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+```
+
 ## `setup`
 
 ```bash
-# Create or migrate the local state directory at PATH. It does not install models or modify system software.
-uv run virea setup --virea-home PATH
+# Create or migrate state at the persistent VIREA_HOME configured once above. It does not install models or modify system software.
+uv run virea setup
 ```
 
 | Option | Meaning |
 |---|---|
-| `--virea-home PATH` | State root to initialize. Defaults to VIREA's platform-local default when omitted. |
+| `--virea-home PATH` | State root to initialize. Omit it only after the one-time configuration has set `VIREA_HOME`; persistent commands otherwise reject the request. |
 
 ## `doctor`
 
 ```bash
 # Inspect domains, Python, drivers and resources; write a local report and include a non-mutating repair plan.
-uv run virea doctor --json --record --explain --repair-plan --virea-home PATH
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 | Option | Meaning |
@@ -83,14 +126,14 @@ uv run virea doctor --json --record --explain --repair-plan --virea-home PATH
 # List every catalog model as JSON; safe for scripts and has no installation side effect.
 uv run virea model list --json
 
-# Search catalog text by QUERY, such as text_to_motion. Omit QUERY to inspect the command help.
-uv run virea model search QUERY --json
+# Search catalog text for the concrete text_to_motion task. --json makes the result suitable for scripts.
+uv run virea model search text_to_motion --json
 
-# Show one model's declared assets, legal gates, Runtimes, profiles and domain-specific blockers.
-uv run virea model info MODEL
+# Show flood-diffusion-tiny's declared assets, legal gates, Runtimes, profiles and domain-specific blockers.
+uv run virea model info flood-diffusion-tiny
 
-# List release bundle contents, or replace BUNDLE_ID with one declared bundle identifier.
-uv run virea model bundle [BUNDLE_ID]
+# List every declared release bundle. To inspect one later, append the exact bundle ID returned here.
+uv run virea model bundle
 ```
 
 | Command / argument | Meaning |
@@ -105,14 +148,14 @@ uv run virea model bundle [BUNDLE_ID]
 ## `model install` and `model repair`
 
 ```bash
-# Preview a fresh installation. Without --apply, VIREA prints the selected domain, Runtime, resources and actions only.
-uv run virea model install MODEL --execution-domain DOMAIN --virea-home PATH
+# Windows example: preview flood-diffusion-tiny in the exact native Windows domain. Replace this domain with doctor output on Linux, WSL2, or macOS.
+uv run virea model install flood-diffusion-tiny --execution-domain windows-native
 
-# Apply the reviewed installation with an explicit advanced Runtime/profile selection.
-uv run virea model install MODEL --execution-domain DOMAIN --runtime RUNTIME --resource-profile PROFILE --apply --virea-home PATH
+# Windows NVIDIA example: apply only after model info and the preview show this exact Runtime/profile as available.
+uv run virea model install flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --apply
 
-# Preview repair of the latest model installation. Add --apply only after reviewing the plan.
-uv run virea model repair MODEL --execution-domain DOMAIN --virea-home PATH
+# Preview repair of the latest Windows-domain installation. Add --apply only after reviewing the plan.
+uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 ```
 
 `install` may fetch or reference assets, build an isolated Runtime, run its acceptance request and publish a READY
@@ -141,20 +184,20 @@ identity and validates their declared files; do not point them at a cache you pl
 ## `model verify`, `remove`, and garbage collection
 
 ```bash
-# Read the newest installation for MODEL and verify its READY state, artifacts and acceptance facts.
-uv run virea model verify MODEL --virea-home PATH
+# Read the newest flood-diffusion-tiny installation and verify its READY state, artifacts and acceptance facts.
+uv run virea model verify flood-diffusion-tiny
 
-# Preview removal of MODEL's latest installation. This preview does not delete data.
-uv run virea model remove MODEL --virea-home PATH
+# Preview removal of flood-diffusion-tiny's latest installation. This preview does not delete data.
+uv run virea model remove flood-diffusion-tiny
 
 # Apply the reviewed removal. It changes local state; it does not recursively delete unrelated shared assets.
-uv run virea model remove MODEL --apply --virea-home PATH
+uv run virea model remove flood-diffusion-tiny --apply
 
 # Preview reclaimable, unreferenced model data older than seven days (168 hours).
-uv run virea model gc --dry-run --older-than-hours 168 --virea-home PATH
+uv run virea model gc --dry-run --older-than-hours 168
 
 # Apply the reviewed model-data retention plan.
-uv run virea model gc --apply --older-than-hours 168 --virea-home PATH
+uv run virea model gc --apply --older-than-hours 168
 ```
 
 | Option | Meaning |
@@ -169,8 +212,8 @@ uv run virea model gc --apply --older-than-hours 168 --virea-home PATH
 ## `generate`
 
 ```bash
-# Submit a text-to-motion job to one already READY Runtime.
-uv run virea generate --model MODEL --execution-domain DOMAIN --task text_to_motion --prompt "A person walks forward" --seconds 4 --fps 20 --seed 42 --timeout 1800 --virea-home PATH
+# Windows example: submit a bounded text-to-motion job to an already READY native-Windows installation.
+uv run virea generate --model flood-diffusion-tiny --execution-domain windows-native --task text_to_motion --prompt "A person walks forward" --seconds 4 --fps 20 --seed 42 --timeout 1800
 ```
 
 | Option | Meaning |
@@ -198,7 +241,7 @@ copied to another domain as evidence of execution there.
 
 ```bash
 # Serve the local API and built browser UI on loopback. Open http://127.0.0.1:8000/app/ in a browser.
-uv run virea serve --host 127.0.0.1 --port 8000 --virea-home PATH
+uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
 | Option | Meaning |
@@ -213,16 +256,16 @@ uv run virea serve --host 127.0.0.1 --port 8000 --virea-home PATH
 
 ```bash
 # Read the current local database/state summary.
-uv run virea state inspect --virea-home PATH
+uv run virea state inspect
 
 # Apply known local schema migrations. The operation is designed to be idempotent.
-uv run virea state migrate --virea-home PATH
+uv run virea state migrate
 
 # Preview state/log cleanup; use --apply only after reviewing eligible paths.
-uv run virea state gc --dry-run --older-than-hours 168 --virea-home PATH
+uv run virea state gc --dry-run --older-than-hours 168
 
 # Produce a concise local diagnostic summary with at most 20 recent job entries.
-uv run virea support --jobs 20 --virea-home PATH
+uv run virea support --jobs 20
 ```
 
 | Option | Meaning |
@@ -237,11 +280,11 @@ uv run virea support --jobs 20 --virea-home PATH
 ## Evidence validators
 
 ```bash
-# Validate one persisted real installation/generation chain. Supply exactly one of --job-id or --result-id.
-uv run virea validate-real-e2e --virea-home PATH --job-id JOB_ID --expect success
+# Validate one persisted real installation/generation chain. Replace job_123 with the exact job_id returned by generate; use exactly one of --job-id or --result-id.
+uv run virea validate-real-e2e --job-id job_123 --expect success
 
-# Bind a separately captured production browser observation to persisted backend facts.
-uv run virea validate-production-e2e-evidence --virea-home PATH --observation OBSERVATION_JSON --output VALIDATED_JSON
+# Bind a separately captured browser observation file to persisted backend facts; --output names the validated JSON to write.
+uv run virea validate-production-e2e-evidence --observation browser-observation.json --output validated-browser-evidence.json
 ```
 
 | Option | Meaning |

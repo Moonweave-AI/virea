@@ -22,8 +22,8 @@ superseded_by: []
 > [中文](browser-playback.zh-CN.md) · [English](browser-playback.en.md) · [完整教程](../getting-started.zh-CN.md)
 
 ```bash
-# 在 loopback 启动本地 API 与 Web UI；--port 决定浏览器 URL，<external-home> 是仓库外状态目录。
-uv run virea serve --host 127.0.0.1 --port 8000 --virea-home <external-home>
+# 使用已配置的持久 home 在 loopback 启动本地 API 与 Web UI；--port 决定浏览器 URL。
+uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
 打开 `http://127.0.0.1:8000/app/`，选择已 READY 的模型或已有 result，加载用户本地 `.vrm`。Web 会读取
@@ -39,3 +39,4 @@ result 的 VRMA export，并显示模型、原生 skeleton/representation、目�
 
 正式验收由 Playwright runner 保存 JSON、全页/Canvas 截图和 WebGL renderer。普通浏览器客户端不能通过提交
 `avatar_loaded` 或 `playing` 等布尔值把 evidence 晋级。
+一次性数据根配置以及精确路径/引号规则见[数据根路径与引号规则](persistent-data-root.zh-CN.md)。

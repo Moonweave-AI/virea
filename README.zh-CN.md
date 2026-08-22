@@ -50,31 +50,25 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 ## 最短可复现路径
 
 下面每行都可以复制执行。尖括号内容是你必须替换的占位符；不要把模型、缓存、日志或虚拟环境写进 checkout。
+输入数据根前请先看[数据根路径与引号规则](doc/getting-started/persistent-data-root.zh-CN.md)：Windows 复制路径时外层引号不属于路径。
 
 ### Windows PowerShell
 
 ```powershell
-# 克隆源码；它只包含代码、锁文件、注册表和轻量文档，不包含模型权重。
-git clone https://github.com/Moonweave-AI/virea.git
-
-# 进入刚克隆的项目根目录，后续命令均从这里运行。
-Set-Location virea
-
 # 列出本机文件系统卷和可用空间，再选择容量充足的数据盘。
 Get-PSDrive -PSProvider FileSystem
 
-# 读取所选数据盘根路径，并在其下创建 VIREA 目录；不要使用 Windows 用户应用数据目录或源码 checkout。
+# 一次性读取所选数据盘根路径；clone 与所有本地依赖目录都放在它下面。
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
-$vireaDataRoot = Join-Path $vireaDataVolume "VIREA"
 
-# 把 uv 的开发环境放到所选数据盘，避免在仓库或 C 盘用户目录创建 .venv。
-$env:UV_PROJECT_ENVIRONMENT = Join-Path $vireaDataRoot "dev-venv"
+# 如有需要先创建根目录，在其中 clone 源码，再进入 clone；源码不含模型权重。
+New-Item -ItemType Directory -Force -Path $vireaDataVolume | Out-Null
+Set-Location $vireaDataVolume
+git clone https://github.com/Moonweave-AI/virea.git
+Set-Location virea
 
-# 将 uv 的下载 wheel 与构建缓存也放到同一数据盘。
-$env:UV_CACHE_DIR = Join-Path $vireaDataRoot "uv-cache"
-
-# 模型资产、隔离 Runtime、下载、结果和日志都会写到这里；持久命令必须显式给出此路径。
-$env:VIREA_HOME = Join-Path $vireaDataRoot "home"
+# 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME 与 Node 缓存；当前与以后 Windows 终端都会继承。
+& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
 # 按 uv.lock 创建所有 Python workspace 包和开发依赖；--locked 禁止重新解析版本。
 uv sync --locked --all-packages --extra dev
@@ -88,31 +82,31 @@ pnpm install --frozen-lockfile
 # 编译浏览器控制台到 apps/web/dist；不会启动服务或下载模型。
 pnpm --filter @virea/web build
 
-# 创建或升级 VIREA_HOME 的本地 SQLite 状态；不会改系统 Python 或驱动。
-uv run virea setup --virea-home $env:VIREA_HOME
+# 创建或升级已配置 VIREA_HOME 的本地 SQLite 状态；不会改系统 Python 或驱动。
+uv run virea setup
 
 # 探测本机与可用执行域，并输出下一步修复建议；不导入模型框架或下载模型。
-uv run virea doctor --json --record --explain --repair-plan --virea-home $env:VIREA_HOME
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 ### Linux / WSL2 / macOS shell
 
 ```bash
-# 克隆并进入项目根目录；请将 URL 换成你的 fork（如适用）。
+# 一次性读取已挂载的数据盘根路径；clone 与所有本地依赖目录都放在它下面。
+printf '%s' "输入所选数据盘根路径: "
+read -r virea_data_root
+
+# 如有需要先创建根目录，在其中 clone 源码，再进入 clone。
+mkdir -p "$virea_data_root"
+cd "$virea_data_root"
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
-# 选择已挂载且容量充足的数据盘；把 /data/virea 换成你的实际挂载路径。
-export VIREA_DATA_ROOT="/data/virea"
+# 创建 VIREA 目录并安装 shell hook；之后新终端会自动继承所有持久目录设置。
+./scripts/configure-virea.sh --data-root "$virea_data_root"
 
-# 使用所选数据盘中的开发环境；不要把 .venv 写入 clone 或系统盘用户目录。
-export UV_PROJECT_ENVIRONMENT="$VIREA_DATA_ROOT/dev-venv"
-
-# 将 uv 的下载与构建缓存放到同一数据盘。
-export UV_CACHE_DIR="$VIREA_DATA_ROOT/uv-cache"
-
-# 模型资产、Runtime、下载、日志和结果都写入这一数据盘目录。
-export VIREA_HOME="$VIREA_DATA_ROOT/home"
+# 立即在当前 shell 载入生成的设置；以后 shell 将通过已安装的 hook 自动载入。
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 
 # 按锁文件安装 Python、Node/Viewer 与 Web 依赖，并构建 Web 静态资源。
 uv sync --locked --all-packages --extra dev
@@ -121,9 +115,9 @@ pnpm install --frozen-lockfile
 pnpm --filter @virea/web build
 
 # 初始化本地状态并仅探测/记录机器事实；不下载或运行模型。
-uv run virea setup --virea-home "$VIREA_HOME"
+uv run virea setup
 # 探测可选执行域和资源，写入本地机器报告，并只输出修复建议。
-uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
+uv run virea doctor --json --record --explain --repair-plan
 ```
 
 ## 选择执行域，然后安装模型
