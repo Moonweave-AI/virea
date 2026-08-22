@@ -32,6 +32,9 @@ read -r virea_data_root
 # Load the generated settings now; new compatible shells load the hook automatically.
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 
+# Verify Git in this Linux execution domain; Git installed only on another host or WSL distribution does not satisfy this check.
+git --version
+
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 

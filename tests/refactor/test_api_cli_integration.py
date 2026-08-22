@@ -35,6 +35,7 @@ from virea_contracts.installation import InstallationState
 from virea_contracts.vrm import VrmMotionResult
 from virea_core import StateStore, VireaPaths
 from virea_model_pool import InstallOutcome
+from virea_runtime import RuntimeBuildError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "models"
@@ -1161,6 +1162,10 @@ def test_cli_model_install_allows_buildable_clean_environment(
             "validation_scope": "build_preflight",
         },
     )
+    monkeypatch.setattr(
+        "virea_cli.commands.model.ControlPlane.preflight_runtime_build",
+        lambda self, model_id, *, execution_target=None: None,
+    )
 
     def fail_after_gate(self, model_id, *, accepted_license=False):
         staged.append(model_id)
@@ -1192,6 +1197,66 @@ def test_cli_model_install_allows_buildable_clean_environment(
     assert staged == ["flood-diffusion-tiny"]
     assert payload["state"] == "FAILED"
     assert payload.get("error") != "RUNTIME_NOT_BUILDABLE"
+
+
+def test_cli_model_install_checks_runtime_system_tools_before_download(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    monkeypatch.chdir(REPO_ROOT)
+    home = tmp_path / "virea-home"
+    compatibility = {
+        "status": "buildable",
+        "compatible": False,
+        "can_build": True,
+        "build_required": True,
+        "reasons": [],
+        "remediation": [],
+        "selected_python": None,
+        "validation_scope": "build_preflight",
+        "execution_target": {
+            "resolved": {
+                "execution_domain": {"id": "windows-native"},
+                "runtime_variant_id": "flood-diffusion-tiny-cu128",
+                "resource_profile_id": "cuda-full",
+            }
+        },
+    }
+    monkeypatch.setattr(
+        "virea_cli.commands.model.ControlPlane.runtime_compatibility",
+        lambda self, model_id: compatibility,
+    )
+
+    def missing_git(self, model_id, *, execution_target=None):
+        assert model_id == "flood-diffusion-tiny"
+        assert execution_target is not None
+        raise RuntimeBuildError("Git-backed dependency is unavailable")
+
+    monkeypatch.setattr(
+        "virea_cli.commands.model.ControlPlane.preflight_runtime_build",
+        missing_git,
+    )
+
+    def staging_must_not_run(*_args, **_kwargs):
+        raise AssertionError("system tool preflight must run before artifact staging")
+
+    monkeypatch.setattr(
+        "virea_model_pool.ModelPool.stage_artifacts", staging_must_not_run
+    )
+    install = build_parser().parse_args(
+        [
+            "model",
+            "install",
+            "flood-diffusion-tiny",
+            "--apply",
+            "--virea-home",
+            str(home),
+        ]
+    )
+
+    assert install.func(install) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "RUNTIME_SYSTEM_DEPENDENCY_UNAVAILABLE"
+    assert StateStore(VireaPaths.discover(home)).installation_transactions() == []
 
 
 def test_control_plane_close_cancels_and_joins_job_before_worker_start(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import threading
@@ -19,6 +20,8 @@ from virea_contracts.machine import ExecutionDomainReport
 from virea_contracts.runtime import RuntimeSpec
 
 from ..execution import is_host_routed_wsl
+
+_WINDOWS_PATHEXT_DEFAULT = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC"
 
 
 class RuntimeBuildError(RuntimeError):
@@ -222,10 +225,22 @@ class RuntimeBackendDriver(Protocol):
 
 
 def controlled_environment(spec: RuntimeSpec) -> dict[str, str]:
+    """Build the minimal environment inherited by isolated Runtime builders.
+
+    ``PATH`` alone is not sufficient for Windows executable discovery.  uv uses
+    Windows' executable-extension rules while resolving Git-backed locked
+    dependencies, so removing ``PATHEXT`` makes an installed ``git.exe`` look
+    absent.  Preserve it and supply the Windows default if an embedding host
+    started Python without that ordinary system variable.
+    """
+
     allowed = {
         "PATH",
+        "PATHEXT",
         "SYSTEMROOT",
         "WINDIR",
+        "SYSTEMDRIVE",
+        "COMSPEC",
         "TEMP",
         "TMP",
         "TMPDIR",
@@ -245,6 +260,97 @@ def controlled_environment(spec: RuntimeSpec) -> dict[str, str]:
         name: value for name in allowed if (value := os.getenv(name)) is not None
     }
     controlled = sanitized_python_environment(environment)
+    if os.name == "nt":
+        controlled["PATHEXT"] = _windows_pathext(controlled.get("PATHEXT"))
     controlled["PYTHONUTF8"] = "1"
     controlled["PYTHONIOENCODING"] = "utf-8"
     return controlled
+
+
+def locked_runtime_requires_git(lockfile: Path) -> bool:
+    """Return whether a locked Runtime has a source that must be fetched by Git.
+
+    The lockfile is the installed Runtime's authoritative dependency contract.
+    Looking only for its two stable representations keeps this backend-neutral
+    and avoids trying to infer requirements from a model's display metadata.
+    """
+
+    try:
+        content = lockfile.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeBuildError(
+            f"cannot read runtime lockfile: {lockfile}: {exc}"
+        ) from exc
+    return "git+" in content or "git =" in content
+
+
+def require_host_git_for_locked_runtime(
+    *,
+    runtime_id: str,
+    lockfile: Path,
+    environment: Mapping[str, str],
+    execution_domain: str,
+) -> None:
+    """Fail before a build if this native Runtime cannot reach required Git.
+
+    Passing an absolute executable path to the probe avoids repeating the very
+    Windows ``PATHEXT`` lookup failure this check guards against.  The actual
+    builder still receives ``PATHEXT`` through :func:`controlled_environment`.
+    """
+
+    if not locked_runtime_requires_git(lockfile):
+        return
+    executable_name = "git.exe" if os.name == "nt" else "git"
+    executable = shutil.which(executable_name, path=environment.get("PATH"))
+    if executable is None:
+        raise RuntimeBuildError(
+            git_unavailable_message(runtime_id, execution_domain, lockfile)
+        )
+    try:
+        completed = subprocess.run(
+            (executable, "--version"),
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=dict(environment),
+            timeout=15.0,
+            shell=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeBuildError(
+            git_unavailable_message(runtime_id, execution_domain, lockfile)
+        ) from exc
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()[-1000:]
+        raise RuntimeBuildError(
+            git_unavailable_message(runtime_id, execution_domain, lockfile)
+            + (f" Git probe output: {detail}" if detail else "")
+        )
+
+
+def git_unavailable_message(
+    runtime_id: str, execution_domain: str, lockfile: Path
+) -> str:
+    """Return a portable, actionable missing-Git message for Runtime builds."""
+
+    return (
+        f"runtime {runtime_id} has a Git-backed dependency in {lockfile.name}, "
+        f"but Git is not runnable inside execution domain {execution_domain}. "
+        "VIREA checks this before model artifacts are staged. On Windows, ensure "
+        "Git for Windows is on PATH; on Linux or WSL, install Git inside the "
+        "selected distribution; on macOS, install Git or Xcode Command Line Tools."
+    )
+
+
+def _windows_pathext(value: str | None) -> str:
+    """Keep caller extensions while guaranteeing Windows executable defaults."""
+
+    observed = [item.strip() for item in (value or "").split(";") if item.strip()]
+    known = {item.casefold() for item in observed}
+    for item in _WINDOWS_PATHEXT_DEFAULT.split(";"):
+        if item.casefold() not in known:
+            observed.append(item)
+            known.add(item.casefold())
+    return ";".join(observed)

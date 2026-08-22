@@ -60,6 +60,9 @@ $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 # Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR and HF_HOME for this user and future Windows terminals.
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
+# Verify the Windows-native domain can resolve Git. VIREA preserves PATH and PATHEXT when it later builds an isolated Runtime.
+git --version
+
 # Install every locked Python workspace package plus the development extra. --locked refuses dependency re-resolution.
 uv sync --locked --all-packages --extra dev
 
@@ -90,6 +93,9 @@ read -r virea_data_root
 
 # Load the generated settings in this shell immediately; future shells load them through the installed hook.
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+
+# Verify Git inside this Linux, WSL, or macOS execution domain. A Git installation in a different system does not apply.
+git --version
 
 # Reproduce the Python, Viewer and Web dependency graphs, then build the Web UI.
 uv sync --locked --all-packages --extra dev

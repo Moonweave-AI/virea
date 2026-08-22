@@ -32,6 +32,9 @@ read -r virea_data_root
 # Load the generated settings now; new compatible shells load the hook automatically.
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 
+# Verify Git in this macOS execution domain. If it is unavailable, install Git or Xcode Command Line Tools before model installation.
+git --version
+
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 

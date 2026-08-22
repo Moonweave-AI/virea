@@ -15,6 +15,7 @@ from virea_contracts.execution import ExecutionTargetSelection
 from virea_contracts.installation import InstallationState
 from virea_core import StateStore, VireaPaths
 from virea_model_pool import InstallOutcome, ModelCatalog, ModelPool
+from virea_runtime import RuntimeBuildError
 
 from ..common import plugin_root, registry_root, runtime_source_root
 from ..retention import retention_report
@@ -241,7 +242,9 @@ def _install(args) -> int:
     )
     try:
         _interactive_progress(
-            args, "2/4", "Checking admission and staging model artifacts..."
+            args,
+            "2/4",
+            "Checking admission and Runtime system tools before staging model artifacts...",
         )
         try:
             compatibility = (
@@ -272,6 +275,55 @@ def _install(args) -> int:
                 }
             )
             return 2
+        try:
+            resolved_target = (
+                _pinned_target_from_compatibility(compatibility)
+                if isinstance(compatibility.get("execution_target"), dict)
+                else execution_target
+            )
+            control.preflight_runtime_build(
+                args.model_id,
+                execution_target=resolved_target,
+            )
+        except ExecutionTargetResolutionError as exc:
+            _emit(
+                {
+                    "error": exc.code,
+                    "model_id": args.model_id,
+                    "message": str(exc),
+                    "execution_options": list(exc.options),
+                }
+            )
+            return 2
+        except (
+            FileNotFoundError,
+            NotImplementedError,
+            OSError,
+            RuntimeBuildError,
+        ) as exc:
+            _interactive_progress(
+                args,
+                "2/4",
+                "System-tool preflight failed before model artifacts were staged.",
+            )
+            _emit(
+                {
+                    "error": "RUNTIME_SYSTEM_DEPENDENCY_UNAVAILABLE",
+                    "model_id": args.model_id,
+                    "message": str(exc),
+                    "resource_admission": compatibility,
+                    "next_action": (
+                        "Repair the named tool in the selected execution domain and "
+                        "retry; no model artifact was staged by this failed preflight."
+                    ),
+                }
+            )
+            return 2
+        _interactive_progress(
+            args,
+            "2/4",
+            "System-tool preflight passed; staging model artifacts...",
+        )
         external_stage: dict[str, Any] = {}
         if external_roots or external_revisions:
             try:

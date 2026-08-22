@@ -1422,6 +1422,46 @@ class ControlPlane:
             )
         return payload
 
+    def preflight_runtime_build(
+        self,
+        model_id: str,
+        *,
+        execution_target: ExecutionTargetSelection | None = None,
+    ) -> None:
+        """Check the selected Runtime's system dependencies before asset staging.
+
+        Compatibility answers whether the declared model profile can run on the
+        selected hardware. This complementary preflight verifies build tools in
+        that exact execution domain (for example, Git for a locked ``git+``
+        dependency) before any checkpoint transfer begins.
+        """
+
+        manifest = self.catalog.get(model_id)
+        _, selection = self._select_runtime_variant(
+            manifest,
+            execution_target=execution_target,
+        )
+        runtime = selection.runtime
+        domain = selection.compatibility.execution_domain
+        if domain is None:
+            raise ExecutionTargetResolutionError(
+                "EXECUTION_DOMAIN_UNAVAILABLE",
+                "runtime system preflight selected no execution domain",
+                options=(),
+            )
+        backend = (
+            UvNativeBackend(source_root=self.runtime_source_root)
+            if runtime.backend is RuntimeBackend.UV_NATIVE
+            else PixiNativeBackend(source_root=self.runtime_source_root)
+            if runtime.backend is RuntimeBackend.PIXI_NATIVE
+            else None
+        )
+        if backend is None:
+            raise ValueError(
+                f"unsupported local runtime backend: {runtime.backend.value}"
+            )
+        backend.preflight(runtime, execution_domain=domain)
+
     def prepare_external_artifact_roots(
         self,
         model_id: str,

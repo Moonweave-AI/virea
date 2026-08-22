@@ -31,6 +31,9 @@ $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 # Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR and HF_HOME for this user and future Windows terminals.
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
+# Confirm that this Windows-native execution domain can resolve Git. VIREA forwards PATH and PATHEXT to isolated Runtime builds.
+git --version
+
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 

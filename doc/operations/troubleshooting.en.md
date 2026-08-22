@@ -32,6 +32,30 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 | VRMA validation fails | Rest hips, root translation, track counts and finite values | Fix exporter/adapter rather than hiding it in Viewer code. |
 | Avatar disappears/crops | VRM rest pose, VRMA absolute hips and console | Re-run Viewer QA against the real artifact. |
 
+## Git-backed Runtime build says Git is missing
+
+Some model Runtime lockfiles contain a pinned `git+https` dependency. VIREA now checks Git **in the selected execution
+domain before it stages model artifacts**. On Windows the isolated builder preserves both `PATH` and `PATHEXT`, so an
+installed `git.exe` remains discoverable even when the CLI is started by a terminal host that omits `PATHEXT`.
+
+```powershell
+# Windows native: verify the Git executable visible to this exact PowerShell session.
+# A version such as "git version 2.x" means this prerequisite is already satisfied.
+git --version
+```
+
+```bash
+# Linux, macOS, or a WSL distribution: run this inside the exact system selected in VIREA.
+# Do not run it in Windows PowerShell when the selected execution domain is WSL.
+git --version
+```
+
+If this check succeeds but an older VIREA checkout reported `Git executable not found`, update the checkout and rerun
+`uv run virea`; do **not** delete the VIREA home, model snapshots, or cache. A failed build is never published as
+`READY`; the next attempt reuses verified stable artifacts and rebuilds only the missing isolated Runtime. If Git is
+actually absent, install it in the selected domain, then rerun the same command. For WSL, that means the named Linux
+distribution, not Windows Git.
+
 ```bash
 # Produce a local diagnostic summary from the persistent home configured once after cloning.
 uv run virea support

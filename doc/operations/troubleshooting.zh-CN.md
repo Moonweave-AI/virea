@@ -33,6 +33,29 @@ superseded_by: []
 | VRMA 校验失败 | rest hips、root translation、track 数、finite | 修 exporter/adapter，不在 Viewer 中掩盖 |
 | 浏览器角色消失或裁切 | VRM rest pose、VRMA absolute hips、console | 使用真实产物重跑 Viewer QA |
 
+## Git 依赖的 Runtime 构建误报找不到 Git
+
+有些模型 Runtime 的锁文件含固定的 `git+https` 依赖。现在 VIREA 会在**下载模型 artifact 之前**，在用户选定的
+执行域中检查 Git。Windows 隔离构建会同时保留 `PATH` 与 `PATHEXT`，因此即使终端宿主漏传 `PATHEXT`，已经安装的
+`git.exe` 也仍能被找到。
+
+```powershell
+# Windows native：确认这个 PowerShell 窗口实际能找到 Git。
+# 输出如 "git version 2.x" 即表示该前置条件已经满足。
+git --version
+```
+
+```bash
+# Linux、macOS 或 WSL：必须在 VIREA 实际选中的那个系统内运行。
+# 如果选择的是 WSL，不要在 Windows PowerShell 中执行此检查。
+git --version
+```
+
+如果这里成功、但旧版 VIREA 报过 `Git executable not found`，更新 checkout 后直接重新运行 `uv run virea`；**不要**删除
+VIREA home、model snapshot 或 cache。失败的构建不会发布为 `READY`；下一次尝试会复用已验证的稳定 artifact，只重建尚未
+成功的隔离 Runtime。若 Git 确实不存在，先在选定执行域安装 Git，再运行同一命令。WSL 的 Git 必须装在选定 Linux 发行版内，
+不是 Windows Git。
+
 收集诊断：
 
 ```bash

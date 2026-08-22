@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import posixpath
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Callable
 
@@ -15,7 +16,15 @@ from ..execution import (
     map_host_path_to_domain,
     wrap_domain_command,
 )
-from .base import BuildPlan, controlled_environment, resolve_runtime_source
+from .base import (
+    BuildPlan,
+    RuntimeBuildError,
+    controlled_environment,
+    git_unavailable_message,
+    locked_runtime_requires_git,
+    require_host_git_for_locked_runtime,
+    resolve_runtime_source,
+)
 
 _LOCAL_CORE_REFRESH_ARGS = (
     "--refresh-package",
@@ -48,6 +57,32 @@ class UvNativeBackend:
         )
         self.domain_path_mapper = domain_path_mapper or map_host_path_to_domain
 
+    def preflight(
+        self,
+        spec: RuntimeSpec,
+        *,
+        execution_domain: ExecutionDomainReport | None = None,
+    ) -> None:
+        """Validate system tools required by this locked Runtime before downloads.
+
+        The check is deliberately performed with the same constrained
+        environment that ``uv sync`` will receive.  This catches host/guest
+        mistakes before model artifacts are staged, while keeping Runtime
+        dependency resolution isolated from the VIREA development environment.
+        """
+
+        source = resolve_runtime_source(spec, source_root=self.source_root)
+        lockfile = (source / spec.lockfile).resolve(strict=False)
+        if not lockfile.exists():
+            raise FileNotFoundError(f"runtime lockfile not found: {lockfile}")
+        environment = controlled_environment(spec)
+        self._require_locked_git(
+            spec,
+            lockfile,
+            environment,
+            execution_domain=execution_domain,
+        )
+
     def plan(
         self,
         spec: RuntimeSpec,
@@ -76,6 +111,12 @@ class UvNativeBackend:
             raise FileNotFoundError(f"runtime lockfile not found: {lockfile}")
         environment = controlled_environment(spec)
         environment["VIREA_RUNTIME_SOURCE"] = str(source)
+        self._require_locked_git(
+            spec,
+            lockfile,
+            environment,
+            execution_domain=execution_domain,
+        )
         # uv.lock is consumed through its owning project; requirements files are
         # synchronized directly.  Neither path joins the root VIREA environment.
         if lockfile.name == "uv.lock":
@@ -122,6 +163,73 @@ class UvNativeBackend:
             python_executable=domain_python_path(execution_domain, target),
         )
 
+    def _require_locked_git(
+        self,
+        spec: RuntimeSpec,
+        lockfile: Path,
+        environment: dict[str, str],
+        *,
+        execution_domain: ExecutionDomainReport | None,
+    ) -> None:
+        if not locked_runtime_requires_git(lockfile):
+            return
+        domain_id = (
+            execution_domain.id if execution_domain is not None else "native-host"
+        )
+        if not is_host_routed_wsl(execution_domain):
+            require_host_git_for_locked_runtime(
+                runtime_id=spec.id,
+                lockfile=lockfile,
+                environment=environment,
+                execution_domain=domain_id,
+            )
+            return
+        assert execution_domain is not None
+        domain_environment = self._wsl_environment(execution_domain, environment)
+        command = wrap_domain_command(
+            execution_domain,
+            ("git", "--version"),
+            environment=domain_environment,
+        )
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=environment,
+                timeout=15.0,
+                shell=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeBuildError(
+                git_unavailable_message(spec.id, domain_id, lockfile)
+            ) from exc
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()[-1000:]
+            raise RuntimeBuildError(
+                git_unavailable_message(spec.id, domain_id, lockfile)
+                + (f" Git probe output: {detail}" if detail else "")
+            )
+
+    @staticmethod
+    def _wsl_environment(
+        domain: ExecutionDomainReport, environment: dict[str, str]
+    ) -> dict[str, str]:
+        domain_environment = {
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
+            "VIREA_HOME": domain.virea_home,
+        }
+        if "UV_OFFLINE" in environment:
+            domain_environment["UV_OFFLINE"] = environment["UV_OFFLINE"]
+        uv_cache_dir = environment.get("UV_CACHE_DIR")
+        if uv_cache_dir and uv_cache_dir.startswith("/"):
+            domain_environment["UV_CACHE_DIR"] = uv_cache_dir
+        return domain_environment
+
     def _plan_wsl(
         self,
         spec: RuntimeSpec,
@@ -152,16 +260,13 @@ class UvNativeBackend:
         assert isinstance(domain_target, str)
         environment = controlled_environment(spec)
         environment["VIREA_RUNTIME_SOURCE"] = str(source_host)
-        domain_environment = {
-            "PYTHONUTF8": "1",
-            "PYTHONIOENCODING": "utf-8",
-            "VIREA_HOME": domain.virea_home,
-        }
-        if "UV_OFFLINE" in environment:
-            domain_environment["UV_OFFLINE"] = environment["UV_OFFLINE"]
-        uv_cache_dir = environment.get("UV_CACHE_DIR")
-        if uv_cache_dir and uv_cache_dir.startswith("/"):
-            domain_environment["UV_CACHE_DIR"] = uv_cache_dir
+        self._require_locked_git(
+            spec,
+            Path(source_host) / spec.lockfile,
+            environment,
+            execution_domain=domain,
+        )
+        domain_environment = self._wsl_environment(domain, environment)
         mkdir_command = wrap_domain_command(
             domain,
             (

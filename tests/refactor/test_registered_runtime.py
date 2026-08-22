@@ -87,6 +87,24 @@ def test_registered_acmdm_runtime_plans_an_isolated_environment(tmp_path) -> Non
     )
 
 
+def test_uv_runtime_preflight_blocks_before_staging_when_git_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = yaml.safe_load(
+        (
+            REPO_ROOT / "registries" / "runtimes" / "acmdm-humanml3d-cu128.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    spec = RuntimeSpec.model_validate(payload)
+    backend = UvNativeBackend(source_root=REPO_ROOT)
+    monkeypatch.setattr(
+        "virea_runtime.backends.base.shutil.which", lambda *_args, **_kwargs: None
+    )
+
+    with pytest.raises(RuntimeBuildError, match="Git-backed dependency"):
+        backend.preflight(spec)
+
+
 def test_registered_flood_runtime_plans_an_isolated_environment(tmp_path) -> None:
     payload = yaml.safe_load(
         (

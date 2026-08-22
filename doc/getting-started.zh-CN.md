@@ -59,6 +59,9 @@ $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
 # 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；当前与以后 Windows 终端都会继承。
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 
+# 确认 Windows native 执行域能找到 Git；之后隔离 Runtime 构建时 VIREA 会保留 PATH 与 PATHEXT。
+git --version
+
 # 完全按 uv.lock 安装 Python workspace 与开发依赖；--locked 禁止重新解析版本。
 uv sync --locked --all-packages --extra dev
 
@@ -89,6 +92,9 @@ read -r virea_data_root
 
 # 立即在当前 shell 载入生成的设置；以后 shell 将通过已安装的 hook 自动载入。
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+
+# 确认这个 Linux、WSL 或 macOS 执行域内部能找到 Git；装在其他系统中的 Git 不适用。
+git --version
 
 # 依次复现 Python、Viewer、Web 依赖并构建浏览器界面。
 uv sync --locked --all-packages --extra dev

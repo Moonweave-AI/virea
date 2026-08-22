@@ -29,6 +29,8 @@ read -r virea_data_root
 ./scripts/configure-virea.sh --data-root "$virea_data_root"
 # 在当前 shell 立即加载生成的设置；之后兼容 shell 将自动加载 hook。
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+# 确认此 macOS 执行域能找到 Git；若不存在，先安装 Git 或 Xcode Command Line Tools，再安装模型。
+git --version
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 启动逐步交互向导：选择模型、macOS 执行域、Runtime/profile，确认安装、生成与播放。

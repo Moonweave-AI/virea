@@ -165,6 +165,34 @@ def test_controlled_build_and_worker_environments_keep_user_identity(
 
 @pytest.mark.skipif(
     os.name != "nt",
+    reason="PATHEXT controls Windows executable lookup",
+)
+def test_controlled_build_environment_preserves_or_restores_pathext(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A constrained build must still let uv resolve an installed git.exe."""
+
+    runtime = RuntimeSpec(
+        id="windows-pathext-regression",
+        backend=RuntimeBackend.UV_NATIVE,
+        platforms=("win-64",),
+        python=">=3.11,<3.12",
+        accelerator=AcceleratorSpec(kind="cpu"),
+        lockfile="uv.lock",
+        entrypoint_argv=("python", "-m", "worker"),
+    )
+    monkeypatch.setenv("PATHEXT", ".CMD")
+    preserved = controlled_environment(runtime)
+    assert ".CMD" in preserved["PATHEXT"].split(";")
+    assert ".EXE" in preserved["PATHEXT"].split(";")
+
+    monkeypatch.delenv("PATHEXT")
+    restored = controlled_environment(runtime)
+    assert ".EXE" in restored["PATHEXT"].split(";")
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
     reason="the production failure and installed runtime are Windows-specific",
 )
 def test_installed_runtime_imports_transformers_in_controlled_worker_environment() -> (

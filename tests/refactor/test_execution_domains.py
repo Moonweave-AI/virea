@@ -811,6 +811,48 @@ def test_wsl_uv_plan_uses_distribution_tools_and_local_virea_home(tmp_path) -> N
     assert "/mnt/d/project/runtime/requirements.lock" in flattened
 
 
+def test_wsl_runtime_preflight_checks_git_inside_selected_distribution(
+    tmp_path, monkeypatch
+) -> None:
+    project = tmp_path / "runtime-project"
+    project.mkdir()
+    (project / "uv.lock").write_text(
+        'version = 1\nsource = { git = "https://example.invalid/model.git" }\n',
+        encoding="utf-8",
+    )
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = tuple(command)
+        captured["environment"] = kwargs["env"]
+        return SimpleNamespace(returncode=0, stdout="git version fixture", stderr="")
+
+    monkeypatch.setattr("virea_runtime.backends.uv_native.subprocess.run", fake_run)
+    backend = UvNativeBackend(
+        source_root=project,
+        domain_path_mapper=lambda _domain, _path: "/mnt/d/project/runtime",
+    )
+    runtime = _runtime("linux-64", working_directory=".").model_copy(
+        update={"lockfile": "uv.lock"}
+    )
+
+    backend.preflight(runtime, execution_domain=wsl)
+
+    command = captured["command"]
+    assert command[:3] == wsl.launcher_argv
+    assert "--exec" in command
+    assert "git" in command
+    assert "--version" in command
+    assert captured["environment"]["PYTHONUTF8"] == "1"
+
+
 def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
     project = tmp_path / "runtime-project"
     project.mkdir()

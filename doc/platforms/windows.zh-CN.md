@@ -34,6 +34,8 @@ Get-PSDrive -PSProvider FileSystem
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
 # 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；以后 Windows 终端自动继承。
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
+# 确认 Windows native 执行域能找到 Git；VIREA 会把 PATH 与 PATHEXT 传给隔离 Runtime 构建。
+git --version
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
 # 启动逐步交互向导：选择模型、Windows 执行域、Runtime/profile，确认安装、生成与播放。

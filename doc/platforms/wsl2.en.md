@@ -28,6 +28,9 @@ First follow the [Linux data-root setup](linux.en.md) **inside the selected dist
 only the Linux directory (for example `/mnt/virea-data`), without outer single or double quotation marks.
 
 ```bash
+# Run inside the selected WSL distribution, not in Windows PowerShell. This confirms that the domain itself can resolve Git.
+git --version
+
 # Run inside the selected WSL distribution. The wizard detects the exact WSL domain and asks you to choose its model, Runtime and profile before installation.
 uv run virea
 ```

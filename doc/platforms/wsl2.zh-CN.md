@@ -29,6 +29,9 @@ WSL2 是独立执行域，不是 Windows Python 的一个 accelerator 标签。d
 目录本身（例如 `/mnt/virea-data`），外层单/双引号不是路径内容，不能输入。
 
 ```bash
+# 必须在选定 WSL 发行版内部运行，而不是 Windows PowerShell；确认该执行域自己能找到 Git。
+git --version
+
 # 在选定 WSL 发行版内启动向导；它会检测精确 WSL 域，并在安装前要求选择模型、Runtime 和 profile。
 uv run virea
 ```
