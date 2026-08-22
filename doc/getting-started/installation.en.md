@@ -34,18 +34,10 @@ pnpm install --frozen-lockfile
 # Build browser assets without starting a service.
 pnpm --filter @virea/web build
 
-# Initialize the already-configured external local state directory.
-uv run virea setup
-
-# Detect and record execution domains/resources while only proposing repairs.
-uv run virea doctor --json --record --explain --repair-plan
-
-# List model IDs in JSON without installing anything.
-uv run virea model list --json
-
-# Inspect the external state database without changing it.
-uv run virea state inspect
+# Start the recommended guided workflow. It initializes state, detects domains, lets you choose the model/Runtime/profile, requires confirmation before installation, then offers generation and playback.
+uv run virea
 ```
 
-The configured data root must be outside the checkout. For options, side effects and Windows/macOS/Linux shell details, use the paired
-[English tutorial](../getting-started.en.md) and [CLI reference](../reference/cli.en.md).
+The configured data root must be outside the checkout. For script-only commands, options, side effects and
+Windows/macOS/Linux shell details, use the paired [English tutorial](../getting-started.en.md) and
+[CLI reference](../reference/cli.en.md).

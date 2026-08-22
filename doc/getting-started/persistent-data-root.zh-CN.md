@@ -118,21 +118,16 @@ Linux、WSL2 与 macOS 使用相同的六阶段可见输出。首次运行显示
 # Windows：显示新终端继承的持久根目录；它应以 \home 结尾。
 $env:VIREA_HOME
 
-# 在该继承目录初始化/迁移 VIREA 状态；不需要 --virea-home。
-uv run virea setup
-
-# 在同一继承目录记录机器/执行域报告。
-uv run virea doctor --json --record --explain --repair-plan
+# 在该继承目录启动完整逐步向导：自动执行 setup、检测、模型/Runtime 选择、确认、生成与可选浏览器播放。
+uv run virea
 ```
 
 ```bash
 # Linux、WSL2 或 macOS：显示启动文件 hook 已加载的根目录；它应以 /home 结尾。
 printf '%s\n' "$VIREA_HOME"
 
-# 初始化状态并记录本机报告，无须再次传根路径。
-uv run virea setup
-# 在同一持久根目录记录可用执行域和诊断信息。
-uv run virea doctor --json --record --explain --repair-plan
+# 在该继承目录启动完整逐步向导：自动执行 setup、检测、模型/Runtime 选择、确认、生成与可选浏览器播放。
+uv run virea
 ```
 
 自动化仍可显式传 home，但应使用已经定义的环境变量，而不是手工复制路径：PowerShell 使用 `$env:VIREA_HOME`，POSIX

@@ -53,6 +53,7 @@ Set-Location virea
 Get-PSDrive -PSProvider FileSystem
 
 # 一次性读取所选数据盘根路径；脚本会在其下创建 VIREA 目录。
+# 提示处只粘贴目录本身，例如 X:\VIREA-DATA；外层单/双引号不是路径内容，不能输入。
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
 
 # 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；当前与以后 Windows 终端都会继承。
@@ -79,6 +80,7 @@ git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
 # 一次性读取已挂载数据盘的根路径。
+# 提示处只粘贴目录本身，例如 /mnt/virea-data；外层单/双引号不是路径内容，不能输入。
 printf '%s' "输入所选数据盘根路径: "
 read -r virea_data_root
 
@@ -98,7 +100,17 @@ pnpm --filter @virea/web build
 `npm ci` 管理旧 Viewer 工具链，`pnpm` 管理 0.4 Web workspace。请按此顺序运行，且不要并发写同一 checkout 的
 `node_modules`。
 
-## 3. 初始化状态并检测执行域
+## 3. 推荐：完成逐步交互流程
+
+```bash
+# 启动无参数交互向导：初始化状态、检测执行域、列出模型、选择精确 Runtime/profile、预检资源、确认安装，然后提供生成和本地播放。
+uv run virea
+```
+
+向导不会静默改用其他操作系统、加速器、模型、Runtime、profile 或破坏性操作；在编号选择处输入 `q` 可安全退出。
+下面保留的详细命令用于自动化和高级恢复。
+
+## 4. 高级：初始化状态并检测执行域
 
 ```bash
 # 创建或升级 VIREA_HOME 中的本地状态；不会修改系统 Python、显卡驱动或全局包。
@@ -119,7 +131,7 @@ PowerShell 请把 `"$VIREA_HOME"` 替换为 `$env:VIREA_HOME`。从输出的 `ex
 
 如果检测到多个候选域，必须显式选择。选择失败时 VIREA 不会悄悄切换到其他操作系统、加速器或资源 profile。
 
-## 4. 查看、规划并应用模型安装
+## 5. 高级：查看、规划并应用模型安装
 
 ```bash
 # 列出已知模型；--json 适合脚本读取，不会安装或下载任何内容。
@@ -149,7 +161,7 @@ uv run virea model verify MODEL --virea-home "$VIREA_HOME"
 `--execution-domain`。若 manifest 要求许可确认，请先阅读条款，再加 `--accepted-license`；它只记录本地确认，
 不授予再分发或商业权利。
 
-## 5. 创建一个动作任务
+## 6. 高级：创建一个动作任务
 
 ```bash
 # 向所选、已 READY 的 Runtime 提交受限 text-to-motion 任务。
@@ -163,7 +175,7 @@ uv run virea validate-real-e2e --virea-home "$VIREA_HOME" --job-id JOB_ID --expe
 保存返回的 `job_id` 与 `result_id`。它们绑定模型资产 snapshot、所选 Runtime、执行域、资源 profile 和输出产物。
 单台设备的一次成功只是一条精确配置的观测，不能外推成所有系统或 GPU 已验证。
 
-## 6. 在浏览器中播放结果
+## 7. 高级：在浏览器中播放结果
 
 ```bash
 # 在本机回环地址启动控制面。--host 避免对外暴露；--port 决定浏览器访问端口。
@@ -173,7 +185,7 @@ uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 打开 `http://127.0.0.1:8000/app/`，加载本地 `.vrm` Avatar，选择相同执行域和模型并打开结果。按 `Ctrl+C` 停止
 服务。`--reload` 与 legacy `--data-source` 的说明见 [CLI 参数参考](reference/cli.zh-CN.md#serve)。
 
-## 7. 排错与安全维护
+## 8. 高级：排错与安全维护
 
 ```bash
 # 输出本地支持摘要；--jobs 指定纳入多少条最近任务摘要。

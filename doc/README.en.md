@@ -34,7 +34,7 @@ counterpart; the command reference is complete in both languages.
 | Learn every command and option | [CLI reference](reference/cli.en.md) | [CLI 参数参考](reference/cli.zh-CN.md) |
 | Select Windows, Linux, WSL2, or macOS | [Platform guide](platforms/README.en.md) | [平台指南](platforms/README.zh-CN.md) |
 | Select a model or inspect its Runtime | [Model catalog](models/README.en.md) | [模型目录](models/README.zh-CN.md) |
-| Diagnose local state and retain data safely | [Troubleshooting summary](getting-started.en.md#7-troubleshooting-and-safe-maintenance) | [排错与维护](getting-started.zh-CN.md#7-排错与安全维护) |
+| Diagnose local state and retain data safely | [Troubleshooting summary](getting-started.en.md#8-advanced-troubleshooting-and-safe-maintenance) | [排错与维护](getting-started.zh-CN.md#8-高级：排错与安全维护) |
 | Maintain documentation | [Documentation policy](development/documentation.en.md) | [文档规范](development/documentation.zh-CN.md) |
 
 ## Documentation contract

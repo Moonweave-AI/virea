@@ -25,6 +25,14 @@ superseded_by: []
 WSL2 是独立执行域，不是 Windows Python 的一个 accelerator 标签。doctor、`uv`、模型缓存、隔离环境、Worker
 和资源探测必须全部位于同一个发行版。
 
+必须先在目标发行版**内部**按 [Linux 数据根配置](linux.zh-CN.md)完成一次性目录设置。路径提示处只粘贴 Linux
+目录本身（例如 `/mnt/virea-data`），外层单/双引号不是路径内容，不能输入。
+
+```bash
+# 在选定 WSL 发行版内启动向导；它会检测精确 WSL 域，并在安装前要求选择模型、Runtime 和 profile。
+uv run virea
+```
+
 ## 两种入口
 
 1. 在 WSL 内直接运行完整 VIREA：使用 Linux 安装和 `~/.local/share/virea`。

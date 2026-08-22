@@ -28,6 +28,16 @@ superseded_by: []
 一次性路径输入的精确规则（Windows 复制路径、外层引号、空格和后续新终端）见[选择并持久化 VIREA 数据根目录](../getting-started/persistent-data-root.zh-CN.md)。
 完成后，下面普通交互命令刻意省略 `--virea-home`，因为它们会使用持久化的 `VIREA_HOME`。
 
+## 推荐的交互式入口
+
+```bash
+# 启动完整逐步流程：确认数据根、初始化状态、选择模型/执行域/Runtime/profile、确认安装、生成，并可选启动本地播放。
+uv run virea
+```
+
+这是面向人工操作的标准命令；编号选择均需明确确认，输入 `q` 可安全退出。下面的命令是非交互/自动化参考，
+仅在需要可重复脚本或高级修复时使用。
+
 ```bash
 # 显示完整命令树和内建帮助；不会修改状态或访问网络。
 uv run virea --help
@@ -74,15 +84,16 @@ clone 后、`uv sync` 前只运行一次对应脚本。它会在用户选择的�
 `X:\VIREA-DATA`；外层引号只是源码文本界定符。含空格路径的完整复制/粘贴案例见上面的数据根指南。
 
 ```powershell
-# 直接值示例：引号只是 PowerShell 语法，不是文件夹名字符。将 X: 换成你选定的数据盘。
-$vireaDataVolume = 'X:\VIREA-DATA'
+# 提示处只粘贴目录本身，例如 X:\VIREA-DATA；外层单/双引号不是路径内容，不能输入。
+$vireaDataVolume = Read-Host "输入所选数据盘的根路径"
 # -DataRoot 是必填参数且必须位于 clone 外；以后 Windows 终端自动继承这些路径。
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 ```
 
 ```bash
-# 直接值示例：引号只是 shell 语法，不属于目录名。替换成你选定的挂载数据盘。
-virea_data_root='/mnt/virea-data'
+# 提示处只粘贴目录本身，例如 /mnt/virea-data；外层单/双引号不是路径内容，不能输入。
+printf '%s' "输入所选数据盘根路径: "
+read -r virea_data_root
 # --data-root 为必填参数；仅在探测到的 shell 启动文件不合适时才传可选 --shell-profile PATH。
 ./scripts/configure-virea.sh --data-root "$virea_data_root"
 # 立即载入生成变量；以后兼容 shell 通过已安装的 hook 自动载入。

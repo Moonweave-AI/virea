@@ -24,17 +24,17 @@ superseded_by: []
 WSL2 is an independent Linux execution domain, not an accelerator label attached to Windows Python. Its detector, `uv`,
 cache, isolated environment, Worker and resource observation must run in the same named distribution.
 
-```bash
-# Run inside the selected WSL distribution to inspect the available domain IDs; it does not download or run a model.
-uv run virea doctor --json --explain --virea-home PATH
+First follow the [Linux data-root setup](linux.en.md) **inside the selected distribution**. At its path prompt, paste
+only the Linux directory (for example `/mnt/virea-data`), without outer single or double quotation marks.
 
-# Preview an installation in the exact WSL domain reported by doctor, such as wsl:Ubuntu-24.04.
-uv run virea model install MODEL --execution-domain wsl:DISTRO --virea-home PATH
+```bash
+# Run inside the selected WSL distribution. The wizard detects the exact WSL domain and asks you to choose its model, Runtime and profile before installation.
+uv run virea
 ```
 
-`DISTRO` is the exact reported distribution name. Do not hand a `\\wsl.localhost` path or WSL interpreter to Windows
-`uv sync`. The domain mapper owns the host/guest path view and re-validates it in the target domain. Windows GPU totals
-do not replace the WSL Runtime's available VRAM, RAM, swap and storage observation.
+For automation, `DISTRO` is the exact reported distribution name. Do not hand a `\\wsl.localhost` path or WSL interpreter
+to Windows `uv sync`. The domain mapper owns the host/guest path view and re-validates it in the target domain. Windows
+GPU totals do not replace the WSL Runtime's available VRAM, RAM, swap and storage observation.
 
 The browser can run on Windows while the Worker runs in WSL, but evidence must identify both facts; a Windows browser does
 not make model inference Windows-native.

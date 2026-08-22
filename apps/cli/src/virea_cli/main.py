@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, production_e2e_evidence_validator, real_e2e_validator
-from .commands import doctor, generate, model, serve, setup, state, support
+from .commands import doctor, generate, model, serve, setup, state, support, wizard
 
 _LEGACY_COMMANDS = {"process", "build-demo"}
 
@@ -268,6 +268,8 @@ def main() -> None:
 
         legacy_main()
         return
+    if len(sys.argv) == 1:
+        raise SystemExit(wizard.run())
     parser = build_parser()
     args = parser.parse_args()
     _require_explicit_virea_home(parser, args)

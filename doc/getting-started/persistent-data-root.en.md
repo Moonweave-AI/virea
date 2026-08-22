@@ -122,21 +122,16 @@ Open a new terminal, enter the clone, and run normal commands without repeating 
 # Windows: show the persisted root inherited by this new terminal. It should end in \home.
 $env:VIREA_HOME
 
-# Initialize or migrate VIREA state at that inherited root; no --virea-home is needed.
-uv run virea setup
-
-# Record the machine/domain report at the same inherited root.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the complete guided workflow at that inherited root; it performs setup, detection, model/Runtime selection, confirmation, generation, and optional browser playback.
+uv run virea
 ```
 
 ```bash
 # Linux, WSL2, or macOS: show the root loaded from the startup-file hook. It should end in /home.
 printf '%s\n' "$VIREA_HOME"
 
-# Initialize state and record a local machine report without passing the root again.
-uv run virea setup
-# Record the available domains and diagnostics at that same persistent root.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the complete guided workflow at that inherited root; it performs setup, detection, model/Runtime selection, confirmation, generation, and optional browser playback.
+uv run virea
 ```
 
 For automation, an explicit home remains useful. Pass an already-defined environment value instead of manually copying a

@@ -11,6 +11,12 @@ from ..common import plugin_root, runtime_source_root
 
 
 def run(args) -> int:
+    interactive_progress = bool(getattr(args, "interactive_progress", False))
+
+    def progress(stage: str, message: str) -> None:
+        if interactive_progress:
+            print(f"[VIREA generate {stage}] {message}")
+
     control = ControlPlane(
         paths=VireaPaths.discover(args.virea_home),
         plugin_root=plugin_root(),
@@ -119,6 +125,7 @@ def run(args) -> int:
             execution_target=execution_target,
         )
         try:
+            progress("1/2", "Submitting the selected model job...")
             job = control.submit(request, inference_timeout=args.timeout)
         except ValueError as exc:
             print(
@@ -133,6 +140,7 @@ def run(args) -> int:
             )
             return 2
         if job["state"] not in {"REJECTED", "FAILED"}:
+            progress("2/2", "Waiting for the Worker to finish generation...")
             job = control.wait(job["id"], timeout=args.timeout)
         payload = {"job": job}
         result = control.store.result_for_job(job["id"])

@@ -36,7 +36,7 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 | 查看每个 CLI 命令和参数 | [中文 CLI 参考](doc/reference/cli.zh-CN.md) | [English CLI reference](doc/reference/cli.en.md) |
 | 选择 Windows、Linux、WSL2 或 macOS 执行域 | [平台指南](doc/platforms/README.zh-CN.md) | [Platform guide](doc/platforms/README.en.md) |
 | 选择模型、Runtime 与资源 profile | [模型目录](doc/models/README.zh-CN.md) | [Model catalog](doc/models/README.zh-CN.md) |
-| 排查本地安装、状态或资源问题 | [排错指南](doc/operations/troubleshooting.zh-CN.md) | [Troubleshooting summary](doc/getting-started.en.md#7-troubleshooting-and-safe-maintenance) |
+| 排查本地安装、状态或资源问题 | [排错指南](doc/operations/troubleshooting.zh-CN.md) | [Troubleshooting summary](doc/getting-started.en.md#8-advanced-troubleshooting-and-safe-maintenance) |
 | 维护文档 | [文档规范](doc/development/documentation.zh-CN.md) | [Documentation policy](doc/development/documentation.en.md) |
 
 ## 先决条件
@@ -59,6 +59,7 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 Get-PSDrive -PSProvider FileSystem
 
 # 一次性读取所选数据盘根路径；clone 与所有本地依赖目录都放在它下面。
+# 提示处只粘贴目录本身，例如 X:\VIREA-DATA；外层单/双引号不是路径内容，不能输入。
 $vireaDataVolume = Read-Host "输入所选数据盘的根路径"
 
 # 如有需要先创建根目录，在其中 clone 源码，再进入 clone；源码不含模型权重。
@@ -82,17 +83,15 @@ pnpm install --frozen-lockfile
 # 编译浏览器控制台到 apps/web/dist；不会启动服务或下载模型。
 pnpm --filter @virea/web build
 
-# 创建或升级已配置 VIREA_HOME 的本地 SQLite 状态；不会改系统 Python 或驱动。
-uv run virea setup
-
-# 探测本机与可用执行域，并输出下一步修复建议；不导入模型框架或下载模型。
-uv run virea doctor --json --record --explain --repair-plan
+# 启动逐步交互向导：初始化状态、检测执行域、选择模型/Runtime/profile、确认安装，然后提供生成与浏览器播放。
+uv run virea
 ```
 
 ### Linux / WSL2 / macOS shell
 
 ```bash
 # 一次性读取已挂载的数据盘根路径；clone 与所有本地依赖目录都放在它下面。
+# 提示处只粘贴目录本身，例如 /mnt/virea-data；外层单/双引号不是路径内容，不能输入。
 printf '%s' "输入所选数据盘根路径: "
 read -r virea_data_root
 
@@ -114,13 +113,11 @@ npm ci
 pnpm install --frozen-lockfile
 pnpm --filter @virea/web build
 
-# 初始化本地状态并仅探测/记录机器事实；不下载或运行模型。
-uv run virea setup
-# 探测可选执行域和资源，写入本地机器报告，并只输出修复建议。
-uv run virea doctor --json --record --explain --repair-plan
+# 启动逐步交互向导：初始化状态、检测执行域、选择模型/Runtime/profile、确认安装，然后提供生成与浏览器播放。
+uv run virea
 ```
 
-## 选择执行域，然后安装模型
+## 高级：手动选择执行域并安装模型
 
 从 `doctor --json` 的 `execution_domains` 读取 canonical ID：`windows-native`、`linux-native`、
 `macos-native` 或准确的 `wsl:<distribution>`。多域机器上必须显式选择；失败不会静默切换到另一系统。
@@ -145,7 +142,7 @@ uv run virea model verify MODEL --virea-home "$VIREA_HOME"
 完整命令、占位符和每个选项的含义在[中文 CLI 参考](doc/reference/cli.zh-CN.md)与
 [English CLI reference](doc/reference/cli.en.md)。
 
-## 运行、生成与播放
+## 高级：手动运行、生成与播放
 
 ```bash
 # 使用已经 READY 的同一执行域 Runtime 提交一个文本到动作任务；--timeout 单位为秒，最大 7200。

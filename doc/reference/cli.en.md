@@ -30,6 +30,16 @@ For the exact one-time path entry procedure (including copied Windows paths, out
 terminals), use [Choose and persist the VIREA data root](../getting-started/persistent-data-root.en.md). After that
 procedure, normal interactive commands below intentionally omit `--virea-home`: they use the persisted `VIREA_HOME`.
 
+## Recommended interactive entry point
+
+```bash
+# Start the complete step-by-step workflow: confirm the data root, initialize state, select a model/domain/Runtime/profile, approve installation, generate, and optionally start local playback.
+uv run virea
+```
+
+This is the normal human-facing command. Numbered choices are explicit and entering `q` exits safely. The commands below
+are the non-interactive/automation reference: use them only when you need a repeatable script or an advanced repair.
+
 ```bash
 # Print the command tree and built-in help. This has no state or network side effect.
 uv run virea --help
@@ -77,15 +87,16 @@ as `'X:\VIREA-DATA'`, enter `X:\VIREA-DATA`; the outer quotes only delimit sourc
 and paths with spaces are in the linked data-root guide.
 
 ```powershell
-# Example direct value: the quotes are PowerShell syntax, not folder-name characters. Replace X: with your chosen data drive.
-$vireaDataVolume = 'X:\VIREA-DATA'
+# At the prompt paste only the folder, such as X:\VIREA-DATA. Do not paste outer ' or " quotation marks.
+$vireaDataVolume = Read-Host "Enter the selected data-volume root"
 # -DataRoot is required and must be outside the clone; future Windows terminals inherit the configured paths.
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
 ```
 
 ```bash
-# Example direct value: quotes are shell syntax, not part of the directory. Replace it with your selected mounted volume.
-virea_data_root='/mnt/virea-data'
+# At the prompt paste only the directory, such as /mnt/virea-data. Do not paste outer ' or " quotation marks.
+printf '%s' "Enter the selected data-volume root: "
+read -r virea_data_root
 # --data-root is required; --shell-profile is optional when the detected shell startup file is not the desired one.
 ./scripts/configure-virea.sh --data-root "$virea_data_root"
 # Load the generated variables now; the installed shell hook loads them in future compatible terminals.

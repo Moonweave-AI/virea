@@ -22,6 +22,7 @@ superseded_by: []
 
 ```bash
 # 一次性读取已挂载数据卷的根路径。
+# 提示处只粘贴目录本身，例如 /Volumes/VIREA-DATA；外层单/双引号不是路径内容，不能输入。
 printf '%s' "输入所选数据卷根路径: "
 read -r virea_data_root
 # 创建 VIREA 目录并安装 shell hook；之后新终端自动继承目录设置。
@@ -30,10 +31,8 @@ read -r virea_data_root
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 # 按锁文件安装 Python workspace。
 uv sync --locked --all-packages --extra dev
-# 初始化外部状态目录。
-uv run virea setup
-# 探测 macOS native 域、资源和可修复问题。
-uv run virea doctor --json --record --explain --repair-plan
+# 启动逐步交互向导：选择模型、macOS 执行域、Runtime/profile，确认安装、生成与播放。
+uv run virea
 ```
 
 Apple Silicon 的 MPS、Apple/Intel CPU 与 CUDA Runtime 是不同构建。只有 Worker 明确实现 MPS 或 CPU 路径时，

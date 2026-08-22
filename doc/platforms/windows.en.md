@@ -25,6 +25,7 @@ superseded_by: []
 Get-PSDrive -PSProvider FileSystem
 
 # Read the selected volume root once. The setup script creates the VIREA data directory beneath it.
+# At the prompt paste only the directory, such as X:\VIREA-DATA; outer ' or " quotation marks are not part of the path.
 $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 
 # Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR and HF_HOME for this user and future Windows terminals.
@@ -33,11 +34,8 @@ $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 
-# Initialize external local state.
-uv run virea setup
-
-# Detect the Windows-native domain, resources and non-mutating repair suggestions.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the guided workflow: choose a model, Windows domain, Runtime/profile, then confirm installation, generation and playback.
+uv run virea
 ```
 
 `LOCALAPPDATA` is a compatibility fallback for small read-only probes; persistent commands require this explicit home and

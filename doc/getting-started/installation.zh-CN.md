@@ -41,22 +41,11 @@ uv sync --locked --all-packages --extra dev
 pnpm install --frozen-lockfile
 # 构建浏览器静态资源，不启动服务。
 pnpm --filter @virea/web build
-# 初始化已配置的外部状态目录。
-uv run virea setup
-# 探测执行域与资源，并将报告记录到外部状态目录。
-uv run virea doctor --json --record --explain --repair-plan
+# 启动推荐的逐步交互向导：初始化状态、检测执行域、选择模型/Runtime/profile，安装前确认，再提供生成与播放。
+uv run virea
 ```
 
 `doctor --record` 在 `machine/reports/` 保存不可覆盖报告；安装验收会选择安装开始前最新的有效报告，而不是
 读取可能已被后来机器状态覆盖的全局 latest。
-
-## 检查
-
-```bash
-# 列出模型 manifest；--json 便于脚本读取且不产生安装副作用。
-uv run virea model list --json
-# 只读检查外部状态数据库。
-uv run virea state inspect
-```
 
 仓库根目录不得出现 `.venv`、模型缓存、日志、SQLite、job/result 或 pytest 临时目录。

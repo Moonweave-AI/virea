@@ -52,7 +52,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
 | Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
 | Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
-| Load a result in a real Avatar | [Browser playback](doc/getting-started.en.md#6-play-a-result-in-the-browser) |
+| Load a result in a real Avatar | [Browser playback](doc/getting-started.en.md#7-advanced-play-a-result-in-the-browser) |
 | Integrate another model | [Model adapter guide](doc/development/model-adapter.zh-CN.md) |
 | Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
 | Explore datasets and retargeting | [Dataset pipeline](doc/pipeline.zh-CN.md) and [showcase](doc/showcase/README.md) |
@@ -167,6 +167,7 @@ See [data-root paths and quotation marks](doc/getting-started/persistent-data-ro
 # List local file-system volumes and their free space before choosing a data volume.
 Get-PSDrive -PSProvider FileSystem
 # Read the selected data-volume root once; clone and all local dependency trees will live below it.
+# At the prompt paste only the directory, for example X:\VIREA-DATA; outer ' or " quotation marks are not part of the path.
 $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 # Create the root if needed, clone the source there, then make the clone the current directory.
 New-Item -ItemType Directory -Force -Path $vireaDataVolume | Out-Null
@@ -181,10 +182,8 @@ uv sync --locked --all-packages --extra dev
 pnpm install --frozen-lockfile
 # Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
-# Initialize the configured external VIREA state directory.
-uv run virea setup
-# Detect execution domains/resources and record a local diagnostic report.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
+uv run virea
 ```
 
 </details>
@@ -194,6 +193,7 @@ uv run virea doctor --json --record --explain --repair-plan
 
 ```bash
 # Read a mounted data-volume root once; clone and all local dependency trees will live below it.
+# At the prompt paste only the directory, for example /mnt/virea-data; outer ' or " quotation marks are not part of the path.
 printf '%s' "Enter the selected data-volume root: "
 read -r virea_data_root
 # Create the root if needed, clone the source there, then enter the clone.
@@ -211,10 +211,8 @@ uv sync --locked --all-packages --extra dev
 pnpm install --frozen-lockfile
 # Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
-# Initialize the configured external VIREA state directory.
-uv run virea setup
-# Detect execution domains/resources and record a local diagnostic report.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
+uv run virea
 ```
 
 </details>
@@ -224,6 +222,7 @@ uv run virea doctor --json --record --explain --repair-plan
 
 ```bash
 # Read a mounted data-volume root once; clone and all local dependency trees will live below it.
+# At the prompt paste only the directory, for example /Volumes/VIREA-DATA; outer ' or " quotation marks are not part of the path.
 printf '%s' "Enter the selected data-volume root: "
 read -r virea_data_root
 # Create the root if needed, clone the source there, then enter the clone.
@@ -241,15 +240,13 @@ uv sync --locked --all-packages --extra dev
 pnpm install --frozen-lockfile
 # Build the local browser UI without starting a server or downloading models.
 pnpm --filter @virea/web build
-# Initialize the configured external VIREA state directory.
-uv run virea setup
-# Detect execution domains/resources and record a local diagnostic report.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
+uv run virea
 ```
 
 </details>
 
-### 2. Install one real model
+### 2. Advanced: install one real model non-interactively
 
 Inspect the model first; installation performs resource admission before downloading artifacts.
 
@@ -271,7 +268,7 @@ The admission decision checks free VRAM, free physical RAM, swap/pagefile and st
 the selected Worker genuinely implements CPU or offload placement; the resolver never adds RAM and VRAM together to make
 an impossible configuration appear sufficient.
 
-### 3. Generate and validate
+### 3. Advanced: generate and validate non-interactively
 
 ```bash
 # Submit a bounded text-to-motion job; --timeout is an end-to-end limit in seconds.
@@ -283,7 +280,7 @@ uv run virea validate-real-e2e --virea-home <external-home> --job-id <job-id>
 The persisted result identifies the model/version/runtime/checkpoint, native skeleton/representation, target
 skeleton/representation, execution domain, resource profile and device.
 
-### 4. Play the result
+### 4. Advanced: play the result manually
 
 ```bash
 # Start the local API and browser UI on loopback; --port chooses the browser URL port.

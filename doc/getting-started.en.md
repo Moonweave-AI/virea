@@ -54,6 +54,7 @@ Set-Location virea
 Get-PSDrive -PSProvider FileSystem
 
 # Read the selected data-volume root once. The setup script creates VIREA beneath it.
+# At the prompt paste only the directory, for example X:\VIREA-DATA; outer ' or " quotation marks are not part of the path.
 $vireaDataVolume = Read-Host "Enter the selected data-volume root"
 
 # Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR and HF_HOME for this user and future Windows terminals.
@@ -80,6 +81,7 @@ git clone https://github.com/Moonweave-AI/virea.git
 cd virea
 
 # Read a mounted data-volume root once.
+# At the prompt paste only the directory, for example /mnt/virea-data; outer ' or " quotation marks are not part of the path.
 printf '%s' "Enter the selected data-volume root: "
 read -r virea_data_root
 
@@ -99,7 +101,18 @@ pnpm --filter @virea/web build
 `npm ci` owns the legacy Viewer toolchain and `pnpm` owns the 0.4 Web workspace. Run them in this order; do not run them
 concurrently against the same checkout.
 
-## 3. Initialize local state and inspect available execution domains
+## 3. Recommended: complete the guided workflow
+
+```bash
+# Start the no-argument interactive wizard. It initializes state, detects domains, lists models, asks for an exact Runtime/profile, previews admission, confirms installation, then offers generation and local playback.
+uv run virea
+```
+
+The wizard never silently chooses a different operating system, accelerator, model, Runtime, profile, or a destructive
+action. Type `q` at a numbered selection to leave safely. The detailed commands below remain available for automation
+and advanced recovery.
+
+## 4. Advanced: initialize local state and inspect available execution domains
 
 ```bash
 # Create or migrate the VIREA_HOME state directory. This does not change system Python, drivers or global packages.
@@ -123,7 +136,7 @@ Read the `execution_domains` list in the report. The canonical identifiers are:
 When more than one candidate exists, VIREA requires an explicit selection. A failed selection never silently moves your
 job to another operating system, accelerator or resource profile.
 
-## 4. Inspect, plan, and apply one model installation
+## 5. Advanced: inspect, plan, and apply one model installation
 
 ```bash
 # List the known model manifests. --json is useful when a script needs structured data.
@@ -155,7 +168,7 @@ Replace placeholders as follows:
 If the manifest requires license acknowledgement, read the upstream terms first and add `--accepted-license`; it records a
 local acknowledgement only and never grants redistribution or commercial rights.
 
-## 5. Generate one result
+## 6. Advanced: generate one result
 
 ```bash
 # Submit a bounded text-to-motion job to the selected READY Runtime.
@@ -171,7 +184,7 @@ Save the returned `job_id` and `result_id`. They bind the model asset snapshot, 
 resource profile and output artifacts. A successful job on one device is observation for that exact configuration, not a
 claim that every operating system or GPU has been verified.
 
-## 6. Play a result in the browser
+## 7. Advanced: play a result in the browser
 
 ```bash
 # Start the local control plane on loopback only. --host prevents network exposure; --port selects the browser URL port.
@@ -182,7 +195,7 @@ Open `http://127.0.0.1:8000/app/`, load a local `.vrm` Avatar, select the same e
 result. Stop the service with `Ctrl+C`. See the [CLI reference](reference/cli.en.md#serve) for `--reload` and the legacy
 `--data-source` compatibility option.
 
-## 7. Troubleshooting and safe maintenance
+## 8. Advanced: troubleshooting and safe maintenance
 
 ```bash
 # Produce a local diagnostic summary. --jobs controls how many recent job summaries it includes.

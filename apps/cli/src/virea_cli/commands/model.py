@@ -24,6 +24,13 @@ def _emit(payload: object) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+def _interactive_progress(args, stage: str, message: str) -> None:
+    """Emit human progress only for the guided flow, preserving JSON CLI output."""
+
+    if getattr(args, "interactive_progress", False):
+        print(f"[VIREA install {stage}] {message}")
+
+
 def _context(
     virea_home: str | Path | None,
 ) -> tuple[VireaPaths, ModelCatalog, ModelPool]:
@@ -135,6 +142,9 @@ def _pinned_target_from_compatibility(
 def _install(args) -> int:
     paths, catalog, _ = _context(args.virea_home)
     manifest = catalog.get(args.model_id)
+    _interactive_progress(
+        args, "1/4", "Resolving the selected Runtime and resources..."
+    )
     try:
         execution_target = _execution_target(args)
     except ValueError as exc:
@@ -230,6 +240,9 @@ def _install(args) -> int:
         runtime_source_root=runtime_source_root(),
     )
     try:
+        _interactive_progress(
+            args, "2/4", "Checking admission and staging model artifacts..."
+        )
         try:
             compatibility = (
                 control.runtime_compatibility(args.model_id)
@@ -308,6 +321,9 @@ def _install(args) -> int:
             _emit(payload)
             return 2
         try:
+            _interactive_progress(
+                args, "3/4", "Building the isolated Runtime and running acceptance..."
+            )
             acceptance = control.run_real_acceptance(outcome)
         except Exception as exc:
             acceptance = {
@@ -334,6 +350,9 @@ def _install(args) -> int:
             )
             _emit(payload)
             return 2
+        _interactive_progress(
+            args, "4/4", "Publishing the verified local installation..."
+        )
         ready = control.model_pool.publish_ready(
             outcome,
             acceptance=acceptance,

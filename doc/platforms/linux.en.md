@@ -22,6 +22,7 @@ superseded_by: []
 
 ```bash
 # Read a mounted data-volume root once.
+# At the prompt paste only the directory, such as /mnt/virea-data; outer ' or " quotation marks are not part of the path.
 printf '%s' "Enter the selected data-volume root: "
 read -r virea_data_root
 
@@ -34,11 +35,8 @@ read -r virea_data_root
 # Install the exact locked Python workspace.
 uv sync --locked --all-packages --extra dev
 
-# Initialize external local state.
-uv run virea setup
-
-# Detect the Linux-native domain, resources and non-mutating repair suggestions.
-uv run virea doctor --json --record --explain --repair-plan
+# Start the guided workflow: choose a model, Linux domain, Runtime/profile, then confirm installation, generation and playback.
+uv run virea
 ```
 
 CUDA, ROCm and CPU are different Runtimes/profiles, not a device-string change. If no complete profile fits, VIREA rejects
