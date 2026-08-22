@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from virea_contracts.execution import resolved_execution_target_identity
 from virea_contracts.installation import InstallationState
 from virea_contracts.job import JobRequest, JobState
 from virea_contracts.model import ProductionArtifactKind, ProductionE2EStage
@@ -1208,9 +1209,14 @@ class ModelPool:
             and isinstance(execution_target, dict)
         ):
             selected = json.loads(selection_events[0]["payload_json"])
-            check(
+            expected_target = resolved_execution_target_identity(
+                execution_target.get("resolved")
+            )
+            selected_target = resolved_execution_target_identity(
                 selected.get("execution_target", {}).get("resolved")
-                == execution_target.get("resolved"),
+            )
+            check(
+                expected_target is not None and selected_target == expected_target,
                 "acceptance runtime selection differs from installation",
             )
         required_job_states = {

@@ -56,6 +56,28 @@ VIREA home、model snapshot 或 cache。失败的构建不会发布为 `READY`�
 成功的隔离 Runtime。若 Git 确实不存在，先在选定执行域安装 Git，再运行同一命令。WSL 的 Git 必须装在选定 Linux 发行版内，
 不是 Windows Git。
 
+## 安装已完成、但最后报 `acceptance runtime selection differs from installation`
+
+旧版 checkout 出现这条信息，是最后发布 `READY` 时的校验缺陷，**不是**检测到的系统、模型文件、Runtime 或推理失败。Worker
+启动后会再次采样可用显存，`memory_free_bytes` 的数值可能变化；可用显存是一次观测，不是已选 GPU 的身份。修正后的 VIREA
+仍严格比较执行域、Runtime、resource profile、内存策略、物理加速卡及 CUDA 可见性绑定，但不会仅因空闲显存变化而失败。
+
+保留现有持久 home，更新 clone 后用相同选择重新跑一次交互式安装即可。此前终态为 `FAILED` 的 transaction 会保留为可排查
+的历史记录，不会被删除或手动晋升；已验证模型 artifact 会复用，原有 Runtime deployment 仍有效时也会复用。
+
+```powershell
+# 仅以 fast-forward 方式更新当前 clone；它下载的是源码，不会下载模型或删除结果。
+git pull --ff-only origin main
+
+# 让 workspace 与锁文件保持一致。--locked 禁止改动锁定版本；--all-packages 包含全部 VIREA workspace 包；
+# --extra dev 保留仓库所需的测试/开发工具。
+uv sync --locked --all-packages --extra dev
+
+# 再次进入交互式向导；选择原来的数据根、执行域和模型。
+# VIREA 会复用已验证的本地 artifact，不需要你先删除或重新下载它们。
+uv run virea
+```
+
 收集诊断：
 
 ```bash

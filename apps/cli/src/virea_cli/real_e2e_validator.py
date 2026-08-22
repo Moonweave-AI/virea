@@ -41,6 +41,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 import numpy as np
+from virea_contracts.execution import resolved_execution_target_identity
 from virea_contracts.job import JobRequest
 from virea_contracts.machine import MachineReport
 from virea_contracts.model import ProductionArtifactKind, ProductionE2EStage
@@ -488,11 +489,22 @@ def _validate_pinned_execution_target(
         "acceptance runtime selection is not unique",
     )
     _require(
-        selection_events[0].get("payload", {}).get("execution_target")
-        == {
-            "requested": requested_payload,
-            "resolved": resolved,
-        },
+        selection_events[0]
+        .get("payload", {})
+        .get("execution_target", {})
+        .get("requested")
+        == requested_payload,
+        "acceptance runtime selection request differs from pinned execution target",
+    )
+    pinned_identity = resolved_execution_target_identity(resolved)
+    selected_identity = resolved_execution_target_identity(
+        selection_events[0]
+        .get("payload", {})
+        .get("execution_target", {})
+        .get("resolved")
+    )
+    _require(
+        pinned_identity is not None and selected_identity == pinned_identity,
         "acceptance runtime selection differs from pinned execution target",
     )
 

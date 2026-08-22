@@ -56,6 +56,31 @@ If this check succeeds but an older VIREA checkout reported `Git executable not 
 actually absent, install it in the selected domain, then rerun the same command. For WSL, that means the named Linux
 distribution, not Windows Git.
 
+## Installation completed but ends with `acceptance runtime selection differs from installation`
+
+This message from an older checkout is a publication-validation defect, not an indication that the detected system,
+model files, Runtime, or inference failed. The last admission sample can report a different amount of *free* VRAM after
+the Worker starts. Free VRAM is an observation, not the identity of the chosen GPU. Current VIREA compares the stable
+execution domain, Runtime, resource profile, memory strategy, physical accelerator and CUDA visibility binding; it does
+not fail solely because `memory_free_bytes` changed.
+
+Keep the existing persistent home and retry the same interactive installation after updating the clone. The prior
+terminal `FAILED` transaction remains useful diagnostic history, but it is not deleted or manually promoted. Verified
+model artifacts are reused; a successful Runtime is reused when its existing deployment is still valid.
+
+```powershell
+# Fetch only a fast-forward update of this cloned repository; it downloads source code, not models or results.
+git pull --ff-only origin main
+
+# Reconcile the workspace environment against the locked dependency set. --locked forbids changing lock versions;
+# --all-packages includes every VIREA workspace package; --extra dev retains the repository's test/development tools.
+uv sync --locked --all-packages --extra dev
+
+# Start the interactive wizard again. Choose the same data root, execution domain and model;
+# it reuses verified local artifacts instead of requiring you to delete or download them again.
+uv run virea
+```
+
 ```bash
 # Produce a local diagnostic summary from the persistent home configured once after cloning.
 uv run virea support

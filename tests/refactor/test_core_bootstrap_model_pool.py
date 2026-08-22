@@ -25,7 +25,10 @@ from virea_cli.real_e2e_validator import (
     _validated_external_artifact_roots,
     _validated_internal_artifact_roots,
 )
-from virea_contracts.execution import ExecutionTargetSelection
+from virea_contracts.execution import (
+    ExecutionTargetSelection,
+    resolved_execution_target_identity,
+)
 from virea_contracts.installation import TERMINAL_INSTALLATION_STATES, InstallationState
 from virea_contracts.job import TERMINAL_JOB_STATES, JobRequest, JobState
 from virea_contracts.machine import AcceleratorReport
@@ -138,6 +141,7 @@ def _persist_completed_acceptance(
     *,
     installation_id: str,
     execution_target: dict[str, object] | None = None,
+    runtime_selected_execution_target: dict[str, object] | None = None,
 ) -> dict[str, object]:
     contract = manifest.production_acceptance
     assert contract is not None
@@ -150,6 +154,11 @@ def _persist_completed_acceptance(
         resolved_target.get("execution_domain")
         if isinstance(resolved_target, dict)
         else None
+    )
+    runtime_selected_resolved_target = (
+        runtime_selected_execution_target.get("resolved")
+        if isinstance(runtime_selected_execution_target, dict)
+        else resolved_target
     )
     request = contract.request
     if isinstance(resolved_target, dict) and isinstance(resolved_domain, dict):
@@ -182,7 +191,7 @@ def _persist_completed_acceptance(
                 payload={
                     "execution_target": {
                         "requested": request.execution_target.model_dump(mode="json"),
-                        "resolved": resolved_target,
+                        "resolved": runtime_selected_resolved_target,
                     }
                 },
             )
@@ -1674,6 +1683,94 @@ def test_model_pool_persists_and_revalidates_install_execution_target(
     assert persisted["acceptance"]["execution_target"] == execution_target
 
 
+def _gpu_execution_target(*, memory_free_bytes: int) -> dict[str, object]:
+    target = _explicit_execution_target()
+    resolved = target["resolved"]
+    resolved["memory_strategy"] = "cuda"
+    resolved["selected_accelerator"] = {
+        "kind": "nvidia",
+        "name": "NVIDIA GeForce RTX 5070 Ti",
+        "physical_device_id": "GPU-01234567-89ab-cdef-0123-456789abcdef",
+        "physical_device_index": 0,
+        "device_uuid": "GPU-01234567-89ab-cdef-0123-456789abcdef",
+        "pci_bus_id": "00000000:01:00.0",
+        "visibility_selector": "GPU-01234567-89ab-cdef-0123-456789abcdef",
+        "logical_device_index": 0,
+        "memory_free_bytes": memory_free_bytes,
+    }
+    return target
+
+
+def test_resolved_execution_target_identity_excludes_dynamic_vram_observation() -> None:
+    installation_target = _gpu_execution_target(memory_free_bytes=16 * 1024**3)
+    worker_target = deepcopy(installation_target)
+    worker_target["resolved"]["selected_accelerator"]["memory_free_bytes"] = (
+        12 * 1024**3
+    )
+
+    assert resolved_execution_target_identity(
+        installation_target["resolved"]
+    ) == resolved_execution_target_identity(worker_target["resolved"])
+
+
+def test_model_pool_accepts_same_gpu_when_free_vram_changes(tmp_path) -> None:
+    payload = _manifest_payload("target-observation-model")
+    payload["runtime_variants"] = [_runtime_payload()]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    installation_target = _gpu_execution_target(memory_free_bytes=16 * 1024**3)
+    worker_target = _gpu_execution_target(memory_free_bytes=12 * 1024**3)
+
+    staged = pool.stage_artifacts(
+        manifest.model.id,
+        execution_target=installation_target,
+    )
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+        execution_target=installation_target,
+        runtime_selected_execution_target=worker_target,
+    )
+    ready = pool.publish_ready(staged, acceptance=acceptance)
+
+    assert ready.state is InstallationState.READY
+
+
+def test_model_pool_rejects_different_gpu_after_installation(tmp_path) -> None:
+    payload = _manifest_payload("target-identity-model")
+    payload["runtime_variants"] = [_runtime_payload()]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    installation_target = _gpu_execution_target(memory_free_bytes=16 * 1024**3)
+    worker_target = _gpu_execution_target(memory_free_bytes=12 * 1024**3)
+    accelerator = worker_target["resolved"]["selected_accelerator"]
+    accelerator["physical_device_id"] = "GPU-fedcba98-7654-3210-fedc-ba9876543210"
+    accelerator["device_uuid"] = "GPU-fedcba98-7654-3210-fedc-ba9876543210"
+    accelerator["visibility_selector"] = "GPU-fedcba98-7654-3210-fedc-ba9876543210"
+
+    staged = pool.stage_artifacts(
+        manifest.model.id,
+        execution_target=installation_target,
+    )
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+        execution_target=installation_target,
+        runtime_selected_execution_target=worker_target,
+    )
+    failed = pool.publish_ready(staged, acceptance=acceptance)
+
+    assert failed.state is InstallationState.FAILED
+    assert any(
+        "acceptance runtime selection differs from installation" in diagnostic
+        for diagnostic in failed.diagnostics
+    )
+
+
 def _explicit_execution_target() -> dict[str, object]:
     requested = {
         "schema_version": "virea.execution_target_selection.v1.0.0",
@@ -1721,6 +1818,34 @@ def test_real_validator_accepts_manifest_request_with_exact_pinned_domain() -> N
     ]
 
     _validate_acceptance_job_request(contract.request, request)
+    _validate_pinned_execution_target(
+        {"execution_target": target},
+        {"execution_target": target},
+        request,
+        events,
+    )
+
+
+def test_real_validator_accepts_same_gpu_when_free_vram_changes() -> None:
+    manifest = _production_manifest(_manifest_payload("pinned-gpu-observation"))
+    contract = manifest.production_acceptance
+    assert contract is not None
+    target = _gpu_execution_target(memory_free_bytes=16 * 1024**3)
+    observed_target = _gpu_execution_target(memory_free_bytes=12 * 1024**3)
+    requested = ExecutionTargetSelection.model_validate(target["requested"])
+    request = contract.request.model_copy(update={"execution_target": requested})
+    events = [
+        {
+            "event_type": "job.runtime_selected",
+            "payload": {
+                "execution_target": {
+                    "requested": requested.model_dump(mode="json"),
+                    "resolved": observed_target["resolved"],
+                }
+            },
+        }
+    ]
+
     _validate_pinned_execution_target(
         {"execution_target": target},
         {"execution_target": target},
