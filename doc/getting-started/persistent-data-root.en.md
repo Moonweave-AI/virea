@@ -63,6 +63,10 @@ Set-Location virea
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataRoot
 ```
 
+The script prints `[VIREA 1/6]` through `[VIREA 6/6]` before each potentially slow operation, then prints
+`[VIREA complete]`. If it stops on a stage, the last visible line identifies whether validation, directory creation,
+manifest writing, environment persistence, or the Windows notification is waiting or failed.
+
 The interactive equivalent is also safe for paths with spaces:
 
 ```powershell
@@ -106,6 +110,9 @@ cd virea
 # Activate the generated settings in this already-open shell. New compatible shells load them automatically.
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 ```
+
+Linux, WSL2, and macOS print the same six visible stages. A first run reports `Added hook:`; later runs report
+`Hook already present:`, confirming that the startup file is not appended repeatedly.
 
 ## After the first configuration
 

@@ -11,6 +11,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Write-SetupProgress {
+    param(
+        [Parameter(Mandatory = $true)][string]$Stage,
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+
+    # Write-Host is deliberate: users must see progress even when no object is
+    # emitted and before a potentially slow network/disk operation starts.
+    Write-Host "[VIREA $Stage] $Message"
+}
+
 function Test-PathWithin {
     param(
         [Parameter(Mandatory = $true)][string]$Candidate,
@@ -26,11 +37,13 @@ function Test-PathWithin {
     ) -or $candidatePath.Equals($parentPath, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+Write-SetupProgress -Stage "1/6" -Message "Validating the selected data root..."
 $resolvedDataRoot = [System.IO.Path]::GetFullPath($DataRoot)
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 if (Test-PathWithin -Candidate $resolvedDataRoot -Parent $repositoryRoot) {
     throw "DataRoot must be outside the cloned repository: $repositoryRoot"
 }
+Write-Host "  Data root: $resolvedDataRoot"
 
 $layout = [ordered]@{
     schema_version          = "virea.persistent_data_root.v1"
@@ -43,6 +56,7 @@ $layout = [ordered]@{
     pnpm_store              = Join-Path $resolvedDataRoot "pnpm-store"
 }
 
+Write-SetupProgress -Stage "2/6" -Message "Creating or checking VIREA data directories..."
 foreach ($directory in @(
     $layout.data_root,
     $layout.virea_home,
@@ -52,9 +66,11 @@ foreach ($directory in @(
     $layout.npm_cache,
     $layout.pnpm_store
 )) {
+    Write-Host "  Ensuring: $directory"
     [System.IO.Directory]::CreateDirectory($directory) | Out-Null
 }
 
+Write-SetupProgress -Stage "3/6" -Message "Writing the reusable directory manifest..."
 $settingsPath = Join-Path $layout.data_root "virea-environment.json"
 $temporarySettingsPath = "$settingsPath.tmp-$PID"
 $settingsJson = $layout | ConvertTo-Json
@@ -64,6 +80,7 @@ $settingsJson = $layout | ConvertTo-Json
     [System.Text.UTF8Encoding]::new($false)
 )
 Move-Item -LiteralPath $temporarySettingsPath -Destination $settingsPath -Force
+Write-Host "  Manifest: $settingsPath"
 
 $environment = [ordered]@{
     VIREA_HOME              = $layout.virea_home
@@ -73,15 +90,25 @@ $environment = [ordered]@{
     NPM_CONFIG_CACHE        = $layout.npm_cache
     NPM_CONFIG_STORE_DIR    = $layout.pnpm_store
 }
+Write-SetupProgress -Stage "4/6" -Message "Setting directories for this PowerShell session..."
 foreach ($entry in $environment.GetEnumerator()) {
     # Update this PowerShell process so the next command works immediately.
     Set-Item -Path "Env:$($entry.Key)" -Value $entry.Value
-    if (-not $NoPersistUserEnvironment) {
-        # Persist for future Windows Terminal, PowerShell and cmd.exe processes of this user.
-        [System.Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "User")
-    }
+    Write-Host "  Session: $($entry.Key)"
 }
 
+if (-not $NoPersistUserEnvironment) {
+    Write-SetupProgress -Stage "5/6" -Message "Saving directories for future Windows terminals..."
+    foreach ($entry in $environment.GetEnumerator()) {
+        # Persist for future Windows Terminal, PowerShell and cmd.exe processes of this user.
+        [System.Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "User")
+        Write-Host "  Saved: $($entry.Key)"
+    }
+} else {
+    Write-SetupProgress -Stage "5/6" -Message "Skipping user-level persistence because -NoPersistUserEnvironment was requested."
+}
+
+Write-SetupProgress -Stage "6/6" -Message "Notifying running Windows terminal hosts..."
 if (-not $NoPersistUserEnvironment) {
     # Notify already-running shells/terminal hosts that the user environment changed.
     Add-Type -TypeDefinition @'
@@ -104,8 +131,12 @@ public static class VireaEnvironmentBroadcast {
         5000,
         [ref]$broadcastResult
     )
+    Write-Host "  Environment-change notification sent."
+} else {
+    Write-Host "  No notification needed for the test-only session setting."
 }
 
+Write-Host "[VIREA complete] Persistent data-root configuration finished."
 Write-Host "VIREA data root configured: $($layout.data_root)"
 Write-Host "VIREA_HOME: $($layout.virea_home)"
 Write-Host "uv environment: $($layout.uv_project_environment)"

@@ -61,6 +61,9 @@ Set-Location virea
 & .\scripts\configure-virea.ps1 -DataRoot $vireaDataRoot
 ```
 
+脚本会在每个可能较慢的操作前输出 `[VIREA 1/6]` 至 `[VIREA 6/6]`，完成后输出 `[VIREA complete]`。若卡在某一
+阶段，最后一行可直接定位到校验、建目录、写 manifest、持久化环境变量或 Windows 通知中的等待/失败位置。
+
 交互式输入同样支持带空格的目录：
 
 ```powershell
@@ -103,6 +106,9 @@ cd virea
 # 立即在当前 shell 生效生成的设置；新的兼容 shell 会自动加载它。
 . "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
 ```
+
+Linux、WSL2 与 macOS 使用相同的六阶段可见输出。首次运行显示 `Added hook:`；以后运行显示
+`Hook already present:`，表明启动文件没有被重复追加。
 
 ## 首次配置之后
 

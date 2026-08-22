@@ -37,6 +37,12 @@ def test_windows_data_root_script_persists_all_large_data_locations(
     )
 
     assert result.returncode == 0, result.stderr
+    assert "[VIREA 1/6] Validating the selected data root..." in result.stdout
+    assert "[VIREA 2/6] Creating or checking VIREA data directories..." in result.stdout
+    assert "[VIREA 6/6] Notifying running Windows terminal hosts..." in result.stdout
+    assert (
+        "[VIREA complete] Persistent data-root configuration finished." in result.stdout
+    )
     assert "User-level settings were intentionally not changed" in result.stdout
     settings = json.loads((data_root / "virea-environment.json").read_text())
     assert settings == {
@@ -80,6 +86,16 @@ def test_posix_data_root_script_writes_one_reusable_shell_hook(tmp_path: Path) -
     second = subprocess.run(command, capture_output=True, text=True, env=environment)
 
     assert first.returncode == second.returncode == 0
+    assert "[VIREA 1/6] Validating the selected data root..." in first.stdout
+    assert (
+        "[VIREA 3/6] Creating or checking VIREA environments and caches..."
+        in first.stdout
+    )
+    assert (
+        "[VIREA complete] Persistent data-root configuration finished." in first.stdout
+    )
+    assert "Added hook:" in first.stdout
+    assert "Hook already present:" in second.stdout
     environment_file = config_home / "virea" / "environment.sh"
     payload = environment_file.read_text()
     assert f"VIREA_HOME='{data_root.resolve()}/home'" in payload
