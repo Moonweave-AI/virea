@@ -55,11 +55,17 @@ uv run virea
 Runtime 会作为不可用事实说明，但不会进入可按序号选择的列表。
 
 进度条只在真实完成一个阶段边界时前进。Hugging Face/Xet 传输期间，VIREA 会禁止依赖自己输出
-`Downloading bytes` 进度条，把已下载字节数与速率接入 VIREA 的唯一动态行；因此无论 Windows、Linux、
-WSL2、macOS 还是 IDE 终端，都不会再把回车刷新累积成几百行。下载、Runtime 构建和模型推理无法预知
+`Downloading bytes`、`Reconstructing` 和 `Fetching files` 进度条，把下载/重建的字节数与速率接入 VIREA
+的唯一动态行；若某个依赖版本不遵守自定义进度适配器，还会由只过滤已知进度帧、但保留普通警告/错误的
+兼容边界收口。因此无论 Windows、Linux、WSL2、macOS 还是 IDE 终端，都不会再把回车刷新累积成几百行。
+下载、Runtime 构建和模型推理无法预知
 可信总量时，会显示活动指示器与已用时间，不伪造百分比。交互模式不会打印完整 RAW JSON；失败只显示
 错误码、主要原因、下一步和证据目录，完整事务仍保存在 `VIREA_HOME/state` 与 `VIREA_HOME/logs`。下面的
 显式子命令继续保持机器可读 JSON，供自动化和高级诊断使用，同时不会向 stderr 混入第三方原始进度条。
+
+若安装到发布阶段仍未成为 `READY`，紧凑结果会把验收 `error_code`、`error_message`、失败阶段和重试动作放在
+“制品下载成功”之前。重新打开 `uv run virea` 也会从失败 transaction 恢复这段摘要。已验证的稳定制品仍可
+复用，因此用相同模型/环境重试不会重新下载。
 
 颜色和动态进度只在交互式终端启用。重定向输出、`TERM=dumb` 或设置 `NO_COLOR` 时自动退化为逐行纯文本，
 不会丢失阶段或结果。模型下载只记录第一次传输快照、每 15 秒至多一次的中间快照和最后一次完成快照，

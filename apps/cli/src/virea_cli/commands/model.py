@@ -67,6 +67,41 @@ def _outcome(outcome: InstallOutcome) -> dict[str, Any]:
     }
 
 
+def _installation_failure_next_action(acceptance: object) -> str:
+    """Return one actionable retry instruction without exposing raw evidence."""
+
+    error_code = (
+        str(acceptance.get("error_code") or "")
+        if isinstance(acceptance, dict)
+        else ""
+    )
+    if error_code in {"INSUFFICIENT_MEMORY", "WORKER_OOM"}:
+        repair = (
+            "Close other RAM/VRAM-heavy programs before retrying / "
+            "关闭其他占用内存或显存的程序后重试"
+        )
+    elif error_code in {
+        "RUNTIME_NOT_BUILDABLE",
+        "RUNTIME_NOT_READY",
+        "WORKER_START_ERROR",
+        "WORKER_START_FAILED",
+    }:
+        repair = (
+            "Repair the Runtime issue named above before retrying / "
+            "先修复上方指出的 Runtime 问题再重试"
+        )
+    else:
+        repair = (
+            "Review the acceptance error and Worker log named above, then retry / "
+            "查看上方验收错误及对应 Worker 日志后重试"
+        )
+    return (
+        f"{repair}. Run `uv run virea` again; verified downloads are reused and "
+        "will not be downloaded again. / 再次运行 `uv run virea`；已验证下载会直接"
+        "复用，不会重新下载。"
+    )
+
+
 def _acceptance_override_mismatches(args, manifest) -> dict[str, dict[str, Any]]:
     contract = manifest.production_acceptance
     if contract is None:
@@ -420,6 +455,7 @@ def _install(args) -> int:
             payload["diagnostics"].append(
                 f"real acceptance did not complete: {type(exc).__name__}: {exc}"
             )
+            payload["next_action"] = _installation_failure_next_action(acceptance)
             emit(payload)
             return 2
         _interactive_progress(
@@ -432,6 +468,8 @@ def _install(args) -> int:
         payload = _outcome(ready)
         payload["resource_admission"] = compatibility
         payload["acceptance"] = acceptance
+        if ready.state is not InstallationState.READY:
+            payload["next_action"] = _installation_failure_next_action(acceptance)
         emit(payload)
         return 0 if ready.state is InstallationState.READY else 2
     finally:

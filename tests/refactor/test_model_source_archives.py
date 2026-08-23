@@ -97,6 +97,16 @@ def test_huggingface_progress_is_structured_and_never_writes_raw_bars(
             transfer.update(256 * 1024)
             transfer.refresh()
         transfer.set_description("Download complete")
+        reconstruction = progress_class(
+            desc="Reconstructing (incomplete total...)",
+            total=4 * 1024 * 1024,
+            unit="B",
+            unit_scale=True,
+        )
+        for _ in range(16):
+            reconstruction.update(256 * 1024)
+            reconstruction.refresh()
+        reconstruction.set_description("Reconstruction complete")
         destination = Path(kwargs["local_dir"])
         (destination / "weights.bin").write_bytes(b"real-model-bytes")
         return str(destination)
@@ -120,9 +130,17 @@ def test_huggingface_progress_is_structured_and_never_writes_raw_bars(
     assert captured.err == ""
     assert [path.name for path in files] == ["weights.bin"]
     assert snapshots
-    assert snapshots[-1].artifact_id == "checkpoint"
-    assert snapshots[-1].completed_bytes == 4 * 1024 * 1024
-    assert snapshots[-1].done is True
+    transfer_snapshots = [item for item in snapshots if item.phase == "download"]
+    reconstruction_snapshots = [
+        item for item in snapshots if item.phase == "reconstruction"
+    ]
+    assert transfer_snapshots[-1].artifact_id == "checkpoint"
+    assert transfer_snapshots[-1].completed_bytes == 4 * 1024 * 1024
+    assert transfer_snapshots[-1].total_bytes is None
+    assert transfer_snapshots[-1].done is True
+    assert reconstruction_snapshots[-1].completed_bytes == 4 * 1024 * 1024
+    assert reconstruction_snapshots[-1].total_bytes == 4 * 1024 * 1024
+    assert reconstruction_snapshots[-1].done is True
 
 
 def test_huggingface_progress_remains_silent_without_a_human_reporter(
@@ -156,3 +174,44 @@ def test_huggingface_progress_remains_silent_without_a_human_reporter(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
+
+
+def test_huggingface_fallback_filters_only_progress_frames(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Hub versions that ignore the adapter cannot spam or hide real warnings."""
+
+    def fake_snapshot_download(**kwargs: Any) -> str:
+        import sys
+
+        for line in (
+            "Downloading bytes: #### | 1.86GB, 21.4MB/s",
+            "Reconstructing (incomplete total...): 22% | 4.63MB / 21.4MB",
+            "Fetching 4 files: 100% | 4/4",
+            "Download complete: 16.5GB, 8.93MB/s",
+            "Reconstruction complete: 32.7GB / 32.7GB",
+        ):
+            print(line, file=sys.stderr)
+        print("upstream metadata warning remains visible", file=sys.stderr)
+        destination = Path(kwargs["local_dir"])
+        (destination / "weights.bin").write_bytes(b"model")
+        return str(destination)
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
+    source = ArtifactSource.model_validate(
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    )
+
+    fetch_source(source, tmp_path / "installed")
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "upstream metadata warning remains visible\n"

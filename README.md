@@ -253,8 +253,9 @@ uv run virea
 
 The wizard restores the last model/target, labels every model `not installed`, `needs attention`, or re-verified
 `READY`, and reuses a matching deployment without another download. Installation and generation show honest stage
-progress plus compact results instead of raw JSON; full evidence remains in the data root. Dependency download bars are
-routed into one VIREA live line instead of scrolling the terminal. Press Enter to reuse a saved choice. `NO_COLOR=1` or
+progress plus compact results instead of raw JSON; full evidence remains in the data root. Dependency download,
+reconstruction, and file-count bars are routed into one VIREA live line instead of scrolling the terminal. Acceptance
+failures show their error and failed stages before successful download notes. Press Enter to reuse a saved choice. `NO_COLOR=1` or
 redirected output uses bounded plain-text snapshots (first, at most one per 15 seconds, and final).
 
 ### 2. Advanced: install one real model non-interactively

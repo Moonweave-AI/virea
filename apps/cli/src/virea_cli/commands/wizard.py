@@ -489,6 +489,29 @@ def _deployment_rows(
                 f"{latest.get('state', 'UNKNOWN')} · {latest.get('installation_id', '—')}",
             )
         )
+    failure = latest.get("failure") if isinstance(latest, dict) else None
+    if isinstance(failure, dict):
+        error_code = failure.get("error_code")
+        error_message = failure.get("error_message")
+        publication_failure = failure.get("publication_failure")
+        failed_stages = failure.get("failed_stages")
+        if error_code:
+            rows.append(("Last error / 上次错误", error_code))
+        if error_message:
+            rows.append(("Cause / 原因", error_message))
+        elif publication_failure:
+            rows.append(("Cause / 原因", publication_failure))
+        if isinstance(failed_stages, list) and failed_stages:
+            rows.append(
+                ("Failed stages / 失败阶段", ", ".join(map(str, failed_stages)))
+            )
+        rows.append(
+            (
+                "Retry / 重试",
+                "Downloaded assets are verified and will be reused / "
+                "已验证的下载制品会直接复用，不会重新下载",
+            )
+        )
     return rows
 
 

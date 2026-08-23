@@ -186,13 +186,115 @@ def test_redirected_download_progress_is_rate_limited_and_has_a_final_snapshot()
             done=True,
         )
     )
+    for index in range(1, 201):
+        reporter.transfer(
+            SimpleNamespace(
+                artifact_id="checkpoint",
+                completed_bytes=index * 1024 * 1024,
+                total_bytes=200 * 1024 * 1024,
+                bytes_per_second=30 * 1024 * 1024,
+                phase="reconstruction",
+                done=False,
+            )
+        )
+    reporter.transfer(
+        SimpleNamespace(
+            artifact_id="checkpoint",
+            completed_bytes=200 * 1024 * 1024,
+            total_bytes=200 * 1024 * 1024,
+            bytes_per_second=30 * 1024 * 1024,
+            phase="reconstruction",
+            done=True,
+        )
+    )
 
     download_lines = [line for line in messages if "[download]" in line]
-    assert len(download_lines) == 2
+    assert len(download_lines) == 4
     assert "Downloading / 正在下载" in download_lines[0]
-    assert "Downloaded / 下载完成" in download_lines[-1]
+    assert "Downloaded / 下载完成" in download_lines[1]
+    assert "Reconstructing / 正在重建" in download_lines[2]
+    assert "Reconstructed / 重建完成" in download_lines[-1]
     assert "200.0 MiB" in download_lines[-1]
-    assert "20.0 MiB/s" in download_lines[-1]
+    assert "30.0 MiB/s" in download_lines[-1]
+
+
+def test_failed_installation_prioritizes_acceptance_cause_and_retry_action() -> None:
+    """Artifact success messages must never hide the actual acceptance failure."""
+
+    messages: list[str] = []
+    reporter = TerminalUI(messages.append).reporter("Model installation")
+    reporter.progress("6/6", "Publishing...")
+    reporter.result(
+        {
+            "installation_id": "installation-1",
+            "model_id": "prism-tp2m-1-4b",
+            "state": "FAILED",
+            "diagnostics": [
+                "stats: fetched stable asset",
+                "source: fetched stable asset",
+                "checkpoint: fetched stable asset",
+                "real installation acceptance failed: model load did not pass",
+            ],
+            "acceptance": {
+                "error_code": "WORKER_OOM",
+                "error_message": "CUDA out of memory while loading transformer",
+                "stages": {
+                    "environment_detection": True,
+                    "model_load": False,
+                    "inference": False,
+                    "web_playback": False,
+                },
+                "outstanding_required_stages": [
+                    "model_load",
+                    "inference",
+                    "web_playback",
+                ],
+                "web_playback": {
+                    "passed": False,
+                    "status": "requires_external_browser_evidence",
+                },
+            },
+            "next_action": "Close GPU workloads, then rerun `uv run virea`.",
+        }
+    )
+
+    rendered = "\n".join(messages)
+    assert "WORKER_OOM: CUDA out of memory" in rendered
+    assert "model_load, inference" in rendered
+    assert "real installation acceptance failed" in rendered
+    assert "Next / 下一步: Close GPU workloads" in rendered
+    assert rendered.index("WORKER_OOM") < rendered.index("fetched stable asset")
+
+
+def test_existing_failed_installation_shows_cause_and_cache_reuse() -> None:
+    """A restart explains the prior failure without repeating the download."""
+
+    rows = dict(
+        wizard._deployment_rows(
+            {
+                "ready": False,
+                "installed": True,
+                "state": "FAILED",
+                "installation_id": "installation-1",
+                "latest_attempt": {
+                    "installation_id": "installation-1",
+                    "state": "FAILED",
+                    "failure": {
+                        "error_code": "WORKER_OOM",
+                        "error_message": "CUDA out of memory",
+                        "failed_stages": ["model_load", "inference"],
+                        "downloads_reusable": True,
+                    },
+                },
+            },
+            None,
+        )
+    )
+
+    assert rows["Last error / 上次错误"] == "WORKER_OOM"
+    assert rows["Cause / 原因"] == "CUDA out of memory"
+    assert rows["Failed stages / 失败阶段"] == "model_load, inference"
+    assert "不会重新下载" in rows["Retry / 重试"]
 
 
 def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:

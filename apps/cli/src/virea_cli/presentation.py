@@ -20,10 +20,14 @@ from rich.progress import (
 )
 from rich.table import Table
 from rich.text import Text
+from virea_contracts.model import ProductionE2EStage
 
 Output = Callable[[str], None]
 _STAGE = re.compile(r"^(\d+)/(\d+)$")
 _PLAIN_TRANSFER_INTERVAL_SECONDS = 15.0
+_ACCEPTANCE_STAGE_ORDER = {
+    stage.value: index for index, stage in enumerate(ProductionE2EStage)
+}
 
 
 def _format_bytes(value: int | float) -> str:
@@ -239,14 +243,25 @@ class ProgressReporter:
 
         artifact_id = str(getattr(snapshot, "artifact_id", "artifact"))
         completed = max(0, int(getattr(snapshot, "completed_bytes", 0)))
+        total = getattr(snapshot, "total_bytes", None)
         rate = getattr(snapshot, "bytes_per_second", None)
+        phase = str(getattr(snapshot, "phase", "download"))
         done = bool(getattr(snapshot, "done", False))
-        status = (
-            "Downloaded / 下载完成"
-            if done
-            else "Downloading / 正在下载"
-        )
+        if phase == "reconstruction":
+            status = (
+                "Reconstructed / 重建完成"
+                if done
+                else "Reconstructing / 正在重建"
+            )
+        else:
+            status = (
+                "Downloaded / 下载完成"
+                if done
+                else "Downloading / 正在下载"
+            )
         message = f"{status} {artifact_id} · {_format_bytes(completed)}"
+        if isinstance(total, (int, float)) and total > 0:
+            message += f" / {_format_bytes(total)}"
         if isinstance(rate, (int, float)) and rate > 0:
             message += f" · {_format_bytes(rate)}/s"
 
@@ -259,7 +274,8 @@ class ProgressReporter:
             return
 
         now = time.monotonic()
-        first_for_artifact = artifact_id != self._transfer_artifact_id
+        transfer_key = f"{artifact_id}:{phase}"
+        first_for_artifact = transfer_key != self._transfer_artifact_id
         if (
             first_for_artifact
             or done
@@ -267,7 +283,7 @@ class ProgressReporter:
             >= _PLAIN_TRANSFER_INTERVAL_SECONDS
         ):
             self.ui.write(f"  [download] {message}")
-            self._transfer_artifact_id = artifact_id
+            self._transfer_artifact_id = transfer_key
             self._transfer_last_log_at = now
 
     def result(self, payload: object) -> None:
@@ -351,6 +367,9 @@ class ProgressReporter:
                 )
                 for reason in _diagnostic_lines(payload):
                     self.ui.write(f"  - {reason}")
+                next_action = payload.get("next_action")
+                if next_action:
+                    self.ui.write(f"  Next / 下一步: {next_action}")
                 self._evidence_note()
             return
         if "virea_home" in payload:
@@ -368,18 +387,82 @@ class ProgressReporter:
 
 
 def _diagnostic_lines(payload: Mapping[str, Any]) -> Iterable[str]:
+    candidates: list[str] = []
+    acceptance = payload.get("acceptance")
+    if isinstance(acceptance, Mapping):
+        error_code = acceptance.get("error_code")
+        error_message = acceptance.get("error_message")
+        if error_code or error_message:
+            candidates.append(
+                ": ".join(
+                    str(value)
+                    for value in (error_code, error_message)
+                    if value
+                )
+            )
+        stages = acceptance.get("stages")
+        web_playback = acceptance.get("web_playback")
+        expected_external = (
+            {"web_playback"}
+            if isinstance(web_playback, Mapping)
+            and web_playback.get("status") == "requires_external_browser_evidence"
+            else set()
+        )
+        if isinstance(stages, Mapping):
+            failed_stages = sorted(
+                (
+                    str(name)
+                    for name, passed in stages.items()
+                    if passed is False and str(name) not in expected_external
+                ),
+                key=lambda value: _ACCEPTANCE_STAGE_ORDER.get(
+                    value, len(_ACCEPTANCE_STAGE_ORDER)
+                ),
+            )
+            if failed_stages:
+                candidates.append(
+                    "Failed acceptance stages / 验收失败阶段: "
+                    + ", ".join(failed_stages)
+                )
+        missing_files = acceptance.get("missing_installation_files")
+        if isinstance(missing_files, Sequence) and not isinstance(missing_files, str):
+            if missing_files:
+                candidates.append(
+                    "Missing installation files / 缺少安装文件: "
+                    + ", ".join(str(value) for value in missing_files)
+                )
+
     diagnostics = payload.get("diagnostics")
     if isinstance(diagnostics, Sequence) and not isinstance(diagnostics, str):
-        for value in diagnostics[:3]:
-            yield str(value)
+        rendered = [str(value) for value in diagnostics]
+        candidates.extend(
+            value
+            for value in rendered
+            if "acceptance" in value.lower()
+            or "failed" in value.lower()
+            or "error" in value.lower()
+        )
+        candidates.extend(
+            value
+            for value in rendered
+            if value not in candidates
+        )
     compatibility = payload.get("compatibility") or payload.get(
         "resource_admission"
     )
     if isinstance(compatibility, Mapping):
         reasons = compatibility.get("reasons")
         if isinstance(reasons, Sequence) and not isinstance(reasons, str):
-            for value in reasons[:3]:
-                yield str(value)
+            candidates.extend(str(value) for value in reasons)
+
+    seen: set[str] = set()
+    for value in candidates:
+        if value in seen:
+            continue
+        yield value
+        seen.add(value)
+        if len(seen) >= 6:
+            return
 
 
 def target_label(target: object) -> str | None:
