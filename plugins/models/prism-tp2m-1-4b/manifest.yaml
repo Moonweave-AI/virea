@@ -73,9 +73,9 @@ runtime_variants:
       - PYTORCH_ALLOC_CONF
     working_directory: plugins/models/prism-tp2m-1-4b/runtime-cu128
     project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
-    project_version: 0.1.3
+    project_version: 0.1.4
     runtime_core_epoch: virea-runtime-core-20260821.2
-    availability: windows_and_linux_cuda_lock_resolution_verified_historical_wsl_runtime_0_1_2_evidence_requires_reacceptance
+    availability: windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_4_dtype_loading_requires_reacceptance
   - schema_version: virea.runtime_spec.v1.0.0
     id: prism-tp2m-1-4b-cpu
     backend: uv-native
@@ -113,9 +113,9 @@ runtime_variants:
       - TOKENIZERS_PARALLELISM
     working_directory: plugins/models/prism-tp2m-1-4b/runtime-cpu
     project_package: virea-model-prism-tp2m-1-4b-cpu-runtime
-    project_version: 0.1.3
+    project_version: 0.1.4
     runtime_core_epoch: virea-runtime-core-20260821.2
-    availability: cpu_contract_and_lock_baseline_real_inference_unverified
+    availability: cpu_contract_and_lock_baseline_runtime_0_1_4_dtype_loading_real_inference_unverified
 artifacts:
   - id: prism-source
     kind: https
@@ -281,7 +281,7 @@ production_acceptance:
     - web_playback
   timeout_seconds: 7200
 notes:
-  - The managed WSL2 production-evidence chain remains historical evidence for runtime package 0.1.2. The new 0.1.3 CUDA wrapper and CPU runtime have contract/lock evidence only and require separate real-checkpoint acceptance.
+  - The managed WSL2 production-evidence chain remains historical evidence for runtime package 0.1.2. Runtime 0.1.4 loads the Transformer and VAE at the requested dtype through Diffusers from_pretrained instead of casting them after construction; the new CUDA and CPU wrappers have contract/lock evidence only and require separate real-checkpoint acceptance.
   - The CUDA 12.8 lock resolves natively on win-64 and the shared loader has no Linux-only dependency or path contract, so Windows CUDA is declared buildable. Real-checkpoint Windows acceptance remains a separate evidence boundary and is not inferred from the lock check.
   - The Worker performs no model download or implicit Hub access. Every artifact is installed before startup and addressed by VIREA_ARTIFACT_ROOTS_JSON.
   - The runtime does not require or fabricate SMPL-X geometry. The raw public SMPL-X-style NPZ is preserved alongside the exact 69D body22 control-plane carrier.

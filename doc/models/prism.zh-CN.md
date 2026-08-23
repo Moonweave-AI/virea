@@ -108,3 +108,42 @@ version/epoch installation acceptance、fresh Web generation 与后端绑定后�
 Windows 宿主中的 WSL Ubuntu 24.04 + RTX 5090 Laptop GPU。新加入的 Windows-native 声明当前只有 lock
 解析与 wrapper contract 证据，不是原生 Windows 真实推理、原生 Linux、macOS、其他 GPU、`supported`
 或公开 GA 证据。
+
+## dtype 安全加载与既有部署更新
+
+Runtime `0.1.4` 改为通过 Diffusers `from_pretrained(..., torch_dtype=...)` 加载 PRISM Transformer 和 VAE，
+在权重加载阶段就确定推理精度；VIREA 不再先用 float32 构造完整组件、装载权重，再对整套模型执行
+`.to(dtype=...)`。加载仍保持仅本地文件、仅 Safetensors、低内存模式，并继续对 missing、unexpected、
+mismatched 与其他权重加载错误实行失败关闭。
+
+此前的 `There are modules ... should be kept in float32` 两行本身是 Diffusers 警告，不是 Python exception；
+它能证明旧代码走了不安全的整体 dtype 转换路径，但不能单独证明生成最终失败的原因。Runtime `0.1.4` 已移除
+该路径。若更新后仍失败，应以 VIREA 展示的结构化终止原因定位，不要把更早出现的普通警告误当作最终异常。
+
+已有 clone 不需要删除部署；更新代码后让向导只修复过期 Runtime：
+
+```powershell
+# 将当前 clone 快进到远端最新 main；这条命令不会删除数据根目录。
+git pull --ff-only origin main
+
+# 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
+uv sync --locked
+
+# 启动交互向导；它会识别 Runtime 0.1.3 已过期并构建 Runtime 0.1.4。
+uv run virea
+```
+
+```bash
+# 将当前 clone 快进到远端最新 main；这条命令不会删除数据根目录。
+git pull --ff-only origin main
+
+# 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
+uv sync --locked
+
+# 启动交互向导；它会识别 Runtime 0.1.3 已过期并构建 Runtime 0.1.4。
+uv run virea
+```
+
+四项固定 artifact revision 均未改变。已经校验的 PRISM 源码、约 32.7 GB 模型快照、tokenizer 和 statistics
+仍保留在最初配置的数据根目录中并直接复用；不要删除，也不需要重新下载。只需重建隔离的 PRISM Runtime；
+用户确认既有执行域与资源 profile 后，向导会完成该迁移。

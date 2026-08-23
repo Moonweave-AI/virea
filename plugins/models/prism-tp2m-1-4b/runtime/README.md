@@ -3,8 +3,8 @@ type: runtime-guide
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: PRISM TP2M 1.4B 隔离 Worker 的固定制品、离线加载、组件拆分与原生输出契约。
 canonical: plugins/models/prism-tp2m-1-4b/runtime/README.md
@@ -20,6 +20,8 @@ superseded_by: []
 This project is the VIREA Worker for the pinned public PRISM TP2M 1.4B checkpoint. It is built and launched only through VIREA's runtime supervisor.
 
 The runtime consumes four revision-pinned external artifact roots: PRISM source, the official checkpoint, the `google/umt5-xxl` tokenizer, and MotionHub SMPL-H statistics. It never downloads during Worker startup or inference. PRISM source and weights are not bundled in VIREA release artifacts.
+
+Runtime 0.1.4 loads the Transformer and VAE with Diffusers `from_pretrained` and establishes `torch_dtype` during weight loading. It does not cast a fully constructed component with `.to(dtype=...)`. Loading is local-only, Safetensors-only, low-memory, and rejects every reported missing, unexpected, mismatched, or invalid checkpoint key.
 
 The runtime is technically deployable but not cleared for public redistribution.
 Its prompt-encoding sequence is adapted from the pinned PRISM pipeline, whose
