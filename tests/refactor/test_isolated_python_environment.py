@@ -170,6 +170,7 @@ def test_worker_environment_prevents_bytecode_writes_to_model_assets() -> None:
     )
 
     assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert environment["PYTHONFAULTHANDLER"] == "1"
     assert environment["PYTHONIOENCODING"] == "utf-8"
 
 

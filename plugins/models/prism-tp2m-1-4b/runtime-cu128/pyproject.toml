@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea-model-prism-tp2m-1-4b-cu128-runtime"
-version = "0.1.5"
+version = "0.1.6"
 description = "CUDA 12.8 component-split environment for the shared VIREA PRISM Worker"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "MIT" }
 authors = [{ name = "Moonweave AI" }]
 dependencies = [
-  "virea-model-prism-tp2m-1-4b-runtime==0.1.5",
+  "virea-model-prism-tp2m-1-4b-runtime==0.1.6",
   "torch==2.11.0",
 ]
 

@@ -7,12 +7,15 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import accelerate
 import pytest
+import safetensors
 import tomllib
 import torch
 import yaml
 from diffusers import ConfigMixin, ModelMixin
 from diffusers.configuration_utils import register_to_config
+from safetensors.torch import load_file, save_file
 from virea_contracts.runtime import MemoryStrategy, RuntimeSpec
 from virea_model_sdk import WorkerFailure
 from virea_prism.artifacts import PrismArtifactRoots
@@ -41,6 +44,15 @@ class _TinyDiffusersComponent(ModelMixin, ConfigMixin):
     def __init__(self, width: int = 2) -> None:
         super().__init__()
         self.projection = torch.nn.Linear(width, width)
+        self.register_buffer("step", torch.tensor(1, dtype=torch.int64))
+        self.register_buffer(
+            "phase",
+            torch.tensor([0.5], dtype=torch.float32),
+            persistent=False,
+        )
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        return self.projection(value) + self.phase
 
 
 def _roots(tmp_path: Path) -> PrismArtifactRoots:
@@ -138,14 +150,30 @@ def test_offline_loader_accepts_cpu_float32() -> None:
 def test_offline_loader_supports_official_and_diffusers_safetensors_layouts(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
     weight_filename: str,
 ) -> None:
     component_root = tmp_path / "component"
     _TinyDiffusersComponent().save_pretrained(component_root, safe_serialization=True)
     generated = component_root / "diffusion_pytorch_model.safetensors"
     requested = component_root / weight_filename
-    if generated != requested:
-        generated.replace(requested)
+    state = load_file(str(generated), device="cpu")
+    generated.unlink()
+    # The official PRISM archive intentionally has no optional metadata block.
+    save_file(state, str(requested))
+    del state
+    safe_open_devices: list[str | None] = []
+    original_safe_open = safetensors.safe_open
+
+    def recording_safe_open(*args, **kwargs):
+        safe_open_devices.append(kwargs.get("device"))
+        return original_safe_open(*args, **kwargs)
+
+    def forbidden_dispatch(*_args, **_kwargs):
+        raise AssertionError("Accelerate checkpoint dispatch must not be used")
+
+    monkeypatch.setattr(safetensors, "safe_open", recording_safe_open)
+    monkeypatch.setattr(accelerate, "load_checkpoint_and_dispatch", forbidden_dispatch)
     caplog.set_level(logging.WARNING)
 
     loaded = _load_diffusers_component(
@@ -157,7 +185,14 @@ def test_offline_loader_supports_official_and_diffusers_safetensors_layouts(
     )
 
     assert loaded.projection.weight.dtype is torch.float16
+    assert loaded.step.dtype is torch.int64
+    assert loaded.phase.dtype is torch.float16
+    assert loaded.phase.device.type == "cpu"
+    assert safe_open_devices == ["cpu", "cpu"]
     assert "Casting directly with `to()`" not in caplog.text
+    assert "does not contain metadata" not in caplog.text
+    requested.unlink()
+    assert not requested.exists()
 
 
 def test_offline_loader_rejects_checkpoint_shape_mismatch_before_loading(
@@ -178,6 +213,57 @@ def test_offline_loader_rejects_checkpoint_shape_mismatch_before_loading(
             target=torch.device("cpu"),
             dtype=torch.float16,
         )
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_offline_loader_uses_cpu_staging_on_real_cuda_blackwell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    component_root = tmp_path / "component"
+    component = _TinyDiffusersComponent(width=4096)
+    component.save_pretrained(component_root, safe_serialization=True)
+    generated = component_root / "diffusion_pytorch_model.safetensors"
+    requested = component_root / "model.safetensors"
+    state = load_file(str(generated), device="cpu")
+    generated.unlink()
+    save_file(state, str(requested))
+    del component, state
+
+    safe_open_devices: list[str | None] = []
+    original_safe_open = safetensors.safe_open
+
+    def recording_safe_open(*args, **kwargs):
+        safe_open_devices.append(kwargs.get("device"))
+        return original_safe_open(*args, **kwargs)
+
+    def forbidden_dispatch(*_args, **_kwargs):
+        raise AssertionError("Accelerate checkpoint dispatch must not be used")
+
+    monkeypatch.setattr(safetensors, "safe_open", recording_safe_open)
+    monkeypatch.setattr(accelerate, "load_checkpoint_and_dispatch", forbidden_dispatch)
+    target = torch.device("cuda:0")
+    loaded = _load_diffusers_component(
+        _TinyDiffusersComponent,
+        component_root,
+        label="CUDA Blackwell test component",
+        target=target,
+        dtype=torch.bfloat16,
+    )
+    output = loaded(torch.ones((1, 4096), device=target, dtype=torch.bfloat16))
+    torch.cuda.synchronize(target)
+
+    assert output.shape == (1, 4096)
+    assert torch.isfinite(output).all()
+    assert loaded.projection.weight.device == target
+    assert loaded.projection.weight.dtype is torch.bfloat16
+    assert loaded.step.device == target
+    assert loaded.step.dtype is torch.int64
+    assert loaded.phase.device == target
+    assert loaded.phase.dtype is torch.bfloat16
+    assert safe_open_devices == ["cpu", "cpu"]
+    del loaded, output
+    torch.cuda.empty_cache()
 
 
 def test_pinned_source_import_never_writes_bytecode(
@@ -247,10 +333,10 @@ def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
     cpu_project = tomllib.loads(
         (MODEL_ROOT / "runtime-cpu" / "pyproject.toml").read_text(encoding="utf-8")
     )
-    assert shared["project"]["version"] == "0.1.5"
-    assert cuda_project["project"]["version"] == "0.1.5"
-    assert cpu_project["project"]["version"] == "0.1.5"
-    assert set(runtime.project_version for runtime in registered) == {"0.1.5"}
+    assert shared["project"]["version"] == "0.1.6"
+    assert cuda_project["project"]["version"] == "0.1.6"
+    assert cpu_project["project"]["version"] == "0.1.6"
+    assert set(runtime.project_version for runtime in registered) == {"0.1.6"}
     assert "torch>=2.2.2,<2.12" in shared["project"]["dependencies"]
     assert "torch==2.11.0" in cuda_project["project"]["dependencies"]
     assert any(

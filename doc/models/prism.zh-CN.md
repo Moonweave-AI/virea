@@ -15,6 +15,7 @@ related:
   - ../research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
   - ../research/prism-official-integration-audit-2026-08-21.zh-CN.md
   - ../research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
+  - ../research/prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
@@ -114,17 +115,22 @@ Windows 宿主中的 WSL Ubuntu 24.04 + RTX 5090 Laptop GPU。新加入的 Windo
 
 固定的官方 checkpoint 把 Transformer 和 VAE 权重都命名为 `model.safetensors`；Diffusers
 `ModelMixin.from_pretrained` 在 multifolder 布局中默认寻找的却是 `diffusion_pytorch_model.safetensors`，因此仅
-修改 dtype 参数仍无法加载官方 PRISM。Runtime `0.1.5` 现在只接受这两个安全文件名之一，在 PyTorch meta
-device 上构造空组件，先逐项核验全部 state key 与 tensor shape，再由 Accelerate 直接按目标 dtype 和设备加载、
-dispatch。它不会重命名、复制或修改 5.68 GB Transformer 文件，也绝不回退到 pickle checkpoint。
+修改 dtype 参数仍无法加载官方 PRISM。Runtime `0.1.6` 只接受这两个安全文件名之一，在 PyTorch meta device
+上构造空组件，逐项核验全部 state key 与 tensor shape；随后在 CPU 打开 Safetensors，每次只把一个浮点 tensor
+转换到目标 dtype 并直接安装到最终设备。它不会重命名、复制或修改 5.68 GB Transformer，也绝不回退到 pickle。
+
+官方 archive 全部为 float32 tensor，并且没有可选的 Safetensors metadata map；对该固定资产而言这是合法布局，
+此前显示的 metadata 内容只是 Accelerate 警告。Runtime `0.1.5` 随后进入 Accelerate meta-tensor checkpoint
+dispatch，而该路径在 Windows Blackwell GPU 上已有原生崩溃报告。Runtime `0.1.6` 不再调用该 dispatch API、
+不会把整个 checkpoint 直接装入 CUDA，也不会在构造后整体转换模型。
 
 所有 Worker 同时强制禁止写入 Python bytecode；在 Windows、Linux、WSL 和 macOS 导入固定 PRISM 源码时，
 都不会再向不可变模型资产写入 `__pycache__` 或 `.pyc`。资产完整性仍严格校验；真正不一致时，诊断会列出
 有界的 added、missing、changed 路径，而不再只给出笼统的 `tree differs`。
 
-此前 `There are modules ... should be kept in float32` 是 Diffusers 警告；其后缺少
-`diffusion_pytorch_model.safetensors` 才是本次 Worker 的终止错误。Runtime `0.1.5` 同时移除了这两条不兼容
-路径。
+所有 Worker 还会启用 Python faulthandler。若第三方 native 依赖仍在 Windows 中终止，VIREA 会把
+`0xC0000005` 的有符号、无符号退出码都解释为原生访问冲突，并保留可获得的 stack 与日志尾部，不再只显示没有
+上下文的十进制代码。
 
 已有 clone 不需要删除部署；更新代码后让向导只修复过期 Runtime：
 
@@ -135,7 +141,7 @@ git pull --ff-only origin main
 # 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
 uv sync --locked
 
-# 启动交互向导；它会识别所有低于 0.1.5 的 PRISM Runtime 并重建。
+# 启动交互向导；它会识别所有低于 0.1.6 的 PRISM Runtime 并重建。
 uv run virea
 ```
 
@@ -146,7 +152,7 @@ git pull --ff-only origin main
 # 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
 uv sync --locked
 
-# 启动交互向导；它会识别所有低于 0.1.5 的 PRISM Runtime 并重建。
+# 启动交互向导；它会识别所有低于 0.1.6 的 PRISM Runtime 并重建。
 uv run virea
 ```
 

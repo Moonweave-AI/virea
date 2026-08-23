@@ -259,6 +259,14 @@ def test_start_failure_includes_bounded_stdout_and_stderr_tails(tmp_path) -> Non
     assert rows[0]["state"] == "FAILED"
 
 
+@pytest.mark.parametrize("return_code", (-1073741819, 3221225477))
+def test_windows_access_violation_exit_code_is_decoded(return_code: int) -> None:
+    description = supervisor_module._worker_exit_description(return_code)
+
+    assert "Windows native access violation" in description
+    assert "0xC0000005" in description
+
+
 def test_unresolved_recovery_blocks_real_gpu_job_admission(tmp_path) -> None:
     paths = VireaPaths(tmp_path / "virea-home")
     store = StateStore(paths)

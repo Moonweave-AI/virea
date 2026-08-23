@@ -14,6 +14,7 @@ related:
   - ../platforms/wsl2.en.md
   - ../research/runtime-resource-requirements-audit-2026-08-23.en.md
   - ../research/prism-checkpoint-loading-integrity-2026-08-23.en.md
+  - ../research/prism-windows-blackwell-materialization-2026-08-23.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -100,18 +101,24 @@ of real Windows checkpoint inference, native Linux or macOS inference, another G
 
 The pinned official checkpoint names both component files `model.safetensors`. Diffusers `ModelMixin.from_pretrained`
 instead resolves its multifolder component weight as `diffusion_pytorch_model.safetensors`; changing only the dtype call
-therefore cannot load the official PRISM layout. Runtime `0.1.5` now accepts exactly one of those two safe filenames,
-constructs the component skeleton on PyTorch's meta device, verifies every state key and tensor shape, and asks Accelerate
-to load and dispatch the file directly at the requested dtype. It does not rename, copy, or modify the 5.68 GB Transformer
-file and never falls back to a pickle checkpoint.
+therefore cannot load the official PRISM layout. Runtime `0.1.6` accepts exactly one of those two safe filenames and
+constructs the component skeleton on PyTorch's meta device. It verifies every state key and tensor shape, opens the
+Safetensors archive on CPU, converts one floating tensor at a time to the requested dtype, and installs it directly on the
+final device. It does not rename, copy, or modify the 5.68 GB Transformer file and never falls back to pickle.
+
+The official archives contain float32 tensors and no optional Safetensors metadata map. Missing metadata is valid for this
+pinned asset and was only an Accelerate warning. Runtime `0.1.5` then entered Accelerate's meta-tensor checkpoint dispatch,
+which has a reported native-crash path on Windows Blackwell GPUs. Runtime `0.1.6` does not call that dispatch API, does not
+load the whole checkpoint directly to CUDA, and does not cast a complete model after construction.
 
 Every Worker also runs with bytecode writes disabled. Importing the pinned PRISM source can no longer add `__pycache__` or
 `.pyc` files to the immutable model asset on Windows, Linux, WSL, or macOS. Integrity verification remains strict; when a
 tree does differ, diagnostics now identify bounded added, missing, and changed paths instead of reporting only a generic
 failure.
 
-The earlier `There are modules ... should be kept in float32` lines were Diffusers warnings, while the later missing
-`diffusion_pytorch_model.safetensors` line was the terminal load error. Runtime `0.1.5` removes both incompatible paths.
+Every Worker also enables Python faulthandler. If a third-party native dependency still terminates on Windows, VIREA
+decodes both signed and unsigned forms of `0xC0000005` as a native access violation and preserves the available stack and
+log tail instead of presenting the decimal code without context.
 
 On an existing clone, update and let the wizard repair only the outdated Runtime:
 
@@ -122,7 +129,7 @@ git pull --ff-only origin main
 # Synchronize the repository's locked development environment.
 uv sync --locked
 
-# Start the wizard. It detects any PRISM Runtime older than 0.1.5 and rebuilds it.
+# Start the wizard. It detects any PRISM Runtime older than 0.1.6 and rebuilds it.
 uv run virea
 ```
 
@@ -133,7 +140,7 @@ git pull --ff-only origin main
 # Synchronize the repository's locked development environment.
 uv sync --locked
 
-# Start the wizard. It detects any PRISM Runtime older than 0.1.5 and rebuilds it.
+# Start the wizard. It detects any PRISM Runtime older than 0.1.6 and rebuilds it.
 uv run virea
 ```
 

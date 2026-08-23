@@ -51,6 +51,16 @@ class WorkerProtocolError(RuntimeError):
         self.payload = payload
 
 
+def _worker_exit_description(return_code: int) -> str:
+    unsigned_code = return_code & 0xFFFFFFFF
+    if unsigned_code == 0xC0000005:
+        return (
+            f"{return_code} (Windows native access violation 0xC0000005; "
+            "inspect the faulthandler stack and native dependency boundary)"
+        )
+    return str(return_code)
+
+
 def _loopback_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -90,6 +100,7 @@ def _worker_python_environment(source: Mapping[str, str]) -> dict[str, str]:
 
     environment = sanitized_python_environment(source)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONFAULTHANDLER"] = "1"
     environment["PYTHONIOENCODING"] = "utf-8"
     return environment
 
@@ -491,6 +502,7 @@ class WorkerSupervisor:
             if process.poll() is not None:
                 handle.close_streams()
                 detail = _worker_log_tail(stdout_path, stderr_path)
+                exit_description = _worker_exit_description(process.returncode)
                 self.store.update_worker_instance(
                     instance_id,
                     state="FAILED",
@@ -498,11 +510,13 @@ class WorkerSupervisor:
                     diagnostics={
                         "failure": "worker exited before readiness",
                         "return_code": process.returncode,
+                        "return_code_description": exit_description,
                         "log_tail": detail,
                     },
                 )
                 raise WorkerStartError(
-                    f"worker exited before readiness with code {process.returncode}: {detail}"
+                    "worker exited before readiness with code "
+                    f"{exit_description}: {detail}"
                 )
             if client.ready():
                 self.store.update_worker_instance(instance_id, state="RUNNING")

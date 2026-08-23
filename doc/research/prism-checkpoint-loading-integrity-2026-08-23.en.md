@@ -1,6 +1,6 @@
 ---
 type: research-log
-status: Active
+status: Superseded
 owner: VIREA maintainers
 created: 2026-08-23
 updated: 2026-08-23
@@ -12,8 +12,10 @@ related:
   - prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
   - ../models/prism.en.md
   - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+  - prism-windows-blackwell-materialization-2026-08-23.en.md
 supersedes: []
-superseded_by: []
+superseded_by:
+  - prism-windows-blackwell-materialization-2026-08-23.en.md
 ---
 
 # PRISM checkpoint-loading and asset-integrity research log
@@ -79,3 +81,9 @@ statistics remain reusable. A previously polluted small source asset may be quar
 
 Decision: promote the compatibility and immutability fixes to engineering through Runtime 0.1.5; retain
 `integrated_experimental` until fresh real-checkpoint acceptance succeeds.
+
+## Supersession note
+
+Fresh Windows Blackwell acceptance showed that Runtime 0.1.5 entered an upstream native-crash path during Accelerate
+meta-tensor dispatch. The filename and bytecode-integrity findings above remain valid, but the loading implementation and
+promotion decision are superseded by the linked Runtime 0.1.6 research log.

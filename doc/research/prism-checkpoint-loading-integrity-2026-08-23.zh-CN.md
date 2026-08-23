@@ -1,6 +1,6 @@
 ---
 type: research-log
-status: Active
+status: Superseded
 owner: VIREA maintainers
 created: 2026-08-23
 updated: 2026-08-23
@@ -12,8 +12,10 @@ related:
   - prism-checkpoint-loading-integrity-2026-08-23.en.md
   - ../models/prism.zh-CN.md
   - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
 supersedes: []
-superseded_by: []
+superseded_by:
+  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
 ---
 
 # PRISM checkpoint 加载与资产完整性研究日志
@@ -75,3 +77,9 @@ statistics 都会复用；此前已被污染的小型源码资产可能被隔离
 
 决策：以 Runtime 0.1.5 把兼容性与不可变性修复推进到工程阶段；fresh 真实 checkpoint acceptance 通过前继续
 保持 `integrated_experimental`。
+
+## 替代说明
+
+Windows Blackwell 的 fresh acceptance 证明 Runtime 0.1.5 在 Accelerate meta-tensor dispatch 阶段进入了上游
+native crash 路径。上述文件名与 bytecode 完整性发现仍然有效，但加载实现与推进决策由关联的 Runtime 0.1.6
+研究日志替代。
