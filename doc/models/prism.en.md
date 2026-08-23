@@ -94,3 +94,45 @@ under the current policy and cannot be reported as current `passed` evidence.
 
 The new Windows-native CUDA declaration currently has lock-resolution and wrapper-contract evidence only. It is not proof
 of real Windows checkpoint inference, native Linux or macOS inference, another GPU, `supported` status, or public GA.
+
+## Dtype-safe loading and updating an existing deployment
+
+Runtime `0.1.4` loads the PRISM Transformer and VAE through Diffusers
+`from_pretrained(..., torch_dtype=...)`. The requested inference precision is therefore established while weights are
+loaded; VIREA no longer constructs these components in float32 and then casts the complete model with `.to(dtype=...)`.
+Loading remains local-only, Safetensors-only, low-memory, and fails closed on missing, unexpected, mismatched, or otherwise
+invalid checkpoint keys.
+
+The earlier `There are modules ... should be kept in float32` lines are Diffusers warnings, not Python exceptions by
+themselves. They identified the unsafe cast path but did not prove why a generation job eventually failed. Runtime `0.1.4`
+removes that path. If a job still fails after the update, use the structured failure reason shown by VIREA rather than
+treating an unrelated warning as the terminal error.
+
+On an existing clone, update and let the wizard repair only the outdated Runtime:
+
+```powershell
+# Fast-forward this clone to the latest main branch; this does not delete the data root.
+git pull --ff-only origin main
+
+# Synchronize the repository's locked development environment.
+uv sync --locked
+
+# Start the wizard. It detects Runtime 0.1.3 as outdated and builds Runtime 0.1.4.
+uv run virea
+```
+
+```bash
+# Fast-forward this clone to the latest main branch; this does not delete the data root.
+git pull --ff-only origin main
+
+# Synchronize the repository's locked development environment.
+uv sync --locked
+
+# Start the wizard. It detects Runtime 0.1.3 as outdated and builds Runtime 0.1.4.
+uv run virea
+```
+
+The four pinned artifact revisions did not change. Verified PRISM source, the approximately 32.7 GB model snapshot,
+tokenizer, and statistics remain in the configured data root and are reused. Do not delete them and do not download them
+again. Only the isolated PRISM Runtime must be rebuilt; the wizard performs that migration after the user confirms the
+existing execution domain and resource profile.

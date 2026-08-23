@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import tomllib
+import torch
 import yaml
+from diffusers import ConfigMixin, ModelMixin
+from diffusers.configuration_utils import register_to_config
 from virea_contracts.runtime import MemoryStrategy, RuntimeSpec
 from virea_model_sdk import WorkerFailure
 from virea_prism.artifacts import PrismArtifactRoots
@@ -16,11 +20,23 @@ from virea_prism.backend import (
     PrismBackend,
     portable_memory_observation,
 )
-from virea_prism.offline_loader import _resolve_torch_dtype
+from virea_prism.offline_loader import (
+    _load_diffusers_component,
+    _resolve_torch_dtype,
+)
 from virea_prism.worker import PrismTP2MPlugin
 
 MODEL_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY_ROOT = MODEL_ROOT.parents[2]
+
+
+class _TinyDiffusersComponent(ModelMixin, ConfigMixin):
+    _keep_in_fp32_modules = None
+
+    @register_to_config
+    def __init__(self, width: int = 2) -> None:
+        super().__init__()
+        self.projection = torch.nn.Linear(width, width)
 
 
 def _roots(tmp_path: Path) -> PrismArtifactRoots:
@@ -60,11 +76,7 @@ def test_cuda_metadata_separates_installed_capacity_from_live_headroom(
     resources = plugin.metadata().resources
 
     assert resources["min_ram_gib"] == MIN_TOTAL_RAM_GIB == 28.0
-    assert (
-        resources["min_available_ram_before_load_gib"]
-        == MIN_FREE_RAM_GIB
-        == 15.0
-    )
+    assert resources["min_available_ram_before_load_gib"] == MIN_FREE_RAM_GIB == 15.0
 
 
 def test_cpu_ram_preflight_fails_before_artifact_or_torch_load(
@@ -115,6 +127,48 @@ def test_offline_loader_accepts_cpu_float32() -> None:
         _resolve_torch_dtype(torch_module, "float64")
 
 
+def test_offline_loader_sets_dtype_during_pretrained_load_without_cast_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    component_root = tmp_path / "component"
+    _TinyDiffusersComponent().save_pretrained(component_root, safe_serialization=True)
+    caplog.set_level(logging.WARNING)
+
+    loaded = _load_diffusers_component(
+        _TinyDiffusersComponent,
+        component_root,
+        label="test component",
+        target=torch.device("cpu"),
+        dtype=torch.float16,
+    )
+
+    assert loaded.projection.weight.dtype is torch.float16
+    assert "Casting directly with `to()`" not in caplog.text
+
+
+def test_offline_loader_rejects_diffusers_loading_info_mismatch(
+    tmp_path: Path,
+) -> None:
+    class MismatchedComponent:
+        @classmethod
+        def from_pretrained(cls, *_args, **_kwargs):
+            return cls(), {
+                "missing_keys": ["projection.weight"],
+                "unexpected_keys": [],
+                "mismatched_keys": [],
+                "error_msgs": [],
+            }
+
+    with pytest.raises(RuntimeError, match="missing_keys.*projection.weight"):
+        _load_diffusers_component(
+            MismatchedComponent,
+            tmp_path,
+            label="test component",
+            target=torch.device("cpu"),
+            dtype=torch.float16,
+        )
+
+
 def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
     manifest = yaml.safe_load(
         (MODEL_ROOT / "manifest.yaml").read_text(encoding="utf-8")
@@ -157,7 +211,10 @@ def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
     cpu_project = tomllib.loads(
         (MODEL_ROOT / "runtime-cpu" / "pyproject.toml").read_text(encoding="utf-8")
     )
-    assert shared["project"]["version"] == "0.1.3"
+    assert shared["project"]["version"] == "0.1.4"
+    assert cuda_project["project"]["version"] == "0.1.4"
+    assert cpu_project["project"]["version"] == "0.1.4"
+    assert set(runtime.project_version for runtime in registered) == {"0.1.4"}
     assert "torch>=2.2.2,<2.12" in shared["project"]["dependencies"]
     assert "torch==2.11.0" in cuda_project["project"]["dependencies"]
     assert any(

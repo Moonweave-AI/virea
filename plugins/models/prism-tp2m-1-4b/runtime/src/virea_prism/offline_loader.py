@@ -37,6 +37,41 @@ def _json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _load_diffusers_component(
+    component_class: Any,
+    root: Path,
+    *,
+    label: str,
+    target: Any,
+    dtype: Any,
+) -> Any:
+    """Load a pinned local Diffusers component at its inference precision."""
+
+    model, loading_info = component_class.from_pretrained(
+        str(root),
+        torch_dtype=dtype,
+        low_cpu_mem_usage=True,
+        local_files_only=True,
+        use_safetensors=True,
+        output_loading_info=True,
+    )
+    problems = {
+        key: list(loading_info.get(key) or [])
+        for key in (
+            "missing_keys",
+            "unexpected_keys",
+            "mismatched_keys",
+            "error_msgs",
+        )
+    }
+    if any(problems.values()):
+        details = ", ".join(
+            f"{key}={values[:5]}" for key, values in problems.items() if values
+        )
+        raise RuntimeError(f"PRISM {label} state mismatch: {details}")
+    return model.to(device=target).eval()
+
+
 def _activate_pinned_source(source: Path) -> None:
     existing = sys.modules.get("prism")
     if existing is not None:
@@ -221,7 +256,6 @@ def load_offline_prism_pipeline(
 ) -> Any:
     import torch
     from diffusers import FlowMatchEulerDiscreteScheduler
-    from safetensors.torch import load_file
     from transformers import AutoTokenizer, UMT5EncoderModel
 
     _activate_pinned_source(artifacts.source)
@@ -231,24 +265,13 @@ def load_offline_prism_pipeline(
 
     dtype = _resolve_torch_dtype(torch, dtype_name)
     target = torch.device(device)
-    top_config = _json_object(artifacts.model / "config.json")
-
-    transformer_config = dict(top_config.get("transformer") or {})
-    transformer_config.pop("model_type", None)
-    if isinstance(transformer_config.get("patch_size"), list):
-        transformer_config["patch_size"] = tuple(transformer_config["patch_size"])
-    transformer = PrismTransformerMotionModel(**transformer_config)
-    transformer_state = load_file(
-        str(artifacts.model / "transformer" / "model.safetensors"), device="cpu"
+    transformer = _load_diffusers_component(
+        PrismTransformerMotionModel,
+        artifacts.model / "transformer",
+        label="transformer",
+        target=target,
+        dtype=dtype,
     )
-    missing, unexpected = transformer.load_state_dict(transformer_state, strict=False)
-    if missing or unexpected:
-        raise RuntimeError(
-            f"PRISM transformer state mismatch: missing={list(missing)[:5]}, "
-            f"unexpected={list(unexpected)[:5]}"
-        )
-    del transformer_state
-    transformer = transformer.to(device=target, dtype=dtype).eval()
 
     encoder_config = _validated_umt5_config(artifacts.model / "text_encoder")
     text_encoder = (
@@ -266,20 +289,13 @@ def load_offline_prism_pipeline(
         str(artifacts.tokenizer), local_files_only=True
     )
 
-    vae_root = artifacts.model / "vae"
-    vae_config = _json_object(vae_root / "config.json")
-    for key in ("_class_name", "_diffusers_version", "model_type"):
-        vae_config.pop(key, None)
-    vae = AutoencoderKLPrism2DTK(**vae_config)
-    vae_state = load_file(str(vae_root / "model.safetensors"), device="cpu")
-    missing, unexpected = vae.load_state_dict(vae_state, strict=False)
-    if missing or unexpected:
-        raise RuntimeError(
-            f"PRISM VAE state mismatch: missing={list(missing)[:5]}, "
-            f"unexpected={list(unexpected)[:5]}"
-        )
-    del vae_state
-    vae = vae.to(device=target, dtype=dtype).eval()
+    vae = _load_diffusers_component(
+        AutoencoderKLPrism2DTK,
+        artifacts.model / "vae",
+        label="VAE",
+        target=target,
+        dtype=dtype,
+    )
 
     class ComponentSplitPipeline(PrismARPipeline):
         @torch.no_grad()
