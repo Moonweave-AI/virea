@@ -37,6 +37,53 @@ def _json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _component_checkpoint(root: Path, *, label: str) -> Path:
+    supported = (
+        root / "model.safetensors",
+        root / "diffusion_pytorch_model.safetensors",
+    )
+    present = [path for path in supported if path.is_file()]
+    if len(present) != 1:
+        names = ", ".join(path.name for path in supported)
+        raise RuntimeError(
+            f"PRISM {label} must contain exactly one supported Safetensors "
+            f"checkpoint ({names}); found {len(present)}"
+        )
+    return present[0]
+
+
+def _validate_component_state(model: Any, checkpoint: Path, *, label: str) -> None:
+    from safetensors import safe_open
+
+    expected = {
+        name: tuple(int(value) for value in tensor.shape)
+        for name, tensor in model.state_dict().items()
+    }
+    with safe_open(str(checkpoint), framework="pt", device="cpu") as handle:
+        observed_names = set(handle.keys())
+        observed = {
+            name: tuple(int(value) for value in handle.get_slice(name).get_shape())
+            for name in observed_names
+        }
+    missing = sorted(set(expected) - observed_names)
+    unexpected = sorted(observed_names - set(expected))
+    mismatched = sorted(
+        (name, expected[name], observed[name])
+        for name in set(expected).intersection(observed_names)
+        if expected[name] != observed[name]
+    )
+    problems = {
+        "missing_keys": missing,
+        "unexpected_keys": unexpected,
+        "mismatched_keys": mismatched,
+    }
+    if any(problems.values()):
+        details = ", ".join(
+            f"{key}={values[:5]}" for key, values in problems.items() if values
+        )
+        raise RuntimeError(f"PRISM {label} state mismatch: {details}")
+
+
 def _load_diffusers_component(
     component_class: Any,
     root: Path,
@@ -45,34 +92,45 @@ def _load_diffusers_component(
     target: Any,
     dtype: Any,
 ) -> Any:
-    """Load a pinned local Diffusers component at its inference precision."""
+    """Load either official PRISM or standard Diffusers Safetensors layouts."""
 
-    model, loading_info = component_class.from_pretrained(
-        str(root),
-        torch_dtype=dtype,
-        low_cpu_mem_usage=True,
-        local_files_only=True,
-        use_safetensors=True,
-        output_loading_info=True,
+    from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+
+    checkpoint = _component_checkpoint(root, label=label)
+    config = dict(component_class.load_config(str(root), local_files_only=True))
+    config.pop("model_type", None)
+    if isinstance(config.get("patch_size"), list):
+        config["patch_size"] = tuple(config["patch_size"])
+    with init_empty_weights():
+        model = component_class.from_config(config)
+    _validate_component_state(model, checkpoint, label=label)
+    model = load_checkpoint_and_dispatch(
+        model,
+        checkpoint=str(checkpoint),
+        # Accelerate 1.14 forwards this value to Safetensors 0.8, whose device
+        # boundary accepts a canonical string/int but not a torch.device object.
+        device_map={"": str(target)},
+        dtype=dtype,
+        strict=True,
     )
-    problems = {
-        key: list(loading_info.get(key) or [])
-        for key in (
-            "missing_keys",
-            "unexpected_keys",
-            "mismatched_keys",
-            "error_msgs",
+    remaining_meta = sorted(
+        name
+        for name, tensor in model.state_dict().items()
+        if tensor.device.type == "meta"
+    )
+    if remaining_meta:
+        raise RuntimeError(
+            f"PRISM {label} remained incomplete after checkpoint load: "
+            f"{remaining_meta[:5]}"
         )
-    }
-    if any(problems.values()):
-        details = ", ".join(
-            f"{key}={values[:5]}" for key, values in problems.items() if values
-        )
-        raise RuntimeError(f"PRISM {label} state mismatch: {details}")
-    return model.to(device=target).eval()
+    return model.eval()
 
 
 def _activate_pinned_source(source: Path) -> None:
+    # Model assets are immutable.  CPython otherwise creates __pycache__ beside
+    # imported source on writable Windows directories and invalidates the
+    # persisted asset integrity tree after an otherwise successful import.
+    sys.dont_write_bytecode = True
     existing = sys.modules.get("prism")
     if existing is not None:
         origin = Path(str(getattr(existing, "__file__", ""))).resolve(strict=False)

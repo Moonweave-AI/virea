@@ -56,6 +56,7 @@ from virea_model_pool.pool import (
     _internal_asset_key,
     _internal_asset_locator_name_is_valid,
     _internal_asset_tree,
+    _internal_asset_tree_difference,
 )
 from virea_motion_ir import load_motion_ir
 
@@ -383,9 +384,12 @@ def _validated_internal_artifact_roots(
             _load_json(target / _INTERNAL_ASSET_IDENTITY) == identity,
             f"internal artifact persisted identity differs: {source.id}",
         )
+        persisted_tree = _load_json(target / _INTERNAL_ASSET_TREE)
+        observed_tree = _internal_asset_tree(target)
         _require(
-            _load_json(target / _INTERNAL_ASSET_TREE) == _internal_asset_tree(target),
-            f"internal artifact integrity tree differs: {source.id}",
+            persisted_tree == observed_tree,
+            f"internal artifact {source.id}: "
+            f"{_internal_asset_tree_difference(persisted_tree, observed_tree)}",
         )
         files = [
             path

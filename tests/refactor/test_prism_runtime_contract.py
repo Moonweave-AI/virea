@@ -154,11 +154,11 @@ def test_manifest_registries_and_runtime_freeze_shared_external_assets() -> None
         "empty_directory_is_valid_asset": False,
     }
     assert cuda.availability == (
-        "windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_4_"
-        "dtype_loading_requires_reacceptance"
+        "windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_5_"
+        "official_checkpoint_loading_requires_reacceptance"
     )
     assert cpu.availability == (
-        "cpu_contract_and_lock_baseline_runtime_0_1_4_dtype_loading_"
+        "cpu_contract_and_lock_baseline_runtime_0_1_5_official_checkpoint_loading_"
         "real_inference_unverified"
     )
 

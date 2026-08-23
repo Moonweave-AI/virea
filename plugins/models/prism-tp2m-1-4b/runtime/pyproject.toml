@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea-model-prism-tp2m-1-4b-runtime"
-version = "0.1.4"
+version = "0.1.5"
 description = "Offline component-split PRISM TP2M 1.4B Worker for VIREA"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"

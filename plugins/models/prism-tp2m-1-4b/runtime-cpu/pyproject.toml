@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea-model-prism-tp2m-1-4b-cpu-runtime"
-version = "0.1.4"
+version = "0.1.5"
 description = "Portable CPU environment for the shared VIREA PRISM Worker"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "MIT" }
 authors = [{ name = "Moonweave AI" }]
 dependencies = [
-  "virea-model-prism-tp2m-1-4b-runtime==0.1.4",
+  "virea-model-prism-tp2m-1-4b-runtime==0.1.5",
   "torch==2.11.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
   "torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]

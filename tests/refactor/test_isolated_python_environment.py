@@ -163,6 +163,16 @@ def test_controlled_build_and_worker_environments_keep_user_identity(
         assert completed.stdout.strip() == identities["LOGNAME"]
 
 
+def test_worker_environment_prevents_bytecode_writes_to_model_assets() -> None:
+    environment = _controlled_worker_environment(
+        ("PYTHONDONTWRITEBYTECODE",),
+        {"PYTHONDONTWRITEBYTECODE": "0"},
+    )
+
+    assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert environment["PYTHONIOENCODING"] == "utf-8"
+
+
 @pytest.mark.skipif(
     os.name != "nt",
     reason="PATHEXT controls Windows executable lookup",

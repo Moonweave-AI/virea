@@ -82,7 +82,16 @@ def _controlled_worker_environment(
         name: value for name in names if (value := os.getenv(name)) is not None
     }
     environment.update(additions)
-    return sanitized_python_environment(environment)
+    return _worker_python_environment(environment)
+
+
+def _worker_python_environment(source: Mapping[str, str]) -> dict[str, str]:
+    """Return the immutable-asset-safe Python environment for every Worker."""
+
+    environment = sanitized_python_environment(source)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
+    return environment
 
 
 def _map_worker_environment_for_domain(
@@ -330,7 +339,7 @@ class WorkerSupervisor:
                     "PYTHONIOENCODING": "utf-8",
                 }
             )
-            worker_env = sanitized_python_environment(domain_values)
+            worker_env = _worker_python_environment(domain_values)
             launch_argv = wrap_domain_command(
                 execution_domain,
                 argv,
