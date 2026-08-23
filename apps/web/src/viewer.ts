@@ -40,6 +40,8 @@ export class RealVrmViewer {
   private hasCameraFraming = false;
   private snapCameraFollow = false;
   private frameHandle = 0;
+  private active = true;
+  private disposed = false;
   private avatarObjectUrl: string | null = null;
   private animationObjectUrl: string | null = null;
 
@@ -95,6 +97,12 @@ export class RealVrmViewer {
     await this.loadAvatar(this.avatarObjectUrl);
   }
 
+  public setActive(active: boolean): void {
+    if (this.disposed) return;
+    this.active = active;
+    if (active) this.resize();
+  }
+
   public async loadAnimationFile(file: File): Promise<void> {
     if (!/\.vrma$/i.test(file.name)) throw new Error("动作文件必须是 .vrma");
     if (this.animationObjectUrl) URL.revokeObjectURL(this.animationObjectUrl);
@@ -119,7 +127,21 @@ export class RealVrmViewer {
     this.bindAndPlay();
   }
 
+  public clearAnimation(message = "载入 Avatar 后即可预览生成动作"): void {
+    this.mixer?.stopAllAction();
+    this.mixer = null;
+    this.animation = null;
+    this.canvas.dataset.mixerTimeSeconds = "0";
+    this.publishStatus({
+      kind: this.vrm ? "ready" : "idle",
+      message: this.vrm ? "Avatar 已加载；请选择或载入 VRMA" : message,
+    });
+  }
+
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.active = false;
     cancelAnimationFrame(this.frameHandle);
     this.timer.dispose();
     this.resizeObserver.disconnect();
@@ -306,8 +328,13 @@ export class RealVrmViewer {
   }
 
   private tick = (timestamp: DOMHighResTimeStamp): void => {
+    if (this.disposed) return;
     this.timer.update(timestamp);
     const delta = Math.min(this.timer.getDelta(), 0.1);
+    if (!this.active) {
+      this.frameHandle = requestAnimationFrame(this.tick);
+      return;
+    }
     this.mixer?.update(delta);
     this.vrm?.update(delta);
     this.followAvatarHips(delta);

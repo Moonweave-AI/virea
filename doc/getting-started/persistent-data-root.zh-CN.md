@@ -133,6 +133,75 @@ uv run virea
 自动化仍可显式传 home，但应使用已经定义的环境变量，而不是手工复制路径：PowerShell 使用 `$env:VIREA_HOME`，POSIX
 shell 使用 `"$VIREA_HOME"`。
 
+## 更新另一台已经部署过的设备
+
+版本更新不要求重新 clone、删除 `VIREA_HOME` 或重新下载全部模型。下面命令只更新源码、锁定环境和 Web build；模型、
+Runtime、任务、结果和日志继续使用这台设备最初配置的持久 home。
+
+```powershell
+# 进入另一台设备现有的 clone。-LiteralPath 把整段路径作为原样路径；请替换为那台设备的实际 clone。
+Set-Location -LiteralPath 'X:\VIREA-DATA\virea'
+
+# 只列出未提交改动，不修改文件。输出为空才适合直接更新；若有改动，先自行提交或保存。
+git status --short
+
+# 只接受 origin/main 的 fast-forward 更新；不会合并本地分叉，也不会读取或删除 VIREA_HOME 中的模型。
+# origin 是默认远端名，main 是要更新的主分支，--ff-only 禁止自动生成 merge commit。
+git pull --ff-only origin main
+
+# 严格按 uv.lock 同步所有 Python workspace 包和 dev 工具。
+# --locked 禁止重新解析版本；--all-packages 包含所有 workspace 包；--extra dev 包含测试/构建依赖。
+uv sync --locked --all-packages --extra dev
+
+# 严格按 package-lock.json 还原根级 Node 依赖；ci 会先清理该 clone 的 node_modules，但不碰数据根其他目录。
+npm ci
+
+# 严格按 pnpm-lock.yaml 同步 Web workspace；--frozen-lockfile 禁止修改锁文件。
+pnpm install --frozen-lockfile
+
+# 对新 Web 源码执行 TypeScript 检查并重建 apps/web/dist；--dir 指定命令在 apps/web 包中运行。
+pnpm --dir apps/web build
+
+# 确认这个新终端仍指向原有持久 home；期望值以 \home 结尾，且不得是 clone 或系统临时目录。
+$env:VIREA_HOME
+
+# 只读核验某个既有安装。把 MODEL_ID 替换成 model list/向导显示的真实模型 ID；不要输入尖括号。
+uv run virea model verify MODEL_ID
+
+# 从原 home 启动完整向导。READY 安装会复用；向导不会要求先删除模型。
+uv run virea
+```
+
+Linux、WSL2 与 macOS 使用同一流程，只把第一步和环境变量显示改为 POSIX shell 写法：
+
+```bash
+# 进入现有 clone；引号只保护含空格路径，不是路径内容。
+cd '/mnt/virea-data/virea'
+
+# 只读检查工作树，然后仅 fast-forward 更新 main。
+git status --short
+git pull --ff-only origin main
+
+# 同步锁定的 Python 与 Node 环境，并重建当前 Web。
+uv sync --locked --all-packages --extra dev
+npm ci
+pnpm install --frozen-lockfile
+pnpm --dir apps/web build
+
+# 显示启动文件持久加载的原 home，然后只读核验目标模型。
+printf '%s\n' "$VIREA_HOME"
+uv run virea model verify MODEL_ID
+
+# 进入完整交互式流程；已验证的本地制品会被复用。
+uv run virea
+```
+
+`model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision 或
+`runtime_core_epoch`，它可能返回 `installed: true` 但 `ready: false`：这表示旧文件仍在、但新代码拒绝把旧证据当作当前
+READY 证据。先运行不带 `--apply` 的 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` 查看计划；确认后才追加
+`--apply`。`DOMAIN` 是 `windows-native`、`linux-native`、`macos-native` 或实际 `wsl:发行版` ID。修复会优先复用通过校验的
+artifact 与仍兼容的 Runtime；只有新 manifest 明确要求不同 revision 或文件缺失/损坏时才需要下载对应内容。
+
 ## 迁移到另一块盘
 
 停止 VIREA 进程，选取新的空数据根后，在 clone 内对这个新根重新运行相同配置脚本。脚本只修改未来终端的环境设置，

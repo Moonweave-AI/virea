@@ -5,7 +5,9 @@ import type {
   ModelExecutionOptions,
   ModelManifest,
   ModelResult,
+  SourceSkeletonPreview,
   VrmMotionResult,
+  StateRevision,
 } from "./contracts";
 import {
   artifactBasename,
@@ -36,6 +38,7 @@ function installTimeout(manifest: ModelManifest): number {
 
 export const api = {
   health: () => request<HealthStatus>("/health", {}, { timeoutMs: HEALTH_TIMEOUT_MS }),
+  stateRevision: () => request<StateRevision>("/state", {}, { timeoutMs: HEALTH_TIMEOUT_MS }),
   system: (timeoutMs = SYSTEM_DIAGNOSTIC_TIMEOUT_MS) =>
     request<Record<string, unknown>>("/system", {}, { timeoutMs }),
   executionDomains: () =>
@@ -64,6 +67,10 @@ export const api = {
       body: JSON.stringify(createGenerationPayload(manifest, prompt, seconds, seed, executionTarget)),
     }),
   result: (jobId: string) => request<VrmMotionResult>(`/jobs/${encodeURIComponent(jobId)}/result`),
+  sourceSkeleton: (resultId: string) =>
+    request<SourceSkeletonPreview>(
+      `/results/${encodeURIComponent(resultId)}/source-skeleton`,
+    ),
   modelResultArtifact: (resultId: string, locator: string) =>
     request<ModelResult>(
       `/results/${encodeURIComponent(resultId)}/artifacts/${encodeURIComponent(artifactBasename(locator))}`,
@@ -74,3 +81,9 @@ export const api = {
   supportBundle: () =>
     request<Record<string, unknown>>("/support-bundles", { method: "POST" }),
 };
+
+export function stateEventsUrl(): string {
+  const url = new URL("/api/v1/state/events", window.location.origin);
+  url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return url.href;
+}

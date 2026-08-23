@@ -36,6 +36,7 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 | 查看每个 CLI 命令和参数 | [中文 CLI 参考](doc/reference/cli.zh-CN.md) | [English CLI reference](doc/reference/cli.en.md) |
 | 选择 Windows、Linux、WSL2 或 macOS 执行域 | [平台指南](doc/platforms/README.zh-CN.md) | [Platform guide](doc/platforms/README.en.md) |
 | 选择模型、Runtime 与资源 profile | [模型目录](doc/models/README.zh-CN.md) | [Model catalog](doc/models/README.zh-CN.md) |
+| 更新另一台已经部署过的设备 | [保留模型的升级步骤](doc/getting-started/persistent-data-root.zh-CN.md#更新另一台已经部署过的设备) | [Update without redownloading](doc/getting-started/persistent-data-root.en.md#update-another-device-that-is-already-deployed) |
 | 排查本地安装、状态或资源问题 | [排错指南](doc/operations/troubleshooting.zh-CN.md) | [Troubleshooting summary](doc/getting-started.en.md#8-advanced-troubleshooting-and-safe-maintenance) |
 | 维护文档 | [文档规范](doc/development/documentation.zh-CN.md) | [Documentation policy](doc/development/documentation.en.md) |
 
@@ -152,7 +153,9 @@ uv run virea generate --model MODEL --execution-domain DOMAIN --runtime RUNTIME 
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 ```
 
-然后打开 `http://127.0.0.1:8000/app/`，选择相同的执行域、模型和结果，加载本地 `.vrm` Avatar。
+然后打开规范入口 `http://127.0.0.1:8000/`。它会进入唯一的新 Motion Studio；动作生成与诊断位于同一工作台，
+同一个不可变结果会并排播放“模型输出、尚未做 VRM 重定向的源骨架”和“重定向后的最终 VRM/VRMA”。CLI 的模型
+部署与结果会从持久状态自动同步。加载本地 `.vrm` Avatar 即可。
 
 ## 能力、实测和发布不是同一件事
 

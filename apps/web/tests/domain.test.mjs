@@ -10,6 +10,7 @@ import {
   generationDefaults,
   isInstalledReady,
   modelMotionRoute,
+  productionCatalogJobs,
   productionCatalogModels,
   realRunnableModels,
   resultMotionRoute,
@@ -134,6 +135,18 @@ test("production catalog keeps an official blocked model visible without making 
 
   assert.deepEqual(productionCatalogModels([testOnly, blocked]), [blocked]);
   assert.deepEqual(realRunnableModels([blocked]), []);
+});
+
+test("production activity excludes fake and unknown jobs even when they succeeded", () => {
+  const real = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
+  const fake = manifest({ id: "fake-motion-v1", adapter: "fake-root-translation", runtimes: ["fake-runtime"] });
+  const jobs = [
+    { id: "fake-job", model_id: "fake-motion-v1", task: "text_to_motion", state: "SUCCEEDED" },
+    { id: "unknown-job", model_id: "external-cli-sync-probe", task: "text_to_motion", state: "SUCCEEDED" },
+    { id: "real-job", model_id: "flood-diffusion-tiny", task: "text_to_motion", state: "SUCCEEDED" },
+  ];
+
+  assert.deepEqual(productionCatalogJobs(jobs, [fake, real]), [jobs[2]]);
 });
 
 test("explicit installation state takes precedence over runtime availability", () => {

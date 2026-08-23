@@ -22,6 +22,27 @@ def result(
     return VrmMotionResult.model_validate_json(row["payload_json"])
 
 
+@router.get("/{result_id}/source-skeleton")
+def source_skeleton(
+    result_id: str,
+    control: ControlPlane = Depends(control_plane),
+) -> dict:
+    """Return model-space skeleton animation before VRM retargeting."""
+
+    try:
+        return control.source_skeleton_preview(result_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="result not found") from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "SOURCE_SKELETON_UNAVAILABLE",
+                "message": str(exc),
+            },
+        ) from exc
+
+
 @router.get("/{result_id}/artifacts/{name}")
 def artifact(
     result_id: str,

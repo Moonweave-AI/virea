@@ -251,7 +251,7 @@ copied to another domain as evidence of execution there.
 ## `serve`
 
 ```bash
-# Serve the local API and built browser UI on loopback. Open http://127.0.0.1:8000/app/ in a browser.
+# Serve the local API and the only current browser UI on loopback. Open the canonical root http://127.0.0.1:8000/.
 uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
@@ -262,6 +262,9 @@ uv run virea serve --host 127.0.0.1 --port 8000
 | `--reload` | Development reload mode. Do not use it as a production process manager. |
 | `--virea-home PATH` | State root served by this control plane. |
 | `--data-source {full,demo}` | Deprecated compatibility option for legacy preview routes. Prefer `VIREA_DATA_SOURCE` or a per-request `data_source`; it is not needed for normal 0.4 generation. |
+
+The root redirects to `/app/`, which is a mount path rather than a second UI. CLI changes made under the same
+`VIREA_HOME` appear automatically through a local state stream with polling fallback.
 
 ## `state` and `support`
 

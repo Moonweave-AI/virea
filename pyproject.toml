@@ -16,6 +16,7 @@ dependencies = [
   "pydantic>=2.0",
   "pyyaml>=6.0",
   "uvicorn>=0.27",
+  "websockets>=16.1.1,<17",
   "virea-bootstrap>=0.4.0",
   "virea-contracts>=0.4.0",
   "virea-core>=0.4.0",

@@ -188,8 +188,10 @@ uv run virea validate-real-e2e --virea-home "$VIREA_HOME" --job-id JOB_ID --expe
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 ```
 
-打开 `http://127.0.0.1:8000/app/`，加载本地 `.vrm` Avatar，选择相同执行域和模型并打开结果。按 `Ctrl+C` 停止
-服务。`--reload` 与 legacy `--data-source` 的说明见 [CLI 参数参考](reference/cli.zh-CN.md#serve)。
+打开 `http://127.0.0.1:8000/`，加载本地 `.vrm` Avatar，并在统一的生成与诊断工作台操作。左侧诊断舞台显示
+模型输出经过解码和坐标归一化、但尚未进入 VRM 重定向的源骨架；右侧显示同一结果重定向后的最终 VRM/VRMA。
+CLI 写入的模型部署和结果会自动同步；`/app/` 仍是同一 UI 的兼容地址。按 `Ctrl+C` 停止服务。`--reload` 与 legacy
+`--data-source` 的说明见 [CLI 参数参考](reference/cli.zh-CN.md#serve)。
 
 ## 8. 高级：排错与安全维护
 

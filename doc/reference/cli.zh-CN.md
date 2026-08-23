@@ -245,7 +245,7 @@ uv run virea generate --model flood-diffusion-tiny --execution-domain windows-na
 ## `serve`
 
 ```bash
-# 在回环地址提供本地 API 与浏览器 UI；浏览器打开 http://127.0.0.1:8000/app/。
+# 在回环地址提供本地 API 与唯一的新版浏览器 UI；浏览器打开规范根地址 http://127.0.0.1:8000/。
 uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
@@ -256,6 +256,9 @@ uv run virea serve --host 127.0.0.1 --port 8000
 | `--reload` | 开发期自动重载；不要将其当作生产进程管理器。 |
 | `--virea-home PATH` | 该控制面服务的状态根。 |
 | `--data-source {full,demo}` | legacy Preview 路由的废弃兼容选项；优先 `VIREA_DATA_SOURCE` 或每请求 `data_source`，正常 0.4 生成无需使用。 |
+
+根地址会跳转到 `/app/`；后者只是挂载路径，并不是第二套 UI。同一 `VIREA_HOME` 下的 CLI 变更会通过本地状态流
+自动显示，无法建立状态流时自动降级轮询。
 
 ## `state` 与 `support`
 

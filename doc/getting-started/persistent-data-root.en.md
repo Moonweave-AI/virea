@@ -137,6 +137,77 @@ uv run virea
 For automation, an explicit home remains useful. Pass an already-defined environment value instead of manually copying a
 path: PowerShell uses `$env:VIREA_HOME`; POSIX shells use `"$VIREA_HOME"`.
 
+## Update another device that is already deployed
+
+An update does not require a fresh clone, deletion of `VIREA_HOME`, or a complete model download. These commands update
+source, locked environments, and the Web build only. Models, Runtimes, jobs, results, and logs remain in the persistent
+home configured on that device.
+
+```powershell
+# Enter the existing clone on the other device. -LiteralPath treats the complete value as a path; replace this example.
+Set-Location -LiteralPath 'X:\VIREA-DATA\virea'
+
+# List local changes without modifying them. Continue directly only when the output is empty; otherwise save or commit them first.
+git status --short
+
+# Accept only a fast-forward from origin/main. origin is the remote, main is the branch, and --ff-only forbids an automatic merge commit.
+# This command updates the clone and never reads or deletes models under VIREA_HOME.
+git pull --ff-only origin main
+
+# Reconcile every Python workspace package and development tool against uv.lock.
+# --locked forbids dependency re-resolution; --all-packages includes the workspace; --extra dev includes test/build tools.
+uv sync --locked --all-packages --extra dev
+
+# Restore root Node dependencies exactly from package-lock.json. ci replaces this clone's node_modules, not data-root siblings.
+npm ci
+
+# Restore Web workspace dependencies from pnpm-lock.yaml; --frozen-lockfile forbids lockfile changes.
+pnpm install --frozen-lockfile
+
+# Type-check and rebuild apps/web/dist from the updated source; --dir runs the package command under apps/web.
+pnpm --dir apps/web build
+
+# Confirm that the new terminal still points to the original persistent home; it should end in \home and not be the clone or a temp path.
+$env:VIREA_HOME
+
+# Verify one existing installation without changing it. Replace MODEL_ID with the exact ID shown by model list/the wizard; do not type angle brackets.
+uv run virea model verify MODEL_ID
+
+# Start the complete wizard against the same home. A READY installation is reused; do not delete it first.
+uv run virea
+```
+
+Linux, WSL2, and macOS use the same sequence with POSIX path and environment syntax:
+
+```bash
+# Enter the existing clone. Quotes protect a path with spaces and are not path data.
+cd '/mnt/virea-data/virea'
+
+# Inspect the worktree, then fast-forward main only.
+git status --short
+git pull --ff-only origin main
+
+# Synchronize locked Python and Node environments, then rebuild the current Web app.
+uv sync --locked --all-packages --extra dev
+npm ci
+pnpm install --frozen-lockfile
+pnpm --dir apps/web build
+
+# Show the original home loaded by the shell startup hook, then verify the selected model without changing it.
+printf '%s\n' "$VIREA_HOME"
+uv run virea model verify MODEL_ID
+
+# Start the complete interactive workflow; verified local artifacts are reused.
+uv run virea
+```
+
+When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, or `runtime_core_epoch`
+change can instead produce `installed: true` with `ready: false`: the files still exist, but the new code correctly refuses
+to treat old evidence as current READY evidence. Preview
+`uv run virea model repair MODEL_ID --execution-domain DOMAIN` without `--apply`; append `--apply` only after reviewing the
+plan. `DOMAIN` is `windows-native`, `linux-native`, `macos-native`, or the exact `wsl:distribution` ID. Repair reuses verified
+artifacts and compatible Runtimes; only a newly required revision or a missing/corrupt file requires the corresponding download.
+
 ## Moving to another volume
 
 Stop VIREA processes, choose a new empty root, and run the same configuration script from the clone with that new root.

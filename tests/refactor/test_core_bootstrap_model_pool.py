@@ -411,6 +411,7 @@ def test_sqlite_wal_job_events_append_only_results_immutable_and_states(
 ) -> None:
     store = StateStore(VireaPaths(tmp_path / "virea-home"))
     assert store.journal_mode() == "wal"
+    initial_revision = store.state_revision()
 
     request = JobRequest(
         model_id="example-model",
@@ -419,6 +420,9 @@ def test_sqlite_wal_job_events_append_only_results_immutable_and_states(
         idempotency_key="request-1",
     )
     created = store.create_job(request, job_id="job-1")
+    job_revision = store.state_revision()
+    assert job_revision["jobs"] != initial_revision["jobs"]
+    assert job_revision["results"] == initial_revision["results"]
     duplicate = store.create_job(request, job_id="job-should-not-exist")
     assert created["id"] == duplicate["id"] == "job-1"
     assert created["state"] == JobState.QUEUED.value

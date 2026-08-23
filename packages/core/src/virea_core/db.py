@@ -238,6 +238,39 @@ class StateStore:
             row = connection.execute("PRAGMA journal_mode").fetchone()
             return str(row[0]).lower()
 
+    def state_revision(self) -> dict[str, str]:
+        """Return a cheap cross-process revision for browser reconciliation.
+
+        CLI commands and the API can own separate ``StateStore`` instances that
+        point at the same persistent home.  A browser therefore cannot rely on
+        in-process events alone.  These aggregate clocks let the API notice
+        committed SQLite changes without loading model artifacts or running
+        machine detection on every heartbeat.
+        """
+
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    (SELECT printf('%d:%s', COUNT(*), COALESCE(MAX(updated_at), ''))
+                     FROM jobs) AS jobs,
+                    (SELECT printf('%d:%s', COUNT(*), COALESCE(MAX(created_at), ''))
+                     FROM results) AS results,
+                    (SELECT printf('%d:%s', COUNT(*), COALESCE(MAX(updated_at), ''))
+                     FROM transactions) AS installations,
+                    (SELECT printf('%d:%s', COUNT(*), COALESCE(MAX(updated_at), ''))
+                     FROM model_definitions) AS models,
+                    (SELECT printf(
+                        '%d:%s:%s',
+                        COUNT(*),
+                        COALESCE(MAX(started_at), ''),
+                        COALESCE(MAX(stopped_at), '')
+                     ) FROM worker_instances) AS workers
+                """
+            ).fetchone()
+            assert row is not None
+            return {name: str(row[name]) for name in row.keys()}
+
     def try_acquire_locks(
         self,
         names: tuple[str, ...],

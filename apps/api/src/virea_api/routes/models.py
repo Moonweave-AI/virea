@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -106,8 +107,17 @@ def _catalog_payload(manifest, control: ControlPlane) -> dict[str, Any]:
     }
     report = control.model_pool.verify_latest(manifest.model.id)
     latest_attempt = report.get("latest_attempt")
-    payload["installation"] = {
-        "installation_id": report.get("installation_id"),
+    installation_target = None
+    installation_id = report.get("installation_id")
+    if isinstance(installation_id, str) and installation_id:
+        transaction = control.store.installation_transaction(installation_id)
+        if transaction is not None:
+            transaction_payload = json.loads(transaction["payload_json"])
+            candidate = transaction_payload.get("execution_target")
+            if isinstance(candidate, dict):
+                installation_target = candidate
+    installation = {
+        "installation_id": installation_id,
         "state": report.get("state"),
         "installed": bool(report.get("installed")),
         "ready": bool(report.get("ready")),
@@ -121,6 +131,9 @@ def _catalog_payload(manifest, control: ControlPlane) -> dict[str, Any]:
             else None
         ),
     }
+    if installation_target is not None:
+        installation["execution_target"] = installation_target
+    payload["installation"] = installation
     return payload
 
 

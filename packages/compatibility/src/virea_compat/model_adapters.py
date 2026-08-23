@@ -22,6 +22,7 @@ from virea.motion.rotation import (
     quat_inverse_xyzw,
     sixd_to_quat_xyzw,
 )
+from virea.motion.snapshot import SourceSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class AdapterOutput:
     canonical211: np.ndarray | None
     metadata: dict[str, Any]
     native_artifacts: dict[str, np.ndarray] = field(default_factory=dict)
+    source_snapshot: SourceSnapshot | None = None
 
 
 _SENTIAVATAR_DELTA_CM_PROFILE = SuSuProfile(
@@ -101,6 +103,7 @@ def _canonical_output(
     motion_id: str,
     metadata: dict[str, Any],
     native_artifacts: dict[str, np.ndarray] | None = None,
+    source_snapshot: SourceSnapshot | None = None,
 ) -> AdapterOutput:
     motion = canonical211_to_motion_ir(
         sequence,
@@ -113,6 +116,7 @@ def _canonical_output(
         canonical211=np.asarray(sequence, dtype=np.float32),
         metadata=metadata,
         native_artifacts=native_artifacts or {},
+        source_snapshot=source_snapshot,
     )
 
 
@@ -141,6 +145,7 @@ def _relabel_output(
         output.canonical211,
         metadata,
         output.native_artifacts if native_artifacts is None else native_artifacts,
+        output.source_snapshot,
     )
 
 
@@ -178,7 +183,9 @@ def humanml3d_263_to_motion_ir(
         ),
         motion={"motion": denormalized, "fps": fps},
     )
-    result = HumanML3D263Codec().to_canonical(clip)
+    codec = HumanML3D263Codec()
+    source_snapshot = codec.extract_source(clip)
+    result = codec.to_canonical(clip)
     return _canonical_output(
         result.sequence,
         fps=fps,
@@ -204,6 +211,7 @@ def humanml3d_263_to_motion_ir(
             checkpoint_mean=checkpoint_mean,
             checkpoint_std=checkpoint_std,
         ),
+        source_snapshot=source_snapshot,
     )
 
 
@@ -256,7 +264,9 @@ def humanml3d_263_denormalized_to_motion_ir(
         ),
         motion={"motion": denormalized, "fps": fps},
     )
-    result = HumanML3D263Codec().to_canonical(clip)
+    codec = HumanML3D263Codec()
+    source_snapshot = codec.extract_source(clip)
+    result = codec.to_canonical(clip)
     return _canonical_output(
         result.sequence,
         fps=fps,
@@ -273,6 +283,7 @@ def humanml3d_263_denormalized_to_motion_ir(
             "legacy_codec_metadata": result.metadata,
         },
         native_artifacts=_native_copy(denormalized_vector263=denormalized),
+        source_snapshot=source_snapshot,
     )
 
 
@@ -388,11 +399,13 @@ def body22_positions_to_motion_ir(
         motion={"positions": values, "fps": fps},
         source_joint_names=list(joint_names),
     )
-    result = PositionSequenceCodec(
+    codec = PositionSequenceCodec(
         default_joint_names=list(joint_names),
         source_profile="humanml3d.body22.positions.v1",
         world_basis="identity_y_up",
-    ).to_canonical(clip)
+    )
+    source_snapshot = codec.extract_source(clip)
+    result = codec.to_canonical(clip)
     return _canonical_output(
         result.sequence,
         fps=fps,
@@ -414,6 +427,7 @@ def body22_positions_to_motion_ir(
             ),
             "legacy_codec_metadata": result.metadata,
         },
+        source_snapshot=source_snapshot,
     )
 
 
@@ -565,7 +579,9 @@ def smplx_fullpose_to_motion_ir(
             },
         },
     )
-    result = SMPLXFullposeCodec().to_canonical(clip)
+    codec = SMPLXFullposeCodec()
+    source_snapshot = codec.extract_source(clip)
+    result = codec.to_canonical(clip)
     return _canonical_output(
         result.sequence,
         fps=fps,
@@ -576,6 +592,7 @@ def smplx_fullpose_to_motion_ir(
             "world_basis": world_basis,
             "legacy_codec_metadata": result.metadata,
         },
+        source_snapshot=source_snapshot,
     )
 
 
@@ -706,6 +723,7 @@ def motionx_322_to_motion_ir(
         canonical211=relabeled.canonical211,
         metadata=relabeled.metadata,
         native_artifacts=relabeled.native_artifacts,
+        source_snapshot=relabeled.source_snapshot,
     )
 
 
@@ -1113,6 +1131,7 @@ def susu_body_hands_to_motion_ir(
             **base.native_artifacts,
             "face_arkit51": face.copy(),
         },
+        base.source_snapshot,
     )
 
 
@@ -1308,11 +1327,13 @@ def prism_smplh_body22_axis_angle69_to_motion_ir(
             "fps": fps,
         },
     )
-    converted = AxisAngleBody22Codec(
+    codec = AxisAngleBody22Codec(
         source_profile="prism_smplh_body22",
         world_basis="identity_y_up",
         root_rotation_semantics="local_to_world",
-    ).to_canonical(clip)
+    )
+    source_snapshot = codec.extract_source(clip)
+    converted = codec.to_canonical(clip)
     metadata = {
         "adapter_id": "prism-smplh-body22-axis-angle69",
         "source_model_id": source_model_id,
@@ -1350,6 +1371,7 @@ def prism_smplh_body22_axis_angle69_to_motion_ir(
             prism_body_pose66=body_axis_angle,
             prism_translation=translation,
         ),
+        source_snapshot=source_snapshot,
     )
 
 

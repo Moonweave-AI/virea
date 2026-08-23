@@ -189,6 +189,9 @@ def test_humanml3d_263_adapter_emits_one_canonical_actor() -> None:
     np.testing.assert_array_equal(output.native_artifacts["checkpoint_mean"], mean)
     np.testing.assert_array_equal(output.native_artifacts["checkpoint_std"], std)
     assert output.motion_ir.face_tracks == ()
+    assert output.source_snapshot is not None
+    assert output.source_snapshot.positions.shape == (frame_count, 22, 3)
+    assert output.source_snapshot.coordinate_system == "world_normalized"
 
 
 @pytest.mark.parametrize("width", (262, 264))
@@ -247,6 +250,9 @@ def test_body22_positions_adapter_emits_one_canonical_actor() -> None:
     )
     assert output.metadata["source_skeleton_id"] == "humanml3d.body22.v1"
     assert output.metadata["output_skeleton_id"] == "humanml3d.body22.v1"
+    assert output.source_snapshot is not None
+    assert output.source_snapshot.positions.shape == positions.shape
+    assert output.source_snapshot.joint_names[0] == "hips"
     root_x = output.canonical211[:, 0]
     assert root_x[0] == pytest.approx(0.0)
     assert np.all(np.diff(root_x) > 0.0)
@@ -601,6 +607,11 @@ def test_prism_public_axis_angle69_preserves_native_and_uses_absolute_translatio
     )
     assert output.metadata["internal_motion138_is_worker_output"] is False
     assert output.metadata["translation_decode"] == "absolute_xyz_no_integration"
+    assert output.source_snapshot is not None
+    assert output.source_snapshot.positions.shape == (frame_count, 22, 3)
+    assert output.source_snapshot.metadata["source_profile"] == (
+        "prism_smplh_body22"
+    )
 
 
 def test_prism_public_axis_angle69_rejects_wrong_width_clock_and_nonfinite() -> None:
@@ -659,6 +670,8 @@ def test_mardm_ric67_adapter_denormalizes_and_recovers_positions() -> None:
         output.native_artifacts["checkpoint_std"],
         np.ones(67, dtype=np.float32),
     )
+    assert output.source_snapshot is not None
+    assert output.source_snapshot.positions.shape == (frame_count, 22, 3)
 
 
 def test_mardm_requires_native_67_width_and_checkpoint_identity() -> None:

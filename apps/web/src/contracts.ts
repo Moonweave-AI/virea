@@ -6,6 +6,7 @@ export const schemaVersions = {
   vrmMotionResult: "virea.vrm_motion_result.v1.0.0",
   resultIdentity: "virea.result_identity.v1.0.0",
   actorExportIdentity: "virea.actor_export_identity.v1.0.0",
+  sourceSkeletonPreview: "virea.source_skeleton_preview.v1.0.0",
   workerProtocol: "virea.worker_protocol.v1.0.0",
   motionIr: "virea.motion_ir.v2.0.0",
   productionE2eAcceptance: "virea.production_e2e_acceptance.v1.0.0",
@@ -18,6 +19,19 @@ export interface ExecutionTargetSelection {
   execution_domain_id: string;
   runtime_variant_id: string | null;
   resource_profile_id: string | null;
+}
+
+export interface ResolvedExecutionTarget {
+  execution_domain: ExecutionDomainReport;
+  runtime_variant_id: string;
+  resource_profile_id: string;
+  memory_strategy: MemoryStrategy;
+  selected_accelerator: {
+    kind: "cpu" | "nvidia" | "rocm" | "mps";
+    name: string | null;
+    physical_device_id: string;
+    memory_free_bytes: number | null;
+  } | null;
 }
 
 export interface ExecutionDomainReport {
@@ -37,6 +51,20 @@ export interface ExecutionDomainCandidates {
   recorded_at: string;
   host_execution_domain: string | null;
   execution_domains: ExecutionDomainReport[];
+}
+
+export interface StateRevision {
+  schema_version: "virea.state_revision.v1.0.0";
+  observed_at: string;
+  events_url: string;
+  virea_home: string;
+  revision: {
+    jobs: string;
+    results: string;
+    installations: string;
+    models: string;
+    workers: string;
+  };
 }
 
 export interface ModelExecutionOption {
@@ -217,7 +245,18 @@ export interface ModelManifest {
   production_acceptance: ProductionE2EAcceptance | null;
   installation_state?: string | null;
   installation?: {
+    installation_id?: string | null;
     state?: string | null;
+    installed?: boolean;
+    ready?: boolean;
+    execution_target?: {
+      requested: ExecutionTargetSelection;
+      resolved: ResolvedExecutionTarget;
+    } | null;
+    latest_attempt?: {
+      installation_id?: string | null;
+      state?: string | null;
+    } | null;
   } | null;
 }
 
@@ -229,6 +268,14 @@ export interface JobRecord {
   error_code?: string | null;
   error_message?: string | null;
   result_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  events?: Array<{
+    sequence: number;
+    state: string;
+    event_type: string;
+    created_at: string;
+  }>;
 }
 
 export interface ExportRecord {
@@ -261,6 +308,32 @@ export interface ActorExportIdentity {
   actor_id: string;
   representation_id: string;
   skeleton_id: string;
+}
+
+export interface SourceSkeletonActor {
+  actor_id: string;
+  joint_names: string[];
+  edges: [number, number][];
+  positions_xyz: number[];
+}
+
+export interface SourceSkeletonPreview {
+  schema_version: typeof schemaVersions.sourceSkeletonPreview;
+  result_id: string;
+  job_id: string;
+  stage: "model_output_pre_retarget";
+  representation_id: string;
+  skeleton_id: string;
+  coordinate_system: string;
+  fps: number;
+  frame_count: number;
+  duration_seconds: number;
+  actors: SourceSkeletonActor[];
+  display_transform: {
+    coordinates_normalized_for_preview: true;
+    vrm_retarget_applied: false;
+  };
+  metadata: Record<string, unknown>;
 }
 
 export interface VrmMotionResult {

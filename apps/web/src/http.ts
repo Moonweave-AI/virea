@@ -27,6 +27,9 @@ export async function request<T>(
   try {
     const response = await fetch(`/api/v1${path}`, {
       ...requestInit,
+      // VIREA state can change in another CLI process. Browser HTTP caches
+      // must never turn a successful reconciliation request into stale UI.
+      cache: "no-store",
       signal: controller.signal,
       headers: {
         Accept: "application/json",

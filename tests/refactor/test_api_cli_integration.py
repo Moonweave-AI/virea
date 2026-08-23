@@ -20,7 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.routing import WebSocketRoute
 from virea_api import create_app
-from virea_api.routes import jobs_router
+from virea_api.routes import jobs_router, system_router
 from virea_api.service import ControlPlane, _vrma_export_filename
 from virea_cli.main import (
     _requires_explicit_virea_home,
@@ -78,6 +78,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
 
     assert routes == {
         ("GET", "/api/v1/health"),
+        ("GET", "/api/v1/state"),
         ("GET", "/api/v1/system"),
         ("GET", "/api/v1/execution-domains"),
         ("POST", "/api/v1/setup/plan"),
@@ -99,6 +100,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("GET", "/api/v1/avatars"),
         ("GET", "/api/v1/avatars/{avatar_id}"),
         ("GET", "/api/v1/results/{result_id}"),
+        ("GET", "/api/v1/results/{result_id}/source-skeleton"),
         ("GET", "/api/v1/results/{result_id}/artifacts/{name}"),
     }
     for path in (
@@ -119,10 +121,14 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
     }
     websocket_paths = {
         f"/api/v1{route.path}"
-        for route in jobs_router.routes
+        for router in (jobs_router, system_router)
+        for route in router.routes
         if isinstance(route, WebSocketRoute)
     }
-    assert websocket_paths == {"/api/v1/jobs/{job_id}/events"}
+    assert websocket_paths == {
+        "/api/v1/jobs/{job_id}/events",
+        "/api/v1/state/events",
+    }
 
 
 def test_workspace_modules_and_system_endpoint_share_release_version(tmp_path) -> None:
@@ -313,6 +319,59 @@ def test_control_plane_persists_source_target_execution_and_actor_identity(
             "fake-motion-v1__vrm1.humanoid52.v1__to__vrm1.humanoid52.v1__"
             f"actor-0__{result.result_id}.vrma"
         )
+        source_export = next(
+            export
+            for export in result.exports
+            if export.format == "source-skeleton+json"
+        )
+        assert source_export.identity is not None
+        assert source_export.identity.representation_id == (
+            result.identity.native_representation_id
+        )
+        assert source_export.identity.skeleton_id == result.identity.native_skeleton_id
+        assert result.tracks["source_skeleton"] == source_export.locator
+        indexed_source = next(
+            artifact
+            for artifact in control.store.result_artifacts(result.result_id)
+            if artifact["name"] == "source_skeleton"
+        )
+        assert indexed_source["locator"] == source_export.locator
+        assert indexed_source["media_type"] == "application/json"
+        source_preview = control.source_skeleton_preview(result.result_id)
+        assert source_preview["stage"] == "model_output_pre_retarget"
+        assert source_preview["representation_id"] == (
+            result.identity.native_representation_id
+        )
+        assert source_preview["skeleton_id"] == result.identity.native_skeleton_id
+        assert source_preview["frame_count"] == 3
+        assert source_preview["display_transform"] == {
+            "coordinates_normalized_for_preview": True,
+            "vrm_retarget_applied": False,
+        }
+        actor = source_preview["actors"][0]
+        assert actor["actor_id"] == "actor-0"
+        assert len(actor["positions_xyz"]) == (
+            source_preview["frame_count"] * len(actor["joint_names"]) * 3
+        )
+        legacy_result = result.model_copy(
+            update={
+                "tracks": {
+                    key: value
+                    for key, value in result.tracks.items()
+                    if key != "source_skeleton"
+                },
+                "exports": tuple(
+                    export
+                    for export in result.exports
+                    if export.format != "source-skeleton+json"
+                ),
+            }
+        )
+        rebuilt_legacy_preview = control._rebuild_legacy_source_skeleton_preview(
+            legacy_result
+        )
+        assert rebuilt_legacy_preview["stage"] == "model_output_pre_retarget"
+        assert rebuilt_legacy_preview["actors"] == source_preview["actors"]
     finally:
         control.close()
 
@@ -373,10 +432,79 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
     )
 
     with TestClient(app) as client:
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code == 307
+        assert root.headers["location"] == "/app/"
         assert client.get("/app/").status_code == 200
         asset = client.get("/app/assets/app.js")
         assert asset.status_code == 200
         assert "ready = true" in asset.text
+
+
+def test_default_app_keeps_legacy_data_api_but_never_legacy_web_ui(
+    tmp_path, monkeypatch
+) -> None:
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<h1>current VIREA Web</h1>", encoding="utf-8")
+    assets = dist / "assets"
+    assets.mkdir()
+    (assets / "app.js").write_text("export const ready = true;\n", encoding="utf-8")
+    monkeypatch.setenv("VIREA_WEB_DIST", str(dist))
+    app = create_app(
+        virea_home=tmp_path / "virea-home",
+        plugin_root=PLUGIN_ROOT,
+        include_legacy_preview=True,
+    )
+
+    with TestClient(app) as client:
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code == 307
+        assert root.headers["location"] == "/app/"
+        assert client.get("/app/").text == "<h1>current VIREA Web</h1>"
+        assert client.get("/ui/").status_code == 404
+        assert client.get("/api/health").status_code == 200
+
+
+def test_state_revision_detects_jobs_written_through_shared_store(tmp_path) -> None:
+    app = create_app(
+        virea_home=tmp_path / "virea-home",
+        plugin_root=PLUGIN_ROOT,
+        include_legacy_preview=False,
+    )
+    with TestClient(app) as client:
+        initial = client.get("/api/v1/state")
+        assert initial.status_code == 200
+        initial_payload = initial.json()
+        assert initial_payload["schema_version"] == "virea.state_revision.v1.0.0"
+        assert initial_payload["events_url"] == "/api/v1/state/events"
+        assert initial_payload["virea_home"] == str(tmp_path / "virea-home")
+        assert set(initial_payload["revision"]) == {
+            "jobs",
+            "results",
+            "installations",
+            "models",
+            "workers",
+        }
+        with client.websocket_connect("/api/v1/state/events") as websocket:
+            first_event = websocket.receive_json()
+            assert first_event["revision"] == initial_payload["revision"]
+            assert first_event["virea_home"] == initial_payload["virea_home"]
+            created = client.post(
+                "/api/v1/jobs",
+                json={
+                    "model_id": "not-in-catalog",
+                    "task": "text_to_motion",
+                    "input": {},
+                    "parameters": {},
+                },
+            )
+            assert created.status_code == 202
+            changed = websocket.receive_json()
+            assert changed["revision"]["jobs"] != initial_payload["revision"]["jobs"]
+
+        current = client.get("/api/v1/state").json()
+        assert current["revision"] == changed["revision"]
 
 
 def test_production_http_hides_and_rejects_test_only_models(tmp_path) -> None:

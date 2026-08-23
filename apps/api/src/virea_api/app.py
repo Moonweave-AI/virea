@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from virea_core.paths import VireaPaths
 
@@ -31,6 +32,8 @@ def _web_dist() -> Path:
 
 
 def _include_legacy_preview(app: FastAPI) -> None:
+    """Keep legacy data APIs without exposing the retired legacy Web UI."""
+
     try:
         from virea.server.app import app as legacy_app
     except Exception:
@@ -46,7 +49,12 @@ def _include_legacy_preview(app: FastAPI) -> None:
     for route in legacy_app.routes:
         path = getattr(route, "path", None)
         key = (path, tuple(sorted(getattr(route, "methods", ()) or ())))
-        if path in reserved or key in existing:
+        if (
+            not isinstance(path, str)
+            or not path.startswith("/api/")
+            or path in reserved
+            or key in existing
+        ):
             continue
         app.router.routes.append(route)
         existing.add(key)
@@ -107,6 +115,11 @@ def create_app(
     if include_legacy_preview:
         _include_legacy_preview(application)
     web_dist = _web_dist()
+
+    @application.get("/", include_in_schema=False)
+    async def web_root() -> RedirectResponse:
+        return RedirectResponse(url="/app/", status_code=307)
+
     application.mount("/app", StaticFiles(directory=web_dist, html=True), name="web")
     return application
 

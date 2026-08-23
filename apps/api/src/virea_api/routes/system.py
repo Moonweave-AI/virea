@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+import asyncio
+from datetime import datetime, timezone
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from virea_bootstrap.detector import detect_machine
 from virea_core.ids import new_ulid
 from virea_observability import build_support_bundle
@@ -9,6 +18,16 @@ from ..dependencies import control_plane
 from ..service import ControlPlane
 
 router = APIRouter(tags=["system"])
+
+
+def _state_revision(control: ControlPlane) -> dict:
+    return {
+        "schema_version": "virea.state_revision.v1.0.0",
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+        "events_url": "/api/v1/state/events",
+        "virea_home": str(control.paths.root),
+        "revision": control.store.state_revision(),
+    }
 
 
 @router.get("/health")
@@ -30,6 +49,37 @@ async def health(control: ControlPlane = Depends(control_plane)) -> dict:
         "status": "ready",
         "control_plane_ready": True,
     }
+
+
+@router.get("/state")
+def state_revision(control: ControlPlane = Depends(control_plane)) -> dict:
+    """Return the persistent-state revision without expensive diagnostics."""
+
+    return _state_revision(control)
+
+
+@router.websocket("/state/events")
+async def state_events(websocket: WebSocket) -> None:
+    """Notify browsers when this VIREA home changes in any local process."""
+
+    await websocket.accept()
+    control: ControlPlane = websocket.app.state.control_plane
+    previous: dict[str, str] | None = None
+    try:
+        while True:
+            payload = _state_revision(control)
+            revision = payload["revision"]
+            if revision != previous:
+                await websocket.send_json(payload)
+                previous = revision
+            try:
+                message = await asyncio.wait_for(websocket.receive(), timeout=0.75)
+                if message.get("type") == "websocket.disconnect":
+                    return
+            except asyncio.TimeoutError:
+                continue
+    except WebSocketDisconnect:
+        return
 
 
 @router.get("/system")

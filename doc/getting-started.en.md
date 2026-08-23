@@ -197,8 +197,11 @@ claim that every operating system or GPU has been verified.
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 ```
 
-Open `http://127.0.0.1:8000/app/`, load a local `.vrm` Avatar, select the same execution domain and model, and open the
-result. Stop the service with `Ctrl+C`. See the [CLI reference](reference/cli.en.md#serve) for `--reload` and the legacy
+Open `http://127.0.0.1:8000/`, load a local `.vrm` Avatar, and use the unified generation-and-diagnostics workbench. The
+left diagnostic stage is the decoded model-space skeleton before VRM retargeting; the right stage is the final VRM/VRMA
+from the same result. Model deployments and results written by the CLI synchronize automatically; `/app/` remains a
+compatible URL for the same UI.
+Stop the service with `Ctrl+C`. See the [CLI reference](reference/cli.en.md#serve) for `--reload` and the legacy
 `--data-source` compatibility option.
 
 ## 8. Advanced: troubleshooting and safe maintenance

@@ -1,5 +1,6 @@
 import type {
   ExportRecord,
+  JobRecord,
   ModelInstallPayload,
   ModelManifest,
   ModelResult,
@@ -19,6 +20,14 @@ export function productionCatalogModels(manifests: ModelManifest[]): ModelManife
   return manifests.filter(isProductionCatalogModel);
 }
 
+export function productionCatalogJobs(
+  jobs: JobRecord[],
+  manifests: ModelManifest[],
+): JobRecord[] {
+  const modelIds = new Set(productionCatalogModels(manifests).map((manifest) => manifest.model.id));
+  return jobs.filter((job) => modelIds.has(job.model_id));
+}
+
 export function isRealRunnableModel(manifest: ModelManifest): boolean {
   if (!isProductionCatalogModel(manifest)) return false;
   return manifest.runtime_variants.some((runtime) => {
@@ -36,6 +45,9 @@ export function installationState(manifest: ModelManifest): string | null {
 }
 
 export function isInstalledReady(manifest: ModelManifest): boolean {
+  if (typeof manifest.installation?.ready === "boolean") {
+    return manifest.installation.ready;
+  }
   const installState = installationState(manifest)?.toUpperCase();
   if (installState != null) return installState === "READY";
   return manifest.runtime_variants.some((runtime) =>

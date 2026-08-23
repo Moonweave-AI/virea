@@ -29,6 +29,7 @@ from virea_bootstrap import (
     select_resource_profile,
 )
 from virea_compat import (
+    AdapterOutput,
     body22_positions_to_motion_ir,
     humanml3d_263_denormalized_to_motion_ir,
     mardm_ric67_to_motion_ir,
@@ -81,6 +82,9 @@ from virea_runtime import (
 )
 from virea_vrm import export_vrma
 
+from virea.motion.skeleton import FK_BONES, FK_EDGES, forward_kinematics_from_sequence
+from virea.motion.snapshot import SourceSnapshot
+
 from .coordination import (
     ControlPlaneOwnership,
     ResourceLease,
@@ -100,6 +104,115 @@ REAL_ADAPTER_FAMILIES = frozenset(
         "prism-smplh-body22-axis-angle69",
     }
 )
+SOURCE_SKELETON_PREVIEW_SCHEMA = "virea.source_skeleton_preview.v1.0.0"
+
+
+def _source_skeleton_preview_payload(
+    snapshot: SourceSnapshot,
+    *,
+    result_id: str,
+    job_id: str,
+    model_result: ModelResult,
+) -> dict[str, Any]:
+    """Serialize the model-space skeleton before any VRM retarget operation."""
+
+    positions = np.asarray(snapshot.positions, dtype=np.float32)
+    if positions.ndim != 3 or positions.shape[0] < 1 or positions.shape[2] != 3:
+        raise ValueError("source skeleton positions must have shape (T, J, 3)")
+    if positions.shape[1] != len(snapshot.joint_names):
+        raise ValueError("source skeleton joint names do not match its positions")
+    if not np.isfinite(positions).all():
+        raise ValueError("source skeleton positions contain NaN or infinity")
+    joint_count = int(positions.shape[1])
+    edges = tuple((int(parent), int(child)) for parent, child in snapshot.edges)
+    if any(
+        parent < 0
+        or child < 0
+        or parent >= joint_count
+        or child >= joint_count
+        or parent == child
+        for parent, child in edges
+    ):
+        raise ValueError("source skeleton contains an invalid edge")
+    fps = float(snapshot.fps)
+    if not math.isfinite(fps) or fps <= 0:
+        raise ValueError("source skeleton fps must be finite and positive")
+    metadata = json.loads(
+        json.dumps(snapshot.metadata or {}, ensure_ascii=False, allow_nan=False)
+    )
+    return {
+        "schema_version": SOURCE_SKELETON_PREVIEW_SCHEMA,
+        "result_id": result_id,
+        "job_id": job_id,
+        "stage": "model_output_pre_retarget",
+        "representation_id": model_result.native.representation_id,
+        "skeleton_id": model_result.native.skeleton_id,
+        "coordinate_system": snapshot.coordinate_system,
+        "fps": fps,
+        "frame_count": int(positions.shape[0]),
+        "duration_seconds": float(positions.shape[0] / fps),
+        "actors": [
+            {
+                "actor_id": "actor-0",
+                "joint_names": list(snapshot.joint_names),
+                "edges": [list(edge) for edge in edges],
+                "positions_xyz": positions.reshape(-1).tolist(),
+            }
+        ],
+        "display_transform": {
+            "coordinates_normalized_for_preview": True,
+            "vrm_retarget_applied": False,
+        },
+        "metadata": metadata,
+    }
+
+
+def _validate_source_skeleton_preview_payload(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("source skeleton preview must be a JSON object")
+    if payload.get("schema_version") != SOURCE_SKELETON_PREVIEW_SCHEMA:
+        raise ValueError("unsupported source skeleton preview schema")
+    frame_count = payload.get("frame_count")
+    fps = payload.get("fps")
+    actors = payload.get("actors")
+    if type(frame_count) is not int or frame_count < 1:
+        raise ValueError("source skeleton preview frame_count is invalid")
+    if (
+        isinstance(fps, bool)
+        or not isinstance(fps, (int, float))
+        or not math.isfinite(fps)
+        or fps <= 0
+    ):
+        raise ValueError("source skeleton preview fps is invalid")
+    if not isinstance(actors, list) or not actors:
+        raise ValueError("source skeleton preview has no actors")
+    for actor in actors:
+        if not isinstance(actor, dict):
+            raise ValueError("source skeleton actor is invalid")
+        names = actor.get("joint_names")
+        positions = actor.get("positions_xyz")
+        edges = actor.get("edges")
+        if not isinstance(names, list) or not names:
+            raise ValueError("source skeleton actor has no joints")
+        expected_values = frame_count * len(names) * 3
+        if not isinstance(positions, list) or len(positions) != expected_values:
+            raise ValueError("source skeleton actor position count is invalid")
+        if not all(
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(value)
+            for value in positions
+        ):
+            raise ValueError("source skeleton actor positions are not finite")
+        if not isinstance(edges, list) or any(
+            not isinstance(edge, list)
+            or len(edge) != 2
+            or not all(type(index) is int and 0 <= index < len(names) for index in edge)
+            or edge[0] == edge[1]
+            for edge in edges
+        ):
+            raise ValueError("source skeleton actor edges are invalid")
+    return payload
 
 
 def validate_inference_timeout(value: float) -> float:
@@ -261,6 +374,105 @@ class ControlPlane:
         inference_timeout: float = DEFAULT_INFERENCE_TIMEOUT_SECONDS,
     ) -> dict[str, Any]:
         return self._submit(request, inference_timeout=inference_timeout)
+
+    def source_skeleton_preview(self, result_id: str) -> dict[str, Any]:
+        """Return the immutable pre-retarget skeleton, rebuilding legacy results.
+
+        New results publish ``source-skeleton.json`` atomically. Results from
+        earlier VIREA releases can still be diagnosed while their original job
+        artifacts exist: the exact model payload is decoded through the same
+        adapter, but is never passed through the VRM retarget stage.
+        """
+
+        row = self.store.get_result(result_id)
+        if row is None:
+            raise KeyError(result_id)
+        result = VrmMotionResult.model_validate_json(row["payload_json"])
+
+        source_locator = result.tracks.get("source_skeleton")
+        if source_locator:
+            payload = json.loads(
+                self._result_artifact_path(result_id, source_locator).read_text(
+                    encoding="utf-8"
+                )
+            )
+            validated = _validate_source_skeleton_preview_payload(payload)
+            if (
+                validated.get("result_id") != result_id
+                or validated.get("job_id") != result.job_id
+            ):
+                raise ValueError("source skeleton preview identity is stale")
+            return validated
+        return self._rebuild_legacy_source_skeleton_preview(result)
+
+    def _result_artifact_path(self, result_id: str, locator: str) -> Path:
+        result_root = self.paths.result_directory(result_id).resolve(strict=False)
+        path = self.paths.resolve_locator(locator)
+        try:
+            path.resolve(strict=False).relative_to(result_root)
+        except ValueError as exc:
+            raise ValueError(
+                "result artifact locator is outside its result directory"
+            ) from exc
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        return path
+
+    def _rebuild_legacy_source_skeleton_preview(
+        self,
+        result: VrmMotionResult,
+    ) -> dict[str, Any]:
+        model_result_locator = result.tracks.get("model_result")
+        if not model_result_locator:
+            raise ValueError("legacy result has no ModelResult track")
+        model_result = ModelResult.model_validate_json(
+            self._result_artifact_path(
+                result.result_id,
+                model_result_locator,
+            ).read_text(encoding="utf-8")
+        )
+        if model_result.job_id != result.job_id:
+            raise ValueError("legacy ModelResult job identity is stale")
+        try:
+            manifest = self.catalog.get(model_result.model.id)
+        except KeyError as exc:
+            raise ValueError(
+                f"legacy model is no longer in the catalog: {model_result.model.id}"
+            ) from exc
+        try:
+            _, native = self._load_native_artifact(
+                job_root=self.paths.job_directory(result.job_id),
+                job_id=result.job_id,
+                model_result=model_result,
+                adapter_family=manifest.model.adapter_family,
+            )
+        except FileNotFoundError:
+            native_locator = result.tracks.get("native")
+            if not native_locator:
+                raise ValueError("legacy result has no native model artifact") from None
+            native_path = self._result_artifact_path(
+                result.result_id,
+                native_locator,
+            )
+            if native_path.suffix.lower() == ".npy":
+                native = np.load(native_path, allow_pickle=False)
+            elif native_path.suffix.lower() == ".json":
+                native = json.loads(native_path.read_text(encoding="utf-8"))
+            else:
+                raise ValueError("legacy native artifact format is unsupported") from None
+        adapted = self._adapt_native_output(
+            adapter_family=manifest.model.adapter_family,
+            native=native,
+            model_result=model_result,
+        )
+        if adapted.source_snapshot is None:
+            raise ValueError("legacy model adapter cannot reconstruct a source skeleton")
+        return _source_skeleton_preview_payload(
+            adapted.source_snapshot,
+            result_id=result.result_id,
+            job_id=result.job_id,
+            model_result=model_result,
+        )
 
     def _submit(
         self,
@@ -619,11 +831,17 @@ class ControlPlane:
                 adapter_family=manifest.model.adapter_family,
             )
             self.store.transition_job(job_id, JobState.NORMALIZING)
-            motion = self._adapt_native_motion(
+            adapted = self._adapt_native_output(
                 adapter_family=manifest.model.adapter_family,
                 native=native,
                 model_result=model_result,
             )
+            motion = adapted.motion_ir
+            if adapted.source_snapshot is None:
+                raise ValueError(
+                    "model adapter did not preserve a pre-retarget source skeleton"
+                )
+            source_snapshot = adapted.source_snapshot
             self.store.transition_job(job_id, JobState.RETARGETING)
             retarget = retarget_motion_ir(motion)
             self.store.transition_job(job_id, JobState.VALIDATING)
@@ -657,6 +875,15 @@ class ControlPlane:
                 result_dir / "model-result.json",
                 model_result.model_dump(mode="json"),
             )
+            source_skeleton_path = atomic_write_json(
+                result_dir / "source-skeleton.json",
+                _source_skeleton_preview_payload(
+                    source_snapshot,
+                    result_id=result_id,
+                    job_id=job_id,
+                    model_result=model_result,
+                ),
+            )
             motion_descriptor = save_motion_ir(motion, result_dir / "motion-ir")
             native_result_dir = result_dir / "native"
             native_result_dir.mkdir(parents=True, exist_ok=False)
@@ -689,6 +916,9 @@ class ControlPlane:
                 for actor in retarget.actors
             )
             model_result_locator = self.paths.relative_locator(model_result_path)
+            source_skeleton_locator = self.paths.relative_locator(
+                source_skeleton_path
+            )
             motion_ir_locator = self.paths.relative_locator(motion_descriptor)
             canonical_locator = self.paths.relative_locator(canonical_path)
             native_locator = self.paths.relative_locator(native_result_path)
@@ -706,6 +936,7 @@ class ControlPlane:
                     # ModelResult is retained verbatim as a first-class artifact so
                     # its complete generation provenance survives normalization.
                     "model_result": model_result_locator,
+                    "source_skeleton": source_skeleton_locator,
                     "motion_ir": motion_ir_locator,
                     "humanoid": canonical_locator,
                     "native": native_locator,
@@ -717,6 +948,17 @@ class ControlPlane:
                     "gaze": None,
                 },
                 exports=(
+                    ExportRecord(
+                        format="source-skeleton+json",
+                        locator=source_skeleton_locator,
+                        media_type="application/json",
+                        byte_length=source_skeleton_path.stat().st_size,
+                        identity=ActorExportIdentity(
+                            actor_id="actor-0",
+                            representation_id=result_identity.native_representation_id,
+                            skeleton_id=result_identity.native_skeleton_id,
+                        ),
+                    ),
                     ExportRecord(
                         format="npz",
                         locator=canonical_locator,
@@ -776,6 +1018,12 @@ class ControlPlane:
                     "media_type": "application/json",
                     "locator": model_result_locator,
                     "byte_length": model_result_path.stat().st_size,
+                },
+                {
+                    "name": "source_skeleton",
+                    "media_type": "application/json",
+                    "locator": source_skeleton_locator,
+                    "byte_length": source_skeleton_path.stat().st_size,
                 },
                 {
                     "name": "motion_ir_descriptor",
@@ -2257,12 +2505,12 @@ class ControlPlane:
         return values
 
     @staticmethod
-    def _adapt_native_motion(
+    def _adapt_native_output(
         *,
         adapter_family: str,
         native: Any,
         model_result: ModelResult,
-    ):
+    ) -> AdapterOutput:
         if adapter_family == "humanml3d-motion263-body22":
             return humanml3d_263_denormalized_to_motion_ir(
                 native,
@@ -2270,7 +2518,7 @@ class ControlPlane:
                 upstream_revision=model_result.model.upstream_revision,
                 fps=float(model_result.native.fps),
                 motion_id=f"motion-{new_ulid()}",
-            ).motion_ir
+            )
         if adapter_family == "joint-positions-body22":
             return body22_positions_to_motion_ir(
                 native,
@@ -2278,7 +2526,7 @@ class ControlPlane:
                 upstream_revision=model_result.model.upstream_revision,
                 fps=float(model_result.native.fps),
                 motion_id=f"motion-{new_ulid()}",
-            ).motion_ir
+            )
         if adapter_family == "mardm-ric67-body22":
             revision = model_result.model.upstream_revision
             return mardm_ric67_to_motion_ir(
@@ -2290,7 +2538,7 @@ class ControlPlane:
                 upstream_revision=revision,
                 fps=float(model_result.native.fps),
                 motion_id=f"motion-{new_ulid()}",
-            ).motion_ir
+            )
         if adapter_family == "prism-smplh-body22-axis-angle69":
             return prism_smplh_body22_axis_angle69_to_motion_ir(
                 native,
@@ -2298,7 +2546,7 @@ class ControlPlane:
                 motion_id=f"motion-{new_ulid()}",
                 source_model_id=model_result.model.id,
                 upstream_revision=model_result.model.upstream_revision,
-            ).motion_ir
+            )
         if adapter_family == "fake-root-translation":
             root_translation = np.asarray(
                 native["root_translation_m"], dtype=np.float32
@@ -2309,7 +2557,7 @@ class ControlPlane:
             canonical = np.concatenate(
                 (root_translation, rotations.reshape(frame_count, -1)), axis=1
             ).astype(np.float32)
-            return canonical211_to_motion_ir(
+            motion = canonical211_to_motion_ir(
                 canonical,
                 fps=float(model_result.native.fps),
                 motion_id=f"motion-{new_ulid()}",
@@ -2320,7 +2568,38 @@ class ControlPlane:
                     "compatibility_only": True,
                 },
             )
+            return AdapterOutput(
+                motion_ir=motion,
+                canonical211=canonical,
+                metadata=motion.provenance,
+                native_artifacts={
+                    "root_translation_m": root_translation.copy(),
+                },
+                source_snapshot=SourceSnapshot(
+                    positions=forward_kinematics_from_sequence(canonical),
+                    joint_names=list(FK_BONES),
+                    edges=list(FK_EDGES),
+                    fps=float(model_result.native.fps),
+                    coordinate_system="world_normalized",
+                    metadata={"compatibility_only": True},
+                ),
+            )
         raise ValueError(f"no adapter runner for {adapter_family!r}")
+
+    @staticmethod
+    def _adapt_native_motion(
+        *,
+        adapter_family: str,
+        native: Any,
+        model_result: ModelResult,
+    ):
+        """Compatibility wrapper for callers that only need Motion IR."""
+
+        return ControlPlane._adapt_native_output(
+            adapter_family=adapter_family,
+            native=native,
+            model_result=model_result,
+        ).motion_ir
 
     def _job_cancel_requested(self, job_id: str) -> bool:
         if self._closing.is_set():

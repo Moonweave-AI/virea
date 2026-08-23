@@ -52,6 +52,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
 | Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
 | Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
+| Update an already-deployed device without redownloading models | [Persistent-root update procedure](doc/getting-started/persistent-data-root.en.md#update-another-device-that-is-already-deployed) |
 | Load a result in a real Avatar | [Browser playback](doc/getting-started.en.md#7-advanced-play-a-result-in-the-browser) |
 | Integrate another model | [Model adapter guide](doc/development/model-adapter.zh-CN.md) |
 | Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
@@ -287,7 +288,10 @@ skeleton/representation, execution domain, resource profile and device.
 uv run virea serve --host 127.0.0.1 --port 8000 --virea-home <external-home>
 ```
 
-Open `http://127.0.0.1:8000/app/`, load a local `.vrm`, and select the generated result. Production browser evidence must
+Open `http://127.0.0.1:8000/`; it redirects to the only current Motion Studio. Generation and diagnostics share one
+workbench: the model-space skeleton before retargeting and the final VRM/VRMA play side by side from the same immutable
+result. CLI deployments/results are synchronized automatically from the persistent state. Load a local `.vrm`.
+Production browser evidence must
 show a visible full Avatar, advancing animation time, validated duration, finite tracks and zero console errors. A client
 cannot promote itself by reporting `playing=true`; see the [E2E contract](doc/quality/production-e2e.en.md).
 

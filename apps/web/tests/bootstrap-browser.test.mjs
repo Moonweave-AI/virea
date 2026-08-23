@@ -124,6 +124,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
   let systemRequestCount = 0;
   let executionDomainRequestCount = 0;
   let executionOptionsRequestCount = 0;
+  let fakeJobRequestCount = 0;
   const backendSockets = new Set();
   const backend = createHttpServer((request, response) => {
     const path = new URL(request.url, "http://127.0.0.1").pathname;
@@ -133,6 +134,23 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
         version: "0.4.0",
         status: "ready",
         control_plane_ready: true,
+      });
+      return;
+    }
+    if (path === "/api/v1/state") {
+      respondJson(response, {
+        schema_version: "virea.state_revision.v1.0.0",
+        observed_at: "2026-08-23T00:00:00Z",
+        // This HTTP-only fixture intentionally advertises no event stream.
+        events_url: "",
+        virea_home: "X:\\VIREA-DATA\\home",
+        revision: {
+          jobs: "0:",
+          results: "0:",
+          installations: "0:",
+          models: "1:2026-08-23T00:00:00Z",
+          workers: "0::",
+        },
       });
       return;
     }
@@ -181,7 +199,17 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       return;
     }
     if (path === "/api/v1/jobs") {
-      respondJson(response, []);
+      respondJson(response, [{
+        id: "fake-job",
+        model_id: "fake-motion-v1",
+        task: "text_to_motion",
+        state: "SUCCEEDED",
+      }]);
+      return;
+    }
+    if (path === "/api/v1/jobs/fake-job") {
+      fakeJobRequestCount += 1;
+      respondJson(response, { detail: "test-only result must never be requested" }, 500);
       return;
     }
     if (path === "/api/v1/jobs/job-deep") {
@@ -219,6 +247,32 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
           representation_id: "humanml3d.vector263.v1",
           skeleton_id: "humanml3d.body22.v1",
         },
+      });
+      return;
+    }
+    if (path === "/api/v1/results/result-deep/source-skeleton") {
+      respondJson(response, {
+        schema_version: "virea.source_skeleton_preview.v1.0.0",
+        result_id: "result-deep",
+        job_id: "job-deep",
+        stage: "model_output_pre_retarget",
+        representation_id: "humanml3d.vector263.v1",
+        skeleton_id: "humanml3d.body22.v1",
+        coordinate_system: "world_normalized",
+        fps: 20,
+        frame_count: 2,
+        duration_seconds: 0.1,
+        actors: [{
+          actor_id: "actor-0",
+          joint_names: ["hips", "spine"],
+          edges: [[0, 1]],
+          positions_xyz: [0, 0, 0, 0, 1, 0, 0.1, 0, 0, 0.1, 1, 0],
+        }],
+        display_transform: {
+          coordinates_normalized_for_preview: true,
+          vrm_retarget_applied: false,
+        },
+        metadata: {},
       });
       return;
     }
@@ -297,6 +351,11 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     const environment = page.locator("#global-execution-domain");
     await environment.waitFor({ state: "visible", timeout: 3_000 });
     assert.equal(await environment.inputValue(), "");
+    assert.match(await page.locator("#data-root-indicator").textContent(), /X:\\VIREA-DATA\\home/);
+    assert.equal(await page.locator("[data-source-empty=true]").count(), 1);
+    assert.equal(await page.locator("#source-skeleton-canvas").getAttribute("data-viewer-state"), "idle");
+    assert.equal(await page.locator("#source-skeleton-canvas").getAttribute("data-source-frame"), "0");
+    assert.equal(fakeJobRequestCount, 0, "bootstrap must not hydrate a test-only successful job");
     await environment.selectOption("wsl:Ubuntu-24.04");
     await page.locator('button[data-view="playground"]').click();
     await page.locator("#model-id").waitFor({ state: "visible", timeout: 3_000 });
