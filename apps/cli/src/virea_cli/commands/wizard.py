@@ -16,6 +16,12 @@ from virea_core.paths import VireaPaths
 from virea_model_pool import ModelCatalog
 
 from ..common import plugin_root, runtime_source_root
+from ..presentation import TerminalUI, target_label
+from ..wizard_state import (
+    installed_target,
+    load_preferences,
+    save_preferences,
+)
 from . import generate, model, serve, setup
 
 Input = Callable[[str], str]
@@ -51,15 +57,32 @@ def _choice(
     title: str,
     items: Sequence[Choice],
     label: Callable[[Choice], str],
+    default: Choice | None = None,
 ) -> Choice:
     if not items:
         raise RuntimeError("the interactive wizard has no selectable options")
     _write(output)
     _write(output, title)
+    default_index: int | None = None
     for index, item in enumerate(items, start=1):
-        _write(output, f"  {index}. {label(item)}")
+        is_default = default is not None and item == default
+        if is_default:
+            default_index = index
+        marker = ">" if is_default else " "
+        restored = "  [saved / 已保存]" if is_default else ""
+        _write(output, f" {marker} {index}. {label(item)}{restored}")
     while True:
-        answer = input_fn("Choose a number / 输入序号 (q to quit / q 退出): ").strip()
+        default_hint = (
+            f", Enter={default_index} / 回车={default_index}"
+            if default_index is not None
+            else ""
+        )
+        answer = input_fn(
+            "Choose a number / 输入序号 "
+            f"(q to quit / q 退出{default_hint}): "
+        ).strip()
+        if not answer and default_index is not None:
+            return items[default_index - 1]
         if answer.lower() in {"q", "quit", "退出"}:
             raise WizardCancelled
         try:
@@ -134,7 +157,7 @@ def _configure_data_root(data_root: str, output: Output) -> None:
             "--data-root",
             data_root,
         ]
-    _write(output, "\n[VIREA wizard 1/7] Configuring the persistent data root...")
+    _write(output, "Configuring persistent paths for this device...")
     completed = subprocess.run(command, check=False)
     if completed.returncode != 0:
         raise RuntimeError(
@@ -191,15 +214,24 @@ def _selected_target(
     manifest: Any,
     input_fn: Input,
     output: Output,
+    preferred: ExecutionTargetSelection | None = None,
 ) -> ExecutionTargetSelection:
     """Choose a domain, exact Runtime, and profile and confirm admission."""
 
     while True:
-        _write(
-            output, "\n[VIREA wizard 4/7] Detecting execution domains and resources..."
-        )
+        _write(output, "Refreshing execution domains and available resources...")
         payload = control.execution_options(manifest.model.id)
         options = list(payload["options"])
+        preferred_domain = next(
+            (
+                item
+                for item in options
+                if preferred is not None
+                and item["execution_domain"]["id"]
+                == preferred.execution_domain_id
+            ),
+            None,
+        )
         domain_option = _choice(
             input_fn,
             output,
@@ -210,6 +242,7 @@ def _selected_target(
                 f"runtime={item['selected_runtime_id'] or 'none'}; "
                 f"buildable={'yes' if item['can_build'] else 'no'}"
             ),
+            default=preferred_domain,
         )
         domain_id = str(domain_option["execution_domain"]["id"])
         candidates = [
@@ -217,6 +250,15 @@ def _selected_target(
             for candidate in domain_option["runtime_candidates"]
             if candidate["execution_domain"] == domain_id
         ]
+        preferred_runtime = next(
+            (
+                item
+                for item in candidates
+                if preferred is not None
+                and item["runtime_id"] == preferred.runtime_variant_id
+            ),
+            None,
+        )
         runtime_option = _choice(
             input_fn,
             output,
@@ -226,6 +268,7 @@ def _selected_target(
                 f"{item['runtime_id']} — {item['status']}"
                 + (f"; {item['reasons'][0]}" if item.get("reasons") else "")
             ),
+            default=preferred_runtime,
         )
         runtime_id = str(runtime_option["runtime_id"])
         runtime = next(
@@ -236,6 +279,15 @@ def _selected_target(
             raise RuntimeError(
                 f"Runtime {runtime_id} has no selectable resource profile"
             )
+        preferred_profile = next(
+            (
+                item
+                for item in profiles
+                if preferred is not None
+                and item.id == preferred.resource_profile_id
+            ),
+            None,
+        )
         profile = _choice(
             input_fn,
             output,
@@ -246,6 +298,7 @@ def _selected_target(
                 f"minimum free RAM={item.min_free_ram_gib or 0:g} GiB; "
                 f"minimum free VRAM={item.min_free_vram_gib or 0:g} GiB"
             ),
+            default=preferred_profile,
         )
         target = ExecutionTargetSelection(
             execution_domain_id=domain_id,
@@ -277,7 +330,11 @@ def _selected_target(
 
 
 def _install_args(
-    manifest: Any, target: ExecutionTargetSelection, *, accepted_license: bool
+    manifest: Any,
+    target: ExecutionTargetSelection,
+    *,
+    accepted_license: bool,
+    reporter: Any | None = None,
 ) -> Namespace:
     return Namespace(
         model_command="install",
@@ -295,11 +352,17 @@ def _install_args(
         validation_timeout=None,
         virea_home=None,
         interactive_progress=True,
+        interactive_reporter=reporter,
     )
 
 
 def _generate_args(
-    manifest: Any, target: ExecutionTargetSelection, prompt: str, seconds: float
+    manifest: Any,
+    target: ExecutionTargetSelection,
+    prompt: str,
+    seconds: float,
+    *,
+    reporter: Any | None = None,
 ) -> Namespace:
     return Namespace(
         model=manifest.model.id,
@@ -316,6 +379,7 @@ def _generate_args(
         timeout=1800.0,
         virea_home=None,
         interactive_progress=True,
+        interactive_reporter=reporter,
     )
 
 
@@ -345,98 +409,258 @@ def _serve_args(port: int) -> Namespace:
     )
 
 
+def _deployment_label(report: dict[str, Any]) -> str:
+    if report.get("ready"):
+        return "READY · deployed / 已部署"
+    state = report.get("state")
+    if report.get("installed"):
+        return f"{state or 'FOUND'} · needs attention / 需处理"
+    if state:
+        return f"{state} · not usable / 不可用"
+    return "not installed / 未安装"
+
+
+def _deployment_rows(
+    report: dict[str, Any], target: ExecutionTargetSelection | None
+) -> list[tuple[str, object]]:
+    rows: list[tuple[str, object]] = [
+        ("Deployment / 部署", _deployment_label(report)),
+    ]
+    if report.get("installation_id"):
+        rows.append(("Installation", report["installation_id"]))
+    if target_label(target):
+        rows.append(("Bound target / 已绑定环境", target_label(target)))
+    if report.get("locator"):
+        rows.append(("Snapshot / 快照", report["locator"]))
+    latest = report.get("latest_attempt")
+    if isinstance(latest, dict) and latest.get("state") != report.get("state"):
+        rows.append(
+            (
+                "Latest attempt / 最近尝试",
+                f"{latest.get('state', 'UNKNOWN')} · {latest.get('installation_id', '—')}",
+            )
+        )
+    return rows
+
+
 def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
     """Run the no-argument, user-confirmed interactive VIREA workflow."""
 
     input_fn = input if input_fn is None else input_fn
-    output = print if output is None else output
+    ui = TerminalUI(output)
+    writer = ui.write
     try:
-        _write(output, "VIREA interactive wizard / VIREA 交互式向导")
-        _write(
-            output,
-            "Each choice is explicit; no model, OS, or accelerator is selected silently.",
+        ui.banner()
+        ui.write(
+            "Every selection is explicit; saved choices are shown and can be reused."
         )
-        _write(output, "每一步都需要明确选择；不会静默替换模型、系统或加速器。")
-        _ensure_data_root(input_fn, output)
+        ui.write("每个选择都会明确展示；已保存的选择可以直接复用，不会被静默替换。")
 
-        _write(output, "\n[VIREA wizard 2/7] Initializing local state...")
-        if setup.run(Namespace(virea_home=None)) != 0:
+        ui.step(
+            1,
+            7,
+            "Persistent data root / 持久数据根",
+            "Restore the configured location or choose it once for this device.",
+        )
+        _ensure_data_root(input_fn, writer)
+        paths = VireaPaths.discover(None)
+
+        ui.step(
+            2,
+            7,
+            "Device and state / 设备与状态",
+            "Refresh real machine facts and restore durable VIREA history.",
+        )
+        setup_reporter = ui.reporter("Setup / 初始化")
+        if (
+            setup.run(
+                Namespace(virea_home=None, interactive_reporter=setup_reporter)
+            )
+            != 0
+        ):
             return 2
 
-        _write(output, "\n[VIREA wizard 3/7] Choosing a model...")
-        manifest = _choice(
-            input_fn,
-            output,
-            title="Choose a model / 选择模型：",
-            items=_model_manifests(),
-            label=lambda item: (
-                f"{item.model.id} — {item.model.status.value}; "
-                f"tasks={','.join(item.model.tasks)}"
-            ),
-        )
-
         control = ControlPlane(
-            paths=VireaPaths.discover(None),
+            paths=paths,
             plugin_root=plugin_root(),
             runtime_source_root=runtime_source_root(),
         )
         try:
-            target = _selected_target(control, manifest, input_fn, output)
+            preferences, preference_warning = load_preferences(paths)
+            if preference_warning:
+                ui.warning(
+                    "Saved wizard choices were invalid and were ignored / "
+                    f"已忽略损坏的向导选择: {preference_warning}"
+                )
+            manifests = _model_manifests()
+            reports = {
+                item.model.id: control.model_pool.verify_latest(item.model.id)
+                for item in manifests
+            }
+            recent_jobs = control.store.list_jobs(limit=3)
+            ui.history(
+                home=str(paths.root),
+                selected_model=preferences.model_id,
+                selected_target=target_label(preferences.execution_target),
+                ready_count=sum(
+                    bool(report.get("ready")) for report in reports.values()
+                ),
+                recent_jobs=recent_jobs,
+            )
+
+            ui.step(
+                3,
+                7,
+                "Model / 模型",
+                "Catalog status and verified local deployment are shown together.",
+            )
+            default_manifest = next(
+                (
+                    item
+                    for item in manifests
+                    if item.model.id == preferences.model_id
+                ),
+                None,
+            )
+            manifest = _choice(
+                input_fn,
+                writer,
+                title="Choose a model / 选择模型：",
+                items=manifests,
+                label=lambda item: (
+                    f"{item.model.display_name} ({item.model.id}) · "
+                    f"{_deployment_label(reports[item.model.id])} · "
+                    f"tasks={','.join(item.model.tasks)}"
+                ),
+                default=default_manifest,
+            )
+            report = reports[manifest.model.id]
+            bound_target = installed_target(control.model_pool, report)
+            ui.key_values(
+                "Current deployment / 当前部署",
+                _deployment_rows(report, bound_target),
+                tone="green" if report.get("ready") else "yellow",
+            )
+
+            ui.step(
+                4,
+                7,
+                "Execution target / 执行环境",
+                "Detect the current device, then choose OS domain, Runtime, and profile.",
+            )
+            preferred_target = (
+                preferences.execution_target
+                if preferences.model_id == manifest.model.id
+                else bound_target
+            )
+            target = _selected_target(
+                control,
+                manifest,
+                input_fn,
+                writer,
+                preferred=preferred_target,
+            )
+            save_preferences(
+                paths,
+                model_id=manifest.model.id,
+                execution_target=target,
+            )
         finally:
             control.close()
 
-        accepted_license = False
-        if manifest.licenses.requires_acceptance:
-            accepted_license = _confirm(
-                input_fn,
-                output,
-                "Read the upstream license terms and record local acknowledgement / 已阅读上游许可证并记录本地确认",
-                default=False,
+        ui.step(
+            5,
+            7,
+            "Deployment / 部署",
+            "Reuse a verified snapshot or show each real install boundary.",
+        )
+        ui.key_values(
+            "Installation plan / 安装计划",
+            [
+                ("Model / 模型", manifest.model.id),
+                ("Domain / 系统", target.execution_domain_id),
+                ("Runtime / 环境", target.runtime_variant_id),
+                ("Profile / 配置", target.resource_profile_id),
+                ("Artifact sources / 制品源", len(manifest.artifacts)),
+            ],
+        )
+        reuse_ready = bool(report.get("ready") and bound_target == target)
+        install_required = True
+        if reuse_ready:
+            ui.success(
+                "A verified READY installation already matches this target / "
+                "已有与该环境匹配且验证通过的 READY 部署"
             )
-            if not accepted_license:
+            install_required = not _confirm(
+                input_fn,
+                writer,
+                "Reuse it without downloading again / 直接复用且不重复下载",
+                default=True,
+            )
+        elif report.get("ready"):
+            ui.warning(
+                "The existing READY snapshot is bound to a different target; "
+                "it is kept, and this selection needs its own installation. / "
+                "现有 READY 快照绑定了其他环境；它会保留，当前选择需要单独部署。"
+            )
+        if install_required:
+            accepted_license = False
+            if manifest.licenses.requires_acceptance:
+                accepted_license = _confirm(
+                    input_fn,
+                    writer,
+                    "Read the upstream license terms and record local acknowledgement / 已阅读上游许可证并记录本地确认",
+                    default=False,
+                )
+                if not accepted_license:
+                    _write(
+                        writer,
+                        "Installation cancelled because license acknowledgement was not given.",
+                    )
+                    return 0
+            if not _confirm(
+                input_fn,
+                writer,
+                "Download/build/install this model now / 现在下载、构建并安装该模型",
+                default=False,
+            ):
                 _write(
-                    output,
-                    "Installation cancelled because license acknowledgement was not given.",
+                    writer,
+                    "Installation was not started. Re-run `uv run virea` when ready.",
                 )
                 return 0
+            install_reporter = ui.reporter("Model installation / 模型安装")
+            if (
+                model.run(
+                    _install_args(
+                        manifest,
+                        target,
+                        accepted_license=accepted_license,
+                        reporter=install_reporter,
+                    )
+                )
+                != 0
+            ):
+                _write(
+                    writer,
+                    "Installation did not become READY; generation was not started.",
+                )
+                return 2
 
-        _write(output, "\n[VIREA wizard 5/7] Installation plan / 安装计划：")
-        _write(output, f"  model: {manifest.model.id}")
-        _write(output, f"  execution domain: {target.execution_domain_id}")
-        _write(output, f"  runtime: {target.runtime_variant_id}")
-        _write(output, f"  resource profile: {target.resource_profile_id}")
-        _write(output, f"  artifact sources: {len(manifest.artifacts)}")
+        ui.step(
+            6,
+            7,
+            "Motion generation / 动作生成",
+            "Prompt, inference, Motion IR, skeleton, and VRM artifacts stay linked.",
+        )
         if not _confirm(
             input_fn,
-            output,
-            "Download/build/install this model now / 现在下载、构建并安装该模型",
-            default=False,
-        ):
-            _write(
-                output,
-                "Installation was not started. Re-run `uv run virea` when ready.",
-            )
-            return 0
-        if (
-            model.run(
-                _install_args(manifest, target, accepted_license=accepted_license)
-            )
-            != 0
-        ):
-            _write(
-                output, "Installation did not become READY; generation was not started."
-            )
-            return 2
-
-        _write(output, "\n[VIREA wizard 6/7] Generation / 生成：")
-        if not _confirm(
-            input_fn,
-            output,
+            writer,
             "Generate a motion now / 现在生成动作",
             default=True,
         ):
             _write(
-                output,
+                writer,
                 "Model is installed. Re-run `uv run virea` whenever you want to generate.",
             )
             return 0
@@ -444,44 +668,56 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
             prompt = input_fn("Motion description / 动作描述: ").strip()
             if prompt:
                 break
-            _write(output, "A non-empty description is required / 动作描述不能为空。")
+            _write(writer, "A non-empty description is required / 动作描述不能为空。")
+        generation_reporter = ui.reporter("Motion generation / 动作生成")
         if (
             generate.run(
-                _generate_args(manifest, target, prompt, _seconds(input_fn, output))
+                _generate_args(
+                    manifest,
+                    target,
+                    prompt,
+                    _seconds(input_fn, writer),
+                    reporter=generation_reporter,
+                )
             )
             != 0
         ):
             _write(
-                output,
+                writer,
                 "Generation did not succeed; the browser server was not started.",
             )
             return 2
 
-        _write(output, "\n[VIREA wizard 7/7] Browser playback / 浏览器播放：")
+        ui.step(
+            7,
+            7,
+            "Browser studio / 浏览器工作室",
+            "Open the synchronized source-skeleton and VRM result workspace.",
+        )
         if not _confirm(
             input_fn,
-            output,
+            writer,
             "Start the local browser interface on http://127.0.0.1:8000/app/ / 启动本地浏览器界面",
             default=True,
         ):
-            _write(output, "Wizard complete / 向导完成。")
+            ui.success("Wizard complete / 向导完成")
             return 0
         _write(
-            output, "Open http://127.0.0.1:8000/app/ and stop the server with Ctrl+C."
+            writer, "Open http://127.0.0.1:8000/app/ and stop the server with Ctrl+C."
         )
         return serve.run(_serve_args(8000))
     except WizardCancelled:
         _write(
-            output,
+            writer,
             "Wizard cancelled safely; no unconfirmed install or deletion was performed.",
         )
         return 0
     except (EOFError, KeyboardInterrupt):
         _write(
-            output,
+            writer,
             "Wizard interrupted safely; no unconfirmed install or deletion was performed.",
         )
         return 130
     except (OSError, RuntimeError) as exc:
-        _write(output, f"Wizard stopped before an unconfirmed action: {exc}")
+        _write(writer, f"Wizard stopped before an unconfirmed action: {exc}")
         return 2

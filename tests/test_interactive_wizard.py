@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from virea_cli.commands import wizard
+from virea_cli.commands import generate, wizard
 from virea_cli.main import main
+from virea_cli.presentation import TerminalUI
+from virea_cli.wizard_state import (
+    installed_target,
+    load_preferences,
+    save_preferences,
+)
+from virea_contracts.execution import ExecutionTargetSelection
+from virea_core.paths import VireaPaths
 
 
 def test_data_root_prompt_rejects_outer_quotes() -> None:
@@ -56,6 +68,185 @@ def test_no_argument_cli_starts_the_interactive_wizard(
 
     assert exited.value.code == 0
     assert calls == [True]
+
+
+def test_saved_choice_is_visible_and_enter_reuses_it() -> None:
+    """A prior choice must be visible and reusable without retyping its number."""
+
+    messages: list[str] = []
+    selected = wizard._choice(
+        lambda _prompt: "",
+        messages.append,
+        title="Models",
+        items=["alpha", "beta"],
+        label=str,
+        default="beta",
+    )
+
+    assert selected == "beta"
+    assert any("beta  [saved / 已保存]" in message for message in messages)
+
+
+def test_preferences_survive_a_new_process_and_recover_installed_target(
+    tmp_path,
+) -> None:
+    """Wizard choices and READY target facts must come from durable state."""
+
+    paths = VireaPaths(tmp_path / "home")
+    paths.ensure_layout()
+    target = ExecutionTargetSelection(
+        execution_domain_id="windows-native",
+        runtime_variant_id="acmdm-humanml3d-cpu",
+        resource_profile_id="whole-model-cpu",
+    )
+    save_preferences(
+        paths,
+        model_id="acmdm-humanml3d",
+        execution_target=target,
+    )
+
+    restored, warning = load_preferences(paths)
+
+    assert warning is None
+    assert restored.model_id == "acmdm-humanml3d"
+    assert restored.execution_target == target
+
+    class Store:
+        def installation_transaction(self, installation_id: str):
+            assert installation_id == "installation-1"
+            return {
+                "payload_json": json.dumps(
+                    {
+                        "execution_target": {
+                            "resolved": {
+                                "execution_domain": {"id": "windows-native"},
+                                "runtime_variant_id": "acmdm-humanml3d-cpu",
+                                "resource_profile_id": "whole-model-cpu",
+                            }
+                        }
+                    }
+                )
+            }
+
+    pool = SimpleNamespace(store=Store())
+    assert installed_target(
+        pool,
+        {"ready": True, "installation_id": "installation-1"},
+    ) == target
+
+
+def test_interactive_reporter_replaces_raw_json_with_compact_summary() -> None:
+    """Guided output keeps identifiers but never dumps the command payload."""
+
+    messages: list[str] = []
+    reporter = TerminalUI(messages.append).reporter("Model installation")
+
+    reporter.progress("1/2", "Checking resources...")
+    reporter.progress("2/2", "Publishing...")
+    reporter.result(
+        {
+            "installation_id": "installation-1",
+            "model_id": "acmdm-humanml3d",
+            "state": "READY",
+            "locator": "model-store/snapshots/installation-1",
+            "diagnostics": [],
+        }
+    )
+
+    rendered = "\n".join(messages)
+    assert "[1/2] Checking resources" in rendered
+    assert "Model READY" in rendered
+    assert "installation-1" in rendered
+    assert "{\n" not in rendered
+    assert '"diagnostics"' not in rendered
+
+
+def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:
+    """Redirected cross-platform output remains complete, plain, and human-first."""
+
+    environment = os.environ.copy()
+    environment["VIREA_HOME"] = str(tmp_path / "home")
+    environment["NO_COLOR"] = "1"
+    repository = Path(__file__).resolve().parents[1]
+
+    completed = subprocess.run(
+        ["uv", "run", "virea"],
+        cwd=repository,
+        env=environment,
+        input="y\nq\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "Restored session / 已恢复的会话" in completed.stdout
+    assert "READY models / 已部署模型" in completed.stdout
+    assert "not installed / 未安装" in completed.stdout
+    assert '"virea_home"' not in completed.stdout
+    assert "\x1b[" not in completed.stdout
+
+
+def test_guided_generation_reports_stages_and_ids_without_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The generate command uses the reporter only when the wizard supplies it."""
+
+    class Store:
+        def result_for_job(self, job_id: str):
+            assert job_id == "job-1"
+            return {"payload_json": json.dumps({"result_id": "result-1"})}
+
+    class Control:
+        def __init__(self, **_kwargs) -> None:
+            self.catalog = SimpleNamespace(
+                get=lambda _model_id: SimpleNamespace(
+                    model=SimpleNamespace(adapter_family="real-adapter")
+                )
+            )
+            self.store = Store()
+
+        def submit(self, _request, *, inference_timeout: float):
+            assert inference_timeout == 30.0
+            return {"id": "job-1", "state": "QUEUED"}
+
+        def wait(self, job_id: str, *, timeout: float):
+            assert (job_id, timeout) == ("job-1", 30.0)
+            return {"id": "job-1", "state": "SUCCEEDED"}
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(generate, "ControlPlane", Control)
+    messages: list[str] = []
+    reporter = TerminalUI(messages.append).reporter("Motion generation")
+    args = SimpleNamespace(
+        model="acmdm-humanml3d",
+        task="text_to_motion",
+        prompt="A person waves",
+        seconds=4.0,
+        fps=20.0,
+        seed=42,
+        denoise_steps=None,
+        idempotency_key=None,
+        execution_domain="windows-native",
+        runtime_variant="acmdm-humanml3d-cpu",
+        resource_profile="whole-model-cpu",
+        timeout=30.0,
+        virea_home=str(tmp_path / "home"),
+        interactive_progress=True,
+        interactive_reporter=reporter,
+    )
+
+    assert generate.run(args) == 0
+
+    rendered = "\n".join(messages)
+    assert "[1/3]" in rendered
+    assert "[2/3]" in rendered
+    assert "[3/3]" in rendered
+    assert "job-1" in rendered and "result-1" in rendered
+    assert '"job"' not in rendered
 
 
 def test_target_step_uses_the_exact_domain_runtime_and_profile_selected_by_user() -> (

@@ -247,6 +247,11 @@ uv run virea
 
 </details>
 
+The wizard restores the last model/target, labels every model `not installed`, `needs attention`, or re-verified
+`READY`, and reuses a matching deployment without another download. Installation and generation show honest stage
+progress plus compact results instead of raw JSON; full evidence remains in the data root. Press Enter to reuse a saved
+choice. `NO_COLOR=1` or redirected output automatically uses equivalent plain text.
+
 ### 2. Advanced: install one real model non-interactively
 
 Inspect the model first; installation performs resource admission before downloading artifacts.

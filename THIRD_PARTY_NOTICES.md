@@ -213,6 +213,17 @@ core terms accompanying the generated helper are in
 public sources are under `apps/web/public/third-party-notices/` so a clean Web
 rebuild preserves the notices.
 
+## Interactive terminal distribution
+
+The Python CLI directly depends on `rich` `15.0.0` for terminal layout,
+color, and honest determinate/indeterminate progress. Rich is distributed
+under the [MIT license](https://github.com/Textualize/rich/blob/v15.0.0/LICENSE),
+Copyright © 2020–2026 Will McGugan and contributors. Its locked terminal-markup
+dependencies are `markdown-it-py` `4.2.0` and `mdurl` `0.1.2`, also distributed
+under their upstream MIT license notices. The installed wheels retain the
+corresponding license metadata, and `uv.lock` pins the exact distributions and
+hashes used by VIREA.
+
 ## Permission-required source families
 
 | Source | Public media status | Official terms |

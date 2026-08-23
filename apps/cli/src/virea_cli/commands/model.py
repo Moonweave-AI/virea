@@ -28,7 +28,10 @@ def _emit(payload: object) -> None:
 def _interactive_progress(args, stage: str, message: str) -> None:
     """Emit human progress only for the guided flow, preserving JSON CLI output."""
 
-    if getattr(args, "interactive_progress", False):
+    reporter = getattr(args, "interactive_reporter", None)
+    if reporter is not None:
+        reporter.progress(stage, message)
+    elif getattr(args, "interactive_progress", False):
         print(f"[VIREA install {stage}] {message}")
 
 
@@ -141,15 +144,23 @@ def _pinned_target_from_compatibility(
 
 
 def _install(args) -> int:
+    reporter = getattr(args, "interactive_reporter", None)
+
+    def emit(payload: object) -> None:
+        if reporter is not None:
+            reporter.result(payload)
+        else:
+            _emit(payload)
+
     paths, catalog, _ = _context(args.virea_home)
     manifest = catalog.get(args.model_id)
     _interactive_progress(
-        args, "1/4", "Resolving the selected Runtime and resources..."
+        args, "1/6", "Resolving the selected model, Runtime, and resources..."
     )
     try:
         execution_target = _execution_target(args)
     except ValueError as exc:
-        _emit(
+        emit(
             {
                 "error": "EXECUTION_DOMAIN_REQUIRED_FOR_OVERRIDE",
                 "model_id": args.model_id,
@@ -158,7 +169,7 @@ def _install(args) -> int:
         )
         return 2
     if manifest.model.adapter_family == "fake-root-translation":
-        _emit(
+        emit(
             {
                 "error": "TEST_MODEL_DISABLED",
                 "model_id": args.model_id,
@@ -174,7 +185,7 @@ def _install(args) -> int:
             list(args.artifact_revision), option="--artifact-revision"
         )
     except ValueError as exc:
-        _emit(
+        emit(
             {
                 "error": "INVALID_EXTERNAL_ARTIFACT_REFERENCE",
                 "model_id": args.model_id,
@@ -208,7 +219,7 @@ def _install(args) -> int:
         ),
     }
     if not args.apply:
-        _emit(plan)
+        emit(plan)
         return 0
     if (
         not manifest.runtime_variants
@@ -217,7 +228,7 @@ def _install(args) -> int:
         plan["error"] = (
             "model is cataloged but has no real end-to-end acceptance runner"
         )
-        _emit(plan)
+        emit(plan)
         return 2
 
     if args.validation_timeout is not None:
@@ -226,13 +237,13 @@ def _install(args) -> int:
         except ValueError as exc:
             plan["error"] = "INVALID_VALIDATION_TIMEOUT"
             plan["message"] = str(exc)
-            _emit(plan)
+            emit(plan)
             return 2
     mismatches = _acceptance_override_mismatches(args, manifest)
     if mismatches:
         plan["error"] = "PRODUCTION_ACCEPTANCE_REQUEST_MISMATCH"
         plan["mismatches"] = mismatches
-        _emit(plan)
+        emit(plan)
         return 2
 
     control = ControlPlane(
@@ -243,8 +254,8 @@ def _install(args) -> int:
     try:
         _interactive_progress(
             args,
-            "2/4",
-            "Checking admission and Runtime system tools before staging model artifacts...",
+            "2/6",
+            "Checking device resources and execution-domain admission...",
         )
         try:
             compatibility = (
@@ -256,7 +267,7 @@ def _install(args) -> int:
                 )
             )
         except ExecutionTargetResolutionError as exc:
-            _emit(
+            emit(
                 {
                     "error": exc.code,
                     "model_id": args.model_id,
@@ -267,7 +278,7 @@ def _install(args) -> int:
             return 2
         plan["resource_admission"] = compatibility
         if not compatibility.get("can_build", compatibility["status"] == "ready"):
-            _emit(
+            emit(
                 {
                     "error": "RUNTIME_NOT_BUILDABLE",
                     "model_id": args.model_id,
@@ -276,6 +287,11 @@ def _install(args) -> int:
             )
             return 2
         try:
+            _interactive_progress(
+                args,
+                "3/6",
+                "Checking required system tools inside the selected domain...",
+            )
             resolved_target = (
                 _pinned_target_from_compatibility(compatibility)
                 if isinstance(compatibility.get("execution_target"), dict)
@@ -286,7 +302,7 @@ def _install(args) -> int:
                 execution_target=resolved_target,
             )
         except ExecutionTargetResolutionError as exc:
-            _emit(
+            emit(
                 {
                     "error": exc.code,
                     "model_id": args.model_id,
@@ -303,10 +319,10 @@ def _install(args) -> int:
         ) as exc:
             _interactive_progress(
                 args,
-                "2/4",
+                "3/6",
                 "System-tool preflight failed before model artifacts were staged.",
             )
-            _emit(
+            emit(
                 {
                     "error": "RUNTIME_SYSTEM_DEPENDENCY_UNAVAILABLE",
                     "model_id": args.model_id,
@@ -321,8 +337,8 @@ def _install(args) -> int:
             return 2
         _interactive_progress(
             args,
-            "2/4",
-            "System-tool preflight passed; staging model artifacts...",
+            "4/6",
+            "Downloading, reusing, and verifying model artifacts...",
         )
         external_stage: dict[str, Any] = {}
         if external_roots or external_revisions:
@@ -338,7 +354,7 @@ def _install(args) -> int:
                     )
                 )
             except ExecutionTargetResolutionError as exc:
-                _emit(
+                emit(
                     {
                         "error": exc.code,
                         "model_id": args.model_id,
@@ -350,7 +366,7 @@ def _install(args) -> int:
             except ValueError as exc:
                 plan["error"] = "INVALID_EXTERNAL_ARTIFACT_REFERENCE"
                 plan["message"] = str(exc)
-                _emit(plan)
+                emit(plan)
                 return 2
             plan["external_artifact_execution_domain"] = domain_id
             external_stage = {
@@ -370,11 +386,13 @@ def _install(args) -> int:
         if outcome.state is not InstallationState.BUILDING_RUNTIME:
             payload = _outcome(outcome)
             payload["resource_admission"] = compatibility
-            _emit(payload)
+            emit(payload)
             return 2
         try:
             _interactive_progress(
-                args, "3/4", "Building the isolated Runtime and running acceptance..."
+                args,
+                "5/6",
+                "Building the isolated Runtime, loading the model, and running acceptance...",
             )
             acceptance = control.run_real_acceptance(outcome)
         except Exception as exc:
@@ -400,10 +418,10 @@ def _install(args) -> int:
             payload["diagnostics"].append(
                 f"real acceptance did not complete: {type(exc).__name__}: {exc}"
             )
-            _emit(payload)
+            emit(payload)
             return 2
         _interactive_progress(
-            args, "4/4", "Publishing the verified local installation..."
+            args, "6/6", "Publishing the verified READY installation snapshot..."
         )
         ready = control.model_pool.publish_ready(
             outcome,
@@ -412,7 +430,7 @@ def _install(args) -> int:
         payload = _outcome(ready)
         payload["resource_admission"] = compatibility
         payload["acceptance"] = acceptance
-        _emit(payload)
+        emit(payload)
         return 0 if ready.state is InstallationState.READY else 2
     finally:
         control.close()

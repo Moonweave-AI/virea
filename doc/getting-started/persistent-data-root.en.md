@@ -195,6 +195,7 @@ pnpm --dir apps/web build
 
 # Show the original home loaded by the shell startup hook, then verify the selected model without changing it.
 printf '%s\n' "$VIREA_HOME"
+# Read and verify MODEL_ID from that same persistent home; this command does not reinstall or delete it.
 uv run virea model verify MODEL_ID
 
 # Start the complete interactive workflow; verified local artifacts are reused.

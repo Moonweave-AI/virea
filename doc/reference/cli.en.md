@@ -37,8 +37,46 @@ procedure, normal interactive commands below intentionally omit `--virea-home`: 
 uv run virea
 ```
 
-This is the normal human-facing command. Numbered choices are explicit and entering `q` exits safely. The commands below
-are the non-interactive/automation reference: use them only when you need a repeatable script or an advanced repair.
+This is the normal human-facing command, and it does not restart from zero. The wizard restores the last model,
+execution domain, Runtime, and resource profile from `VIREA_HOME/config/wizard-preferences.json`; it re-verifies
+deployments and recent jobs from durable state. A restored item is marked `[saved / 已保存]`: press Enter to reuse it,
+enter another number to replace it explicitly, or enter `q` to leave safely.
+
+The seven stages expose these facts:
+
+| Stage | Display and behavior |
+|---|---|
+| Data root | Shows the active `VIREA_HOME`; reuse it or explicitly move to another data volume. |
+| Device and state | Detects the current device/domains and shows the last model/target, READY count, and recent jobs. |
+| Model | Labels every model `not installed`, `needs attention`, or re-verified `READY · deployed`. |
+| Execution target | Separately chooses the OS domain, exact Runtime, and resource profile; history is a visible default, never a silent override. |
+| Deployment | Reuses a matching READY snapshot by default without downloading again; another target gets an independent deployment while the old snapshot remains. |
+| Generation | Shows submission, model inference, and result-artifact collection; success is a compact job/result ID summary. |
+| Browser | Optionally starts the local source-skeleton and final-VRM workbench. |
+
+The progress bar advances only at completed operation boundaries. When download, Runtime construction, or inference has
+no honest byte/iteration total, the UI shows an activity indicator and elapsed time instead of inventing a percentage.
+Interactive mode never dumps raw JSON: failures show the error code, primary reasons, next action, and evidence location;
+the full transaction remains in `VIREA_HOME/state` and `VIREA_HOME/logs`. Explicit subcommands below retain their
+machine-readable JSON contracts for automation and advanced diagnostics.
+
+Color and live progress are enabled only on an interactive terminal. Redirected output, `TERM=dumb`, or `NO_COLOR`
+automatically uses line-oriented plain text without losing stages or results:
+
+```powershell
+# Windows: disable color for this PowerShell session; the command still runs the complete guided workflow.
+$env:NO_COLOR = "1"
+# Start the same complete wizard with plain status text and no ANSI color sequences.
+uv run virea
+```
+
+```bash
+# Linux, WSL2, and macOS: disable color for this command only; no variable cleanup is needed afterward.
+NO_COLOR=1 uv run virea
+```
+
+The commands below are the non-interactive/automation reference. Use them when you need a repeatable script or an
+advanced repair.
 
 ```bash
 # Print the command tree and built-in help. This has no state or network side effect.

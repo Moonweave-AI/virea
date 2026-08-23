@@ -190,6 +190,7 @@ pnpm --dir apps/web build
 
 # 显示启动文件持久加载的原 home，然后只读核验目标模型。
 printf '%s\n' "$VIREA_HOME"
+# 从同一个持久 home 只读核验 MODEL_ID；这条命令不会重新安装或删除模型。
 uv run virea model verify MODEL_ID
 
 # 进入完整交互式流程；已验证的本地制品会被复用。

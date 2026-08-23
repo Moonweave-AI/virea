@@ -114,9 +114,13 @@ concurrently against the same checkout.
 uv run virea
 ```
 
-The wizard never silently chooses a different operating system, accelerator, model, Runtime, profile, or a destructive
-action. Type `q` at a numbered selection to leave safely. The detailed commands below remain available for automation
-and advanced recovery.
+The wizard shows the persisted data root, last model/target, each model's re-verified deployment state, and recent jobs.
+Press Enter to reuse a saved choice. A matching READY deployment is reused without another download; only a different
+target needs an independent installation. Install and generation use real stage progress plus compact summaries instead
+of dumping raw JSON. The wizard never silently chooses another operating system, accelerator, model, Runtime, profile,
+or destructive action. Type `q` at a numbered selection to leave safely. `NO_COLOR=1` or redirected output automatically
+uses plain line-oriented progress. The detailed commands below remain available for automation and advanced recovery;
+they retain machine-readable JSON.
 
 ## 4. Advanced: initialize local state and inspect available execution domains
 

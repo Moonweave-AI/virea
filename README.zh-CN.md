@@ -88,6 +88,9 @@ pnpm --filter @virea/web build
 uv run virea
 ```
 
+向导会恢复上次模型/执行环境，逐模型显示 `未安装`、`需处理` 或验证后的 `READY`，并在环境匹配时复用
+现有部署而不重复下载。安装与生成显示真实阶段进度和紧凑结果，不倾倒 RAW JSON；完整证据仍保存在数据根。
+
 ### Linux / WSL2 / macOS shell
 
 ```bash
@@ -117,6 +120,8 @@ pnpm --filter @virea/web build
 # 启动逐步交互向导：初始化状态、检测执行域、选择模型/Runtime/profile、确认安装，然后提供生成与浏览器播放。
 uv run virea
 ```
+
+保存项可直接按 Enter 复用；设置 `NO_COLOR=1` 或重定向输出时，动态配色/进度会自动降级为等价纯文本。
 
 ## 高级：手动选择执行域并安装模型
 
