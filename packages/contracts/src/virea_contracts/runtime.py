@@ -32,12 +32,26 @@ class MemoryStrategy(str, Enum):
 
 
 class ResourceProfile(ContractModel):
-    """One explicitly supported execution profile, in preference order."""
+    """One supported execution profile, in preference order.
+
+    The ``min_free_ram_gib`` and ``min_free_vram_gib`` names are retained by
+    the v1 wire contract, but the resolver treats them as minimum installed
+    capacity.  A transient available-memory sample is observation data, not a
+    deployment-capability gate.  Swap remains a current-free requirement.
+    """
 
     id: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     strategy: MemoryStrategy
-    min_free_vram_gib: float | None = Field(default=None, ge=0.0)
-    min_free_ram_gib: float = Field(default=0.0, ge=0.0)
+    min_free_vram_gib: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Legacy v1 name for minimum total VRAM capacity.",
+    )
+    min_free_ram_gib: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Legacy v1 name for minimum total physical RAM capacity.",
+    )
     min_free_swap_gib: float = Field(default=0.0, ge=0.0)
 
     @model_validator(mode="after")
@@ -112,7 +126,7 @@ class RuntimeSpec(ContractModel):
                 and profile.min_free_ram_gib <= 0
             ):
                 raise ValueError(
-                    "CPU and CPU-offload profiles must declare positive free RAM"
+                    "CPU and CPU-offload profiles must declare positive RAM capacity"
                 )
             if (
                 profile.strategy is MemoryStrategy.ROCM_FULL

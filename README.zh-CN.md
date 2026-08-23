@@ -46,7 +46,12 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 - Python 3.12（项目声明 Python 3.10+，开发基线见 `.python-version`）；
 - [uv](https://docs.astral.sh/uv/)；
 - Node.js 24（见 `.node-version`）、npm 与 pnpm 10；
-- 运行 GPU Runtime 时，目标执行域必须具备该 Runtime 声明的驱动、ABI 与可用资源。
+- 运行 GPU Runtime 时，目标执行域必须具备该 Runtime 声明的驱动、ABI、总显存和总物理内存容量。
+
+安装/部署能力按设备**总 RAM/VRAM**判断，不会因为桌面、浏览器或其他程序暂时占用内存就把硬件判为不支持；
+当前可用 RAM/VRAM 仍会记录为实时观测，并在多张合格 GPU 之间用于选择更空闲的设备。swap/pagefile 与磁盘
+仍按当前可用量检查。某 Runtime 若没有实现当前执行域，就不会出现在可选 Runtime 列表中：例如 PRISM CUDA
+只在 Linux/WSL 提供，Windows 下只能选择其已声明的 CPU Runtime，而该 CPU profile 需要 96 GiB 总 RAM。
 
 ## 最短可复现路径
 
@@ -161,6 +166,8 @@ uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 然后打开规范入口 `http://127.0.0.1:8000/`。它会进入唯一的新 Motion Studio；动作生成与诊断位于同一工作台，
 同一个不可变结果会并排播放“模型输出、尚未做 VRM 重定向的源骨架”和“重定向后的最终 VRM/VRMA”。CLI 的模型
 部署与结果会从持久状态自动同步。加载本地 `.vrm` Avatar 即可。
+在启动服务的终端按 `Ctrl+C` 才会停止 Web 服务；只关闭浏览器标签页不会停止服务。正常停止会取消进行中的
+任务、终止 Worker 及其子进程树并释放资源锁；若终端异常崩溃，下次启动会先按持久化进程身份回收可验证的孤儿 Worker。
 
 ## 能力、实测和发布不是同一件事
 

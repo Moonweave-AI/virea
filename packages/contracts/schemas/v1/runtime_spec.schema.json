@@ -69,10 +69,21 @@
           },
           "min_free_vram_gib": {
             "type": ["number", "null"],
-            "minimum": 0
+            "minimum": 0,
+            "description": "Legacy v1 field name for minimum total VRAM capacity."
           },
-          "min_free_ram_gib": { "type": "number", "minimum": 0, "default": 0 },
-          "min_free_swap_gib": { "type": "number", "minimum": 0, "default": 0 }
+          "min_free_ram_gib": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "Legacy v1 field name for minimum total physical RAM capacity."
+          },
+          "min_free_swap_gib": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "Minimum currently free swap/pagefile capacity."
+          }
         },
         "allOf": [
           {

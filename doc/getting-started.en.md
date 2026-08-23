@@ -146,6 +146,13 @@ Read the `execution_domains` list in the report. The canonical identifiers are:
 When more than one candidate exists, VIREA requires an explicit selection. A failed selection never silently moves your
 job to another operating system, accelerator or resource profile.
 
+Deployment capability uses the **total physical RAM and total VRAM visible inside that execution domain**. Current
+available RAM/VRAM are shown as observations, so a 16 GiB GPU remains a 16 GiB-capable device even while the desktop uses
+part of it. For WSL, the RAM total is the limit actually visible inside the selected distribution, not RAM borrowed from
+Windows. A Runtime whose platform does not include the selected domain is reported as unavailable and is not placed in
+the numbered Runtime menu. Thus PRISM CUDA is selectable in Linux/WSL; Windows offers only PRISM CPU, whose declared
+profile requires 96 GiB total RAM.
+
 ## 5. Advanced: inspect, plan, and apply one model installation
 
 ```bash
@@ -205,7 +212,11 @@ Open `http://127.0.0.1:8000/`, load a local `.vrm` Avatar, and use the unified g
 left diagnostic stage is the decoded model-space skeleton before VRM retargeting; the right stage is the final VRM/VRMA
 from the same result. Model deployments and results written by the CLI synchronize automatically; `/app/` remains a
 compatible URL for the same UI.
-Stop the service with `Ctrl+C`. See the [CLI reference](reference/cli.en.md#serve) for `--reload` and the legacy
+Stop the service with `Ctrl+C` in the terminal that started it; closing a browser tab does not stop the server. Normal
+shutdown cancels active jobs, terminates each Worker process tree, retries any failed reap, and releases resource and
+control-plane ownership only after termination is proven. After an abnormal terminal/process crash, the next startup
+uses persisted process identity to recover verifiable orphan Workers before accepting new work. See the
+[CLI reference](reference/cli.en.md#serve) for `--reload` and the legacy
 `--data-source` compatibility option.
 
 ## 8. Advanced: troubleshooting and safe maintenance

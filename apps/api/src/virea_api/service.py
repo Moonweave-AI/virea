@@ -1913,7 +1913,12 @@ class ControlPlane:
     ) -> tuple[dict[str, Any], ...]:
         options: list[dict[str, Any]] = []
         for domain in machine.execution_domains:
-            if not manifest.runtime_variants:
+            implemented_runtimes = tuple(
+                runtime
+                for runtime in manifest.runtime_variants
+                if _domain_has_declared_runtime((runtime,), domain)
+            )
+            if not implemented_runtimes:
                 options.append(
                     {
                         "execution_domain": domain.model_dump(mode="json"),
@@ -1921,9 +1926,13 @@ class ControlPlane:
                         "selected_runtime_id": None,
                         "status": "not-ready",
                         "can_build": False,
-                        "reasons": ["the model does not declare any RuntimeVariant"],
+                        "reasons": [
+                            "the model does not declare a RuntimeVariant for "
+                            f"{domain.platform} in execution domain {domain.id}"
+                        ],
                         "remediation": [
-                            "install a model version with a runtime implemented for this domain"
+                            "choose another detected execution domain with an "
+                            "implemented RuntimeVariant"
                         ],
                         "selected_resource_profile": None,
                         "selected_memory_strategy": None,
@@ -1932,7 +1941,7 @@ class ControlPlane:
                 )
                 continue
             selection = resolve_runtime_variants(
-                manifest.runtime_variants,
+                implemented_runtimes,
                 machine,
                 execution_domain=domain,
             )
@@ -1940,9 +1949,7 @@ class ControlPlane:
             options.append(
                 {
                     "execution_domain": domain.model_dump(mode="json"),
-                    "implemented": _domain_has_declared_runtime(
-                        manifest.runtime_variants, domain
-                    ),
+                    "implemented": True,
                     "selected_runtime_id": selection.runtime.id,
                     "status": compatibility.status,
                     "can_build": compatibility.can_build,
@@ -2938,17 +2945,32 @@ class ControlPlane:
                 )
             except Exception:
                 continue
+        shutdown_errors: list[str] = []
         for handle in self.supervisor.handles():
             remaining = max(0.1, deadline - time.monotonic())
-            self.supervisor.stop(handle, timeout=min(5.0, remaining))
+            try:
+                self.supervisor.stop(handle, timeout=min(5.0, remaining))
+            except Exception as exc:
+                # Continue reaping every other Worker.  One persistence or OS
+                # error must never abandon the rest of the process trees.
+                shutdown_errors.append(
+                    f"{handle.instance_id}: {type(exc).__name__}: {exc}"
+                )
         for _, thread in threads:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
             thread.join(remaining)
-        self.supervisor.stop_all(timeout=1.0)
+        remaining = max(0.1, deadline - time.monotonic())
+        try:
+            live_workers = self.supervisor.stop_all(timeout=min(5.0, remaining))
+        except Exception as exc:
+            shutdown_errors.append(f"final Worker reap: {type(exc).__name__}: {exc}")
+            live_workers = tuple(
+                handle for handle in self.supervisor.handles() if handle.running
+            )
         alive = [(job_id, thread) for job_id, thread in threads if thread.is_alive()]
-        if alive:
+        if alive or live_workers:
             for job_id, _ in alive:
                 current = self.store.get_job(job_id)
                 if current and current["state"] == JobState.CANCELLING.value:
@@ -2962,8 +2984,19 @@ class ControlPlane:
                         )
                     except Exception:
                         pass
-            identifiers = ", ".join(job_id for job_id, _ in alive)
-            raise TimeoutError(f"control plane did not stop job threads: {identifiers}")
+            thread_ids = ", ".join(job_id for job_id, _ in alive) or "none"
+            worker_ids = (
+                ", ".join(handle.instance_id for handle in live_workers) or "none"
+            )
+            details = (
+                f"; cleanup errors: {' | '.join(shutdown_errors)}"
+                if shutdown_errors
+                else ""
+            )
+            raise TimeoutError(
+                "control plane did not stop all related processes before the "
+                f"deadline: job threads={thread_ids}; workers={worker_ids}{details}"
+            )
         unresolved_workers = self.supervisor.recovery_blocked_instances()
         unresolved_resources = self.resource_leases.diagnostics()
         if (
@@ -3009,6 +3042,11 @@ def _accelerator_selection_from_payload(value: Any) -> AcceleratorSelection | No
         not isinstance(memory_free, int) or memory_free < 0
     ):
         raise ValueError("selected accelerator memory_free_bytes is invalid")
+    memory_total = value.get("memory_total_bytes")
+    if memory_total is not None and (
+        not isinstance(memory_total, int) or memory_total < 0
+    ):
+        raise ValueError("selected accelerator memory_total_bytes is invalid")
     selection = AcceleratorSelection(
         kind=kind,
         name=optional_text("name"),
@@ -3018,6 +3056,7 @@ def _accelerator_selection_from_payload(value: Any) -> AcceleratorSelection | No
         visibility_selector=optional_text("visibility_selector"),
         logical_device_index=optional_index("logical_device_index"),
         memory_free_bytes=memory_free,
+        memory_total_bytes=memory_total,
     )
     declared_id = optional_text("physical_device_id")
     if declared_id is not None and declared_id != selection.physical_device_id:

@@ -44,6 +44,7 @@ class AcceleratorSelection:
     visibility_selector: str | None
     logical_device_index: int | None
     memory_free_bytes: int | None
+    memory_total_bytes: int | None = None
 
     @property
     def physical_device_id(self) -> str:
@@ -66,6 +67,7 @@ class AcceleratorSelection:
             "visibility_selector": self.visibility_selector,
             "logical_device_index": self.logical_device_index,
             "memory_free_bytes": self.memory_free_bytes,
+            "memory_total_bytes": self.memory_total_bytes,
         }
 
 
@@ -471,6 +473,22 @@ def _accelerator_sort_key(
     )
 
 
+def _accelerator_runtime_preference_key(
+    accelerator: AcceleratorReport,
+) -> tuple[int, tuple[int, str, str]]:
+    """Prefer the capable device with most currently available memory.
+
+    Free VRAM does not decide capability, but it remains a useful tie-breaker
+    when several physical devices all satisfy the total-capacity requirement.
+    """
+
+    free = accelerator.details.get("memory_free_bytes")
+    return (
+        -(free if isinstance(free, int) else -1),
+        _accelerator_sort_key(accelerator),
+    )
+
+
 def _accelerator_selection(
     accelerator: AcceleratorReport,
 ) -> AcceleratorSelection:
@@ -492,6 +510,7 @@ def _accelerator_selection(
         visibility_selector=visibility_selector,
         logical_device_index=logical_device_index,
         memory_free_bytes=free if isinstance(free, int) else None,
+        memory_total_bytes=accelerator.memory_total_bytes,
     )
 
 
@@ -582,15 +601,27 @@ def select_resource_profile(
     execution_domain: ExecutionDomainReport | str | None = None,
     resource_profile_id: str | None = None,
 ) -> ResourceAdmission:
-    """Select the first declared profile whose independent limits all pass.
+    """Select the first profile supported by the domain's installed capacity.
 
-    RAM, swap/pagefile, VRAM, and storage remain separate quantities.  In
-    particular, spare RAM is never added to free VRAM.  A lower-VRAM profile
-    is considered only when the RuntimeSpec explicitly declares the matching
-    Worker strategy.
+    RAM and VRAM capability checks use total capacity, not a transient free
+    sample.  Available RAM/VRAM remain observations for scheduling and
+    diagnostics; another application using memory must not make an otherwise
+    capable device impossible to install.  RAM, swap/pagefile, VRAM, and
+    storage remain separate quantities, and a lower-VRAM profile is considered
+    only when the RuntimeSpec explicitly declares the matching Worker strategy.
+
+    ``ResourceProfile.min_free_*`` are v1 wire names retained for manifest
+    compatibility.  For physical RAM and VRAM they are interpreted here as
+    the minimum installed capacity.  Swap/pagefile and storage are consumable
+    filesystem resources and therefore continue to use current free capacity.
     """
 
     domain = _coerce_execution_domain(report, execution_domain)
+    total_ram = (
+        domain.memory_total_bytes
+        if domain.memory_total_bytes is not None
+        else (report.memory_total_bytes if domain.is_host else None)
+    )
     available_ram = (
         domain.memory_available_bytes
         if domain.memory_available_bytes is not None
@@ -615,10 +646,18 @@ def select_resource_profile(
         if accelerator.status == "available"
         if isinstance((value := accelerator.details.get("memory_free_bytes")), int)
     ]
+    total_vram_values = [
+        accelerator.memory_total_bytes
+        for accelerator in domain.accelerators
+        if accelerator.status == "available"
+        if isinstance(accelerator.memory_total_bytes, int)
+    ]
     observations: dict[str, int | None] = {
+        "total_ram_bytes": total_ram,
         "free_ram_bytes": available_ram,
         "free_swap_bytes": swap_free,
         "free_storage_bytes": domain.storage_free_bytes,
+        "max_total_vram_bytes": max(total_vram_values, default=None),
         "max_free_vram_bytes": max(free_vram_values, default=None),
     }
     diagnostics: list[ResourceProfileDiagnostic] = []
@@ -655,27 +694,28 @@ def select_resource_profile(
             )
         if matching and (profile.min_free_vram_gib or 0.0) > 0.0:
             minimum = _gib_bytes(profile.min_free_vram_gib)
-            known_free = [
+            known_total = [
                 (item, value)
                 for item in matching
-                if isinstance((value := item.details.get("memory_free_bytes")), int)
+                if isinstance((value := item.memory_total_bytes), int)
             ]
-            if not known_free:
-                unknown.append("accelerator free memory is unknown")
+            if not known_total:
+                unknown.append("accelerator total memory capacity is unknown")
                 remediation.append(
                     "rerun virea doctor with nvidia-smi/ROCm tooling available"
                 )
                 eligible = []
             else:
-                eligible = [item for item, free in known_free if free >= minimum]
-            if known_free and not eligible:
+                eligible = [item for item, total in known_total if total >= minimum]
+                eligible.sort(key=_accelerator_runtime_preference_key)
+            if known_total and not eligible:
                 hard.append(
-                    "insufficient free accelerator memory: "
+                    "insufficient accelerator memory capacity: "
                     f"need {_format_gib(profile.min_free_vram_gib)} GiB"
                 )
                 remediation.append(
-                    "stop other GPU workloads or use an explicitly supported "
-                    "CPU-offload/CPU resource profile"
+                    "choose a device with enough total VRAM or use an explicitly "
+                    "supported lower-capacity/CPU resource profile"
                 )
 
         if accelerator_kind == "nvidia" and eligible:
@@ -705,16 +745,16 @@ def select_resource_profile(
 
         minimum_ram = _gib_bytes(profile.min_free_ram_gib)
         if minimum_ram:
-            if available_ram is None:
-                unknown.append("available physical memory is unknown")
+            if total_ram is None:
+                unknown.append("total physical memory capacity is unknown")
                 remediation.append("rerun virea doctor with OS memory probes available")
-            elif available_ram < minimum_ram:
+            elif total_ram < minimum_ram:
                 hard.append(
-                    "insufficient free physical memory: "
+                    "insufficient physical memory capacity: "
                     f"need {_format_gib(profile.min_free_ram_gib)} GiB"
                 )
                 remediation.append(
-                    "close memory-heavy applications or choose a lower-memory runtime"
+                    "choose a machine with enough total RAM or a lower-capacity runtime"
                 )
 
         minimum_swap = _gib_bytes(profile.min_free_swap_gib)
@@ -1219,12 +1259,12 @@ def resolve_built_runtime(
                     hard.append("isolated runtime CUDA device selection is ambiguous")
             if selected_device is not None and profile.min_free_vram_gib is not None:
                 minimum = _gib_bytes(profile.min_free_vram_gib)
-                free_value = selected_device.get("memory_free_bytes")
-                if not isinstance(free_value, int):
-                    hard.append("isolated runtime CUDA free memory is unverified")
-                elif free_value < minimum:
+                total_value = selected_device.get("memory_total_bytes")
+                if not isinstance(total_value, int):
+                    hard.append("isolated runtime CUDA total memory is unverified")
+                elif total_value < minimum:
                     hard.append(
-                        "isolated runtime has insufficient free CUDA memory: "
+                        "isolated runtime has insufficient CUDA memory capacity: "
                         f"need {_format_gib(profile.min_free_vram_gib)} GiB"
                     )
             if (

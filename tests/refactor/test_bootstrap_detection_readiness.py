@@ -26,6 +26,7 @@ from virea_contracts.runtime_identity import RUNTIME_CORE_EPOCH
 
 def _report(
     *,
+    total_vram: int | None = 24 * 1024**3,
     free_vram: int | None = 12 * 1024**3,
     framework_status: str = "ready",
     torch_cuda: str = "12.8",
@@ -33,6 +34,7 @@ def _report(
     uv: str | None = "uv 0.test",
     driver_version: str | None = "610.0",
     storage_free: int = 100 * 1024**3,
+    total_ram: int | None = 64 * 1024**3,
     free_ram: int | None = 48 * 1024**3,
     free_swap: int | None = 8 * 1024**3,
 ) -> MachineReport:
@@ -60,7 +62,7 @@ def _report(
         python_version="3.11.9",
         is_wsl=False,
         cpu_count=16,
-        memory_total_bytes=64 * 1024**3,
+        memory_total_bytes=total_ram,
         memory_available_bytes=free_ram,
         swap_total_bytes=16 * 1024**3,
         swap_free_bytes=free_swap,
@@ -77,7 +79,7 @@ def _report(
                 kind="nvidia",
                 status="available",
                 name="RTX",
-                memory_total_bytes=24 * 1024**3,
+                memory_total_bytes=total_vram,
                 driver_version=driver_version,
                 probe="nvidia-smi",
                 details={
@@ -119,12 +121,14 @@ def _runtime(
     )
 
 
-def test_resolver_requires_free_not_total_vram() -> None:
+def test_resolver_uses_total_vram_when_current_free_memory_is_unknown() -> None:
     outcome = resolve_runtime(_runtime(), _report(free_vram=None))
 
     assert outcome.compatible is False
-    assert outcome.status == "unknown"
-    assert outcome.reasons == ("accelerator free memory is unknown",)
+    assert outcome.status == "buildable"
+    assert outcome.reasons == ()
+    assert outcome.resource_observations["max_total_vram_bytes"] == 24 * 1024**3
+    assert outcome.resource_observations["max_free_vram_bytes"] is None
 
 
 def test_build_preflight_does_not_require_ambient_torch() -> None:
@@ -219,18 +223,22 @@ def test_build_preflight_rejects_insufficient_storage() -> None:
 def test_ram_is_not_added_to_vram_without_explicit_offload_profile() -> None:
     outcome = resolve_runtime(
         _runtime(vram=16.0),
-        _report(free_vram=8 * 1024**3, free_ram=56 * 1024**3),
+        _report(
+            total_vram=8 * 1024**3,
+            free_vram=8 * 1024**3,
+            free_ram=56 * 1024**3,
+        ),
     )
 
     assert outcome.status == "not-ready"
     assert outcome.selected_memory_strategy is None
-    assert outcome.reasons == ("insufficient free accelerator memory: need 16 GiB",)
+    assert outcome.reasons == ("insufficient accelerator memory capacity: need 16 GiB",)
 
 
 def test_offload_profile_must_declare_a_positive_physical_ram_budget() -> None:
     with pytest.raises(
         ValueError,
-        match="CPU and CPU-offload profiles must declare positive free RAM",
+        match="CPU and CPU-offload profiles must declare positive RAM capacity",
     ):
         _runtime(
             profiles=(
@@ -261,17 +269,23 @@ def test_explicit_cpu_offload_profile_uses_separate_vram_and_ram_limits() -> Non
 
     outcome = resolve_runtime(
         _runtime(vram=16.0, profiles=profiles),
-        _report(free_vram=8 * 1024**3, free_ram=32 * 1024**3),
+        _report(
+            total_vram=8 * 1024**3,
+            free_vram=4 * 1024**3,
+            free_ram=32 * 1024**3,
+        ),
     )
 
     assert outcome.status == "buildable"
     assert outcome.selected_resource_profile == "cuda-cpu-offload"
     assert outcome.selected_memory_strategy == "cuda_cpu_offload"
     assert outcome.resource_observations == {
+        "total_ram_bytes": 64 * 1024**3,
         "free_ram_bytes": 32 * 1024**3,
         "free_swap_bytes": 8 * 1024**3,
         "free_storage_bytes": 100 * 1024**3,
-        "max_free_vram_bytes": 8 * 1024**3,
+        "max_total_vram_bytes": 8 * 1024**3,
+        "max_free_vram_bytes": 4 * 1024**3,
     }
     assert [item.status for item in outcome.resource_profile_diagnostics] == [
         "not-ready",
@@ -295,14 +309,18 @@ def test_component_split_profile_uses_independent_cuda_and_physical_ram_limits()
     )
     insufficient_ram = resolve_runtime(
         _runtime(vram=12.0, profiles=(profile,)),
-        _report(free_vram=16 * 1024**3, free_ram=32 * 1024**3),
+        _report(
+            free_vram=16 * 1024**3,
+            total_ram=32 * 1024**3,
+            free_ram=20 * 1024**3,
+        ),
     )
 
     assert admitted.status == "buildable"
     assert admitted.selected_memory_strategy == "cuda_component_split"
     assert insufficient_ram.status == "not-ready"
     assert insufficient_ram.reasons == (
-        "insufficient free physical memory: need 48 GiB",
+        "insufficient physical memory capacity: need 48 GiB",
     )
 
 
@@ -315,19 +333,25 @@ def test_offload_profile_fails_closed_when_ram_is_unknown_or_insufficient() -> N
     )
     unknown = resolve_runtime(
         _runtime(profiles=(profile,)),
-        _report(free_vram=8 * 1024**3, free_ram=None),
+        _report(free_vram=8 * 1024**3, total_ram=None, free_ram=None),
     )
     insufficient = resolve_runtime(
         _runtime(profiles=(profile,)),
-        _report(free_vram=8 * 1024**3, free_ram=16 * 1024**3),
+        _report(
+            free_vram=8 * 1024**3,
+            total_ram=16 * 1024**3,
+            free_ram=12 * 1024**3,
+        ),
     )
 
     assert unknown.status == "unknown"
     assert unknown.can_build is False
-    assert unknown.reasons == ("available physical memory is unknown",)
+    assert unknown.reasons == ("total physical memory capacity is unknown",)
     assert insufficient.status == "not-ready"
     assert insufficient.can_build is False
-    assert insufficient.reasons == ("insufficient free physical memory: need 24 GiB",)
+    assert insufficient.reasons == (
+        "insufficient physical memory capacity: need 24 GiB",
+    )
 
 
 def test_swap_is_observed_but_never_substituted_for_physical_ram() -> None:
@@ -357,6 +381,7 @@ def _built_probe(
     *,
     torch_cuda: str = "12.8",
     arch_supported: bool = True,
+    total_vram: int | None = 24 * 1024**3,
     free_vram: int | None = 20 * 1024**3,
 ) -> dict[str, object]:
     device: dict[str, object] = {
@@ -367,6 +392,8 @@ def _built_probe(
     }
     if free_vram is not None:
         device["memory_free_bytes"] = free_vram
+    if total_vram is not None:
+        device["memory_total_bytes"] = total_vram
     return {
         "status": "ready",
         "python_status": "ready",
@@ -510,22 +537,22 @@ def test_built_runtime_rejects_unsupported_compute_capability() -> None:
     assert any("compute capability" in reason for reason in outcome.reasons)
 
 
-def test_built_runtime_rejects_insufficient_or_unverified_free_vram() -> None:
+def test_built_runtime_rejects_insufficient_or_unverified_total_vram() -> None:
     insufficient = resolve_built_runtime(
         _runtime(vram=16.0),
-        _built_probe(free_vram=8 * 1024**3),
+        _built_probe(total_vram=8 * 1024**3, free_vram=4 * 1024**3),
     )
     unverified = resolve_built_runtime(
         _runtime(vram=16.0),
-        _built_probe(free_vram=None),
+        _built_probe(total_vram=None),
     )
 
     assert insufficient.status == "not-ready"
     assert insufficient.reasons == (
-        "isolated runtime has insufficient free CUDA memory: need 16 GiB",
+        "isolated runtime has insufficient CUDA memory capacity: need 16 GiB",
     )
     assert unverified.status == "not-ready"
-    assert unverified.reasons == ("isolated runtime CUDA free memory is unverified",)
+    assert unverified.reasons == ("isolated runtime CUDA total memory is unverified",)
 
 
 def test_built_runtime_validates_the_preflight_selected_cpu_profile() -> None:

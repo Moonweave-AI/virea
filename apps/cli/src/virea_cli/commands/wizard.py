@@ -209,6 +209,31 @@ def _model_manifests() -> list[Any]:
     ]
 
 
+def _gib_label(value: Any) -> str:
+    if not isinstance(value, int):
+        return "unknown / 未知"
+    return f"{value / 1024**3:.1f} GiB"
+
+
+def _domain_capacity_label(option: dict[str, Any]) -> str:
+    domain = option["execution_domain"]
+    accelerators = domain.get("accelerators", [])
+    total_vram = max(
+        (
+            item["memory_total_bytes"]
+            for item in accelerators
+            if item.get("kind") != "cpu"
+            and isinstance(item.get("memory_total_bytes"), int)
+        ),
+        default=None,
+    )
+    return (
+        f"RAM total/总量={_gib_label(domain.get('memory_total_bytes'))}, "
+        f"available/当前可用={_gib_label(domain.get('memory_available_bytes'))}; "
+        f"VRAM total/总量={_gib_label(total_vram)}"
+    )
+
+
 def _selected_target(
     control: ControlPlane,
     manifest: Any,
@@ -221,14 +246,31 @@ def _selected_target(
     while True:
         _write(output, "Refreshing execution domains and available resources...")
         payload = control.execution_options(manifest.model.id)
-        options = list(payload["options"])
+        detected_options = list(payload["options"])
+        options = [item for item in detected_options if item.get("implemented", True)]
+        unavailable = [
+            item for item in detected_options if not item.get("implemented", True)
+        ]
+        if unavailable:
+            _write(
+                output,
+                "Detected but not selectable for this model / 已检测但该模型不可选：",
+            )
+            for item in unavailable:
+                domain = item["execution_domain"]
+                reason = (item.get("reasons") or ["RuntimeVariant unavailable"])[0]
+                _write(output, f"  - {domain['id']}: {reason}")
+        if not options:
+            raise RuntimeError(
+                "no detected execution domain has an implemented RuntimeVariant "
+                f"for model {manifest.model.id}"
+            )
         preferred_domain = next(
             (
                 item
                 for item in options
                 if preferred is not None
-                and item["execution_domain"]["id"]
-                == preferred.execution_domain_id
+                and item["execution_domain"]["id"] == preferred.execution_domain_id
             ),
             None,
         )
@@ -240,7 +282,8 @@ def _selected_target(
             label=lambda item: (
                 f"{item['execution_domain']['id']} — {item['status']}; "
                 f"runtime={item['selected_runtime_id'] or 'none'}; "
-                f"buildable={'yes' if item['can_build'] else 'no'}"
+                f"buildable={'yes' if item['can_build'] else 'no'}; "
+                f"{_domain_capacity_label(item)}"
             ),
             default=preferred_domain,
         )
@@ -283,8 +326,7 @@ def _selected_target(
             (
                 item
                 for item in profiles
-                if preferred is not None
-                and item.id == preferred.resource_profile_id
+                if preferred is not None and item.id == preferred.resource_profile_id
             ),
             None,
         )
@@ -295,8 +337,10 @@ def _selected_target(
             items=profiles,
             label=lambda item: (
                 f"{item.id} — strategy={item.strategy}; "
-                f"minimum free RAM={item.min_free_ram_gib or 0:g} GiB; "
-                f"minimum free VRAM={item.min_free_vram_gib or 0:g} GiB"
+                f"required total RAM/所需总内存="
+                f"{item.min_free_ram_gib or 0:g} GiB; "
+                f"required total VRAM/所需总显存="
+                f"{item.min_free_vram_gib or 0:g} GiB"
             ),
             default=preferred_profile,
         )

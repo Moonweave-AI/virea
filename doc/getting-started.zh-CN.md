@@ -140,6 +140,11 @@ PowerShell 请把 `"$VIREA_HOME"` 替换为 `$env:VIREA_HOME`。从输出的 `ex
 
 如果检测到多个候选域，必须显式选择。选择失败时 VIREA 不会悄悄切换到其他操作系统、加速器或资源 profile。
 
+部署能力按该执行域实际可见的**总物理内存与总显存**判断；当前可用 RAM/VRAM 只作为会变化的观测显示，
+所以 16 GiB 显卡即使被桌面占用一部分，仍按 16 GiB 设备判断。WSL 使用所选发行版内部实际可见的内存上限，
+不会借用 Windows 主机容量。没有实现当前执行域的平台 Runtime 会显示为不可用事实，但不会进入编号选择列表。
+因此 PRISM CUDA 只能在 Linux/WSL 选择；Windows 只提供 PRISM CPU，而该 profile 声明需要 96 GiB 总 RAM。
+
 ## 5. 高级：查看、规划并应用模型安装
 
 ```bash
@@ -193,7 +198,10 @@ uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
 
 打开 `http://127.0.0.1:8000/`，加载本地 `.vrm` Avatar，并在统一的生成与诊断工作台操作。左侧诊断舞台显示
 模型输出经过解码和坐标归一化、但尚未进入 VRM 重定向的源骨架；右侧显示同一结果重定向后的最终 VRM/VRMA。
-CLI 写入的模型部署和结果会自动同步；`/app/` 仍是同一 UI 的兼容地址。按 `Ctrl+C` 停止服务。`--reload` 与 legacy
+CLI 写入的模型部署和结果会自动同步；`/app/` 仍是同一 UI 的兼容地址。在启动服务的终端按 `Ctrl+C` 才会停止
+服务；关闭浏览器标签页不会停止服务。正常退出会取消活动任务、终止每个 Worker 的完整子进程树、重试首次失败的
+回收，并只在终止已被证明后释放资源锁与控制面所有权。若终端或进程异常崩溃，下次启动会先依据持久化进程身份
+回收可验证的孤儿 Worker。`--reload` 与 legacy
 `--data-source` 的说明见 [CLI 参数参考](reference/cli.zh-CN.md#serve)。
 
 ## 8. 高级：排错与安全维护

@@ -554,15 +554,23 @@ class WorkerSupervisor:
                         diagnostics={"return_code": return_code},
                     )
             finally:
-                current.close_streams()
-                with self._lock:
-                    self._workers.pop(current.instance_id, None)
+                # A handle is ownership evidence for a live process tree.  Keep
+                # it tracked when termination could not be proven so shutdown
+                # can retry instead of losing the only in-memory reap handle.
+                if not current.running:
+                    current.close_streams()
+                    with self._lock:
+                        self._workers.pop(current.instance_id, None)
 
-    def stop_all(self, *, timeout: float = 10.0) -> None:
+    def stop_all(self, *, timeout: float = 10.0) -> tuple[WorkerHandle, ...]:
+        """Stop every tracked Worker and return any process still alive."""
+
         with self._lock:
             handles = tuple(self._workers.values())
         for handle in handles:
             self.stop(handle, timeout=timeout)
+        with self._lock:
+            return tuple(handle for handle in self._workers.values() if handle.running)
 
     def handles(self) -> tuple[WorkerHandle, ...]:
         with self._lock:

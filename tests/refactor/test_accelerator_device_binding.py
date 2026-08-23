@@ -181,6 +181,7 @@ def test_built_readiness_checks_only_the_selected_device_and_resource_drop_does_
                 "index": 0,
                 "uuid": GPU1_TORCH,
                 "memory_free_bytes": 4 * GIB,
+                "memory_total_bytes": 24 * GIB,
                 "arch_supported": True,
             },
         ],
@@ -193,10 +194,8 @@ def test_built_readiness_checks_only_the_selected_device_and_resource_drop_does_
         selected_accelerator=selected,
     )
 
-    assert outcome.status == "not-ready"
-    assert outcome.reasons == (
-        "isolated runtime has insufficient free CUDA memory: need 8 GiB",
-    )
+    assert outcome.status == "ready"
+    assert outcome.reasons == ()
     assert outcome.runtime_rebuild_required is False
 
 
@@ -222,6 +221,7 @@ def test_built_readiness_rejects_selected_cuda_visibility_drift() -> None:
                 "index": 0,
                 "uuid": GPU1_TORCH,
                 "memory_free_bytes": 20 * GIB,
+                "memory_total_bytes": 24 * GIB,
                 "arch_supported": True,
             }
         ],
@@ -264,6 +264,7 @@ def test_built_readiness_uses_nvidia_smi_when_torch_uuid_is_unavailable() -> Non
                 "index": 0,
                 "uuid": None,
                 "memory_free_bytes": 20 * GIB,
+                "memory_total_bytes": 24 * GIB,
                 "arch_supported": True,
             }
         ],
@@ -302,6 +303,7 @@ def test_index_only_selection_cross_checks_torch_uuid_with_nvidia_smi(
         visibility_selector="1",
         logical_device_index=0,
         memory_free_bytes=20 * GIB,
+        memory_total_bytes=24 * GIB,
     )
     probe = {
         "status": "ready",
@@ -322,6 +324,7 @@ def test_index_only_selection_cross_checks_torch_uuid_with_nvidia_smi(
                 "index": 0,
                 "uuid": torch_uuid,
                 "memory_free_bytes": 20 * GIB,
+                "memory_total_bytes": 24 * GIB,
                 "arch_supported": True,
             }
         ],
@@ -423,6 +426,7 @@ def _selected_payload(uuid: str = GPU1) -> dict[str, object]:
         "visibility_selector": uuid,
         "logical_device_index": 0,
         "memory_free_bytes": 20 * GIB,
+        "memory_total_bytes": 24 * GIB,
     }
 
 
@@ -720,7 +724,7 @@ def test_transient_selected_gpu_pressure_does_not_quarantine_healthy_runtime(
     readiness = RuntimeCompatibility(
         compatible=False,
         status="not-ready",
-        reasons=("isolated runtime has insufficient free CUDA memory: need 8 GiB",),
+        reasons=("isolated runtime has insufficient CUDA memory capacity: need 8 GiB",),
         selected_resource_profile="cuda-full",
         selected_memory_strategy="cuda_full",
         execution_domain=domain,
@@ -801,6 +805,7 @@ def test_runtime_readiness_uses_isolated_distribution_version_exactly(
                     "index": 0,
                     "uuid": GPU1_TORCH,
                     "memory_free_bytes": 20 * GIB,
+                    "memory_total_bytes": 24 * GIB,
                     "arch_supported": True,
                 }
             ],

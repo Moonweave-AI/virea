@@ -49,10 +49,13 @@ The seven stages expose these facts:
 | Data root | Shows the active `VIREA_HOME`; reuse it or explicitly move to another data volume. |
 | Device and state | Detects the current device/domains and shows the last model/target, READY count, and recent jobs. |
 | Model | Labels every model `not installed`, `needs attention`, or re-verified `READY · deployed`. |
-| Execution target | Separately chooses the OS domain, exact Runtime, and resource profile; history is a visible default, never a silent override. |
+| Execution target | Shows total/available RAM and total VRAM, then separately chooses the OS domain, an implemented Runtime, and a resource profile; history is a visible default, never a silent override. |
 | Deployment | Reuses a matching READY snapshot by default without downloading again; another target gets an independent deployment while the old snapshot remains. |
 | Generation | Shows submission, model inference, and result-artifact collection; success is a compact job/result ID summary. |
 | Browser | Optionally starts the local source-skeleton and final-VRM workbench. |
+
+The deployment gate compares each profile with total RAM/VRAM capacity. Available RAM/VRAM are live observations, not
+the hardware's capability; platform-mismatched Runtimes are described as unavailable but cannot be selected by number.
 
 The progress bar advances only at completed operation boundaries. When download, Runtime construction, or inference has
 no honest byte/iteration total, the UI shows an activity indicator and elapsed time instead of inventing a percentage.

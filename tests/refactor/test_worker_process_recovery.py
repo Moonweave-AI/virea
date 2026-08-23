@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import virea_runtime.supervisor as supervisor_module
 from virea_api.service import ControlPlane
 from virea_contracts.job import JobRequest
 from virea_contracts.runtime_identity import RUNTIME_CORE_EPOCH
@@ -184,6 +185,51 @@ def test_normal_real_subprocess_stop_is_persisted_as_terminal(tmp_path) -> None:
     assert handle.process.poll() is not None
     assert store.delete_worker_instance(handle.instance_id) is True
     assert store.worker_instance(handle.instance_id) is None
+
+
+def test_failed_termination_keeps_handle_for_final_shutdown_retry(
+    tmp_path, monkeypatch
+) -> None:
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    supervisor = WorkerSupervisor(paths, store=store)
+    pythonpath = os.pathsep.join(str(path.resolve()) for path in PACKAGE_SOURCES)
+    handle = supervisor.start(
+        model_id="retry-stop-worker",
+        runtime_id="retry-stop-runtime",
+        job_id="retry-stop-job",
+        entrypoint_argv=_identity_entrypoint(),
+        job_root=paths.job_directory("retry-stop-job"),
+        environment={
+            "PYTHONPATH": pythonpath,
+            "VIREA_RUNTIME_CORE_EPOCH": RUNTIME_CORE_EPOCH,
+        },
+        readiness_timeout=15.0,
+    )
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                supervisor_module,
+                "_terminate_spawned_process",
+                lambda _process, *, timeout: False,
+            )
+            supervisor.stop(handle, timeout=0.1)
+
+        assert handle.running
+        assert supervisor.handles() == (handle,)
+        blocked = store.worker_instance(handle.instance_id)
+        assert blocked is not None
+        assert blocked["state"] == "RECOVERY_BLOCKED"
+
+        assert supervisor.stop_all(timeout=10.0) == ()
+        assert not handle.running
+        assert supervisor.handles() == ()
+        stopped = store.worker_instance(handle.instance_id)
+        assert stopped is not None
+        assert stopped["state"] == "STOPPED"
+    finally:
+        if handle.running:
+            supervisor.stop(handle, timeout=10.0)
 
 
 def test_start_failure_includes_bounded_stdout_and_stderr_tails(tmp_path) -> None:

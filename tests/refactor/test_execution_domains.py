@@ -104,7 +104,7 @@ def _domain(
                 "executable": python_path,
             },
         ),
-        memory_total_bytes=64 * GIB,
+        memory_total_bytes=ram,
         memory_available_bytes=ram,
         swap_total_bytes=8 * GIB,
         swap_free_bytes=8 * GIB,
@@ -267,12 +267,14 @@ def test_resource_admission_never_borrows_host_ram_for_wsl() -> None:
 
     assert outcome.status == "not-ready"
     assert outcome.resource_observations == {
+        "total_ram_bytes": 2 * GIB,
         "free_ram_bytes": 2 * GIB,
         "free_swap_bytes": 8 * GIB,
         "free_storage_bytes": 100 * GIB,
+        "max_total_vram_bytes": None,
         "max_free_vram_bytes": None,
     }
-    assert outcome.reasons == ("insufficient free physical memory: need 8 GiB",)
+    assert outcome.reasons == ("insufficient physical memory capacity: need 8 GiB",)
 
 
 def test_runtime_variant_selection_prefers_manifest_order_when_both_buildable() -> None:
@@ -496,9 +498,11 @@ def test_execution_domain_object_cannot_override_canonical_resources() -> None:
     assert outcome.status == "not-ready"
     assert outcome.execution_domain is canonical
     assert outcome.resource_observations == {
+        "total_ram_bytes": 2 * GIB,
         "free_ram_bytes": 2 * GIB,
         "free_swap_bytes": 8 * GIB,
         "free_storage_bytes": 100 * GIB,
+        "max_total_vram_bytes": None,
         "max_free_vram_bytes": None,
     }
     assert outcome.execution_domain.tools["uv_path"] is None
@@ -626,7 +630,43 @@ def test_execution_options_keep_unimplemented_domains_with_reasons() -> None:
     assert by_domain[windows.id]["implemented"] is True
     assert by_domain[wsl.id]["implemented"] is False
     assert by_domain[wsl.id]["can_build"] is False
-    assert any("platform mismatch" in reason for reason in by_domain[wsl.id]["reasons"])
+    assert by_domain[wsl.id]["runtime_candidates"] == []
+    assert any(
+        "does not declare a RuntimeVariant" in reason
+        for reason in by_domain[wsl.id]["reasons"]
+    )
+
+
+def test_execution_options_never_offer_a_platform_mismatched_runtime() -> None:
+    windows = _domain(
+        ExecutionDomainKind.WINDOWS_NATIVE,
+        "win-64",
+        host=True,
+        uv_path=r"C:\tools\uv.exe",
+        ram=64 * GIB,
+    )
+    linux_cuda = _runtime(
+        "linux-64",
+        accelerator="nvidia",
+        strategy=MemoryStrategy.CUDA_COMPONENT_SPLIT,
+        ram_gib=28.0,
+    ).model_copy(update={"id": "linux-only-cuda"})
+    windows_cpu = _runtime("win-64", ram_gib=96.0).model_copy(
+        update={"id": "windows-cpu"}
+    )
+    manifest = SimpleNamespace(runtime_variants=(linux_cuda, windows_cpu))
+
+    (option,) = ControlPlane._execution_options_for_machine(
+        manifest,
+        _report(windows),
+    )
+
+    assert option["selected_runtime_id"] == "windows-cpu"
+    assert option["status"] == "not-ready"
+    assert [item["runtime_id"] for item in option["runtime_candidates"]] == [
+        "windows-cpu"
+    ]
+    assert "linux-only-cuda" not in str(option)
 
 
 def test_control_plane_resolves_only_the_explicit_execution_target(

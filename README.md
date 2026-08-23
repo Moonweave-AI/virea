@@ -126,6 +126,9 @@ at startup → let the user select one → reuse the same OS-neutral model asset
 matching isolated Runtime → re-check resources in that domain before Worker launch. Selecting a new domain does not
 reinstall or redownload the model asset snapshot. An explicit selection must fail with a model-level
 reason when no compatible Runtime exists; it must not silently switch operating system, accelerator or resource profile.
+Runtime choices that are not implemented for the selected domain are diagnostic facts, not selectable menu items. For
+example, PRISM CUDA is a Linux Runtime and is offered through Linux/WSL, while Windows can offer PRISM's declared CPU
+Runtime only when that domain has the required 96 GiB total RAM.
 
 <!-- BEGIN GENERATED: PLATFORM_SUPPORT -->
 | Selectable execution domain | Declared Runtime capability | Known deployment blockers | Observed evidence coverage |
@@ -270,9 +273,11 @@ Use a domain ID returned by `doctor --json`: `windows-native`, `linux-native`, `
 `--execution-domain`. The same flags are available on `model repair` and `generate`; VIREA never silently changes a
 selection that fails.
 
-The admission decision checks free VRAM, free physical RAM, swap/pagefile and storage independently. RAM is used only when
-the selected Worker genuinely implements CPU or offload placement; the resolver never adds RAM and VRAM together to make
-an impossible configuration appear sufficient.
+The hardware-capability decision checks **total VRAM** and **total physical RAM**. Current available RAM/VRAM are recorded
+as changing observations and may be used to prefer one of several capable GPUs, but another application using memory does
+not make the hardware itself undeployable. Free swap/pagefile and storage remain consumable-resource checks. RAM is used
+only when the selected Worker genuinely implements CPU or offload placement; the resolver never adds RAM and VRAM
+together to make an impossible configuration appear sufficient.
 
 ### 3. Advanced: generate and validate non-interactively
 
@@ -305,8 +310,8 @@ cannot promote itself by reporting `playing=true`; see the [E2E contract](doc/qu
 ```text
 RuntimeSpec resource profiles (ordered)
   ├─ accelerator and ABI
-  ├─ minimum free VRAM
-  ├─ minimum free physical RAM
+  ├─ minimum total VRAM capacity
+  ├─ minimum total physical RAM capacity
   ├─ minimum free swap/pagefile
   └─ minimum free storage
 ```
@@ -314,7 +319,7 @@ RuntimeSpec resource profiles (ordered)
 Examples include full CUDA placement, whole-model CPU, component-split CPU/CUDA, and model-specific offload. A strategy is
 advertised only after the Worker implements it; insufficient resources stop installation before a transaction or download
 is created. Before spawning a Worker, the authoritative ControlPlane for one shared `VIREA_HOME` acquires a durable
-resource lease and re-detects live resources while holding that lease. This closes the install-to-inference race among
+resource lease and re-detects the domain while holding that lease. This closes the install-to-inference race among
 VIREA processes that share that home; separate `VIREA_HOME` values and unrelated external processes do not interlock, and
 resources can still change after observation, so this is not a machine-global guarantee against OOM.
 

@@ -24,13 +24,56 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 
 | Symptom | First check | Safe next action |
 |---|---|---|
-| `RUNTIME_NOT_BUILDABLE` before installation | `doctor` domain report and model profiles | Free resources or select a profile the Worker actually implements in the chosen domain. |
+| `RUNTIME_NOT_BUILDABLE` before installation | Domain total RAM/VRAM, platform and model profiles | Select an implemented domain/profile whose total-capacity requirement the device meets. |
 | Asset acquisition fails | Revision, license acknowledgement, network and disk | Review the plan and run `model repair`; failed acquisition must not become READY. |
 | Runtime build fails | Target-domain Python/uv/lock and captured tail | Repair the selected domain; do not install dependencies manually into the checkout. |
 | Worker readiness times out | Startup limit, offline assets and model load logs | Verify, then repair; ensure the process tree has stopped. |
 | Generation times out/cancels | Job state, Worker instance and child tree | Let bounded cancellation finish; never publish a partial result. |
 | VRMA validation fails | Rest hips, root translation, track counts and finite values | Fix exporter/adapter rather than hiding it in Viewer code. |
 | Avatar disappears/crops | VRM rest pose, VRMA absolute hips and console | Re-run Viewer QA against the real artifact. |
+
+## A capable GPU or machine is reported as short on memory
+
+Update the clone if the message says `insufficient free accelerator memory` or `insufficient free physical memory`.
+Those were transient-availability gates in an older resolver. Current VIREA decides installation/deployment capability
+from total RAM and total VRAM, while keeping current available values as observations. For example, a 16 GiB GPU satisfies
+a 16 GiB profile even if the desktop currently leaves less than 16 GiB free. A 64 GiB machine still does not satisfy
+PRISM's 96 GiB CPU profile. In WSL, the relevant RAM total is what that distribution can actually see.
+
+The wizard also removes platform-mismatched Runtime variants from the numbered menu. PRISM's Linux-only CUDA Runtime is
+therefore selectable in Linux/WSL, not `windows-native`; Windows may show the implemented CPU variant and its 96 GiB total
+RAM requirement instead. Existing model assets and successful isolated Runtimes do not need to be deleted after updating.
+
+```powershell
+# Update this clone without rewriting local history; this fetches source code, not model assets in VIREA_HOME.
+git pull --ff-only origin main
+
+# Reconcile the workspace with the committed lock while preserving already downloaded model data outside the clone.
+uv sync --locked --all-packages --extra dev
+
+# Re-enter the guided flow; total and currently available capacity are displayed separately.
+uv run virea
+```
+
+```bash
+# Linux, WSL, or macOS: perform the same source-only fast-forward update from the cloned repository.
+git pull --ff-only origin main
+
+# Reconcile the workspace; model snapshots and READY installations under the persistent data root are reused.
+uv sync --locked --all-packages --extra dev
+
+# Re-enter the guided flow; choose only the Runtime variants offered for the selected execution domain.
+uv run virea
+```
+
+## Stopping the Web service and all model processes
+
+Press `Ctrl+C` in the terminal that runs `virea serve`; closing the browser tab alone does not stop the server. Normal
+shutdown cancels jobs, stops Worker process trees, retries a failed first termination, and releases locks only after no
+tracked Worker remains alive. Runtime-build and detection subprocesses receive the same cancellation signal and are
+launched in independently terminable process groups. If the terminal or machine crashes, the next VIREA startup verifies
+persisted process identity before reaping orphan Workers; an identity mismatch is blocked for safety instead of killing an
+unrelated PID.
 
 ## Git-backed Runtime build says Git is missing
 

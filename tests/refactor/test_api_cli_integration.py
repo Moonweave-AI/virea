@@ -763,9 +763,9 @@ def test_api_rejects_resource_shortage_before_artifact_download(
                 "can_build": False,
                 "build_required": False,
                 "reasons": [
-                    "insufficient free physical memory: need 24 GiB",
+                    "insufficient physical memory capacity: need 24 GiB",
                 ],
-                "remediation": ["close memory-heavy applications"],
+                "remediation": ["choose a machine with enough total RAM"],
                 "selected_python": None,
                 "selected_resource_profile": None,
                 "selected_memory_strategy": None,
