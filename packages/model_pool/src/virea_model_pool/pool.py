@@ -1842,6 +1842,51 @@ class ModelPool:
             "locator": latest_payload.get("locator"),
             "diagnostics": list(latest_payload.get("diagnostics", ())),
         }
+        acceptance = latest_payload.get("acceptance")
+        if (
+            latest["state"] == InstallationState.FAILED.value
+            and isinstance(acceptance, dict)
+        ):
+            web_playback = acceptance.get("web_playback")
+            expected_external = (
+                {ProductionE2EStage.WEB_PLAYBACK.value}
+                if isinstance(web_playback, dict)
+                and web_playback.get("status")
+                == "requires_external_browser_evidence"
+                else set()
+            )
+            stages = acceptance.get("stages")
+            stage_order = {
+                stage.value: index for index, stage in enumerate(ProductionE2EStage)
+            }
+            failed_stages = (
+                sorted(
+                    (
+                        str(name)
+                        for name, passed in stages.items()
+                        if passed is False and str(name) not in expected_external
+                    ),
+                    key=lambda value: stage_order.get(value, len(stage_order)),
+                )
+                if isinstance(stages, dict)
+                else []
+            )
+            publication_failure = next(
+                (
+                    str(value)
+                    for value in reversed(latest_attempt["diagnostics"])
+                    if "acceptance" in str(value).lower()
+                    or "failed" in str(value).lower()
+                ),
+                None,
+            )
+            latest_attempt["failure"] = {
+                "error_code": acceptance.get("error_code"),
+                "error_message": acceptance.get("error_message"),
+                "failed_stages": failed_stages,
+                "publication_failure": publication_failure,
+                "downloads_reusable": True,
+            }
 
         usable: dict[str, Any] | None = None
         ready_failures: dict[str, list[str]] = {}

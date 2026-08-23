@@ -2180,6 +2180,17 @@ def test_model_pool_persists_failed_real_acceptance_checks(tmp_path) -> None:
             "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
             "kind": "installation_real_e2e",
             "installation_acceptance_succeeded": False,
+            "error_code": "WORKER_OOM",
+            "error_message": "CUDA out of memory",
+            "stages": {
+                "model_load": False,
+                "inference": False,
+                "web_playback": False,
+            },
+            "web_playback": {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
         },
     )
 
@@ -2190,6 +2201,14 @@ def test_model_pool_persists_failed_real_acceptance_checks(tmp_path) -> None:
     assert payload["acceptance"]["installation_acceptance_succeeded"] is False
     assert payload["events"][-1]["event_type"] == "installation.real_acceptance_failed"
     assert "installation acceptance did not succeed" in payload["diagnostics"][-1]
+    report = pool.verify_latest("failed-acceptance-model")
+    failure = report["latest_attempt"]["failure"]
+    assert failure["downloads_reusable"] is True
+    assert failure["error_code"] == "WORKER_OOM"
+    assert failure["failed_stages"] == ["model_load", "inference"]
+    assert "installation acceptance did not succeed" in failure[
+        "publication_failure"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -2398,12 +2417,16 @@ def test_failed_retry_does_not_hide_previous_usable_ready_snapshot(tmp_path) -> 
     assert verified["state"] == InstallationState.READY.value
     assert verified["installation_id"] == ready.installation_id
     assert verified["locator"] == ready.locator
-    assert verified["latest_attempt"] == {
+    assert {
+        key: verified["latest_attempt"][key]
+        for key in ("installation_id", "state", "locator", "diagnostics")
+    } == {
         "installation_id": failed.installation_id,
         "state": InstallationState.FAILED.value,
         "locator": failed.locator,
         "diagnostics": list(failed.diagnostics),
     }
+    assert verified["latest_attempt"]["failure"]["downloads_reusable"] is True
     assert "retaining usable READY" in verified["diagnostics"][-1]
 
 

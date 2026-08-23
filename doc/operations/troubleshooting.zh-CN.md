@@ -90,6 +90,39 @@ uv sync --locked --all-packages --extra dev
 uv run virea
 ```
 
+## 下载成功，但最后显示 `Model state FAILED`
+
+`fetched stable asset` 只说明下载和制品校验成功，不代表后续模型加载、推理、Motion IR 转换、重定向与 VRMA
+导出已经通过。若流程到第 6/6 步发布时失败，实际失败层是安装验收。旧版紧凑界面只取诊断列表前 3 条，三个
+“制品已获取”消息会把真正的 Worker `error_code` 和 `error_message` 挤掉。
+
+当前版本会优先展示验收错误、失败阶段和安全重试动作；下次运行 `uv run virea` 时也会恢复上次失败摘要。
+依赖自己的 `Downloading bytes`、`Reconstructing`、`Fetching files` 会全部收进 VIREA 的单一进度面。不要删除
+数据根：重试会复用已验证的稳定制品。
+
+```powershell
+# 只把当前 clone fast-forward 到修正后的 main；不会改动持久数据根中的模型文件。
+git pull --ff-only origin main
+
+# 按仓库 lock 对齐全部 Python workspace 包；--locked 防止依赖版本漂移。
+uv sync --locked --all-packages --extra dev
+
+# 重新打开向导；选择失败模型后，会先展示保存的错误，再询问是否重试。
+# 重试直接复用已验证下载，只重新执行未成为 READY 的 Runtime/验收部分。
+uv run virea
+```
+
+```bash
+# Linux、WSL2、macOS：只 fast-forward 当前 clone，不修改持久模型数据根。
+git pull --ff-only origin main
+
+# 依据提交的依赖 lock 对齐全部 workspace 包。
+uv sync --locked --all-packages --extra dev
+
+# 用同一交互命令恢复失败摘要并重试；已验证制品不会重新下载。
+uv run virea
+```
+
 ## 停止 Web 服务及全部模型进程
 
 请在运行 `virea serve` 的终端按 `Ctrl+C`；只关闭浏览器标签页不会停止服务。正常退出会取消任务、终止 Worker

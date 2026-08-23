@@ -58,13 +58,20 @@ The deployment gate compares each profile with total RAM/VRAM capacity. Availabl
 the hardware's capability; platform-mismatched Runtimes are described as unavailable but cannot be selected by number.
 
 The progress bar advances only at completed operation boundaries. During a Hugging Face/Xet transfer, dependency-owned
-`Downloading bytes` bars are suppressed and their byte count/rate is routed into VIREA's single live line; this prevents
-carriage-return updates from becoming hundreds of retained lines on Windows, Linux, WSL2, macOS, or an IDE terminal.
+`Downloading bytes`, `Reconstructing`, and `Fetching files` bars are suppressed. Download and reconstruction byte/rate
+snapshots are routed into VIREA's single live line; a narrow fallback filter catches dependency versions that ignore the
+custom progress adapter while preserving ordinary warnings and errors. This prevents carriage-return updates from
+becoming hundreds of retained lines on Windows, Linux, WSL2, macOS, or an IDE terminal.
 When download, Runtime construction, or inference has no honest total, the UI shows an activity indicator and elapsed
 time instead of inventing a percentage. Interactive mode never dumps raw JSON: failures show the error code, primary
 reasons, next action, and evidence location; the full transaction remains in `VIREA_HOME/state` and
 `VIREA_HOME/logs`. Explicit subcommands below retain their machine-readable JSON contracts for automation and advanced
 diagnostics, without unsolicited third-party progress output on stderr.
+
+If installation reaches publication but does not become `READY`, the compact result prioritizes the acceptance
+`error_code`, `error_message`, failed stages, and retry action before successful artifact-download notes. Reopening
+`uv run virea` also restores this summary from the failed transaction. Verified stable assets remain reusable, so retrying
+the same model/target does not download them again.
 
 Color and live progress are enabled only on an interactive terminal. Redirected output, `TERM=dumb`, or `NO_COLOR`
 automatically uses line-oriented plain text without losing stages or results. Model downloads emit the first transfer

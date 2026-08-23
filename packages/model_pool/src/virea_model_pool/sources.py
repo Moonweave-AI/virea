@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import stat
+import sys
 import tarfile
 import tempfile
 import threading
@@ -9,7 +10,9 @@ import time
 import urllib.request
 import zipfile
 from collections.abc import Callable, Iterable, Iterator
+from contextlib import redirect_stderr
 from dataclasses import dataclass
+from io import TextIOBase
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
@@ -29,10 +32,49 @@ class ArtifactTransferProgress:
     completed_bytes: int
     total_bytes: int | None
     bytes_per_second: float | None
+    phase: str = "download"
     done: bool = False
 
 
 ArtifactProgressCallback = Callable[[ArtifactTransferProgress], None]
+
+
+class _DependencyProgressStream(TextIOBase):
+    """Drop known dependency progress frames while preserving real stderr."""
+
+    _MARKERS = (
+        "Downloading bytes:",
+        "Download complete:",
+        "Reconstructing (incomplete total...):",
+        "Reconstruction complete:",
+    )
+
+    def __init__(self, wrapped: Any) -> None:
+        self._wrapped = wrapped
+        self._discard_progress_whitespace = False
+        self._lock = threading.RLock()
+
+    def write(self, value: str) -> int:
+        text = str(value)
+        with self._lock:
+            is_file_progress = "Fetching " in text and " files:" in text
+            if is_file_progress or any(marker in text for marker in self._MARKERS):
+                self._discard_progress_whitespace = True
+                return len(text)
+            if self._discard_progress_whitespace and not text.strip():
+                return len(text)
+            self._discard_progress_whitespace = False
+            return self._wrapped.write(text)
+
+    def flush(self) -> None:
+        self._wrapped.flush()
+
+    def isatty(self) -> bool:
+        isatty = getattr(self._wrapped, "isatty", None)
+        return bool(isatty()) if callable(isatty) else False
+
+    def fileno(self) -> int:
+        return int(self._wrapped.fileno())
 
 
 def _snapshot_progress_class(
@@ -103,9 +145,16 @@ def _snapshot_progress_class(
             del refresh
             with self._virea_lock:
                 previous = self._virea_description
-                if previous == "Downloading bytes" and desc == "Download complete":
+                completed = str(desc or "")
+                if (
+                    previous == "Downloading bytes"
+                    and completed == "Download complete"
+                ) or (
+                    previous.startswith("Reconstructing")
+                    and completed == "Reconstruction complete"
+                ):
                     self._virea_emit(done=True)
-                self._virea_description = str(desc or "")
+                self._virea_description = completed
 
         def set_postfix_str(self, *args: Any, **kwargs: Any) -> None:
             # Rate is calculated from the structured byte counter below.  Never
@@ -120,7 +169,16 @@ def _snapshot_progress_class(
             super().close()
 
         def _virea_emit(self, *, done: bool) -> None:
-            if progress is None or self._virea_description != "Downloading bytes":
+            if progress is None:
+                return
+            if self._virea_description == "Downloading bytes":
+                phase = "download"
+                total: int | None = None
+            elif self._virea_description.startswith("Reconstructing"):
+                phase = "reconstruction"
+                raw_total = getattr(self, "total", None)
+                total = max(0, int(raw_total)) if raw_total is not None else None
+            else:
                 return
             now = time.monotonic()
             # The terminal renderer has its own slower log-mode limiter.  This
@@ -135,10 +193,11 @@ def _snapshot_progress_class(
                 ArtifactTransferProgress(
                     artifact_id=artifact_id,
                     completed_bytes=completed,
-                    # Xet transfer bytes may be compressed or deduplicated, so
-                    # its internal total is not an honest download denominator.
-                    total_bytes=None,
+                    # Xet network bytes have no honest denominator; reconstructed
+                    # local bytes do expose the dependency's monotonic total.
+                    total_bytes=total,
                     bytes_per_second=rate,
+                    phase=phase,
                     done=done,
                 )
             )
@@ -311,14 +370,18 @@ def fetch_source(
             raise ArtifactFetchError(
                 "install virea-model-pool[huggingface] to fetch Hugging Face artifacts"
             ) from exc
-        snapshot_download(
-            repo_id=source.repository or "",
-            revision=source.revision,
-            allow_patterns=list(source.allow_patterns) or None,
-            local_dir=destination,
-            cache_dir=cache_dir,
-            tqdm_class=_snapshot_progress_class(source.id, progress),
-        )
+        # The custom tqdm class is the primary integration.  The stderr filter
+        # is a narrow compatibility boundary for Hub/Xet versions that create
+        # an internal reconstruction/file bar without honoring `tqdm_class`.
+        with redirect_stderr(_DependencyProgressStream(sys.stderr)):
+            snapshot_download(
+                repo_id=source.repository or "",
+                revision=source.revision,
+                allow_patterns=list(source.allow_patterns) or None,
+                local_dir=destination,
+                cache_dir=cache_dir,
+                tqdm_class=_snapshot_progress_class(source.id, progress),
+            )
     else:
         raise ArtifactFetchError(f"unsupported source kind: {source.kind}")
     for extraction in source.unpack:

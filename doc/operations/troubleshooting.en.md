@@ -90,6 +90,40 @@ uv sync --locked --all-packages --extra dev
 uv run virea
 ```
 
+## Download succeeded, but installation ends in `Model state FAILED`
+
+Lines such as `fetched stable asset` prove that acquisition and verification completed; they do not prove that model
+load, inference, Motion IR conversion, retargeting, or VRMA export passed. A failure after step 6/6 is an installation
+acceptance failure. Older compact output kept only the first three diagnostics, so three successful artifact notes could
+hide the actual Worker `error_code` and `error_message`.
+
+Current VIREA shows the acceptance error, failed stages, and safe retry action first. It also restores that failure on the
+next `uv run virea` start. Raw `Downloading bytes`, `Reconstructing`, and `Fetching files` dependency bars are contained
+inside the single VIREA progress surface. Do not delete the data root: verified stable assets are reused by the retry.
+
+```powershell
+# Update only this repository checkout to the fixed main branch; model files under the persistent data root are untouched.
+git pull --ff-only origin main
+
+# Reconcile the Python workspace with the committed lock; --locked prevents dependency drift.
+uv sync --locked --all-packages --extra dev
+
+# Reopen the wizard. Select the failed model to see its saved error before confirming a retry;
+# the retry reuses verified downloads and repeats only the Runtime/acceptance work that did not become READY.
+uv run virea
+```
+
+```bash
+# Linux, WSL2, and macOS: fast-forward the same clone without modifying the persistent model-data root.
+git pull --ff-only origin main
+
+# Reconcile all workspace packages against the committed dependency lock.
+uv sync --locked --all-packages --extra dev
+
+# Restore the previous failure summary and retry with the same guided command; verified assets are not downloaded again.
+uv run virea
+```
+
 ## Stopping the Web service and all model processes
 
 Press `Ctrl+C` in the terminal that runs `virea serve`; closing the browser tab alone does not stop the server. Normal
