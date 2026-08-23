@@ -27,7 +27,7 @@ from virea_core.paths import VireaPaths, safe_component
 from .catalog import ModelCatalog
 from .installation import validate_installation_transition
 from .manifest import ArtifactSource, ModelPluginManifest
-from .sources import fetch_source, validate_source_files
+from .sources import ArtifactProgressCallback, fetch_source, validate_source_files
 
 _INTERNAL_ASSET_IDENTITY = ".virea-asset-identity.json"
 _INTERNAL_ASSET_TREE = ".virea-asset-tree.json"
@@ -347,6 +347,7 @@ class ModelPool:
         external_artifact_revisions: dict[str, str] | None = None,
         external_execution_domain: str | None = None,
         external_domain_paths: dict[str, str] | None = None,
+        progress: ArtifactProgressCallback | None = None,
     ) -> InstallOutcome:
         manifest = self.catalog.get(model_id)
         installation_id = new_ulid()
@@ -425,6 +426,7 @@ class ModelPool:
                     manifest=manifest,
                     lock_owner_id=installation_id,
                     diagnostics=diagnostics,
+                    progress=progress,
                 )
                 atomic_write_json(
                     staging / _INTERNAL_REFERENCE_MANIFEST,
@@ -509,6 +511,7 @@ class ModelPool:
         manifest: ModelPluginManifest,
         lock_owner_id: str,
         diagnostics: list[str],
+        progress: ArtifactProgressCallback | None,
     ) -> dict[str, Any]:
         artifacts_root = staging / "artifacts"
         artifacts_root.mkdir(parents=True, exist_ok=False)
@@ -518,6 +521,7 @@ class ModelPool:
                 manifest=manifest,
                 source=source,
                 lock_owner_id=lock_owner_id,
+                progress=progress,
             )
             link = artifacts_root / safe_component(source.id, name="artifact_id")
             reference_kind = _create_directory_reference(link, asset_root)
@@ -550,6 +554,7 @@ class ModelPool:
         manifest: ModelPluginManifest,
         source: ArtifactSource,
         lock_owner_id: str,
+        progress: ArtifactProgressCallback | None,
     ) -> tuple[Path, bool, int]:
         identity = _internal_asset_identity(manifest, source)
         asset_key = _internal_asset_key(identity)
@@ -611,6 +616,7 @@ class ModelPool:
                 source,
                 temporary,
                 cache_dir=self.paths.cache / "huggingface",
+                progress=progress,
             )
             if (temporary / _INTERNAL_ASSET_IDENTITY).exists() or (
                 temporary / _INTERNAL_ASSET_TREE

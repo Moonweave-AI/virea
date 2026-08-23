@@ -378,6 +378,8 @@ def _install(args) -> int:
         stage_options = dict(external_stage)
         if isinstance(compatibility.get("execution_target"), dict):
             stage_options["execution_target"] = compatibility["execution_target"]
+        if reporter is not None:
+            stage_options["progress"] = reporter.transfer
         outcome = control.model_pool.stage_artifacts(
             args.model_id,
             accepted_license=args.accepted_license,

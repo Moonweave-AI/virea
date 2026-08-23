@@ -161,6 +161,40 @@ def test_interactive_reporter_replaces_raw_json_with_compact_summary() -> None:
     assert '"diagnostics"' not in rendered
 
 
+def test_redirected_download_progress_is_rate_limited_and_has_a_final_snapshot() -> (
+    None
+):
+    """Hundreds of dependency updates become two useful plain-output lines."""
+
+    messages: list[str] = []
+    reporter = TerminalUI(messages.append).reporter("Model installation")
+
+    for index in range(1, 201):
+        reporter.transfer(
+            SimpleNamespace(
+                artifact_id="checkpoint",
+                completed_bytes=index * 1024 * 1024,
+                bytes_per_second=20 * 1024 * 1024,
+                done=False,
+            )
+        )
+    reporter.transfer(
+        SimpleNamespace(
+            artifact_id="checkpoint",
+            completed_bytes=200 * 1024 * 1024,
+            bytes_per_second=20 * 1024 * 1024,
+            done=True,
+        )
+    )
+
+    download_lines = [line for line in messages if "[download]" in line]
+    assert len(download_lines) == 2
+    assert "Downloading / 正在下载" in download_lines[0]
+    assert "Downloaded / 下载完成" in download_lines[-1]
+    assert "200.0 MiB" in download_lines[-1]
+    assert "20.0 MiB/s" in download_lines[-1]
+
+
 def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:
     """Redirected cross-platform output remains complete, plain, and human-first."""
 
