@@ -277,6 +277,48 @@ def _internal_asset_tree(asset_root: Path) -> dict[str, Any]:
     }
 
 
+def _internal_asset_tree_difference(
+    expected: dict[str, Any], observed: dict[str, Any]
+) -> str:
+    """Return bounded path-level evidence without weakening tree integrity."""
+
+    def indexed(tree: dict[str, Any]) -> dict[str, tuple[Any, Any]] | None:
+        files = tree.get("files")
+        if not isinstance(files, list):
+            return None
+        result: dict[str, tuple[Any, Any]] = {}
+        for entry in files:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                return None
+            result[entry["path"]] = (entry.get("bytes"), entry.get("sha256"))
+        return result
+
+    expected_files = indexed(expected)
+    observed_files = indexed(observed)
+    if expected_files is None or observed_files is None:
+        return "asset integrity tree differs (tree metadata is invalid)"
+    added = sorted(set(observed_files) - set(expected_files))
+    missing = sorted(set(expected_files) - set(observed_files))
+    changed = sorted(
+        path
+        for path in set(expected_files).intersection(observed_files)
+        if expected_files[path] != observed_files[path]
+    )
+
+    def bounded(paths: list[str]) -> str:
+        values = paths[:5]
+        suffix = (
+            f" (+{len(paths) - len(values)} more)" if len(paths) > len(values) else ""
+        )
+        return json.dumps(values, ensure_ascii=True) + suffix
+
+    return (
+        "asset integrity tree differs "
+        f"(added={bounded(added)}, missing={bounded(missing)}, "
+        f"changed={bounded(changed)})"
+    )
+
+
 def _make_internal_asset_read_only(asset_root: Path) -> None:
     """Best-effort hardening; integrity remains enforced by the SHA-256 tree."""
 
@@ -726,7 +768,9 @@ class ModelPool:
             )
         else:
             if persisted_tree != observed_tree:
-                failures.append("asset integrity tree differs")
+                failures.append(
+                    _internal_asset_tree_difference(persisted_tree, observed_tree)
+                )
         try:
             files = [
                 path
@@ -1843,16 +1887,14 @@ class ModelPool:
             "diagnostics": list(latest_payload.get("diagnostics", ())),
         }
         acceptance = latest_payload.get("acceptance")
-        if (
-            latest["state"] == InstallationState.FAILED.value
-            and isinstance(acceptance, dict)
+        if latest["state"] == InstallationState.FAILED.value and isinstance(
+            acceptance, dict
         ):
             web_playback = acceptance.get("web_playback")
             expected_external = (
                 {ProductionE2EStage.WEB_PLAYBACK.value}
                 if isinstance(web_playback, dict)
-                and web_playback.get("status")
-                == "requires_external_browser_evidence"
+                and web_playback.get("status") == "requires_external_browser_evidence"
                 else set()
             )
             stages = acceptance.get("stages")

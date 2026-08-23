@@ -13,6 +13,7 @@ related:
   - README.en.md
   - ../platforms/wsl2.en.md
   - ../research/runtime-resource-requirements-audit-2026-08-23.en.md
+  - ../research/prism-checkpoint-loading-integrity-2026-08-23.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -95,18 +96,22 @@ under the current policy and cannot be reported as current `passed` evidence.
 The new Windows-native CUDA declaration currently has lock-resolution and wrapper-contract evidence only. It is not proof
 of real Windows checkpoint inference, native Linux or macOS inference, another GPU, `supported` status, or public GA.
 
-## Dtype-safe loading and updating an existing deployment
+## Official checkpoint loading and updating an existing deployment
 
-Runtime `0.1.4` loads the PRISM Transformer and VAE through Diffusers
-`from_pretrained(..., torch_dtype=...)`. The requested inference precision is therefore established while weights are
-loaded; VIREA no longer constructs these components in float32 and then casts the complete model with `.to(dtype=...)`.
-Loading remains local-only, Safetensors-only, low-memory, and fails closed on missing, unexpected, mismatched, or otherwise
-invalid checkpoint keys.
+The pinned official checkpoint names both component files `model.safetensors`. Diffusers `ModelMixin.from_pretrained`
+instead resolves its multifolder component weight as `diffusion_pytorch_model.safetensors`; changing only the dtype call
+therefore cannot load the official PRISM layout. Runtime `0.1.5` now accepts exactly one of those two safe filenames,
+constructs the component skeleton on PyTorch's meta device, verifies every state key and tensor shape, and asks Accelerate
+to load and dispatch the file directly at the requested dtype. It does not rename, copy, or modify the 5.68 GB Transformer
+file and never falls back to a pickle checkpoint.
 
-The earlier `There are modules ... should be kept in float32` lines are Diffusers warnings, not Python exceptions by
-themselves. They identified the unsafe cast path but did not prove why a generation job eventually failed. Runtime `0.1.4`
-removes that path. If a job still fails after the update, use the structured failure reason shown by VIREA rather than
-treating an unrelated warning as the terminal error.
+Every Worker also runs with bytecode writes disabled. Importing the pinned PRISM source can no longer add `__pycache__` or
+`.pyc` files to the immutable model asset on Windows, Linux, WSL, or macOS. Integrity verification remains strict; when a
+tree does differ, diagnostics now identify bounded added, missing, and changed paths instead of reporting only a generic
+failure.
+
+The earlier `There are modules ... should be kept in float32` lines were Diffusers warnings, while the later missing
+`diffusion_pytorch_model.safetensors` line was the terminal load error. Runtime `0.1.5` removes both incompatible paths.
 
 On an existing clone, update and let the wizard repair only the outdated Runtime:
 
@@ -117,7 +122,7 @@ git pull --ff-only origin main
 # Synchronize the repository's locked development environment.
 uv sync --locked
 
-# Start the wizard. It detects Runtime 0.1.3 as outdated and builds Runtime 0.1.4.
+# Start the wizard. It detects any PRISM Runtime older than 0.1.5 and rebuilds it.
 uv run virea
 ```
 
@@ -128,11 +133,12 @@ git pull --ff-only origin main
 # Synchronize the repository's locked development environment.
 uv sync --locked
 
-# Start the wizard. It detects Runtime 0.1.3 as outdated and builds Runtime 0.1.4.
+# Start the wizard. It detects any PRISM Runtime older than 0.1.5 and rebuilds it.
 uv run virea
 ```
 
 The four pinned artifact revisions did not change. Verified PRISM source, the approximately 32.7 GB model snapshot,
 tokenizer, and statistics remain in the configured data root and are reused. Do not delete them and do not download them
 again. Only the isolated PRISM Runtime must be rebuilt; the wizard performs that migration after the user confirms the
-existing execution domain and resource profile.
+existing execution domain and resource profile. A previously polluted PRISM source snapshot is small and may be fetched
+again after quarantine; the 32.7 GB checkpoint remains reusable because its revision and integrity tree did not change.

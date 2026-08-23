@@ -19,7 +19,7 @@ superseded_by: []
 
 This locked environment installs the shared `virea_prism` Worker with CPU
 PyTorch wheels on Windows, Linux, and macOS. All components use CPU float32.
-Runtime 0.1.4 establishes float32 while the Transformer and VAE weights load;
-it does not apply a post-construction whole-model dtype cast.
+Runtime 0.1.5 loads the official `model.safetensors` files through a verified
+meta-device skeleton and establishes float32 during checkpoint dispatch.
 Admission fails closed unless at least 96 GiB of RAM is available; real CPU
 load and inference remain unverified.

@@ -21,7 +21,7 @@ This project is the VIREA Worker for the pinned public PRISM TP2M 1.4B checkpoin
 
 The runtime consumes four revision-pinned external artifact roots: PRISM source, the official checkpoint, the `google/umt5-xxl` tokenizer, and MotionHub SMPL-H statistics. It never downloads during Worker startup or inference. PRISM source and weights are not bundled in VIREA release artifacts.
 
-Runtime 0.1.4 loads the Transformer and VAE with Diffusers `from_pretrained` and establishes `torch_dtype` during weight loading. It does not cast a fully constructed component with `.to(dtype=...)`. Loading is local-only, Safetensors-only, low-memory, and rejects every reported missing, unexpected, mismatched, or invalid checkpoint key.
+Runtime 0.1.5 recognizes both the official `model.safetensors` component name and the standard Diffusers `diffusion_pytorch_model.safetensors` name. It creates a meta-device model skeleton, verifies every state key and tensor shape, and uses Accelerate to load and dispatch the selected file directly at the target dtype. It never renames or copies the checkpoint, never uses pickle, and never applies a whole-model dtype cast. Worker bytecode writes are disabled so importing the pinned source cannot mutate its integrity tree.
 
 The runtime is technically deployable but not cleared for public redistribution.
 Its prompt-encoding sequence is adapted from the pinned PRISM pipeline, whose

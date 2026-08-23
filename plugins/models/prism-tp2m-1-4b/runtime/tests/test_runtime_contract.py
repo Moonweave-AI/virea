@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import importlib
+import json
 import logging
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,6 +24,7 @@ from virea_prism.backend import (
     portable_memory_observation,
 )
 from virea_prism.offline_loader import (
+    _activate_pinned_source,
     _load_diffusers_component,
     _resolve_torch_dtype,
 )
@@ -127,11 +131,21 @@ def test_offline_loader_accepts_cpu_float32() -> None:
         _resolve_torch_dtype(torch_module, "float64")
 
 
-def test_offline_loader_sets_dtype_during_pretrained_load_without_cast_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize(
+    "weight_filename",
+    ("model.safetensors", "diffusion_pytorch_model.safetensors"),
+)
+def test_offline_loader_supports_official_and_diffusers_safetensors_layouts(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    weight_filename: str,
 ) -> None:
     component_root = tmp_path / "component"
     _TinyDiffusersComponent().save_pretrained(component_root, safe_serialization=True)
+    generated = component_root / "diffusion_pytorch_model.safetensors"
+    requested = component_root / weight_filename
+    if generated != requested:
+        generated.replace(requested)
     caplog.set_level(logging.WARNING)
 
     loaded = _load_diffusers_component(
@@ -146,27 +160,49 @@ def test_offline_loader_sets_dtype_during_pretrained_load_without_cast_warning(
     assert "Casting directly with `to()`" not in caplog.text
 
 
-def test_offline_loader_rejects_diffusers_loading_info_mismatch(
+def test_offline_loader_rejects_checkpoint_shape_mismatch_before_loading(
     tmp_path: Path,
 ) -> None:
-    class MismatchedComponent:
-        @classmethod
-        def from_pretrained(cls, *_args, **_kwargs):
-            return cls(), {
-                "missing_keys": ["projection.weight"],
-                "unexpected_keys": [],
-                "mismatched_keys": [],
-                "error_msgs": [],
-            }
+    component_root = tmp_path / "component"
+    _TinyDiffusersComponent().save_pretrained(component_root, safe_serialization=True)
+    config_path = component_root / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["width"] = 3
+    config_path.write_text(json.dumps(config), encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match="missing_keys.*projection.weight"):
+    with pytest.raises(RuntimeError, match="mismatched_keys.*projection.weight"):
         _load_diffusers_component(
-            MismatchedComponent,
-            tmp_path,
+            _TinyDiffusersComponent,
+            component_root,
             label="test component",
             target=torch.device("cpu"),
             dtype=torch.float16,
         )
+
+
+def test_pinned_source_import_never_writes_bytecode(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    package = source / "prism"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (package / "component.py").write_text("VALUE = 2\n", encoding="utf-8")
+    original_dont_write_bytecode = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = False
+        _activate_pinned_source(source)
+        importlib.import_module("prism.component")
+
+        assert sys.dont_write_bytecode is True
+        assert not tuple(source.rglob("*.pyc"))
+        assert not tuple(source.rglob("__pycache__"))
+    finally:
+        sys.dont_write_bytecode = original_dont_write_bytecode
+        sys.path[:] = [entry for entry in sys.path if entry != str(source)]
+        for name in tuple(sys.modules):
+            if name == "prism" or name.startswith("prism."):
+                sys.modules.pop(name, None)
 
 
 def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
@@ -211,10 +247,10 @@ def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
     cpu_project = tomllib.loads(
         (MODEL_ROOT / "runtime-cpu" / "pyproject.toml").read_text(encoding="utf-8")
     )
-    assert shared["project"]["version"] == "0.1.4"
-    assert cuda_project["project"]["version"] == "0.1.4"
-    assert cpu_project["project"]["version"] == "0.1.4"
-    assert set(runtime.project_version for runtime in registered) == {"0.1.4"}
+    assert shared["project"]["version"] == "0.1.5"
+    assert cuda_project["project"]["version"] == "0.1.5"
+    assert cpu_project["project"]["version"] == "0.1.5"
+    assert set(runtime.project_version for runtime in registered) == {"0.1.5"}
     assert "torch>=2.2.2,<2.12" in shared["project"]["dependencies"]
     assert "torch==2.11.0" in cuda_project["project"]["dependencies"]
     assert any(

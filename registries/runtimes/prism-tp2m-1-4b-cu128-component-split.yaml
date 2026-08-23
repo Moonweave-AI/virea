@@ -35,6 +35,6 @@ environment_allowlist:
   - PYTORCH_ALLOC_CONF
 working_directory: plugins/models/prism-tp2m-1-4b/runtime-cu128
 project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
-project_version: 0.1.4
+project_version: 0.1.5
 runtime_core_epoch: virea-runtime-core-20260821.2
-availability: windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_4_dtype_loading_requires_reacceptance
+availability: windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_5_official_checkpoint_loading_requires_reacceptance

@@ -1366,7 +1366,10 @@ def test_same_length_asset_corruption_fails_closed_then_refetches_new_generation
 
     verified = pool.verify_latest(manifest.model.id)
     assert verified["ready"] is False
-    assert any("integrity tree differs" in item for item in verified["diagnostics"])
+    assert any(
+        "integrity tree differs" in item and 'changed=["weights.bin"]' in item
+        for item in verified["diagnostics"]
+    )
 
     original_fetch = model_pool_module.fetch_source
     calls = 0
@@ -1394,6 +1397,30 @@ def test_same_length_asset_corruption_fails_closed_then_refetches_new_generation
         )
         == []
     )
+
+
+def test_asset_tree_difference_identifies_generated_bytecode_path() -> None:
+    expected = {
+        "schema_version": "virea.internal_asset_tree.v1.0.0",
+        "files": [{"path": "prism/__init__.py", "bytes": 1, "sha256": "source"}],
+    }
+    observed = {
+        "schema_version": "virea.internal_asset_tree.v1.0.0",
+        "files": [
+            {"path": "prism/__init__.py", "bytes": 1, "sha256": "source"},
+            {
+                "path": "prism/__pycache__/__init__.cpython-311.pyc",
+                "bytes": 2,
+                "sha256": "generated",
+            },
+        ],
+    }
+
+    difference = model_pool_module._internal_asset_tree_difference(expected, observed)
+
+    assert 'added=["prism/__pycache__/__init__.cpython-311.pyc"]' in difference
+    assert "missing=[]" in difference
+    assert "changed=[]" in difference
 
 
 def test_concurrent_corrupt_asset_repair_fetches_once(
@@ -2206,9 +2233,7 @@ def test_model_pool_persists_failed_real_acceptance_checks(tmp_path) -> None:
     assert failure["downloads_reusable"] is True
     assert failure["error_code"] == "WORKER_OOM"
     assert failure["failed_stages"] == ["model_load", "inference"]
-    assert "installation acceptance did not succeed" in failure[
-        "publication_failure"
-    ]
+    assert "installation acceptance did not succeed" in failure["publication_failure"]
 
 
 @pytest.mark.parametrize(

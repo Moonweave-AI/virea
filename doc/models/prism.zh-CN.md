@@ -14,6 +14,7 @@ related:
   - ../platforms/wsl2.zh-CN.md
   - ../research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
   - ../research/prism-official-integration-audit-2026-08-21.zh-CN.md
+  - ../research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
@@ -109,16 +110,21 @@ Windows 宿主中的 WSL Ubuntu 24.04 + RTX 5090 Laptop GPU。新加入的 Windo
 解析与 wrapper contract 证据，不是原生 Windows 真实推理、原生 Linux、macOS、其他 GPU、`supported`
 或公开 GA 证据。
 
-## dtype 安全加载与既有部署更新
+## 官方 checkpoint 加载与既有部署更新
 
-Runtime `0.1.4` 改为通过 Diffusers `from_pretrained(..., torch_dtype=...)` 加载 PRISM Transformer 和 VAE，
-在权重加载阶段就确定推理精度；VIREA 不再先用 float32 构造完整组件、装载权重，再对整套模型执行
-`.to(dtype=...)`。加载仍保持仅本地文件、仅 Safetensors、低内存模式，并继续对 missing、unexpected、
-mismatched 与其他权重加载错误实行失败关闭。
+固定的官方 checkpoint 把 Transformer 和 VAE 权重都命名为 `model.safetensors`；Diffusers
+`ModelMixin.from_pretrained` 在 multifolder 布局中默认寻找的却是 `diffusion_pytorch_model.safetensors`，因此仅
+修改 dtype 参数仍无法加载官方 PRISM。Runtime `0.1.5` 现在只接受这两个安全文件名之一，在 PyTorch meta
+device 上构造空组件，先逐项核验全部 state key 与 tensor shape，再由 Accelerate 直接按目标 dtype 和设备加载、
+dispatch。它不会重命名、复制或修改 5.68 GB Transformer 文件，也绝不回退到 pickle checkpoint。
 
-此前的 `There are modules ... should be kept in float32` 两行本身是 Diffusers 警告，不是 Python exception；
-它能证明旧代码走了不安全的整体 dtype 转换路径，但不能单独证明生成最终失败的原因。Runtime `0.1.4` 已移除
-该路径。若更新后仍失败，应以 VIREA 展示的结构化终止原因定位，不要把更早出现的普通警告误当作最终异常。
+所有 Worker 同时强制禁止写入 Python bytecode；在 Windows、Linux、WSL 和 macOS 导入固定 PRISM 源码时，
+都不会再向不可变模型资产写入 `__pycache__` 或 `.pyc`。资产完整性仍严格校验；真正不一致时，诊断会列出
+有界的 added、missing、changed 路径，而不再只给出笼统的 `tree differs`。
+
+此前 `There are modules ... should be kept in float32` 是 Diffusers 警告；其后缺少
+`diffusion_pytorch_model.safetensors` 才是本次 Worker 的终止错误。Runtime `0.1.5` 同时移除了这两条不兼容
+路径。
 
 已有 clone 不需要删除部署；更新代码后让向导只修复过期 Runtime：
 
@@ -129,7 +135,7 @@ git pull --ff-only origin main
 # 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
 uv sync --locked
 
-# 启动交互向导；它会识别 Runtime 0.1.3 已过期并构建 Runtime 0.1.4。
+# 启动交互向导；它会识别所有低于 0.1.5 的 PRISM Runtime 并重建。
 uv run virea
 ```
 
@@ -140,10 +146,11 @@ git pull --ff-only origin main
 # 按锁文件同步项目开发环境；--locked 禁止静默改写依赖版本。
 uv sync --locked
 
-# 启动交互向导；它会识别 Runtime 0.1.3 已过期并构建 Runtime 0.1.4。
+# 启动交互向导；它会识别所有低于 0.1.5 的 PRISM Runtime 并重建。
 uv run virea
 ```
 
 四项固定 artifact revision 均未改变。已经校验的 PRISM 源码、约 32.7 GB 模型快照、tokenizer 和 statistics
 仍保留在最初配置的数据根目录中并直接复用；不要删除，也不需要重新下载。只需重建隔离的 PRISM Runtime；
-用户确认既有执行域与资源 profile 后，向导会完成该迁移。
+用户确认既有执行域与资源 profile 后，向导会完成该迁移。此前若 PRISM 源码 snapshot 已被 bytecode 污染，
+它体积很小，隔离后可能重新获取；32.7 GB checkpoint 的 revision 与完整性树未改变，仍会直接复用。
