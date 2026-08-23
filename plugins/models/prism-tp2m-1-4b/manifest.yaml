@@ -40,6 +40,7 @@ runtime_variants:
     id: prism-tp2m-1-4b-cu128-component-split
     backend: uv-native
     platforms:
+      - win-64
       - linux-64
     python: ">=3.11,<3.12"
     accelerator:
@@ -74,7 +75,7 @@ runtime_variants:
     project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
     project_version: 0.1.3
     runtime_core_epoch: virea-runtime-core-20260821.2
-    availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_2_evidence_requires_reacceptance
+    availability: windows_and_linux_cuda_lock_resolution_verified_historical_wsl_runtime_0_1_2_evidence_requires_reacceptance
   - schema_version: virea.runtime_spec.v1.0.0
     id: prism-tp2m-1-4b-cpu
     backend: uv-native
@@ -216,11 +217,13 @@ resources:
       dtype: float32
     implicit_network_access: false
   ram_admission:
-    preflight_min_free_ram_gib: 28.0
+    admission_min_total_ram_gib: 28.0
+    worker_preload_min_available_ram_gib: 15.0
     post_load_min_available_ram_gib: 2.0
     calibration_basis: 25.075_GiB_UMT5_weight_file_plus_successful_legacy_run_inside_31.063_GiB_WSL
     managed_runtime_peak_measurement: required_in_fresh_product_e2e
-    cpu_preflight_min_free_ram_gib: 96.0
+    cpu_admission_min_total_ram_gib: 96.0
+    cpu_worker_preload_min_available_ram_gib: 96.0
     cpu_post_load_min_available_ram_gib: 8.0
     cpu_floor_status: conservative_fail_closed_unmeasured
   cpu_portability:
@@ -279,6 +282,7 @@ production_acceptance:
   timeout_seconds: 7200
 notes:
   - The managed WSL2 production-evidence chain remains historical evidence for runtime package 0.1.2. The new 0.1.3 CUDA wrapper and CPU runtime have contract/lock evidence only and require separate real-checkpoint acceptance.
+  - The CUDA 12.8 lock resolves natively on win-64 and the shared loader has no Linux-only dependency or path contract, so Windows CUDA is declared buildable. Real-checkpoint Windows acceptance remains a separate evidence boundary and is not inferred from the lock check.
   - The Worker performs no model download or implicit Hub access. Every artifact is installed before startup and addressed by VIREA_ARTIFACT_ROOTS_JSON.
   - The runtime does not require or fabricate SMPL-X geometry. The raw public SMPL-X-style NPZ is preserved alongside the exact 69D body22 control-plane carrier.
   - PRISM source and model assets remain external-only until usable redistribution terms are published.

@@ -49,9 +49,38 @@ uv run virea
 
 WSL 内用 `nvidia-smi` 与目标 Torch 实际探测 CUDA。Windows 的总显存不能替代 WSL 中的可用显存；WSL RAM
 和 swap 限额也必须单独读取。PRISM 的组件拆分策略把文本编码器放在 CPU、Transformer/VAE 放在 CUDA，
-因此同时要求 28 GiB free physical RAM、12 GiB free VRAM 与 40 GiB free storage；这些预算不能相加。
+因此同时要求 28 GiB 总物理 RAM 容量、12 GiB 总 VRAM 容量与 40 GiB 当前可用 storage；这些预算不能相加。
 CMDM/MoMADiff CPU locks 已在 `wsl:Ubuntu-24.04` 完成构建和隔离 Worker import，但这不是 checkpoint 推理或
 browser evidence。
+
+WSL2 中看到的 RAM 总量是虚拟机配额，不是 Windows 主机安装的物理内存。如果 64 GiB 主机只给 WSL 约
+20 GiB，VIREA 会显示 `configuration-required / 需要调整配置`，而不会误称整机硬件不够。PRISM profile
+要求执行域内总 RAM 至少 28 GiB；向导建议设为 32 GiB，避免刚好压线。
+
+在 Windows PowerShell 中保留其他设置并更新全局 WSL2 配置：
+
+```powershell
+# 打开当前 Windows 用户的 %UserProfile%\.wslconfig；不要在 Linux 发行版内部创建这个文件。
+notepad "$env:USERPROFILE\.wslconfig"
+```
+
+```ini
+; 保留其他设置；在唯一的 [wsl2] section 下新增或更新此项，32GB 表示 WSL 虚拟机内存上限。
+[wsl2]
+memory=32GB
+```
+
+```powershell
+# 停止所有 WSL 发行版以重新读取全局虚拟机配置；执行前先保存 WSL 中的工作。
+wsl --shutdown
+
+# 再次运行 clone 中的交互向导；已下载模型和数据根中的 READY 安装不会被删除。
+uv run virea
+```
+
+“安装容量准入”与“当前加载安全余量”是两件事：总 RAM/VRAM 决定设备是否具备部署能力；若当前可用内存
+低于实测工作集安全线，Worker 仍可在加载前停止，避免 OOM。PRISM CUDA Worker 当前要求加载前至少 15 GiB
+可用 RAM，并在加载/推理后至少保留 2 GiB。
 
 PRISM 是当前唯一完成 WSL production E2E 的模型：`wsl:Ubuntu-24.04` 中的 component-split Runtime 已从
 doctor、installation、真实 checkpoint inference 贯通 Motion IR、127,768-byte VRMA 与 fresh browser。该记录

@@ -2,6 +2,7 @@ schema_version: virea.runtime_spec.v1.0.0
 id: prism-tp2m-1-4b-cu128-component-split
 backend: uv-native
 platforms:
+  - win-64
   - linux-64
 python: ">=3.11,<3.12"
 accelerator:
@@ -36,4 +37,4 @@ working_directory: plugins/models/prism-tp2m-1-4b/runtime-cu128
 project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
 project_version: 0.1.3
 runtime_core_epoch: virea-runtime-core-20260821.2
-availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_2_evidence_requires_reacceptance
+availability: windows_and_linux_cuda_lock_resolution_verified_historical_wsl_runtime_0_1_2_evidence_requires_reacceptance

@@ -37,12 +37,36 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 Update the clone if the message says `insufficient free accelerator memory` or `insufficient free physical memory`.
 Those were transient-availability gates in an older resolver. Current VIREA decides installation/deployment capability
 from total RAM and total VRAM, while keeping current available values as observations. For example, a 16 GiB GPU satisfies
-a 16 GiB profile even if the desktop currently leaves less than 16 GiB free. A 64 GiB machine still does not satisfy
-PRISM's 96 GiB CPU profile. In WSL, the relevant RAM total is what that distribution can actually see.
+a 16 GiB profile even if the desktop currently leaves less than 16 GiB free. A bounded allowance of at most 512 MiB
+also covers firmware/display reservations such as a nominal 16 GiB GPU reported as 15.9 GiB; it cannot admit a materially
+smaller GPU. RAM and VRAM remain separate and are never added together.
 
-The wizard also removes platform-mismatched Runtime variants from the numbered menu. PRISM's Linux-only CUDA Runtime is
-therefore selectable in Linux/WSL, not `windows-native`; Windows may show the implemented CPU variant and its 96 GiB total
-RAM requirement instead. Existing model assets and successful isolated Runtimes do not need to be deleted after updating.
+PRISM CUDA is implemented for native Windows and Linux/WSL. On a 64 GiB RAM + 16 GiB VRAM Windows host, choose the
+component-split CUDA profile (28 GiB total RAM and 12 GiB total VRAM); do not choose the unmeasured 96 GiB CPU fallback.
+Existing model assets and successful isolated Runtimes do not need to be deleted after updating.
+
+If WSL reports about 20 GiB total RAM on a 64 GiB Windows host, the machine is capable but the WSL2 virtual-machine quota
+is too small. The wizard reports `configuration-required` and recommends 32 GiB for PRISM. Preserve unrelated settings in
+the file and apply this from Windows PowerShell:
+
+```powershell
+# Open WSL2's global VM configuration in the current Windows profile. $env:USERPROFILE resolves that profile directory.
+notepad "$env:USERPROFILE\.wslconfig"
+```
+
+```ini
+; Keep any unrelated sections/keys. Under the single [wsl2] section, give the WSL2 VM 32 GiB total RAM.
+[wsl2]
+memory=32GB
+```
+
+```powershell
+# Stop every running WSL distribution so the changed VM memory limit is read on the next start; save WSL work first.
+wsl --shutdown
+
+# Re-run the guided detector after WSL restarts; this does not delete or re-download model assets.
+uv run virea
+```
 
 ```powershell
 # Update this clone without rewriting local history; this fetches source code, not model assets in VIREA_HOME.

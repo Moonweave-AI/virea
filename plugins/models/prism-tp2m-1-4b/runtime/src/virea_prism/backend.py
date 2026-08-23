@@ -17,7 +17,11 @@ FEATURE_WIDTH = 69
 CUDA_MEMORY_STRATEGY = "cuda_component_split"
 CPU_MEMORY_STRATEGY = "cpu"
 MEMORY_STRATEGIES = (CUDA_MEMORY_STRATEGY, CPU_MEMORY_STRATEGY)
-MIN_FREE_RAM_GIB = 28.0
+MIN_TOTAL_RAM_GIB = 28.0
+# The managed 129-frame CUDA acceptance peaked at 13,683,249,152 bytes RSS.
+# Fifteen GiB is that observed working set plus more than 2 GiB load headroom;
+# installed-capacity admission remains the separate 28 GiB profile above.
+MIN_FREE_RAM_GIB = 15.0
 MIN_POST_LOAD_AVAILABLE_RAM_GIB = 2.0
 CPU_MIN_FREE_RAM_GIB = 96.0
 CPU_MIN_POST_LOAD_AVAILABLE_RAM_GIB = 8.0

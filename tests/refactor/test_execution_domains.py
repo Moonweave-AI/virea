@@ -669,6 +669,95 @@ def test_execution_options_never_offer_a_platform_mismatched_runtime() -> None:
     assert "linux-only-cuda" not in str(option)
 
 
+def test_execution_options_identify_fixable_wsl_quota_and_rank_it_first() -> None:
+    windows = _domain(
+        ExecutionDomainKind.WINDOWS_NATIVE,
+        "win-64",
+        host=True,
+        uv_path=r"C:\tools\uv.exe",
+        ram=64 * GIB,
+    )
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
+        ram=20 * GIB,
+    )
+    manifest = SimpleNamespace(runtime_variants=(_runtime("linux-64", ram_gib=28.0),))
+
+    options = ControlPlane._execution_options_for_machine(
+        manifest,
+        _report(windows, wsl),
+    )
+
+    assert options[0]["execution_domain"]["id"] == "wsl:Ubuntu-24.04"
+    assert options[0]["configuration_limited"] is True
+    issue = options[0]["configuration_issue"]
+    assert issue["kind"] == "wsl-memory-limit"
+    assert issue["required_memory_bytes"] == 28 * GIB
+    assert issue["recommended_memory_gib"] == 32
+    assert issue["restart_command"] == "wsl --shutdown"
+    assert "Physical host RAM is sufficient" in options[0]["remediation"][0]
+
+
+def test_prism_sized_windows_cuda_target_is_buildable_on_nominal_64_and_16_gib() -> (
+    None
+):
+    nvidia = AcceleratorReport(
+        kind="nvidia",
+        status="available",
+        name="RTX 5070 Ti",
+        memory_total_bytes=16 * GIB - 128 * 1024**2,
+        driver_version="610.0",
+        probe="nvidia-smi",
+        details={
+            "device_index": 0,
+            "device_uuid": "GPU-00000000-0000-0000-0000-000000000000",
+            "memory_free_bytes": 8 * GIB,
+            "framework_status": "unverified",
+        },
+    )
+    windows = _domain(
+        ExecutionDomainKind.WINDOWS_NATIVE,
+        "win-64",
+        host=True,
+        uv_path=r"C:\tools\uv.exe",
+        ram=64 * GIB - 384 * 1024**2,
+    ).model_copy(update={"accelerators": (_accelerator(), nvidia)})
+    cuda = _runtime(
+        "win-64",
+        accelerator="nvidia",
+        strategy=MemoryStrategy.CUDA_COMPONENT_SPLIT,
+        ram_gib=28.0,
+    ).model_copy(
+        update={
+            "id": "prism-tp2m-1-4b-cu128-component-split",
+            "resource_profiles": (
+                ResourceProfile(
+                    id="cuda-component-split",
+                    strategy=MemoryStrategy.CUDA_COMPONENT_SPLIT,
+                    min_free_vram_gib=12.0,
+                    min_free_ram_gib=28.0,
+                ),
+            ),
+        }
+    )
+    cpu = _runtime("win-64", ram_gib=96.0).model_copy(
+        update={"id": "prism-tp2m-1-4b-cpu"}
+    )
+
+    (option,) = ControlPlane._execution_options_for_machine(
+        SimpleNamespace(runtime_variants=(cuda, cpu)),
+        _report(windows),
+    )
+
+    assert option["selected_runtime_id"] == cuda.id
+    assert option["status"] == "buildable"
+    assert option["selected_resource_profile"] == "cuda-component-split"
+
+
 def test_control_plane_resolves_only_the_explicit_execution_target(
     monkeypatch,
 ) -> None:

@@ -15,7 +15,7 @@ resource_profiles:
   - id: cuda-full
     strategy: cuda_full
     min_free_vram_gib: 16.0
-    min_free_ram_gib: 8.0
+    min_free_ram_gib: 16.0
     min_free_swap_gib: 0.0
 entrypoint_argv:
   - python

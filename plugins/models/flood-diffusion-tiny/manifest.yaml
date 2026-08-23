@@ -62,7 +62,7 @@ runtime_variants:
       - id: cuda-full
         strategy: cuda_full
         min_free_vram_gib: 16.0
-        min_free_ram_gib: 8.0
+        min_free_ram_gib: 16.0
         min_free_swap_gib: 0.0
     entrypoint_argv:
       - python
@@ -168,6 +168,7 @@ licenses:
 resources:
   model_parameters: 9.18M motion-model parameters
   min_vram_gib: 16
+  resource_requirement_basis: official_model_card_recommends_16GB_vram_and_16GB_system_ram
   native_feature_dim: 263
   native_fps: 20.0
   implementation: plugins/models/flood-diffusion-tiny/runtime/src/virea_flood/worker.py

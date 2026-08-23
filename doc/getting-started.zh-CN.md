@@ -142,8 +142,15 @@ PowerShell 请把 `"$VIREA_HOME"` 替换为 `$env:VIREA_HOME`。从输出的 `ex
 
 部署能力按该执行域实际可见的**总物理内存与总显存**判断；当前可用 RAM/VRAM 只作为会变化的观测显示，
 所以 16 GiB 显卡即使被桌面占用一部分，仍按 16 GiB 设备判断。WSL 使用所选发行版内部实际可见的内存上限，
-不会借用 Windows 主机容量。没有实现当前执行域的平台 Runtime 会显示为不可用事实，但不会进入编号选择列表。
-因此 PRISM CUDA 只能在 Linux/WSL 选择；Windows 只提供 PRISM CPU，而该 profile 声明需要 96 GiB 总 RAM。
+不会借用 Windows 主机容量。固件或显示保留区造成的小幅差异（例如标称 16 GiB、实际报告 15.9 GiB）只使用
+有上限的容量容差；当前空闲量不会改变设备身份。没有实现当前执行域的平台 Runtime 会显示为不可用事实，
+但不会进入编号选择列表。
+
+PRISM CUDA 现在同时声明原生 Windows 与 Linux/WSL：CUDA 12.8 lock 已在两个平台解析成功，managed loader
+也没有 Linux-only 依赖。因此 64 GiB RAM + 16 GiB VRAM 的 Windows 机器应选择 12 GiB VRAM / 28 GiB RAM
+的 component-split CUDA profile，而不是尚未实测的 96 GiB CPU fallback。Windows 真实 checkpoint 验收仍与
+“可构建”分开记录。如果 WSL 可见内存过小、而 Windows 主机物理容量足够，向导会明确标成可调整的 WSL 配额，
+而不是误报整机硬件不足。
 
 ## 5. 高级：查看、规划并应用模型安装
 

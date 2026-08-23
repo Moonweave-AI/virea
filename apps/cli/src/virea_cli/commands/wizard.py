@@ -280,7 +280,8 @@ def _selected_target(
             title="Choose the operating-system execution domain / 选择实际执行系统：",
             items=options,
             label=lambda item: (
-                f"{item['execution_domain']['id']} — {item['status']}; "
+                f"{item['execution_domain']['id']} — "
+                f"{'configuration-required / 需要调整配置' if item.get('configuration_limited') else item['status']}; "
                 f"runtime={item['selected_runtime_id'] or 'none'}; "
                 f"buildable={'yes' if item['can_build'] else 'no'}; "
                 f"{_domain_capacity_label(item)}"
@@ -367,6 +368,10 @@ def _selected_target(
             return target
         for remediation in compatibility.get("remediation", []):
             _write(output, f"  next action: {remediation}")
+        configuration_issue = domain_option.get("configuration_issue")
+        if configuration_issue is not None:
+            _write(output, f"  diagnosis: {configuration_issue['summary']}")
+            _write(output, f"  next action: {configuration_issue['next_action']}")
         if not _confirm(
             input_fn, output, "Choose another target / 重新选择目标", default=True
         ):
