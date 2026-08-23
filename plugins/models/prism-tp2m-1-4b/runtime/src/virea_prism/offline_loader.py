@@ -52,7 +52,9 @@ def _component_checkpoint(root: Path, *, label: str) -> Path:
     return present[0]
 
 
-def _validate_component_state(model: Any, checkpoint: Path, *, label: str) -> None:
+def _validate_component_state(
+    model: Any, checkpoint: Path, *, label: str
+) -> tuple[str, ...]:
     from safetensors import safe_open
 
     expected = {
@@ -82,6 +84,121 @@ def _validate_component_state(model: Any, checkpoint: Path, *, label: str) -> No
             f"{key}={values[:5]}" for key, values in problems.items() if values
         )
         raise RuntimeError(f"PRISM {label} state mismatch: {details}")
+    return tuple(sorted(expected))
+
+
+def _install_component_tensor(
+    model: Any,
+    name: str,
+    value: Any,
+    *,
+    torch_module: Any,
+) -> None:
+    """Install one validated tensor without Accelerate's meta dispatch path."""
+
+    module_name, _, attribute = name.rpartition(".")
+    owner = model.get_submodule(module_name) if module_name else model
+    parameter = owner._parameters.get(attribute)
+    if parameter is not None:
+        owner._parameters[attribute] = torch_module.nn.Parameter(
+            value,
+            requires_grad=parameter.requires_grad,
+        )
+        return
+    if attribute in owner._buffers and owner._buffers[attribute] is not None:
+        owner._buffers[attribute] = value
+        return
+    raise RuntimeError(f"PRISM state target is not a parameter or buffer: {name}")
+
+
+def _materialize_component_state(
+    model: Any,
+    checkpoint: Path,
+    names: tuple[str, ...],
+    *,
+    label: str,
+    target: Any,
+    dtype: Any,
+) -> None:
+    """Stage each tensor through CPU and install it directly on its final device."""
+
+    import torch
+    from safetensors import safe_open
+
+    total = len(names)
+    progress_interval = max(total // 4, 1)
+    print(
+        f"PRISM {label}: loading {total} validated tensors through CPU staging",
+        file=sys.stderr,
+        flush=True,
+    )
+    with safe_open(str(checkpoint), framework="pt", device="cpu") as handle:
+        metadata = handle.metadata() or {}
+        checkpoint_format = metadata.get("format")
+        if checkpoint_format not in (None, "pt"):
+            raise RuntimeError(
+                f"PRISM {label} checkpoint format is not PyTorch: "
+                f"{checkpoint_format}"
+            )
+        for index, name in enumerate(names, start=1):
+            source = handle.get_tensor(name)
+            # Detach the transfer from the read-only memory map. This keeps the
+            # model independent of Windows mapped-file lifetime and bounds CPU
+            # staging to one tensor rather than the complete F32 checkpoint.
+            staged = source.clone(memory_format=torch.contiguous_format)
+            target_dtype = dtype if torch.is_floating_point(staged) else staged.dtype
+            materialized = staged.to(
+                device=target,
+                dtype=target_dtype,
+                non_blocking=False,
+                copy=False,
+            )
+            _install_component_tensor(
+                model,
+                name,
+                materialized,
+                torch_module=torch,
+            )
+            del source, staged, materialized
+            if index == total or index % progress_interval == 0:
+                print(
+                    f"PRISM {label}: materialized {index}/{total} tensors",
+                    file=sys.stderr,
+                    flush=True,
+                )
+def _materialize_runtime_buffers(
+    model: Any,
+    checkpoint_names: tuple[str, ...],
+    *,
+    target: Any,
+    dtype: Any,
+) -> None:
+    """Move non-persistent constructor buffers omitted from the state dict."""
+
+    import torch
+
+    persisted = set(checkpoint_names)
+    for name, buffer in tuple(model.named_buffers(remove_duplicate=False)):
+        if name in persisted or buffer is None:
+            continue
+        if buffer.device.type == "meta":
+            raise RuntimeError(
+                f"PRISM non-persistent buffer cannot be recovered from meta: {name}"
+            )
+        staged = buffer.clone(memory_format=torch.contiguous_format)
+        target_dtype = dtype if torch.is_floating_point(staged) else staged.dtype
+        materialized = staged.to(
+            device=target,
+            dtype=target_dtype,
+            non_blocking=False,
+            copy=False,
+        )
+        _install_component_tensor(
+            model,
+            name,
+            materialized,
+            torch_module=torch,
+        )
 
 
 def _load_diffusers_component(
@@ -94,34 +211,64 @@ def _load_diffusers_component(
 ) -> Any:
     """Load either official PRISM or standard Diffusers Safetensors layouts."""
 
-    from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+    import torch
+    from accelerate import init_empty_weights
 
     checkpoint = _component_checkpoint(root, label=label)
     config = dict(component_class.load_config(str(root), local_files_only=True))
     config.pop("model_type", None)
     if isinstance(config.get("patch_size"), list):
         config["patch_size"] = tuple(config["patch_size"])
-    with init_empty_weights():
+    # Keep constructor-only/non-persistent buffers on CPU so their values are
+    # available for bounded final-device materialization below.
+    with init_empty_weights(include_buffers=False):
         model = component_class.from_config(config)
-    _validate_component_state(model, checkpoint, label=label)
-    model = load_checkpoint_and_dispatch(
+    names = _validate_component_state(model, checkpoint, label=label)
+    _materialize_component_state(
         model,
-        checkpoint=str(checkpoint),
-        # Accelerate 1.14 forwards this value to Safetensors 0.8, whose device
-        # boundary accepts a canonical string/int but not a torch.device object.
-        device_map={"": str(target)},
+        checkpoint,
+        names,
+        label=label,
+        target=target,
         dtype=dtype,
-        strict=True,
     )
+    _materialize_runtime_buffers(
+        model,
+        names,
+        target=target,
+        dtype=dtype,
+    )
+    if target.type == "cuda":
+        torch.cuda.synchronize(target)
+    component_tensors = tuple(model.named_parameters()) + tuple(model.named_buffers())
     remaining_meta = sorted(
         name
-        for name, tensor in model.state_dict().items()
+        for name, tensor in component_tensors
         if tensor.device.type == "meta"
     )
     if remaining_meta:
         raise RuntimeError(
             f"PRISM {label} remained incomplete after checkpoint load: "
             f"{remaining_meta[:5]}"
+        )
+    wrong_devices = sorted(
+        name
+        for name, tensor in component_tensors
+        if tensor.device.type != target.type
+        or (
+            target.index is not None
+            and tensor.device.index not in (None, target.index)
+        )
+    )
+    wrong_dtypes = sorted(
+        name
+        for name, tensor in component_tensors
+        if torch.is_floating_point(tensor) and tensor.dtype != dtype
+    )
+    if wrong_devices or wrong_dtypes:
+        raise RuntimeError(
+            f"PRISM {label} materialization differs from target: "
+            f"wrong_devices={wrong_devices[:5]}, wrong_dtypes={wrong_dtypes[:5]}"
         )
     return model.eval()
 

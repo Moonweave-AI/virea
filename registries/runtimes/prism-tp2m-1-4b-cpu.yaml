@@ -35,6 +35,6 @@ environment_allowlist:
   - TOKENIZERS_PARALLELISM
 working_directory: plugins/models/prism-tp2m-1-4b/runtime-cpu
 project_package: virea-model-prism-tp2m-1-4b-cpu-runtime
-project_version: 0.1.5
+project_version: 0.1.6
 runtime_core_epoch: virea-runtime-core-20260821.2
-availability: cpu_contract_and_lock_baseline_runtime_0_1_5_official_checkpoint_loading_real_inference_unverified
+availability: cpu_contract_and_lock_baseline_runtime_0_1_6_cpu_staged_materialization_real_inference_unverified
