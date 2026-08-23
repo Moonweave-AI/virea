@@ -4,9 +4,14 @@ import shutil
 import stat
 import tarfile
 import tempfile
+import threading
+import time
 import urllib.request
 import zipfile
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Any
 from urllib.parse import urlparse
 
 from .manifest import ArchiveExtractionSpec, ArtifactSource
@@ -14,6 +19,133 @@ from .manifest import ArchiveExtractionSpec, ArtifactSource
 
 class ArtifactFetchError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactTransferProgress:
+    """A renderer-neutral snapshot of one model-artifact transfer."""
+
+    artifact_id: str
+    completed_bytes: int
+    total_bytes: int | None
+    bytes_per_second: float | None
+    done: bool = False
+
+
+ArtifactProgressCallback = Callable[[ArtifactTransferProgress], None]
+
+
+def _snapshot_progress_class(
+    artifact_id: str,
+    progress: ArtifactProgressCallback | None,
+) -> type:
+    """Create a silent Hugging Face progress adapter scoped to one download.
+
+    Hugging Face renders progress directly on stderr.  That output competes with
+    VIREA's live terminal region and turns carriage-return refreshes into hundreds
+    of retained lines on some Windows terminals and redirected streams.  Supplying
+    a custom tqdm class keeps the dependency silent and forwards only structured
+    snapshots to VIREA's own renderer.
+    """
+
+    try:
+        from huggingface_hub.utils import tqdm as huggingface_tqdm
+    except ImportError as exc:  # pragma: no cover - guarded by the caller import
+        raise ArtifactFetchError(
+            "install virea-model-pool[huggingface] to fetch Hugging Face artifacts"
+        ) from exc
+
+    class VireaSnapshotProgress(huggingface_tqdm):
+        """Tqdm-compatible adapter that never writes its own terminal lines."""
+
+        def __init__(
+            self,
+            iterable: Iterable[Any] | None = None,
+            *args: Any,
+            **kwargs: Any,
+        ) -> None:
+            self._virea_description = str(kwargs.get("desc", ""))
+            self._virea_started_at = time.monotonic()
+            self._virea_initial = int(kwargs.get("initial", 0) or 0)
+            self._virea_last_emitted_at = 0.0
+            self._virea_closed = False
+            self._virea_lock = threading.RLock()
+            # `disable=True` is deliberate and local to this snapshot call.  It
+            # is reliable even when a user explicitly enabled HF progress bars.
+            kwargs["disable"] = True
+            super().__init__(iterable, *args, **kwargs)
+
+        def __iter__(self) -> Iterator[Any]:
+            if self.iterable is None:
+                return
+            for value in self.iterable:
+                yield value
+                self.update(1)
+
+        def update(self, n: int | float | None = 1) -> None:
+            increment = max(0, int(n or 0))
+            with self._virea_lock:
+                # Disabled tqdm intentionally does not advance `n`, so the
+                # adapter owns this counter while preserving tqdm's public shape.
+                self.n += increment
+                self._virea_emit(done=False)
+
+        def refresh(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+            with self._virea_lock:
+                self._virea_emit(done=False)
+
+        def set_description(
+            self,
+            desc: str | None = None,
+            refresh: bool = True,
+        ) -> None:
+            del refresh
+            with self._virea_lock:
+                previous = self._virea_description
+                if previous == "Downloading bytes" and desc == "Download complete":
+                    self._virea_emit(done=True)
+                self._virea_description = str(desc or "")
+
+        def set_postfix_str(self, *args: Any, **kwargs: Any) -> None:
+            # Rate is calculated from the structured byte counter below.  Never
+            # forward dependency-owned terminal formatting.
+            del args, kwargs
+
+        def close(self) -> None:
+            with self._virea_lock:
+                if not self._virea_closed:
+                    self._virea_emit(done=True)
+                    self._virea_closed = True
+            super().close()
+
+        def _virea_emit(self, *, done: bool) -> None:
+            if progress is None or self._virea_description != "Downloading bytes":
+                return
+            now = time.monotonic()
+            # The terminal renderer has its own slower log-mode limiter.  This
+            # small guard also prevents callback pressure from download threads.
+            if not done and now - self._virea_last_emitted_at < 0.1:
+                return
+            completed = max(0, int(self.n))
+            elapsed = max(0.0, now - self._virea_started_at)
+            transferred = max(0, completed - self._virea_initial)
+            rate = transferred / elapsed if elapsed > 0 and transferred > 0 else None
+            progress(
+                ArtifactTransferProgress(
+                    artifact_id=artifact_id,
+                    completed_bytes=completed,
+                    # Xet transfer bytes may be compressed or deduplicated, so
+                    # its internal total is not an honest download denominator.
+                    total_bytes=None,
+                    bytes_per_second=rate,
+                    done=done,
+                )
+            )
+            self._virea_last_emitted_at = now
+
+    VireaSnapshotProgress.__name__ = "VireaSnapshotProgress"
+    return VireaSnapshotProgress
 
 
 def _archive_member_path(name: str, *, strip_components: int) -> Path | None:
@@ -132,6 +264,7 @@ def fetch_source(
     destination: Path,
     *,
     cache_dir: Path | None = None,
+    progress: ArtifactProgressCallback | None = None,
 ) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=True)
     if source.kind == "manual":
@@ -184,6 +317,7 @@ def fetch_source(
             allow_patterns=list(source.allow_patterns) or None,
             local_dir=destination,
             cache_dir=cache_dir,
+            tqdm_class=_snapshot_progress_class(source.id, progress),
         )
     else:
         raise ArtifactFetchError(f"unsupported source kind: {source.kind}")

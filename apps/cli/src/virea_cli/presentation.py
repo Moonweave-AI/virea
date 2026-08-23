@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
@@ -22,6 +23,17 @@ from rich.text import Text
 
 Output = Callable[[str], None]
 _STAGE = re.compile(r"^(\d+)/(\d+)$")
+_PLAIN_TRANSFER_INTERVAL_SECONDS = 15.0
+
+
+def _format_bytes(value: int | float) -> str:
+    amount = max(0.0, float(value))
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if amount < 1024.0 or unit == "TiB":
+            decimals = 0 if unit == "B" else 1
+            return f"{amount:.{decimals}f} {unit}"
+        amount /= 1024.0
+    raise AssertionError("unreachable byte unit")
 
 
 class TerminalUI:
@@ -170,6 +182,8 @@ class ProgressReporter:
         self._task_id: int | None = None
         self._last_stage: str | None = None
         self._result: Mapping[str, Any] | None = None
+        self._transfer_artifact_id: str | None = None
+        self._transfer_last_log_at = 0.0
 
     @property
     def result_payload(self) -> Mapping[str, Any] | None:
@@ -219,6 +233,42 @@ class ProgressReporter:
                 completed=max(0, current - 1),
             )
         self._last_stage = f"{current}/{total}"
+
+    def transfer(self, snapshot: object) -> None:
+        """Render dependency-neutral download state without allowing line spam."""
+
+        artifact_id = str(getattr(snapshot, "artifact_id", "artifact"))
+        completed = max(0, int(getattr(snapshot, "completed_bytes", 0)))
+        rate = getattr(snapshot, "bytes_per_second", None)
+        done = bool(getattr(snapshot, "done", False))
+        status = (
+            "Downloaded / 下载完成"
+            if done
+            else "Downloading / 正在下载"
+        )
+        message = f"{status} {artifact_id} · {_format_bytes(completed)}"
+        if isinstance(rate, (int, float)) and rate > 0:
+            message += f" · {_format_bytes(rate)}/s"
+
+        if self.ui.dynamic:
+            if self._progress is None:
+                self._update_live(1, 1, message)
+            else:
+                assert self._task_id is not None
+                self._progress.update(self._task_id, description=message)
+            return
+
+        now = time.monotonic()
+        first_for_artifact = artifact_id != self._transfer_artifact_id
+        if (
+            first_for_artifact
+            or done
+            or now - self._transfer_last_log_at
+            >= _PLAIN_TRANSFER_INTERVAL_SECONDS
+        ):
+            self.ui.write(f"  [download] {message}")
+            self._transfer_artifact_id = artifact_id
+            self._transfer_last_log_at = now
 
     def result(self, payload: object) -> None:
         self._result = payload if isinstance(payload, Mapping) else None
