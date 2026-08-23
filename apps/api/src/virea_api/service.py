@@ -1937,6 +1937,8 @@ class ControlPlane:
                         "selected_resource_profile": None,
                         "selected_memory_strategy": None,
                         "runtime_candidates": [],
+                        "configuration_limited": False,
+                        "configuration_issue": None,
                     }
                 )
                 continue
@@ -1946,6 +1948,18 @@ class ControlPlane:
                 execution_domain=domain,
             )
             compatibility = selection.compatibility
+            configuration_issue = _wsl_memory_configuration_issue(
+                machine=machine,
+                domain=domain,
+                selection=selection,
+            )
+            remediation = list(compatibility.remediation)
+            if configuration_issue is not None:
+                remediation = [
+                    str(configuration_issue["summary"]),
+                    str(configuration_issue["next_action"]),
+                    *remediation,
+                ]
             options.append(
                 {
                     "execution_domain": domain.model_dump(mode="json"),
@@ -1954,7 +1968,7 @@ class ControlPlane:
                     "status": compatibility.status,
                     "can_build": compatibility.can_build,
                     "reasons": list(compatibility.reasons),
-                    "remediation": list(compatibility.remediation),
+                    "remediation": list(dict.fromkeys(remediation)),
                     "selected_resource_profile": (
                         compatibility.selected_resource_profile
                     ),
@@ -1964,8 +1978,11 @@ class ControlPlane:
                     "runtime_candidates": _runtime_candidate_payloads(
                         selection.candidates
                     ),
+                    "configuration_limited": configuration_issue is not None,
+                    "configuration_issue": configuration_issue,
                 }
             )
+        options.sort(key=_execution_option_rank)
         return tuple(options)
 
     def _select_worker_admission(
@@ -3457,6 +3474,112 @@ def _domain_replace(
         raise RuntimeError(
             f"runtime publish failed inside execution domain {domain.id}: {detail}"
         )
+
+
+def _execution_option_rank(option: dict[str, Any]) -> tuple[int, int, str]:
+    """Put executable and fixable targets before genuinely incapable ones."""
+
+    if option.get("can_build"):
+        readiness = 0
+    elif option.get("configuration_limited"):
+        readiness = 1
+    else:
+        readiness = 2
+    strategy = str(option.get("selected_memory_strategy") or "")
+    accelerator_rank = 1 if strategy == "cpu" else 0
+    domain = option.get("execution_domain") or {}
+    return readiness, accelerator_rank, str(domain.get("id") or "")
+
+
+def _wsl_memory_configuration_issue(
+    *,
+    machine: MachineReport,
+    domain: ExecutionDomainReport,
+    selection,
+) -> dict[str, Any] | None:
+    """Explain a configurable WSL quota separately from physical RAM limits."""
+
+    if domain.kind is not ExecutionDomainKind.WSL or selection.compatibility.can_build:
+        return None
+    host = next(
+        (
+            item
+            for item in machine.execution_domains
+            if item.id == machine.host_execution_domain
+        ),
+        None,
+    )
+    if host is None or host.memory_total_bytes is None:
+        return None
+    domain_total = domain.memory_total_bytes
+    if domain_total is None:
+        return None
+
+    required_bytes: int | None = None
+    runtime_id: str | None = None
+    for candidate in selection.candidates:
+        reasons = candidate.compatibility.reasons
+        memory_reasons = tuple(
+            reason
+            for reason in reasons
+            if reason.startswith("insufficient physical memory capacity")
+        )
+        if not memory_reasons or len(memory_reasons) != len(reasons):
+            continue
+        profile_requirements = [
+            int(profile.min_free_ram_gib * 1024**3)
+            for profile in candidate.runtime.resource_profiles
+            if (profile.min_free_ram_gib or 0.0) > 0.0
+        ]
+        if not profile_requirements:
+            continue
+        candidate_required = min(profile_requirements)
+        if domain_total >= candidate_required:
+            continue
+        if required_bytes is None or candidate_required < required_bytes:
+            required_bytes = candidate_required
+            runtime_id = candidate.runtime.id
+    if required_bytes is None:
+        return None
+
+    gib = 1024**3
+    host_reserve = max(8 * gib, int(host.memory_total_bytes * 0.25))
+    max_wsl_bytes = host.memory_total_bytes - host_reserve
+    if max_wsl_bytes < required_bytes:
+        return None
+    required_gib = math.ceil(required_bytes / gib)
+    desired_gib = math.ceil((required_gib + 4) / 4) * 4
+    maximum_gib = math.floor(max_wsl_bytes / gib)
+    recommended_gib = min(desired_gib, maximum_gib)
+    if recommended_gib < required_gib:
+        return None
+
+    current_gib = domain_total / gib
+    host_gib = host.memory_total_bytes / gib
+    summary = (
+        f"Physical host RAM is sufficient ({host_gib:.1f} GiB), but WSL2 is "
+        f"limited to {current_gib:.1f} GiB; runtime {runtime_id} needs "
+        f"{required_gib} GiB total RAM. / 物理主机内存足够，但 WSL2 当前配额"
+        f"只有 {current_gib:.1f} GiB；该运行环境需要 {required_gib} GiB 总内存。"
+    )
+    next_action = (
+        f"Set memory={recommended_gib}GB under [wsl2] in "
+        r"%UserProfile%\.wslconfig, run `wsl --shutdown`, then rerun "
+        "`uv run virea`. / 在 %UserProfile%\\.wslconfig 的 [wsl2] 下设置 "
+        f"memory={recommended_gib}GB，执行 `wsl --shutdown` 后重新运行 "
+        "`uv run virea`。"
+    )
+    return {
+        "kind": "wsl-memory-limit",
+        "runtime_id": runtime_id,
+        "current_memory_bytes": domain_total,
+        "required_memory_bytes": required_bytes,
+        "recommended_memory_gib": recommended_gib,
+        "config_path": r"%UserProfile%\.wslconfig",
+        "restart_command": "wsl --shutdown",
+        "summary": summary,
+        "next_action": next_action,
+    }
 
 
 def _compatibility_payload(

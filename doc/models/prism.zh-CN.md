@@ -3,20 +3,24 @@ type: model-card
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
 review_cycle_days: 14
 summary: PRISM TP2M 1.4B 的真实 WSL 部署、外部资产、组件内存策略、表示和许可边界。
 canonical: doc/models/prism.zh-CN.md
 related:
+  - prism.en.md
   - README.zh-CN.md
   - ../platforms/wsl2.zh-CN.md
+  - ../research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
   - ../research/prism-official-integration-audit-2026-08-21.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
 
 # PRISM TP2M 1.4B
+
+> [中文](prism.zh-CN.md) · [English](prism.en.md)
 
 PRISM 在 VIREA 中是可部署的技术路径，不再把 tokenizer/statistics/SMPL 资产问题合并为“模型不可运行”。
 技术集成、外部资产许可与公开再分发是三个独立维度。
@@ -33,24 +37,31 @@ PRISM 在 VIREA 中是可部署的技术路径，不再把 tokenizer/statistics/
 
 ## Runtime 与资源准入
 
-当前 Runtime ID 是 `prism-tp2m-1-4b-cu128-component-split`，声明 `linux-64`、Python 3.11 和 CUDA 12.8。
-在 Windows 宿主上应选择独立 `wsl:<distribution>` execution domain；`linux-64` 声明不能被解释为 Windows
-Python 可以直接加载该 Runtime，也不能被外推为原生 Linux 已完成 production E2E。
+当前 Runtime ID 是 `prism-tp2m-1-4b-cu128-component-split`，声明 `win-64`、`linux-64`、Python 3.11
+和 CUDA 12.8。CUDA lock 已在 Windows 原生解析成功，共享 loader 没有 Linux-only 依赖或路径合同，因此
+64 GiB RAM + 16 GiB VRAM 的 Windows 设备可以直接选择该 CUDA Runtime；不必退回 96 GiB CPU profile，
+也不必仅为 PRISM 强制使用 WSL。Windows 真实 checkpoint acceptance 尚未重采集，不能把“可构建”写成
+“已在 Windows 完成 production E2E”。
 
 安装下载前必须同时满足当前 profile 的独立下限：
 
 | 资源 | 当前准入值 | 解释 |
 |---|---:|---|
-| free VRAM | 12 GiB | Transformer/VAE 的 CUDA placement |
-| free physical RAM | 28 GiB | UMT5 CPU placement；不能与 VRAM 相加 |
+| total VRAM capacity | 12 GiB | Transformer/VAE 的 CUDA placement；标称容量的小幅固件保留使用有界容差 |
+| total physical RAM capacity | 28 GiB | UMT5 CPU placement；不能与 VRAM 相加 |
 | free swap | 0 GiB | 不把 swap 当作物理内存最低值 |
 | free storage | 40 GiB | 外部资产、Runtime 和事务 staging 的声明下限 |
 
-28 GiB 是依据 25.075 GiB UMT5 权重文件与此前 31.063 GiB WSL 成功部署校准的 preflight 下限。当前
+28 GiB 是依据 25.075 GiB UMT5 权重文件与此前 31.063 GiB WSL 成功部署校准的安装容量下限。当前
 managed E2E 已记录：加载前 available RAM 为 32,463,986,688 bytes；加载后 available RAM 为
 20,110,942,208 bytes、进程 RSS 为 12,612,476,928 bytes；推理后 available RAM 为 19,152,322,560 bytes、
 进程 RSS 为 13,683,249,152 bytes；进程 VmHWM 为 31,703,216,128 bytes。VmHWM 是进程 RAM 高水位，不能
-写成 GPU 峰值；本次证据没有记录 GPU allocation peak。准入仍要求加载和推理后至少保留 2 GiB 可用 RAM。
+写成 GPU 峰值；本次证据没有记录 GPU allocation peak。Worker 以实测 RSS 加 2 GiB 余量为依据，要求加载前
+当前可用 RAM 至少 15 GiB，并在加载和推理后至少保留 2 GiB。这项动态安全检查不再冒充安装总容量门槛。
+
+WSL 只报告约 20 GiB 总 RAM 时，若 Windows 主机拥有 64 GiB，原因是 WSL2 配额而不是整机硬件不足。
+向导会显示 `configuration-required`，建议在 `%UserProfile%\.wslconfig` 的 `[wsl2]` 下设置 `memory=32GB`，
+保存 WSL 工作后执行 `wsl --shutdown`，再运行 `uv run virea`。调整配额不会删除或重新下载模型资产。
 
 ## 原生表示
 
@@ -93,6 +104,7 @@ Avatar 完整可见、AnimationMixer 推进、硬件 WebGL2 RTX renderer 与 0 �
 
 PRISM manifest 保留此前有界 `integrated_experimental`，但当前 `v1.1.0` record 必须重新执行 doctor、当前
 version/epoch installation acceptance、fresh Web generation 与后端绑定后，才能从 registry 读取实际 ID；
-本文不预填。即使新记录通过，它也只覆盖实际运行的本机 Windows 宿主 WSL Ubuntu 24.04、RTX 5090 Laptop
-GPU 与 component-split profile；不是原生 Linux、Windows native、macOS、其他 GPU、`supported` 或公开
-GA 证据。
+本文不预填。即使新记录通过，它也只覆盖实际执行的域、GPU 与 component-split profile；历史记录仍只覆盖
+Windows 宿主中的 WSL Ubuntu 24.04 + RTX 5090 Laptop GPU。新加入的 Windows-native 声明当前只有 lock
+解析与 wrapper contract 证据，不是原生 Windows 真实推理、原生 Linux、macOS、其他 GPU、`supported`
+或公开 GA 证据。

@@ -149,9 +149,15 @@ job to another operating system, accelerator or resource profile.
 Deployment capability uses the **total physical RAM and total VRAM visible inside that execution domain**. Current
 available RAM/VRAM are shown as observations, so a 16 GiB GPU remains a 16 GiB-capable device even while the desktop uses
 part of it. For WSL, the RAM total is the limit actually visible inside the selected distribution, not RAM borrowed from
-Windows. A Runtime whose platform does not include the selected domain is reported as unavailable and is not placed in
-the numbered Runtime menu. Thus PRISM CUDA is selectable in Linux/WSL; Windows offers only PRISM CPU, whose declared
-profile requires 96 GiB total RAM.
+Windows. Small firmware or display reservations (for example, a nominal 16 GiB GPU reported as 15.9 GiB) receive only a
+bounded capacity allowance; current free memory never changes the device identity. A Runtime whose platform does not
+include the selected domain is reported as unavailable and is not placed in the numbered Runtime menu.
+
+PRISM CUDA now declares both native Windows and Linux/WSL because the CUDA 12.8 lock resolves on both platforms and the
+managed loader has no Linux-only dependency. A 64 GiB RAM + 16 GiB VRAM Windows machine therefore selects the 12 GiB
+VRAM / 28 GiB RAM component-split CUDA profile, not the unmeasured 96 GiB CPU fallback. Real-checkpoint Windows
+acceptance remains distinct from buildability. If WSL exposes too little RAM while the Windows host has enough, the
+wizard labels this as a configurable WSL quota instead of physical hardware insufficiency.
 
 ## 5. Advanced: inspect, plan, and apply one model installation
 

@@ -37,12 +37,36 @@ superseded_by: []
 
 若提示仍是 `insufficient free accelerator memory` 或 `insufficient free physical memory`，请先更新 clone；这是旧版
 resolver 把瞬时可用量作为部署门槛的行为。当前版本按总 RAM 和总 VRAM 判断安装/部署能力，当前可用值只作为观测。
-例如 16 GiB 显卡即使桌面占用了一部分，也满足 16 GiB profile；但 64 GiB 内存的机器仍不满足 PRISM CPU 的
-96 GiB profile。WSL 使用该发行版内部实际可见的总内存上限。
+例如 16 GiB 显卡即使桌面占用了一部分，也满足 16 GiB profile。固件/显示保留区造成的标称 16 GiB、实际
+报告 15.9 GiB，只使用最多 512 MiB 的有界容差；它不会把明显更小的显卡放行。RAM 与 VRAM 仍完全独立，
+绝不相加。
 
-向导也会从编号菜单移除平台不匹配的 Runtime。PRISM 的 CUDA Runtime 只实现 Linux，因此应在 Linux/WSL 选择，
-不能在 `windows-native` 选择；Windows 会显示已实现的 CPU variant 及其 96 GiB 总 RAM 要求。更新源码后不需要删除
-已有模型资产或成功的隔离 Runtime。
+PRISM CUDA 已实现原生 Windows 与 Linux/WSL。64 GiB RAM + 16 GiB VRAM 的 Windows 主机应选择
+component-split CUDA profile（28 GiB 总 RAM、12 GiB 总 VRAM），不要选择尚未实测、要求 96 GiB RAM 的
+CPU fallback。更新源码后不需要删除已有模型资产或成功的隔离 Runtime。
+
+如果 64 GiB Windows 主机中的 WSL 只报告约 20 GiB 总内存，整机硬件是足够的，真正不足的是 WSL2 虚拟机
+配额。向导会显示 `configuration-required / 需要调整配置`，并为 PRISM 建议 32 GiB。请保留文件中其他设置，
+在 Windows PowerShell 执行：
+
+```powershell
+# 打开当前 Windows 用户的 WSL2 全局虚拟机配置；$env:USERPROFILE 会解析为该用户的 profile 目录。
+notepad "$env:USERPROFILE\.wslconfig"
+```
+
+```ini
+; 保留其他 section/key；在唯一的 [wsl2] section 下，把 WSL2 虚拟机总内存设为 32 GiB。
+[wsl2]
+memory=32GB
+```
+
+```powershell
+# 停止所有正在运行的 WSL 发行版，让新配额在下次启动时生效；执行前先保存 WSL 中未完成的工作。
+wsl --shutdown
+
+# WSL 重启后重新运行交互向导；这不会删除或重新下载模型资产。
+uv run virea
+```
 
 ```powershell
 # 只以 fast-forward 更新当前 clone；它更新源码，不会下载或删除 VIREA_HOME 中的模型。

@@ -235,6 +235,50 @@ def test_ram_is_not_added_to_vram_without_explicit_offload_profile() -> None:
     assert outcome.reasons == ("insufficient accelerator memory capacity: need 16 GiB",)
 
 
+def test_nominal_installed_capacity_allows_small_hardware_reservations() -> None:
+    """A nominal 16/64 GiB device must not fail on firmware-reserved bytes."""
+
+    profile = ResourceProfile(
+        id="nominal-capacity",
+        strategy=MemoryStrategy.CUDA_FULL,
+        min_free_vram_gib=16.0,
+        min_free_ram_gib=64.0,
+    )
+    outcome = resolve_runtime(
+        _runtime(vram=16.0, profiles=(profile,)),
+        _report(
+            total_vram=16 * 1024**3 - 256 * 1024**2,
+            free_vram=8 * 1024**3,
+            total_ram=64 * 1024**3 - 384 * 1024**2,
+            free_ram=32 * 1024**3,
+        ),
+    )
+
+    assert outcome.status == "buildable"
+    assert outcome.selected_resource_profile == "nominal-capacity"
+
+
+def test_installed_capacity_allowance_never_hides_a_material_shortfall() -> None:
+    profile = ResourceProfile(
+        id="nominal-capacity",
+        strategy=MemoryStrategy.CUDA_FULL,
+        min_free_vram_gib=16.0,
+        min_free_ram_gib=64.0,
+    )
+    outcome = resolve_runtime(
+        _runtime(vram=16.0, profiles=(profile,)),
+        _report(
+            total_vram=15 * 1024**3,
+            free_vram=8 * 1024**3,
+            total_ram=62 * 1024**3,
+            free_ram=32 * 1024**3,
+        ),
+    )
+
+    assert outcome.status == "not-ready"
+    assert "insufficient accelerator memory capacity" in outcome.reasons[0]
+
+
 def test_offload_profile_must_declare_a_positive_physical_ram_budget() -> None:
     with pytest.raises(
         ValueError,

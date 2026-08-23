@@ -39,5 +39,37 @@ For automation, `DISTRO` is the exact reported distribution name. Do not hand a 
 to Windows `uv sync`. The domain mapper owns the host/guest path view and re-validates it in the target domain. Windows
 GPU totals do not replace the WSL Runtime's available VRAM, RAM, swap and storage observation.
 
+## WSL2 RAM quota versus physical host RAM
+
+WSL2 RAM total is the virtual-machine limit visible inside the distribution. It is not the Windows host's installed RAM.
+When a 64 GiB host exposes only about 20 GiB to WSL, VIREA reports `configuration-required` instead of claiming the
+physical machine is incapable. PRISM needs 28 GiB total RAM in that domain; the guided recommendation is 32 GiB so the
+profile is not placed exactly on its boundary.
+
+From Windows PowerShell, preserve unrelated settings and update the global WSL2 file:
+
+```powershell
+# Open %UserProfile%\.wslconfig for the current Windows user. Do not create this file inside the Linux distribution.
+notepad "$env:USERPROFILE\.wslconfig"
+```
+
+```ini
+; Keep other settings. Add or update this key under the one [wsl2] section; 32GB is the WSL VM limit.
+[wsl2]
+memory=32GB
+```
+
+```powershell
+# Stop all WSL distributions so the global VM setting is reloaded. Save active WSL work before running this command.
+wsl --shutdown
+
+# Start the clone's guided flow again. Existing model files and READY installations remain in the configured data root.
+uv run virea
+```
+
+Installed-capacity admission and live load safety are separate. Total RAM/VRAM decides whether a device can deploy the
+profile; the Worker can still stop before loading if current available memory is below its measured safe working-set
+headroom. PRISM's CUDA Worker currently requires 15 GiB available before load and 2 GiB remaining afterward.
+
 The browser can run on Windows while the Worker runs in WSL, but evidence must identify both facts; a Windows browser does
 not make model inference Windows-native.

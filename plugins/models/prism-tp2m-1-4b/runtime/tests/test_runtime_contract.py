@@ -11,6 +11,8 @@ from virea_model_sdk import WorkerFailure
 from virea_prism.artifacts import PrismArtifactRoots
 from virea_prism.backend import (
     CPU_MIN_FREE_RAM_GIB,
+    MIN_FREE_RAM_GIB,
+    MIN_TOTAL_RAM_GIB,
     PrismBackend,
     portable_memory_observation,
 )
@@ -47,6 +49,22 @@ def test_cpu_metadata_is_device_and_floor_specific(
         "motion_transformer": "cpu",
         "vae": "cpu",
     }
+
+
+def test_cuda_metadata_separates_installed_capacity_from_live_headroom(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("VIREA_MEMORY_STRATEGY", "cuda_component_split")
+    plugin = PrismTP2MPlugin(_roots(tmp_path))
+
+    resources = plugin.metadata().resources
+
+    assert resources["min_ram_gib"] == MIN_TOTAL_RAM_GIB == 28.0
+    assert (
+        resources["min_available_ram_before_load_gib"]
+        == MIN_FREE_RAM_GIB
+        == 15.0
+    )
 
 
 def test_cpu_ram_preflight_fails_before_artifact_or_torch_load(
@@ -124,6 +142,7 @@ def test_manifest_registries_and_wrappers_form_one_shared_backend() -> None:
     assert cpu.resource_profiles[0].strategy is MemoryStrategy.CPU
     assert cpu.resource_profiles[0].min_free_ram_gib == 96.0
     assert set(cpu.platforms) == {"win-64", "linux-64", "osx-arm64", "osx-64"}
+    assert set(cuda.platforms) == {"win-64", "linux-64"}
     assert cuda.working_directory.endswith("/runtime-cu128")
     assert cpu.working_directory.endswith("/runtime-cpu")
     assert manifest["resources"]["cpu_portability"]["blockers"] == []

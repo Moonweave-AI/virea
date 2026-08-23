@@ -446,6 +446,21 @@ def _gib_bytes(value: float) -> int:
     return int(value * 1024**3)
 
 
+def _installed_capacity_meets(observed_bytes: int, required_bytes: int) -> bool:
+    """Compare installed capacity while allowing small hardware reservations.
+
+    Firmware, display buffers, ECC metadata, and OS hardware reservations can
+    make a nominal 16 GiB GPU or 64 GiB machine report slightly less usable
+    capacity.  Resource profiles already include operational headroom, so a
+    bounded two-percent allowance (never more than 512 MiB) prevents those
+    nominal devices from being rejected without turning a materially smaller
+    device into a match.
+    """
+
+    allowance = min(required_bytes // 50, 512 * 1024**2)
+    return observed_bytes + allowance >= required_bytes
+
+
 def _format_gib(value: float) -> str:
     return f"{value:g}"
 
@@ -706,7 +721,11 @@ def select_resource_profile(
                 )
                 eligible = []
             else:
-                eligible = [item for item, total in known_total if total >= minimum]
+                eligible = [
+                    item
+                    for item, total in known_total
+                    if _installed_capacity_meets(total, minimum)
+                ]
                 eligible.sort(key=_accelerator_runtime_preference_key)
             if known_total and not eligible:
                 hard.append(
@@ -748,7 +767,7 @@ def select_resource_profile(
             if total_ram is None:
                 unknown.append("total physical memory capacity is unknown")
                 remediation.append("rerun virea doctor with OS memory probes available")
-            elif total_ram < minimum_ram:
+            elif not _installed_capacity_meets(total_ram, minimum_ram):
                 hard.append(
                     "insufficient physical memory capacity: "
                     f"need {_format_gib(profile.min_free_ram_gib)} GiB"
@@ -1262,7 +1281,7 @@ def resolve_built_runtime(
                 total_value = selected_device.get("memory_total_bytes")
                 if not isinstance(total_value, int):
                     hard.append("isolated runtime CUDA total memory is unverified")
-                elif total_value < minimum:
+                elif not _installed_capacity_meets(total_value, minimum):
                     hard.append(
                         "isolated runtime has insufficient CUDA memory capacity: "
                         f"need {_format_gib(profile.min_free_vram_gib)} GiB"

@@ -121,7 +121,7 @@ def test_manifest_registries_and_runtime_freeze_shared_external_assets() -> None
     assert cuda.resource_profiles[0].strategy is MemoryStrategy.CUDA_COMPONENT_SPLIT
     assert cuda.resource_profiles[0].min_free_vram_gib == 12.0
     assert cuda.resource_profiles[0].min_free_ram_gib == 28.0
-    assert cuda.platforms == ("linux-64",)
+    assert cuda.platforms == ("win-64", "linux-64")
     assert cpu.resource_profiles[0].strategy is MemoryStrategy.CPU
     assert cpu.resource_profiles[0].min_free_ram_gib == 96.0
     assert set(cpu.platforms) == {"win-64", "linux-64", "osx-arm64", "osx-64"}
@@ -131,6 +131,17 @@ def test_manifest_registries_and_runtime_freeze_shared_external_assets() -> None
     assert manifest["resources"]["integration_state"] == "integrated_experimental"
     assert manifest["resources"]["distribution_status"] == "external_assets_only"
     assert manifest["resources"]["license_status"] == "license_review_required"
+    assert manifest["resources"]["ram_admission"] == {
+        "admission_min_total_ram_gib": 28.0,
+        "worker_preload_min_available_ram_gib": 15.0,
+        "post_load_min_available_ram_gib": 2.0,
+        "calibration_basis": "25.075_GiB_UMT5_weight_file_plus_successful_legacy_run_inside_31.063_GiB_WSL",
+        "managed_runtime_peak_measurement": "required_in_fresh_product_e2e",
+        "cpu_admission_min_total_ram_gib": 96.0,
+        "cpu_worker_preload_min_available_ram_gib": 96.0,
+        "cpu_post_load_min_available_ram_gib": 8.0,
+        "cpu_floor_status": "conservative_fail_closed_unmeasured",
+    }
     assert manifest["licenses"]["redistribution_allowed"] is False
 
     artifacts = {item["id"]: item for item in manifest["artifacts"]}
@@ -143,7 +154,7 @@ def test_manifest_registries_and_runtime_freeze_shared_external_assets() -> None
         "empty_directory_is_valid_asset": False,
     }
     assert cuda.availability == (
-        "cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_2_evidence_requires_reacceptance"
+        "windows_and_linux_cuda_lock_resolution_verified_historical_wsl_runtime_0_1_2_evidence_requires_reacceptance"
     )
     assert cpu.availability == (
         "cpu_contract_and_lock_baseline_real_inference_unverified"
