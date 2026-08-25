@@ -3,8 +3,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 30
 summary: VIREA CLI 的完整中文参考，逐项说明命令、位置参数、选项、副作用和安全示例。
 canonical: doc/reference/cli.zh-CN.md
@@ -36,7 +36,8 @@ uv run virea
 ```
 
 这是面向人工操作的标准命令。它不是每次从零开始：向导从 `VIREA_HOME/config/wizard-preferences.json`
-恢复上次模型、执行域、Runtime 和资源 profile，并从状态库重新验证部署与最近任务。保存项后标有
+恢复上次模型、执行域、Runtime 和资源 profile，并从状态库恢复持久部署元数据与最近任务；完整字节复验会在
+实际执行边界完成。保存项后标有
 `[saved / 已保存]`，直接按 Enter 即可复用；输入其他序号会明确替换该选择，输入 `q` 可安全退出。
 
 七个阶段会展示以下事实：
@@ -45,14 +46,18 @@ uv run virea
 |---|---|
 | 数据根 | 显示当前 `VIREA_HOME`，可复用，也可明确改到另一块数据盘。 |
 | 设备与状态 | 真实检测当前设备/执行域，并展示上次模型、环境、READY 数量和最近任务。 |
-| 模型 | 每个模型旁显示 `未安装`、`需处理` 或经过重新验证的 `READY · 已部署`。 |
+| 模型 | 分组表格显示全部 14 个非测试目录项。六个 VIREA 已接入模型显示持久 `READY`（执行前复验）、可安装或需处理；八个 upstream-only 项显示缺少 Runtime/Worker/E2E 的原因，且不能进入部署。 |
 | 执行环境 | 显示总/可用 RAM 与总 VRAM，再分别选择系统执行域、已实现 Runtime 和资源 profile；历史选择只是默认值，不会静默强制。 |
-| 部署 | 匹配的 READY 快照默认复用且不重新下载；不同执行环境会建立独立部署并保留旧快照。 |
+| 部署 | 匹配的持久 READY 快照默认复用且不重新下载；启动 Worker 前会完整复验字节。不同执行环境会建立独立部署并保留旧快照。 |
 | 生成 | 依次显示提交、模型推理和结果制品收集；成功时只显示 job/result ID 摘要。 |
 | 浏览器 | 可选启动同步显示源骨架与最终 VRM 的本地工作台。 |
 
 部署门槛用总 RAM/VRAM 容量与 profile 比较；当前可用 RAM/VRAM 是实时观测，不代表硬件能力。平台不匹配的
 Runtime 会作为不可用事实说明，但不会进入可按序号选择的列表。
+
+顶部会保留一个紧凑的七步 rail 和已恢复 session 摘要，因此无需重复整块面板，也能持续看到当前阶段、保存的目标、
+持久 READY 数量和最近状态。所有状态同时使用文字与符号，颜色只作辅助。已知传输总量使用真实 bytes，未知总量保持
+indeterminate。
 
 进度条只在真实完成一个阶段边界时前进。Hugging Face/Xet 传输期间，VIREA 会禁止依赖自己输出
 `Downloading bytes`、`Reconstructing` 和 `Fetching files` 进度条，把下载/重建的字节数与速率接入 VIREA

@@ -3,8 +3,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: English instructions for serving VIREA locally and inspecting a generated VRMA result with a local VRM Avatar.
 canonical: doc/getting-started/browser-playback.en.md
@@ -35,9 +35,17 @@ decoder and only normalizes coordinates for display; the payload explicitly reco
 source panel is already wrong, inspect the model/decoder. If only the VRM panel is wrong, inspect retargeting or export.
 
 The Web app and `uv run virea` read the same persistent data root and SQLite state. A CLI model deployment, acceptance, or
-generation is reconciled through the local state stream; if WebSocket is unavailable, the browser falls back to a four-second
-revision check. No manual reload or repeat download of an already READY model is required. Load a local `.vrm` Avatar for
-manual inspection, and press `Ctrl+C` to stop the local server.
+generation is reconciled through the local state stream. An active generation uses its ordered per-Job WebSocket and only
+falls back to 1.5-second Job polling after a disconnect; the four-second global revision check remains a low-frequency
+recovery path. Job-only changes do not reload the model catalog. No manual reload or repeat download of a persisted READY
+model is required. The catalog labels that inexpensive metadata reconciliation as `verification_scope=metadata`; complete
+asset bytes are reverified before Worker execution. Load a local `.vrm` Avatar for manual inspection, and press `Ctrl+C`
+to stop the local server.
+
+Both panels have independent Orbit controls: drag to rotate, right-drag to pan, use the wheel or a pinch gesture to zoom,
+and double-click or use **Reset A view / Reset B view** to restore authored framing. Root movement translates the camera
+and target together, so it does not erase the angle, zoom, or pan chosen by the user. Viewer loops stop while the tab is
+hidden, the workbench is inactive, or GPU generation is active, then resume without reimporting the Avatar.
 
 The top-bar `VIREA_HOME` label shows the exact data root read by the running service; it must match the home used by the CLI.
 If it shows a temporary directory or another volume, an “undeployed” label describes that wrong home and does not mean the

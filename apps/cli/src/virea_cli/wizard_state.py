@@ -70,7 +70,9 @@ def save_preferences(
     )
 
 
-def installed_target(pool: Any, report: dict[str, Any]) -> ExecutionTargetSelection | None:
+def installed_target(
+    pool: Any, report: dict[str, Any]
+) -> ExecutionTargetSelection | None:
     """Recover the target bound to a verified READY installation snapshot."""
 
     installation_id = report.get("installation_id")

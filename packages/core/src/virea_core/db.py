@@ -196,6 +196,16 @@ def _json(value: Any) -> str:
     )
 
 
+class IdempotencyConflict(ValueError):
+    """The same idempotency identity was reused for a different request."""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        super().__init__(
+            f"idempotency key {key!r} is already bound to a different JobRequest"
+        )
+
+
 class StateStore:
     def __init__(self, paths: VireaPaths | str | Path) -> None:
         self.paths = paths if isinstance(paths, VireaPaths) else VireaPaths(Path(paths))
@@ -389,9 +399,23 @@ class StateStore:
     def create_job(
         self, request: JobRequest, job_id: str | None = None
     ) -> dict[str, Any]:
+        row, _ = self.create_job_once(request, job_id=job_id)
+        return row
+
+    def create_job_once(
+        self, request: JobRequest, job_id: str | None = None
+    ) -> tuple[dict[str, Any], bool]:
+        """Atomically create one Job for an idempotency key.
+
+        The boolean is true only for the caller that inserted the row.  Returning
+        this creation identity together with the row prevents a retry that sees
+        an existing QUEUED Job from starting a second in-process runner.
+        """
+
         identifier = job_id or new_ulid()
         now = _now()
         payload = request.model_dump(mode="json")
+        request_json = _json(payload)
         with self.transaction() as connection:
             if request.idempotency_key:
                 existing = connection.execute(
@@ -399,7 +423,9 @@ class StateStore:
                     (request.idempotency_key,),
                 ).fetchone()
                 if existing is not None:
-                    return dict(existing)
+                    if str(existing["request_json"]) != request_json:
+                        raise IdempotencyConflict(request.idempotency_key)
+                    return dict(existing), False
             connection.execute(
                 """
                 INSERT INTO jobs(
@@ -413,7 +439,7 @@ class StateStore:
                     request.model_id,
                     request.task,
                     request.idempotency_key,
-                    _json(payload),
+                    request_json,
                     now,
                     now,
                 ),
@@ -430,7 +456,7 @@ class StateStore:
                 "SELECT * FROM jobs WHERE id = ?", (identifier,)
             ).fetchone()
             assert row is not None
-            return dict(row)
+            return dict(row), True
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:

@@ -12,6 +12,7 @@ import type {
 const TEST_ONLY_PATTERN = /(?:^|[-_.])(fake|mock|synthetic)(?:$|[-_.])/i;
 
 export function isProductionCatalogModel(manifest: ModelManifest): boolean {
+  if (manifest.test_only === true) return false;
   const identity = `${manifest.model.id} ${manifest.model.adapter_family}`;
   return !TEST_ONLY_PATTERN.test(identity);
 }
@@ -40,6 +41,24 @@ export function realRunnableModels(manifests: ModelManifest[]): ModelManifest[] 
   return manifests.filter(isRealRunnableModel);
 }
 
+/** A catalog entry is integrated only when VIREA owns a Runtime and real acceptance contract. */
+export function isVireaIntegratedModel(manifest: ModelManifest): boolean {
+  if (typeof manifest.capability?.virea_integrated === "boolean") {
+    return manifest.capability.virea_integrated;
+  }
+  return isRealRunnableModel(manifest) && manifest.production_acceptance != null;
+}
+
+export function vireaIntegratedModels(manifests: ModelManifest[]): ModelManifest[] {
+  return manifests.filter(isVireaIntegratedModel);
+}
+
+export function modelCapabilityLabel(manifest: ModelManifest): string {
+  return isVireaIntegratedModel(manifest)
+    ? "VIREA integrated / 已接入"
+    : "Upstream only / 仅上游登记";
+}
+
 export function installationState(manifest: ModelManifest): string | null {
   return manifest.installation?.state ?? manifest.installation_state ?? null;
 }
@@ -53,6 +72,27 @@ export function isInstalledReady(manifest: ModelManifest): boolean {
   return manifest.runtime_variants.some((runtime) =>
     ["READY", "AVAILABLE", "DETECTED"].includes(runtime.availability.toUpperCase()),
   );
+}
+
+/**
+ * The catalog intentionally reconciles READY metadata without hashing large
+ * snapshots. Execution remains fail-closed and performs the full verification.
+ */
+export function isInstallationIntegrityDeferred(manifest: ModelManifest): boolean {
+  return isInstalledReady(manifest)
+    && manifest.installation?.verification_scope === "metadata"
+    && manifest.installation.integrity_verified !== true;
+}
+
+export function installationReadinessLabel(manifest: ModelManifest): string {
+  if (!isInstalledReady(manifest)) return "Not READY / 未就绪";
+  if (isInstallationIntegrityDeferred(manifest)) {
+    return "Persisted READY · reverify on execution / 持久 READY · 执行前复验";
+  }
+  if (manifest.installation?.integrity_verified === true) {
+    return "READY · integrity verified / READY · 已完整复验";
+  }
+  return "READY · verification scope undeclared / READY · 校验范围未声明";
 }
 
 export function artifactBasename(locator: string): string {
@@ -211,6 +251,7 @@ export function createGenerationPayload(
   seconds: number,
   seed: number,
   executionTarget: ExecutionTargetSelection,
+  idempotencyKey: string,
 ): WebGenerationJobRequest {
   const modelId = manifest.model.id;
   if (!modelId) throw new Error("请选择真实可运行模型");
@@ -221,6 +262,9 @@ export function createGenerationPayload(
   if (!Number.isSafeInteger(seed) || seed < 0 || seed > 2_147_483_647) {
     throw new Error("Seed 必须是 0 到 2147483647 的整数");
   }
+  if (!idempotencyKey.trim() || idempotencyKey.length > 128) {
+    throw new Error("生成请求缺少有效的幂等键");
+  }
   const acceptance = manifest.production_acceptance;
   if (!acceptance || acceptance.request.model_id !== modelId) {
     throw new Error(`${modelId} 没有与模型一致的 production acceptance，不能生成可追溯请求`);
@@ -229,8 +273,7 @@ export function createGenerationPayload(
   if (
     template.schema_version !== "virea.job_request.v1.0.0" ||
     template.task !== "text_to_motion" ||
-    template.avatar_id !== null ||
-    template.idempotency_key !== null
+    template.avatar_id !== null
   ) {
     throw new Error(`${modelId} 的 production acceptance 不是可执行的 Web JobRequest`);
   }
@@ -244,6 +287,7 @@ export function createGenerationPayload(
     throw new Error(`${modelId} 的 production acceptance 缺少 parameters.seed`);
   }
   request.parameters.seed = seed;
+  request.idempotency_key = idempotencyKey;
   request.execution_target = executionTarget;
   setDuration(request, seconds, fps, modelId);
   return request;

@@ -1,6 +1,7 @@
 import "./styles.css";
 import {
   api,
+  jobEventsUrl,
   stateEventsUrl,
   type HealthStatus,
   type JobRecord,
@@ -21,18 +22,29 @@ import {
   generationDefaults,
   installationState,
   isInstalledReady,
+  isInstallationIntegrityDeferred,
+  isVireaIntegratedModel,
+  modelCapabilityLabel,
   modelMotionRoute,
   productionCatalogModels,
   productionCatalogJobs,
-  realRunnableModels,
   resultMotionRoute,
+  vireaIntegratedModels,
 } from "./domain";
 import { RealVrmViewer, type ViewerStatus } from "./viewer";
 import { SourceSkeletonViewer, type SourceViewerStatus } from "./source-viewer";
+import {
+  retainOrCreateSubmissionAttempt,
+  submissionAttemptWasPersisted,
+  submissionFingerprint,
+  type PendingSubmissionAttempt,
+} from "./submission";
 
 type View = "playground" | "catalog" | "overview";
-type SyncStatus = "connecting" | "live" | "polling" | "offline";
+type SyncStatus = "connecting" | "live" | "polling" | "degraded" | "offline";
+type GenerationPhase = "idle" | "validating" | "submitting" | "tracking" | "loading_result";
 type Draft = { prompt: string; seconds: number; seed: number };
+type JobEvent = NonNullable<JobRecord["events"]>[number];
 
 const TERMINAL_JOB_STATES = new Set([
   "SUCCEEDED",
@@ -42,6 +54,8 @@ const TERMINAL_JOB_STATES = new Set([
   "REJECTED",
 ]);
 const STATE_POLL_INTERVAL_MS = 4_000;
+const JOB_STREAM_STALL_MS = 10_000;
+const PENDING_SUBMISSION_STORAGE_KEY = "virea.pending-generation.v1";
 
 const state: {
   view: View;
@@ -49,6 +63,7 @@ const state: {
   jobs: JobRecord[];
   health: HealthStatus | null;
   vireaHome: string;
+  vireaHomeAuthorityFresh: boolean;
   system: Record<string, unknown> | null;
   systemLoading: boolean;
   executionDomains: ExecutionDomainCandidates | null;
@@ -57,7 +72,6 @@ const state: {
   executionDomainTouched: boolean;
   selectedModelId: string;
   drafts: Record<string, Draft>;
-  installationStates: Record<string, string>;
   installingModelId: string;
   activeJob: JobRecord | null;
   lastResult: VrmMotionResult | null;
@@ -66,6 +80,8 @@ const state: {
   lastVrmaUrl: string;
   lastGeneration: { modelId: string; seconds: number; seed: number } | null;
   generationEvidence: string;
+  generationPhase: GenerationPhase;
+  generationMessage: string;
   viewerStatus: ViewerStatus;
   sourceViewerStatus: SourceViewerStatus;
   syncStatus: SyncStatus;
@@ -78,6 +94,7 @@ const state: {
   jobs: [],
   health: null,
   vireaHome: "",
+  vireaHomeAuthorityFresh: false,
   system: null,
   systemLoading: false,
   executionDomains: null,
@@ -86,7 +103,6 @@ const state: {
   executionDomainTouched: false,
   selectedModelId: "",
   drafts: {},
-  installationStates: {},
   installingModelId: "",
   activeJob: null,
   lastResult: null,
@@ -95,6 +111,8 @@ const state: {
   lastVrmaUrl: "",
   lastGeneration: null,
   generationEvidence: "",
+  generationPhase: "idle",
+  generationMessage: "",
   viewerStatus: { kind: "idle", message: "载入 Avatar 后即可预览生成动作" },
   sourceViewerStatus: { kind: "idle", message: "生成完成后显示重定向前骨架" },
   syncStatus: "connecting",
@@ -114,11 +132,30 @@ let sourceViewerRuntime: SourceSkeletonViewer | null = null;
 let sourceViewerCanvas: HTMLCanvasElement | null = null;
 let sourceViewerLoadedResultId = "";
 let sourcePreviewAttemptedResultId = "";
+let sourcePreviewRetryResultId = "";
+let sourcePreviewRetryCount = 0;
+let sourcePreviewRetryTimer: number | null = null;
+let resultLoadEpoch = 0;
+let resultLoadJobId = "";
+let resultLoadPromise: Promise<void> | null = null;
 let stateSocket: WebSocket | null = null;
+let jobSocket: WebSocket | null = null;
 let stateStreamRetryAt = 0;
 let stateRevisionKey = "";
 let syncInFlight: Promise<void> | null = null;
-let syncQueued = false;
+let lastRevision: StateRevision["revision"] | null = null;
+let pendingRevisionPayload: PendingRevisionObservation | null = null;
+let syncRetryTimer: number | null = null;
+let syncFailureCount = 0;
+let syncRetryDelayMs = 0;
+let syncFailureMessage = "";
+let resumedJobId = "";
+let pendingSubmissionAttempt = loadPendingSubmissionAttempt();
+let stateAuthorityRequestEpoch = 0;
+let stateAuthorityReconciliationHome = "";
+let stateAuthorityReconciliationEpoch = 0;
+let stateAuthorityLastSuccessfulEpoch = 0;
+let stateAuthorityLastFailureEpoch = 0;
 
 function escapeHtml(value: unknown): string {
   return String(value)
@@ -131,6 +168,47 @@ function escapeHtml(value: unknown): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function hasFreshVireaHomeAuthority(): boolean {
+  return state.vireaHomeAuthorityFresh && Boolean(state.vireaHome.trim());
+}
+
+function invalidateVireaHomeAuthority(): void {
+  state.vireaHomeAuthorityFresh = false;
+  renderLiveRegions();
+}
+
+function loadPendingSubmissionAttempt(): PendingSubmissionAttempt | null {
+  try {
+    const payload = JSON.parse(
+      window.localStorage.getItem(PENDING_SUBMISSION_STORAGE_KEY) ?? "null",
+    ) as Partial<PendingSubmissionAttempt> | null;
+    if (
+      payload
+      && typeof payload.fingerprint === "string"
+      && typeof payload.idempotencyKey === "string"
+      && typeof payload.createdAt === "string"
+    ) {
+      return payload as PendingSubmissionAttempt;
+    }
+  } catch {
+    // Storage can be disabled or contain a value from an interrupted upgrade.
+  }
+  return null;
+}
+
+function persistPendingSubmissionAttempt(attempt: PendingSubmissionAttempt | null): void {
+  pendingSubmissionAttempt = attempt;
+  try {
+    if (attempt) {
+      window.localStorage.setItem(PENDING_SUBMISSION_STORAGE_KEY, JSON.stringify(attempt));
+    } else {
+      window.localStorage.removeItem(PENDING_SUBMISSION_STORAGE_KEY);
+    }
+  } catch {
+    // The in-memory identity still protects retries in this page session.
+  }
 }
 
 function statusLabel(status: string): string {
@@ -159,6 +237,19 @@ function installationLabel(status: string | null): string {
   return status ? labels[status.toUpperCase()] ?? status : "未部署";
 }
 
+function capabilityReason(manifest: ModelManifest): string {
+  const labels: Record<string, string> = {
+    UPSTREAM_BLOCKED: "上游状态阻塞 / Upstream blocked",
+    UPSTREAM_NOT_RUNNABLE: "上游尚不可运行 / Upstream not runnable",
+    VIREA_ADAPTER_NOT_INTEGRATED: "缺少 VIREA adapter / Adapter not integrated",
+    VIREA_RUNTIME_NOT_INTEGRATED: "缺少 VIREA Runtime / Runtime not integrated",
+    VIREA_ACCEPTANCE_NOT_DECLARED: "缺少生产验收合同 / Production acceptance missing",
+  };
+  const reasons = manifest.capability?.reasons ?? [];
+  return reasons.map((reason) => labels[reason] ?? reason).join(" · ")
+    || "缺少 VIREA Runtime、Worker 或真实端到端验收 / Integration incomplete";
+}
+
 function jobLabel(status: string): string {
   const labels: Record<string, string> = {
     QUEUED: "排队中",
@@ -181,7 +272,11 @@ function jobLabel(status: string): string {
 }
 
 function availableModels(): ModelManifest[] {
-  return realRunnableModels(state.models);
+  return catalogModels();
+}
+
+function integratedModels(): ModelManifest[] {
+  return vireaIntegratedModels(state.models);
 }
 
 function catalogModels(): ModelManifest[] {
@@ -192,12 +287,24 @@ function visibleJobs(): JobRecord[] {
   return productionCatalogJobs(state.jobs, state.models);
 }
 
+function reconcileActiveJob(): JobRecord | null {
+  const currentId = state.activeJob?.id;
+  const current = currentId ? visibleJobs().find((job) => job.id === currentId) : null;
+  const active = current && !TERMINAL_JOB_STATES.has(current.state)
+    ? current
+    : visibleJobs().find((job) => !TERMINAL_JOB_STATES.has(job.state)) ?? null;
+  if (active) state.activeJob = active;
+  else if (current) state.activeJob = current;
+  else state.activeJob = null;
+  return active;
+}
+
 function selectedManifest(): ModelManifest | null {
   return state.models.find((item) => item.model.id === state.selectedModelId) ?? null;
 }
 
 function currentInstallationState(manifest: ModelManifest): string | null {
-  return state.installationStates[manifest.model.id] ?? installationState(manifest);
+  return installationState(manifest);
 }
 
 function modelReady(manifest: ModelManifest): boolean {
@@ -206,10 +313,29 @@ function modelReady(manifest: ModelManifest): boolean {
   return isInstalledReady(manifest);
 }
 
+function modelReadyBadge(manifest: ModelManifest): string {
+  if (!modelReady(manifest)) return installationLabel(currentInstallationState(manifest));
+  return isInstallationIntegrityDeferred(manifest) ? "PERSISTED READY" : "READY";
+}
+
+function modelIntegrityNote(manifest: ModelManifest): string {
+  if (isInstallationIntegrityDeferred(manifest)) {
+    return "持久状态与当前目录匹配；启动 Worker 前会完整复验模型字节。 / Metadata matched; bytes are fully reverified before execution.";
+  }
+  if (manifest.installation?.integrity_verified === true) {
+    return "本次响应完成了完整字节复验。 / This response completed full byte-integrity verification.";
+  }
+  return "旧版状态未声明校验范围；执行仍会完整复验。 / Legacy state has no declared scope; execution still re-verifies.";
+}
+
 function ensureSelectedModel(): void {
   const available = availableModels();
   if (!available.some((item) => item.model.id === state.selectedModelId)) {
-    state.selectedModelId = available.find(modelReady)?.model.id ?? available[0]?.model.id ?? "";
+    const integrated = integratedModels();
+    state.selectedModelId = integrated.find(modelReady)?.model.id
+      ?? integrated[0]?.model.id
+      ?? available[0]?.model.id
+      ?? "";
   }
   const manifest = selectedManifest();
   if (manifest && !state.drafts[manifest.model.id]) {
@@ -291,6 +417,9 @@ function syncLabel(): string {
     connecting: "正在连接",
     live: "实时同步",
     polling: "自动刷新",
+    degraded: syncRetryDelayMs
+      ? `同步异常 · ${Math.ceil(syncRetryDelayMs / 1_000)}s 重试`
+      : "同步异常",
     offline: "连接中断",
   };
   return labels[state.syncStatus];
@@ -315,8 +444,8 @@ function layout(content: string): string {
           </button>`).join("")}</nav>
         <div class="topbar-tools">
           ${executionDomainSelector()}
-          <div class="data-root-pill" id="data-root-indicator" title="${escapeHtml(state.vireaHome ? `当前服务 VIREA_HOME：${state.vireaHome}` : "正在读取当前服务的 VIREA_HOME")}">
-            <span>VIREA_HOME</span><code>${escapeHtml(state.vireaHome || "读取中…")}</code>
+          <div class="data-root-pill ${hasFreshVireaHomeAuthority() ? "" : "stale"}" id="data-root-indicator" title="${escapeHtml(hasFreshVireaHomeAuthority() ? `当前服务 VIREA_HOME：${state.vireaHome}` : state.vireaHome ? `上次确认的 VIREA_HOME：${state.vireaHome}；正在等待服务重新确认` : "正在读取当前服务的 VIREA_HOME")}">
+            <span>${hasFreshVireaHomeAuthority() ? "VIREA_HOME" : "VIREA_HOME · 待确认"}</span><code>${escapeHtml(state.vireaHome || "读取中…")}</code>
           </div>
           <div class="sync-pill ${state.syncStatus}" id="sync-status" title="CLI 与 Web 使用同一持久状态">
             <i></i><span>${syncLabel()}</span>
@@ -334,8 +463,61 @@ function layout(content: string): string {
 function modelSelectOptions(): string {
   return availableModels().map((item) => {
     const ready = modelReady(item);
-    return `<option value="${escapeHtml(item.model.id)}" ${item.model.id === state.selectedModelId ? "selected" : ""}>${escapeHtml(item.model.display_name)} · ${ready ? "READY" : installationLabel(currentInstallationState(item))}</option>`;
+    const integrated = isVireaIntegratedModel(item);
+    const stateLabel = integrated
+      ? ready ? modelReadyBadge(item) : installationLabel(currentInstallationState(item))
+      : "仅上游登记";
+    return `<option value="${escapeHtml(item.model.id)}" ${item.model.id === state.selectedModelId ? "selected" : ""}>${escapeHtml(item.model.display_name)} · ${stateLabel}</option>`;
   }).join("");
+}
+
+const JOB_PROGRESS: Record<string, number> = {
+  QUEUED: 8,
+  ADMITTED: 16,
+  STARTING_WORKER: 25,
+  LOADING_MODEL: 36,
+  RUNNING: 52,
+  DECODING: 66,
+  NORMALIZING: 73,
+  RETARGETING: 80,
+  VALIDATING: 87,
+  EXPORTING: 94,
+  SUCCEEDED: 100,
+};
+
+function generationPresentation(): { label: string; progress: number | null; busy: boolean } {
+  const active = state.activeJob && !TERMINAL_JOB_STATES.has(state.activeJob.state)
+    ? state.activeJob
+    : null;
+  if (active) {
+    return {
+      label: `${jobLabel(active.state)} / ${active.state}`,
+      progress: JOB_PROGRESS[active.state] ?? null,
+      busy: true,
+    };
+  }
+  if (state.generationPhase !== "idle") {
+    const labels: Record<Exclude<GenerationPhase, "idle">, string> = {
+      validating: "核验执行目标 / Checking target",
+      submitting: "提交持久任务 / Submitting durable job",
+      tracking: "连接任务事件 / Connecting live events",
+      loading_result: "载入动作结果 / Loading result",
+    };
+    return { label: state.generationMessage || labels[state.generationPhase], progress: null, busy: true };
+  }
+  return { label: "等待生成 / Ready", progress: 0, busy: false };
+}
+
+function generationStatusMarkup(): string {
+  const presentation = generationPresentation();
+  const jobId = state.activeJob?.id;
+  const value = presentation.progress;
+  return `<div class="job-progress ${presentation.busy ? "active" : "idle"}" id="generation-status" role="status" aria-live="polite">
+    <div class="progress-track" role="progressbar" aria-label="生成进度" aria-valuemin="0" aria-valuemax="100" ${value == null ? "" : `aria-valuenow="${value}"`}>
+      <span class="${value == null ? "indeterminate" : ""}" style="--progress:${value ?? 35}%"></span>
+    </div>
+    <p><strong data-generation-label>${escapeHtml(presentation.label)}</strong><code data-generation-job>${escapeHtml(jobId ?? "尚未提交")}</code></p>
+  </div>`;
 }
 
 function resultFacts(): string {
@@ -379,12 +561,20 @@ function playground(): string {
   const manifest = selectedManifest();
   const draft = manifest ? state.drafts[manifest.model.id]! : { prompt: "", seconds: 4, seed: 42 };
   const ready = manifest ? modelReady(manifest) : false;
+  const integrated = manifest ? isVireaIntegratedModel(manifest) : false;
   const installState = manifest ? currentInstallationState(manifest) : null;
   const active = state.activeJob && !TERMINAL_JOB_STATES.has(state.activeJob.state)
     ? state.activeJob
     : null;
-  const busy = Boolean(active || state.installingModelId);
-  const canGenerate = Boolean(manifest && ready && state.selectedExecutionDomainId && !busy);
+  const busy = Boolean(active || state.installingModelId || state.generationPhase !== "idle");
+  const canGenerate = Boolean(
+    manifest
+    && integrated
+    && ready
+    && hasFreshVireaHomeAuthority()
+    && state.selectedExecutionDomainId
+    && !busy,
+  );
   return `
     <section class="page-heading compact">
       <div><p class="eyebrow">MOTION CREATION WORKSPACE</p><h1>从文字到可播放动作，在同一个工作台完成</h1>
@@ -394,20 +584,22 @@ function playground(): string {
       <article class="composer-card surface">
         <div class="section-title"><span>01</span><div><h2>动作生成</h2><p>使用已部署模型创建可追溯结果</p></div></div>
         <label class="field"><span>模型</span><select id="model-id" ${availableModels().length ? "" : "disabled"}>${modelSelectOptions()}</select></label>
-        <div class="model-readiness ${ready ? "ready" : "pending"}">
+        <div class="model-readiness ${ready && integrated ? "ready" : integrated ? "pending" : "unsupported"}">
           <div><i></i><span>${manifest ? escapeHtml(manifest.model.display_name) : "没有可执行模型"}</span></div>
-          <strong>${ready ? "READY" : installationLabel(installState)}</strong>
+          <strong>${manifest ? escapeHtml(integrated ? ready ? modelReadyBadge(manifest) : installationLabel(installState) : "UPSTREAM ONLY") : "UNAVAILABLE"}</strong>
         </div>
-        ${manifest && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "部署这个模型"}</button>` : ""}
-        <label class="field prompt-field"><span>动作描述</span><textarea id="prompt" maxlength="8000" placeholder="例如：A person walks forward, turns left, and waves.">${escapeHtml(draft.prompt)}</textarea><small>写清人物、方向、节奏和动作结束方式。</small></label>
+        ${manifest && ready && integrated ? `<p class="readiness-evidence">${escapeHtml(modelIntegrityNote(manifest))}</p>` : ""}
+        ${manifest && !integrated ? `<div class="capability-note" role="note"><strong>仅上游登记，尚未接入 VIREA</strong><p>${escapeHtml(capabilityReason(manifest))}。此模型仍可浏览，但不会伪装成可部署。</p></div>` : ""}
+        ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "部署这个模型"}</button>` : ""}
+        <label class="field prompt-field"><span>动作描述</span><textarea id="prompt" maxlength="8000" placeholder="例如：A person walks forward, turns left, and waves." ${integrated ? "" : "disabled"}>${escapeHtml(draft.prompt)}</textarea><small>写清人物、方向、节奏和动作结束方式。</small></label>
         <div class="parameter-grid">
-          <label class="field"><span>时长（秒）</span><input id="seconds" type="number" min="1" max="90" step="0.01" value="${escapeHtml(draft.seconds)}" /></label>
-          <label class="field"><span>随机种子</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="${escapeHtml(draft.seed)}" /></label>
+          <label class="field"><span>时长（秒）</span><input id="seconds" type="number" min="1" max="90" step="0.01" value="${escapeHtml(draft.seconds)}" ${integrated ? "" : "disabled"} /></label>
+          <label class="field"><span>随机种子</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="${escapeHtml(draft.seed)}" ${integrated ? "" : "disabled"} /></label>
         </div>
         <button class="primary generate-button" id="generate" ${canGenerate ? "" : "disabled"}>
-          <span>${active ? jobLabel(active.state) : ready ? "生成动作" : "请先完成模型部署"}</span><i>→</i>
+          <span data-generate-button-label>${active ? jobLabel(active.state) : !hasFreshVireaHomeAuthority() ? "等待数据根同步" : !integrated ? "该模型尚未接入" : ready ? "生成动作" : "请先完成模型部署"}</span><i>→</i>
         </button>
-        ${active ? `<div class="job-progress"><div><span style="--progress:${Math.max(12, Math.min(94, ((active.events?.length ?? 1) / 10) * 100))}%"></span></div><p><strong>${escapeHtml(jobLabel(active.state))}</strong><code>${escapeHtml(active.id)}</code></p></div>` : ""}
+        ${generationStatusMarkup()}
         <pre id="generation-output" class="machine-evidence" aria-hidden="true">${escapeHtml(state.generationEvidence)}</pre>
       </article>
 
@@ -417,6 +609,8 @@ function playground(): string {
           <div class="stage-actions">
             <label class="file-action"><input id="avatar-file" type="file" accept=".vrm,.glb,model/gltf-binary" /><span>载入 Avatar</span></label>
             <label class="file-action"><input id="vrma-file" type="file" accept=".vrma,model/gltf-binary" /><span>载入 VRMA</span></label>
+            <button id="source-camera-reset" class="icon-action" title="重置源骨架视角">重置 A 视角</button>
+            <button id="target-camera-reset" class="icon-action" title="重置 VRM 视角">重置 B 视角</button>
             <button id="comparison-replay" class="icon-action" title="同时从头播放两个阶段">同步重播</button>
           </div>
         </div>
@@ -440,7 +634,7 @@ function playground(): string {
           </section>
         </div>
         <div class="viewer-readout">
-          <p>左侧只做坐标归一化用于显示，不进入 VRM 骨骼重定向；右侧是同一结果的最终 VRMA，可直接判断问题发生在哪一阶段。</p>
+          <p>左侧只做坐标归一化用于显示，不进入 VRM 骨骼重定向；右侧是同一结果的最终 VRMA。拖动旋转、右键平移、滚轮或双指缩放；生成期间 Viewer 自动暂停绘制以降低前端 GPU 开销，完成后原位恢复。</p>
           <div class="result-actions">
             ${state.lastResult ? `<code>${escapeHtml(state.lastResult.result_id)}</code>` : ""}
             ${state.lastVrmaUrl ? `<a href="${escapeHtml(state.lastVrmaUrl)}" download>下载 VRMA</a><button id="open-viewer">定位到预览</button>` : ""}
@@ -450,7 +644,7 @@ function playground(): string {
     </section>
     <section class="studio-bottom-grid">
       <article class="surface result-summary"><div class="section-title small"><span>02</span><div><h2>结果信息</h2><p>始终显示最近一次成功产物</p></div></div>${resultFacts()}</article>
-      <article class="surface activity-card"><div class="section-title small"><span>03</span><div><h2>实时活动</h2><p>CLI、安装验收和 Web 任务共用同一状态</p></div></div>${recentActivity()}</article>
+      <article class="surface activity-card"><div class="section-title small"><span>03</span><div><h2>实时活动</h2><p>CLI、安装验收和 Web 任务共用同一状态</p></div></div><div data-activity-host>${recentActivity()}</div></article>
     </section>`;
 }
 
@@ -459,22 +653,23 @@ function catalog(): string {
   return `
     <section class="page-heading">
       <div><p class="eyebrow">MODEL LIBRARY</p><h1>模型能力与部署</h1><p>一个模型可在多个系统执行；这里展示的是当前数据根中的真实部署状态。</p></div>
-      <div class="heading-metric"><strong>${models.filter(modelReady).length}</strong><span>READY / ${models.length}</span></div>
+      <div class="heading-metric"><strong>${models.filter((model) => isVireaIntegratedModel(model) && modelReady(model)).length}</strong><span>PERSISTED READY / ${integratedModels().length} INTEGRATED · ${models.length} CATALOGED</span></div>
     </section>
     <section class="model-library surface">
       <div class="library-header"><span>模型</span><span>转换路径</span><span>当前状态</span><span>操作</span></div>
       ${models.length ? models.map((item) => {
         const ready = modelReady(item);
+        const integrated = isVireaIntegratedModel(item);
         const installState = currentInstallationState(item);
-        const installable = realRunnableModels([item]).length === 1 && item.production_acceptance != null;
+        const installable = integrated;
         const option = selectedExecutionOption(item.model.id);
         const runtime = item.runtime_variants.find((candidate) => candidate.id === option?.selected_runtime_id);
         const latestAttempt = item.installation?.latest_attempt?.state;
         return `<article class="model-row">
           <div class="model-identity"><span class="model-monogram">${escapeHtml(item.model.display_name.slice(0, 1))}</span><div><h2>${escapeHtml(item.model.display_name)}</h2><code>${escapeHtml(item.model.id)}</code><p>${escapeHtml(item.model.adapter_family)}</p></div></div>
           <div class="model-route"><strong>${escapeHtml(item.output.skeleton_id)}</strong><i>→</i><strong>${escapeHtml(item.result_target.skeleton_id)}</strong><small>${escapeHtml(item.model.tasks.join(" · "))}</small></div>
-          <div class="model-state"><span class="state-badge ${ready ? "ready" : (installState ?? "idle").toLowerCase()}"><i></i>${ready ? "READY" : installationLabel(installState)}</span><small>${latestAttempt && latestAttempt !== installState ? `最近尝试：${installationLabel(latestAttempt)}` : statusLabel(item.model.status)}</small><small>${option ? `${option.selected_runtime_id ?? "未实现"} · ${option.selected_resource_profile ?? "无 profile"}${runtime?.runtime_core_epoch ? ` · ${runtime.runtime_core_epoch}` : ""}` : "选择环境后自动核验 Runtime"}</small></div>
-          <div class="model-action">${ready ? `<button data-use-model="${escapeHtml(item.model.id)}">在工作台使用</button>` : `<button data-install="${escapeHtml(item.model.id)}" ${!installable || !state.selectedExecutionDomainId || state.installingModelId ? "disabled" : ""}>${state.installingModelId === item.model.id ? "部署中…" : installable ? "部署并验收" : "暂不可部署"}</button>`}</div>
+          <div class="model-state"><span class="state-badge ${ready && integrated ? "ready" : integrated ? (installState ?? "idle").toLowerCase() : "upstream"}"><i></i>${integrated ? ready ? modelReadyBadge(item) : installationLabel(installState) : "UPSTREAM ONLY"}</span><small>${escapeHtml(modelCapabilityLabel(item))}</small><small>${ready && integrated ? escapeHtml(modelIntegrityNote(item)) : latestAttempt && latestAttempt !== installState ? `最近尝试：${installationLabel(latestAttempt)}` : statusLabel(item.model.status)}</small><small>${integrated ? option ? `${option.selected_runtime_id ?? "未实现"} · ${option.selected_resource_profile ?? "无 profile"}${runtime?.runtime_core_epoch ? ` · ${runtime.runtime_core_epoch}` : ""}` : "选择环境后自动核验 Runtime" : escapeHtml(capabilityReason(item))}</small></div>
+          <div class="model-action">${ready && integrated ? `<button data-use-model="${escapeHtml(item.model.id)}">在工作台使用</button>` : `<button data-install="${escapeHtml(item.model.id)}" ${!installable || !state.selectedExecutionDomainId || state.installingModelId ? "disabled" : ""}>${state.installingModelId === item.model.id ? "部署中…" : installable ? "部署并验收" : "浏览详情"}</button>`}</div>
         </article>`;
       }).join("") : '<p class="quiet-empty padded">服务没有返回模型目录，请检查项目资源。</p>'}
     </section>`;
@@ -489,6 +684,10 @@ function systemFacts(): { system: Record<string, unknown>; machine: Record<strin
 function overview(): string {
   const { system, machine } = systemFacts();
   const domains = state.executionDomains?.execution_domains ?? [];
+  const activeWorkerJobs = visibleJobs().filter((job) => [
+    "STARTING_WORKER", "LOADING_MODEL", "RUNNING", "DECODING", "NORMALIZING",
+    "RETARGETING", "VALIDATING", "EXPORTING",
+  ].includes(job.state)).length;
   return `
     <section class="page-heading">
       <div><p class="eyebrow">LOCAL CONTROL PLANE</p><h1>系统、数据与诊断</h1><p>快速状态保持轻量；完整硬件检测只在你明确点击时运行。</p></div>
@@ -497,15 +696,15 @@ function overview(): string {
     <section class="system-metrics">
       <article class="surface"><small>控制面</small><strong>${state.health?.status === "ready" ? "在线" : "连接中"}</strong><span>${escapeHtml(state.health?.version ?? "—")}</span></article>
       <article class="surface"><small>可用执行域</small><strong>${domains.length}</strong><span>${escapeHtml(domains.map((item) => item.kind).join(" · ") || "尚未检测")}</span></article>
-      <article class="surface"><small>READY 模型</small><strong>${availableModels().filter(modelReady).length}</strong><span>共 ${availableModels().length} 个可执行模型</span></article>
-      <article class="surface"><small>活动 Worker</small><strong>${escapeHtml(system.active_workers ?? 0)}</strong><span>${escapeHtml(machine.platform ?? "等待完整检测")}</span></article>
+      <article class="surface"><small>模型目录</small><strong>${catalogModels().length}</strong><span>${integratedModels().length} 个 VIREA 已接入 · ${integratedModels().filter(modelReady).length} 持久 READY（执行前复验）</span></article>
+      <article class="surface"><small>活动 Worker 任务</small><strong>${activeWorkerJobs}</strong><span>${escapeHtml(machine.platform ?? "按持久 Job 状态实时计算")}</span></article>
     </section>
     <section class="system-grid">
       <article class="surface data-root-card"><div class="section-title small"><span>A</span><div><h2>持久数据根</h2><p>模型、Runtime、任务与结果都以这里为根</p></div></div><code class="path-display">${escapeHtml(state.vireaHome || system.virea_home || "正在读取当前 VIREA_HOME")}</code>
         <div class="button-row"><button id="setup-plan">查看初始化计划</button><button id="setup-apply">核验目录结构</button></div><pre id="setup-output" class="diagnostic-output"></pre></article>
       <article class="surface domain-card"><div class="section-title small"><span>B</span><div><h2>执行域</h2><p>Web 与 CLI 共享选择和部署身份</p></div></div><div class="domain-list">${domains.map((domain) => `<div class="domain-row ${domain.id === state.selectedExecutionDomainId ? "selected" : ""}"><i></i><div><strong>${escapeHtml(domain.kind === "wsl" ? `WSL · ${domain.distribution}` : domain.kind)}</strong><small>${escapeHtml(domain.platform)} · ${escapeHtml(domain.architecture)}</small></div><span>${domain.id === state.selectedExecutionDomainId ? "当前" : domain.is_host ? "宿主" : "可用"}</span></div>`).join("") || '<p class="quiet-empty">尚未取得执行域报告。</p>'}</div></article>
       <article class="surface diagnostics-card"><div class="section-title small"><span>C</span><div><h2>安全诊断</h2><p>生成脱敏的本地支持包</p></div></div><p>支持包不会收集 prompt、token、原始音频、Avatar 或模型权重。</p><button id="support">生成 Support Bundle</button><pre id="support-output" class="diagnostic-output"></pre></article>
-      <article class="surface all-activity"><div class="section-title small"><span>D</span><div><h2>最近任务</h2><p>持久数据库中的最新活动</p></div></div>${recentActivity(8)}</article>
+      <article class="surface all-activity"><div class="section-title small"><span>D</span><div><h2>最近任务</h2><p>持久数据库中的最新活动</p></div></div><div data-activity-host data-activity-limit="8">${recentActivity(8)}</div></article>
     </section>`;
 }
 
@@ -552,9 +751,52 @@ function render(): void {
   }[state.view];
   app.innerHTML = layout(content);
   bind();
-  viewerRuntime?.setActive(state.view === "playground");
-  sourceViewerRuntime?.setActive(state.view === "playground");
+  setViewerActivity();
   restoreFocus(focus);
+}
+
+function setViewerActivity(): void {
+  const generating = state.generationPhase !== "idle"
+    || Boolean(state.activeJob && !TERMINAL_JOB_STATES.has(state.activeJob.state));
+  const active = state.view === "playground" && !generating && document.visibilityState !== "hidden";
+  viewerRuntime?.setActive(active);
+  sourceViewerRuntime?.setActive(active);
+}
+
+function renderLiveRegions(): void {
+  updateVireaHomeIndicator();
+  const manifest = selectedManifest();
+  const presentation = generationPresentation();
+  const domainSelector = document.querySelector<HTMLSelectElement>("#global-execution-domain");
+  if (domainSelector) domainSelector.disabled = presentation.busy;
+  const modelSelector = document.querySelector<HTMLSelectElement>("#model-id");
+  if (modelSelector) modelSelector.disabled = presentation.busy || !availableModels().length;
+  const button = document.querySelector<HTMLButtonElement>("#generate");
+  if (button) {
+    button.disabled = !manifest
+      || !isVireaIntegratedModel(manifest)
+      || !modelReady(manifest)
+      || !hasFreshVireaHomeAuthority()
+      || !state.selectedExecutionDomainId
+      || presentation.busy
+      || Boolean(state.installingModelId);
+    const label = button.querySelector<HTMLElement>("[data-generate-button-label]");
+    if (label) {
+      label.textContent = presentation.busy
+        ? presentation.label
+        : hasFreshVireaHomeAuthority() ? "生成动作" : "等待数据根同步";
+    }
+  }
+  const status = document.querySelector<HTMLElement>("#generation-status");
+  if (status) status.outerHTML = generationStatusMarkup();
+  document.querySelectorAll<HTMLElement>("[data-activity-host]").forEach((host) => {
+    host.innerHTML = recentActivity(host.dataset.activityLimit === "8" ? 8 : 6);
+  });
+  setViewerActivity();
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 function output(id: string, value: unknown): void {
@@ -567,6 +809,7 @@ function setView(view: View): void {
   state.error = "";
   state.notice = "";
   render();
+  setViewerActivity();
 }
 
 function bindDraftInputs(): void {
@@ -609,10 +852,12 @@ function bind(): void {
     ensureSelectedModel();
     ensureSelectedExecutionDomain();
     state.error = "";
-    void loadExecutionOptions(state.selectedModelId).catch((error: unknown) => {
-      state.error = errorMessage(error);
-      render();
-    });
+    if (isVireaIntegratedModel(selectedManifest()!)) {
+      void loadExecutionOptions(state.selectedModelId).catch((error: unknown) => {
+        state.error = errorMessage(error);
+        render();
+      });
+    }
     render();
   });
   bindDraftInputs();
@@ -748,6 +993,12 @@ function bindViewer(): void {
     }
     if (state.lastVrmaUrl) void handle(() => viewerRuntime?.play());
   });
+  document.querySelector("#source-camera-reset")?.addEventListener("click", () => {
+    sourceViewerRuntime?.resetView();
+  });
+  document.querySelector("#target-camera-reset")?.addEventListener("click", () => {
+    viewerRuntime?.resetView();
+  });
   if (state.lastVrmaUrl && viewerLoadedVrmaUrl !== state.lastVrmaUrl) {
     const requestedUrl = state.lastVrmaUrl;
     void handle(async () => {
@@ -775,7 +1026,6 @@ async function installModel(button: HTMLButtonElement): Promise<void> {
       throw new Error(option?.reasons.join("; ") || `${id} 尚未在 ${target.execution_domain_id} 实现可部署 Runtime`);
     }
     const result = await api.install(manifest, target);
-    if (typeof result.state === "string") state.installationStates[id] = result.state;
     state.notice = result.state === "READY"
       ? `${manifest.model.display_name} 已完成部署与真实验收。`
       : `${manifest.model.display_name} 返回状态 ${String(result.state ?? "UNKNOWN")}。`;
@@ -815,31 +1065,275 @@ function upsertJob(job: JobRecord): void {
   state.activeJob = job;
 }
 
+function mergeJobEvent(job: JobRecord, event: JobEvent): JobRecord {
+  const events = [...(job.events ?? [])];
+  if (!events.some((item) => item.sequence === event.sequence)) events.push(event);
+  events.sort((left, right) => left.sequence - right.sequence);
+  return { ...job, state: event.state, updated_at: event.created_at, events };
+}
+
+async function pollJobUntilTerminal(initial: JobRecord): Promise<JobRecord> {
+  let current = initial;
+  while (!TERMINAL_JOB_STATES.has(current.state)) {
+    await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+    current = await api.job(current.id);
+    upsertJob(current);
+    renderLiveRegions();
+  }
+  return current;
+}
+
+async function waitForTerminalJob(initial: JobRecord): Promise<JobRecord> {
+  if (TERMINAL_JOB_STATES.has(initial.state)) return initial;
+  if (typeof WebSocket === "undefined") return pollJobUntilTerminal(initial);
+  return new Promise<JobRecord>((resolve, reject) => {
+    let current = initial;
+    let settled = false;
+    let fallbackStarted = false;
+    const socket = new WebSocket(jobEventsUrl(initial.id));
+    let watchdog = window.setTimeout(() => socket.close(), JOB_STREAM_STALL_MS);
+    jobSocket?.close();
+    jobSocket = socket;
+
+    const armWatchdog = (): void => {
+      window.clearTimeout(watchdog);
+      watchdog = window.setTimeout(() => socket.close(), JOB_STREAM_STALL_MS);
+    };
+
+    const finishFromServer = async (): Promise<void> => {
+      if (settled || fallbackStarted) return;
+      try {
+        const latest = await api.job(initial.id);
+        current = latest;
+        upsertJob(latest);
+        renderLiveRegions();
+        if (TERMINAL_JOB_STATES.has(latest.state)) {
+          settled = true;
+          resolve(latest);
+          return;
+        }
+        fallbackStarted = true;
+        resolve(await pollJobUntilTerminal(latest));
+      } catch (error) {
+        settled = true;
+        reject(error);
+      }
+    };
+
+    socket.addEventListener("message", (message) => {
+      try {
+        armWatchdog();
+        const event = JSON.parse(String(message.data)) as NonNullable<JobRecord["events"]>[number];
+        current = mergeJobEvent(current, event);
+        upsertJob(current);
+        renderLiveRegions();
+        if (TERMINAL_JOB_STATES.has(current.state)) socket.close(1000);
+      } catch {
+        socket.close();
+      }
+    });
+    socket.addEventListener("close", () => {
+      window.clearTimeout(watchdog);
+      if (jobSocket === socket) jobSocket = null;
+      void finishFromServer();
+    });
+    socket.addEventListener("error", () => socket.close());
+  });
+}
+
+async function resumePersistedActiveJob(job: JobRecord): Promise<void> {
+  if (
+    resumedJobId === job.id
+    || state.generationPhase !== "idle"
+    || TERMINAL_JOB_STATES.has(job.state)
+  ) return;
+  resumedJobId = job.id;
+  state.generationPhase = "tracking";
+  state.generationMessage = "正在恢复持久任务事件 / Resuming durable job events";
+  renderLiveRegions();
+  try {
+    const terminal = await waitForTerminalJob(job);
+    if (terminal.state === "SUCCEEDED") {
+      state.generationPhase = "loading_result";
+      state.generationMessage = "任务已完成，正在恢复结果 / Restoring completed result";
+      renderLiveRegions();
+      await loadPersistedSuccessfulJob(terminal.id);
+      state.notice = "已恢复进行中的任务，并载入最新双阶段结果。";
+    } else {
+      state.error = `${terminal.state}: ${terminal.error_code ?? "GENERATION_FAILED"} ${terminal.error_message ?? ""}`.trim();
+    }
+  } catch (error) {
+    state.error = `恢复任务 ${job.id} 失败：${errorMessage(error)}`;
+  } finally {
+    if (resumedJobId === job.id) resumedJobId = "";
+    state.generationPhase = "idle";
+    state.generationMessage = "";
+    render();
+  }
+}
+
+async function submitGeneration(
+  manifest: ModelManifest,
+  draft: Draft,
+  target: ExecutionTargetSelection,
+  idempotencyKey: string,
+): Promise<JobRecord> {
+  try {
+    return await api.generate(
+      manifest,
+      draft.prompt,
+      draft.seconds,
+      draft.seed,
+      target,
+      idempotencyKey,
+    );
+  } catch (submissionError) {
+    // A browser abort cannot cancel a server thread. Reconcile the durable
+    // idempotency identity before allowing a retry to create another Job.
+    try {
+      const jobs = await api.jobs();
+      const existing = jobs.find((job) => job.idempotency_key === idempotencyKey);
+      if (existing) return existing;
+    } catch {
+      // Preserve the original, more useful submission error.
+    }
+    throw submissionError;
+  }
+}
+
+async function generationRequestFingerprint(
+  manifest: ModelManifest,
+  draft: Draft,
+  target: ExecutionTargetSelection,
+  vireaHome: string,
+): Promise<string> {
+  return submissionFingerprint({
+    vireaHome,
+    modelId: manifest.model.id,
+    task: manifest.production_acceptance?.request.task ?? manifest.model.tasks[0] ?? "",
+    prompt: draft.prompt,
+    seconds: draft.seconds,
+    seed: draft.seed,
+    executionTarget: target,
+  });
+}
+
+async function submissionAttemptFor(
+  manifest: ModelManifest,
+  draft: Draft,
+  target: ExecutionTargetSelection,
+  vireaHome: string,
+): Promise<PendingSubmissionAttempt> {
+  const fingerprint = await generationRequestFingerprint(manifest, draft, target, vireaHome);
+  const attempt = retainOrCreateSubmissionAttempt(
+    pendingSubmissionAttempt,
+    fingerprint,
+    () => crypto.randomUUID(),
+    () => new Date().toISOString(),
+  );
+  persistPendingSubmissionAttempt(attempt);
+  return attempt;
+}
+
+function reconcilePendingSubmission(jobs: readonly JobRecord[]): void {
+  if (submissionAttemptWasPersisted(pendingSubmissionAttempt, jobs)) {
+    persistPendingSubmissionAttempt(null);
+  }
+}
+
 async function generate(): Promise<void> {
   const manifest = selectedManifest();
-  if (!manifest) return;
+  if (!manifest || state.generationPhase !== "idle") return;
+  const authoritativeVireaHome = state.vireaHome.trim();
+  if (!hasFreshVireaHomeAuthority()) {
+    state.notice = "";
+    state.error = "正在等待服务确认持久数据根；同步完成前不会创建任务 / Waiting for authoritative VIREA_HOME";
+    render();
+    return;
+  }
   const draft = state.drafts[manifest.model.id]!;
   state.error = "";
   state.notice = "";
+  state.generationPhase = "validating";
+  state.generationMessage = "核验所选系统、Runtime 与资源配置 / Checking execution target";
+  renderLiveRegions();
   try {
+    if (!isVireaIntegratedModel(manifest)) {
+      throw new Error(`${manifest.model.id} 仅在目录中登记；尚无 VIREA Runtime、Worker 与端到端验收`);
+    }
+    await nextPaint();
+    const selectedModelId = manifest.model.id;
+    const selectedDomainId = state.selectedExecutionDomainId;
+    await loadExecutionOptions(selectedModelId, true);
+    if (
+      state.selectedModelId !== selectedModelId
+      || state.selectedExecutionDomainId !== selectedDomainId
+      || !hasFreshVireaHomeAuthority()
+      || state.vireaHome.trim() !== authoritativeVireaHome
+    ) {
+      throw new Error("核验期间模型、执行环境或持久数据根发生变化；请确认当前选择后重新生成");
+    }
     const target = selectedExecutionTarget();
-    await loadExecutionOptions(manifest.model.id);
     const option = selectedExecutionOption(manifest.model.id);
-    if (!option?.implemented || !option.can_build) {
-      throw new Error(option?.reasons.join("; ") || `${manifest.model.id} 尚未在 ${target.execution_domain_id} 实现可运行 Runtime`);
+    if (!option) {
+      throw new Error(`${manifest.model.id} 没有返回 ${target.execution_domain_id} 的执行选项；不会创建无效任务`);
     }
-    let job = await api.generate(manifest, draft.prompt, draft.seconds, draft.seed, target);
+    if (!option.implemented || !option.can_build) {
+      throw new Error(option.reasons.join("; ") || `${manifest.model.id} 尚未在 ${target.execution_domain_id} 实现可运行 Runtime`);
+    }
+    state.generationPhase = "submitting";
+    state.generationMessage = "正在提交并创建可恢复的持久任务 / Submitting durable job";
+    renderLiveRegions();
+    await nextPaint();
+    if (!hasFreshVireaHomeAuthority() || state.vireaHome.trim() !== authoritativeVireaHome) {
+      throw new Error("提交前持久数据根发生变化；不会在不确定的数据根中创建任务");
+    }
+    const attempt = await submissionAttemptFor(
+      manifest,
+      draft,
+      target,
+      authoritativeVireaHome,
+    );
+    let authorityObservation: StateAuthorityObservation;
+    try {
+      authorityObservation = await requestAuthoritativeStateRevision();
+    } catch (error) {
+      throw new Error(
+        `提交前无法重新确认持久数据根；不会创建任务：${errorMessage(error)}`,
+      );
+    }
+    const observedVireaHome = authorityObservation.payload?.virea_home.trim() ?? "";
+    if (
+      !authorityObservation.current
+      || authorityObservation.epoch !== stateAuthorityRequestEpoch
+      || !hasFreshVireaHomeAuthority()
+      || observedVireaHome !== authoritativeVireaHome
+      || state.vireaHome.trim() !== authoritativeVireaHome
+    ) {
+      throw new Error(
+        `持久数据根已从 ${authoritativeVireaHome} 变更为 ${observedVireaHome || "未知"}；已应用最新状态，请确认后重试`,
+      );
+    }
+    let job = await submitGeneration(
+      manifest,
+      draft,
+      target,
+      attempt.idempotencyKey,
+    );
+    if (pendingSubmissionAttempt?.idempotencyKey === attempt.idempotencyKey) {
+      persistPendingSubmissionAttempt(null);
+    }
     upsertJob(job);
-    render();
-    while (!TERMINAL_JOB_STATES.has(job.state)) {
-      await new Promise((resolve) => window.setTimeout(resolve, 750));
-      job = await api.job(job.id);
-      upsertJob(job);
-      render();
-    }
+    state.generationPhase = "tracking";
+    state.generationMessage = "已连接任务事件 / Live job events connected";
+    renderLiveRegions();
+    job = await waitForTerminalJob(job);
     if (job.state !== "SUCCEEDED") {
       throw new Error(`${job.state}: ${job.error_code ?? "GENERATION_FAILED"} ${job.error_message ?? ""}`.trim());
     }
+    state.generationPhase = "loading_result";
+    state.generationMessage = "正在载入源骨架与最终 VRMA / Loading both motion stages";
+    renderLiveRegions();
     await loadPersistedSuccessfulJob(job.id);
     state.lastGeneration = { modelId: manifest.model.id, seconds: draft.seconds, seed: draft.seed };
     state.notice = "动作已经生成，并载入重定向前 / 重定向后的双阶段 Viewer。";
@@ -859,11 +1353,45 @@ async function generate(): Promise<void> {
     state.error = errorMessage(error);
     state.generationEvidence = JSON.stringify({ error: state.error }, null, 2);
   } finally {
+    state.generationPhase = "idle";
+    state.generationMessage = "";
     render();
+    setViewerActivity();
   }
 }
 
 async function loadPersistedSuccessfulJob(jobId: string): Promise<void> {
+  if (resultLoadJobId === jobId && resultLoadPromise) return resultLoadPromise;
+  const epoch = ++resultLoadEpoch;
+  resultLoadJobId = jobId;
+  let pending: Promise<void>;
+  pending = performLoadPersistedSuccessfulJob(jobId, epoch).finally(() => {
+    if (resultLoadPromise === pending) {
+      resultLoadPromise = null;
+      resultLoadJobId = "";
+    }
+  });
+  resultLoadPromise = pending;
+  return pending;
+}
+
+function scheduleSourcePreviewRetry(jobId: string, resultId: string): void {
+  if (sourcePreviewRetryResultId !== resultId) {
+    sourcePreviewRetryResultId = resultId;
+    sourcePreviewRetryCount = 0;
+  }
+  if (sourcePreviewRetryCount >= 3 || sourcePreviewRetryTimer != null) return;
+  sourcePreviewRetryCount += 1;
+  sourcePreviewRetryTimer = window.setTimeout(() => {
+    sourcePreviewRetryTimer = null;
+    if (state.lastResult?.result_id !== resultId) return;
+    void loadPersistedSuccessfulJob(jobId)
+      .then(() => render())
+      .catch(() => scheduleSourcePreviewRetry(jobId, resultId));
+  }, sourcePreviewRetryCount * 1_500);
+}
+
+async function performLoadPersistedSuccessfulJob(jobId: string, epoch: number): Promise<void> {
   const job = await api.job(jobId);
   if (job.state !== "SUCCEEDED") throw new Error(`${jobId} 不是 SUCCEEDED，不能载入结果`);
   if (!catalogModels().some((manifest) => manifest.model.id === job.model_id)) {
@@ -879,7 +1407,7 @@ async function loadPersistedSuccessfulJob(jobId: string): Promise<void> {
     throw new Error("持久化 ModelResult 与 Job 绑定不一致");
   }
   let sourcePreview: SourceSkeletonPreview | null = null;
-  sourcePreviewAttemptedResultId = result.result_id;
+  let sourceError = "";
   try {
     sourcePreview = await api.sourceSkeleton(result.result_id);
     if (
@@ -891,12 +1419,23 @@ async function loadPersistedSuccessfulJob(jobId: string): Promise<void> {
       throw new Error("重定向前骨架与当前结果绑定不一致");
     }
   } catch (error) {
+    sourceError = errorMessage(error);
+  }
+  if (epoch !== resultLoadEpoch) return;
+  if (sourceError) {
     sourceViewerRuntime?.clear();
-    sourceViewerLoadedResultId = result.result_id;
+    sourceViewerLoadedResultId = "";
     state.sourceViewerStatus = {
       kind: "error",
-      message: `无法载入重定向前骨架：${errorMessage(error)}`,
+      message: `无法载入重定向前骨架：${sourceError}`,
     };
+    scheduleSourcePreviewRetry(jobId, result.result_id);
+  } else {
+    sourcePreviewAttemptedResultId = result.result_id;
+    sourcePreviewRetryResultId = result.result_id;
+    sourcePreviewRetryCount = 0;
+    if (sourcePreviewRetryTimer != null) window.clearTimeout(sourcePreviewRetryTimer);
+    sourcePreviewRetryTimer = null;
   }
   state.selectedModelId = job.model_id;
   ensureSelectedModel();
@@ -926,27 +1465,32 @@ async function openJob(jobId: string): Promise<void> {
   }
 }
 
-async function hydrateLatestSuccessfulResult(): Promise<void> {
+async function hydrateLatestSuccessfulResult(): Promise<boolean> {
   const latest = visibleJobs().find((job) => job.state === "SUCCEEDED");
   if (!latest) {
     if (state.lastResult) clearPersistedResult("当前数据根没有可播放的生产源骨架");
-    return;
+    return true;
   }
   if (
     (
       state.lastResult?.job_id === latest.id
       && sourcePreviewAttemptedResultId === state.lastResult.result_id
     )
-  ) return;
+  ) return true;
   try {
     await loadPersistedSuccessfulJob(latest.id);
+    return true;
   } catch {
     // A terminal job row and its immutable result commit can be observed on
     // adjacent refreshes. The next revision/poll retries without a false alert.
+    return false;
   }
 }
 
 function clearPersistedResult(sourceMessage: string): void {
+  resultLoadEpoch += 1;
+  resultLoadJobId = "";
+  resultLoadPromise = null;
   state.lastResult = null;
   state.lastModelResult = null;
   state.lastSourcePreview = null;
@@ -954,6 +1498,10 @@ function clearPersistedResult(sourceMessage: string): void {
   state.lastGeneration = null;
   state.generationEvidence = "";
   sourcePreviewAttemptedResultId = "";
+  sourcePreviewRetryResultId = "";
+  sourcePreviewRetryCount = 0;
+  if (sourcePreviewRetryTimer != null) window.clearTimeout(sourcePreviewRetryTimer);
+  sourcePreviewRetryTimer = null;
   sourceViewerLoadedResultId = "";
   viewerLoadedVrmaUrl = "";
   sourceViewerRuntime?.clear(sourceMessage);
@@ -962,17 +1510,97 @@ function clearPersistedResult(sourceMessage: string): void {
   state.viewerStatus = { kind: "idle", message: "载入 Avatar 后即可预览生成动作" };
 }
 
-function applyStateRevision(payload: StateRevision): void {
+function applyStateRevision(payload: StateRevision, authorityEpoch: number): void {
+  const authorityWasFresh = state.vireaHomeAuthorityFresh;
   const nextHome = payload.virea_home;
+  const normalizedNextHome = nextHome.trim();
+  const homeChanged = state.vireaHome.trim() !== normalizedNextHome;
   if (state.vireaHome && nextHome && state.vireaHome !== nextHome) {
     clearPersistedResult("数据根已经切换；等待当前数据根中的真实生成结果");
+    persistPendingSubmissionAttempt(null);
+    lastRevision = null;
+    stateRevisionKey = "";
+  }
+  if (homeChanged) {
+    stateAuthorityReconciliationHome = normalizedNextHome;
+    stateAuthorityReconciliationEpoch = authorityEpoch;
+  } else if (stateAuthorityReconciliationHome === normalizedNextHome) {
+    stateAuthorityReconciliationEpoch = authorityEpoch;
+  }
+  if (!normalizedNextHome) {
+    stateAuthorityReconciliationHome = "";
+    stateAuthorityReconciliationEpoch = 0;
   }
   state.vireaHome = nextHome;
+  state.vireaHomeAuthorityFresh = Boolean(normalizedNextHome)
+    && !stateAuthorityReconciliationHome;
   state.lastSyncedAt = payload.observed_at;
+  if (authorityWasFresh !== state.vireaHomeAuthorityFresh) renderLiveRegions();
+  else updateVireaHomeIndicator();
+}
+
+interface StateAuthorityObservation {
+  payload: StateRevision | null;
+  current: boolean;
+  epoch: number;
+}
+
+interface PendingRevisionObservation {
+  payload: StateRevision;
+  authorityEpoch: number;
+}
+
+async function requestAuthoritativeStateRevision(): Promise<StateAuthorityObservation> {
+  const requestEpoch = ++stateAuthorityRequestEpoch;
+  try {
+    const payload = await api.stateRevision();
+    const current = requestEpoch === stateAuthorityRequestEpoch;
+    if (current) {
+      stateAuthorityLastSuccessfulEpoch = requestEpoch;
+      applyStateRevision(payload, requestEpoch);
+    }
+    return { payload, current, epoch: requestEpoch };
+  } catch (error) {
+    if (requestEpoch !== stateAuthorityRequestEpoch) {
+      // A newer stream/HTTP observation already superseded this request. Its
+      // late failure cannot invalidate the newer authority or mark it offline.
+      return { payload: null, current: false, epoch: requestEpoch };
+    }
+    stateAuthorityLastFailureEpoch = requestEpoch;
+    invalidateVireaHomeAuthority();
+    throw error;
+  }
 }
 
 function revisionKey(payload: StateRevision): string {
   return JSON.stringify({ virea_home: payload.virea_home, revision: payload.revision });
+}
+
+function updateVireaHomeIndicator(): void {
+  const indicator = document.querySelector<HTMLElement>("#data-root-indicator");
+  if (!indicator) return;
+  const fresh = hasFreshVireaHomeAuthority();
+  indicator.classList.toggle("stale", !fresh);
+  indicator.title = fresh
+    ? `当前服务 VIREA_HOME：${state.vireaHome}`
+    : state.vireaHome
+      ? `上次确认的 VIREA_HOME：${state.vireaHome}；正在等待服务重新确认`
+      : "正在读取当前服务的 VIREA_HOME";
+  const label = indicator.querySelector("span");
+  if (label) label.textContent = fresh ? "VIREA_HOME" : "VIREA_HOME · 待确认";
+  const path = indicator.querySelector("code");
+  if (path) path.textContent = state.vireaHome || "读取中…";
+}
+
+function changedRevisionKeys(
+  previous: StateRevision["revision"] | null,
+  next: StateRevision["revision"],
+): Set<keyof StateRevision["revision"]> {
+  const keys = new Set<keyof StateRevision["revision"]>();
+  for (const key of Object.keys(next) as Array<keyof StateRevision["revision"]>) {
+    if (previous == null || previous[key] !== next[key]) keys.add(key);
+  }
+  return keys;
 }
 
 function updateSyncBadge(): void {
@@ -981,35 +1609,128 @@ function updateSyncBadge(): void {
   node.className = `sync-pill ${state.syncStatus}`;
   const label = node.querySelector("span");
   if (label) label.textContent = syncLabel();
-  node.title = state.lastSyncedAt
+  const healthyTitle = state.lastSyncedAt
     ? `CLI 与 Web 使用 ${state.vireaHome || "当前"} 的同一持久状态 · 最近同步 ${new Date(state.lastSyncedAt).toLocaleTimeString()}`
     : "CLI 与 Web 使用同一持久状态";
+  node.title = syncFailureMessage
+    ? `${syncFailureMessage}；保留未应用的状态版本并自动退避重试。可检查服务日志或刷新页面。`
+    : healthyTitle;
 }
 
-async function synchronizePersistentState(): Promise<void> {
-  if (syncInFlight) {
-    syncQueued = true;
-    return syncInFlight;
+function markSynchronizationHealthy(): void {
+  if (syncRetryTimer != null) window.clearTimeout(syncRetryTimer);
+  syncRetryTimer = null;
+  syncFailureCount = 0;
+  syncRetryDelayMs = 0;
+  syncFailureMessage = "";
+  state.syncStatus = stateSocket?.readyState === WebSocket.OPEN ? "live" : "polling";
+  updateSyncBadge();
+}
+
+async function synchronizePersistentState(
+  requestedKeys: ReadonlySet<keyof StateRevision["revision"]> | null = null,
+): Promise<void> {
+  const keys = requestedKeys ?? new Set<keyof StateRevision["revision"]>([
+    "models", "installations", "jobs", "results", "workers",
+  ]);
+  const reloadModels = keys.has("models") || keys.has("installations");
+  const reloadJobs = keys.has("jobs");
+  const previousResultId = state.lastResult?.result_id ?? "";
+  const [models, jobs] = await Promise.all([
+    reloadModels ? api.models() : Promise.resolve(null),
+    reloadJobs ? api.jobs() : Promise.resolve(null),
+  ]);
+  if (models) state.models = models;
+  if (jobs) {
+    state.jobs = jobs;
+    reconcilePendingSubmission(jobs);
   }
+  ensureSelectedModel();
+  ensureSelectedExecutionDomain();
+  const active = reconcileActiveJob();
+  if (keys.has("results") && !(await hydrateLatestSuccessfulResult())) {
+    throw new Error("最新结果尚未完成不可变发布，等待下一次状态核对");
+  }
+  reconcileActiveJob();
+  state.lastSyncedAt = new Date().toISOString();
+  const resultChanged = previousResultId !== (state.lastResult?.result_id ?? "");
+  if (reloadModels || resultChanged) render();
+  else renderLiveRegions();
+  if (active) void resumePersistedActiveJob(active);
+}
+
+function synchronizeRevision(payload: StateRevision, authorityEpoch: number): Promise<void> {
+  pendingRevisionPayload = { payload, authorityEpoch };
+  if (syncInFlight) return syncInFlight;
+  if (syncRetryTimer != null) window.clearTimeout(syncRetryTimer);
+  syncRetryTimer = null;
+  let failedTarget: PendingRevisionObservation | null = null;
   syncInFlight = (async () => {
-    const [modelsResult, jobsResult] = await Promise.allSettled([api.models(), api.jobs()]);
-    if (modelsResult.status === "fulfilled") state.models = modelsResult.value;
-    if (jobsResult.status === "fulfilled") state.jobs = jobsResult.value;
-    if (state.activeJob) {
-      const refreshed = visibleJobs().find((job) => job.id === state.activeJob?.id);
-      if (refreshed) state.activeJob = refreshed;
+    while (pendingRevisionPayload) {
+      const targetObservation = pendingRevisionPayload;
+      pendingRevisionPayload = null;
+      const target = targetObservation.payload;
+      const targetRequiresRootReconciliation = Boolean(
+        stateAuthorityReconciliationHome
+        && stateAuthorityReconciliationHome === target.virea_home.trim(),
+      );
+      const changed = targetRequiresRootReconciliation
+        ? new Set<keyof StateRevision["revision"]>([
+          "models", "installations", "jobs", "results", "workers",
+        ])
+        : changedRevisionKeys(lastRevision, target.revision);
+      if (!changed.size) {
+        stateRevisionKey = revisionKey(target);
+        continue;
+      }
+      try {
+        await synchronizePersistentState(changed);
+      } catch (error) {
+        failedTarget = targetObservation;
+        throw error;
+      }
+      const applied = lastRevision ? { ...lastRevision } : { ...target.revision };
+      changed.forEach((key) => { applied[key] = target.revision[key]; });
+      lastRevision = applied;
+      stateRevisionKey = revisionKey(target);
+      if (
+        stateAuthorityReconciliationHome
+        && stateAuthorityReconciliationHome === target.virea_home.trim()
+        && state.vireaHome.trim() === target.virea_home.trim()
+      ) {
+        const reconciliationIsCurrent = stateAuthorityReconciliationEpoch
+          === targetObservation.authorityEpoch
+          && targetObservation.authorityEpoch === stateAuthorityRequestEpoch
+          && targetObservation.authorityEpoch === stateAuthorityLastSuccessfulEpoch
+          && stateAuthorityLastFailureEpoch < targetObservation.authorityEpoch;
+        if (reconciliationIsCurrent) {
+          stateAuthorityReconciliationHome = "";
+          stateAuthorityReconciliationEpoch = 0;
+          state.vireaHomeAuthorityFresh = true;
+          renderLiveRegions();
+        }
+      }
     }
-    ensureSelectedModel();
-    ensureSelectedExecutionDomain();
-    await hydrateLatestSuccessfulResult();
-    state.lastSyncedAt = new Date().toISOString();
-    render();
-  })().finally(() => {
+    // An older collection refresh can finish after a newer /state failure.
+    // It must not overwrite that authority failure with a healthy sync badge.
+    if (hasFreshVireaHomeAuthority()) markSynchronizationHealthy();
+    else updateSyncBadge();
+  })().catch((error) => {
+    if (!pendingRevisionPayload && failedTarget) pendingRevisionPayload = failedTarget;
+    syncFailureCount += 1;
+    syncRetryDelayMs = Math.min(1_000 * (2 ** Math.min(syncFailureCount - 1, 5)), 30_000);
+    syncFailureMessage = `持久状态同步失败：${errorMessage(error)}`;
+    state.syncStatus = "degraded";
+    updateSyncBadge();
+    syncRetryTimer = window.setTimeout(() => {
+      syncRetryTimer = null;
+      const retry = pendingRevisionPayload;
+      if (retry && !syncInFlight) {
+        void synchronizeRevision(retry.payload, retry.authorityEpoch);
+      }
+    }, syncRetryDelayMs);
+  }).finally(() => {
     syncInFlight = null;
-    if (syncQueued) {
-      syncQueued = false;
-      void synchronizePersistentState();
-    }
   });
   return syncInFlight;
 }
@@ -1026,17 +1747,18 @@ function connectStateStream(): void {
   socket.addEventListener("open", () => {
     if (stateSocket !== socket) return;
     stateStreamRetryAt = 0;
-    state.syncStatus = "live";
+    state.syncStatus = syncFailureMessage ? "degraded" : "live";
     updateSyncBadge();
   });
   socket.addEventListener("message", (event) => {
     try {
       const payload = JSON.parse(String(event.data)) as StateRevision;
       const key = revisionKey(payload);
-      applyStateRevision(payload);
-      if (key !== stateRevisionKey) {
-        stateRevisionKey = key;
-        void synchronizePersistentState();
+      const authorityEpoch = ++stateAuthorityRequestEpoch;
+      stateAuthorityLastSuccessfulEpoch = authorityEpoch;
+      applyStateRevision(payload, authorityEpoch);
+      if (key !== stateRevisionKey || stateAuthorityReconciliationHome) {
+        void synchronizeRevision(payload, authorityEpoch);
       } else {
         updateSyncBadge();
       }
@@ -1048,28 +1770,27 @@ function connectStateStream(): void {
     if (stateSocket !== socket) return;
     stateSocket = null;
     stateStreamRetryAt = Date.now() + 30_000;
-    state.syncStatus = "polling";
+    state.syncStatus = syncFailureMessage ? "degraded" : "polling";
     updateSyncBadge();
   });
   socket.addEventListener("error", () => socket.close());
 }
 
 async function pollStateRevision(): Promise<void> {
-  if (stateSocket?.readyState === WebSocket.OPEN) {
-    updateSyncBadge();
-    return;
-  }
   try {
-    const payload = await api.stateRevision();
+    const observation = await requestAuthoritativeStateRevision();
+    if (!observation.current || !observation.payload) return;
+    const payload = observation.payload;
     const key = revisionKey(payload);
-    applyStateRevision(payload);
-    if (key !== stateRevisionKey) {
-      stateRevisionKey = key;
-      await synchronizePersistentState();
+    if (key !== stateRevisionKey || stateAuthorityReconciliationHome) {
+      await synchronizeRevision(payload, observation.epoch);
+    } else if (!pendingRevisionPayload && !syncInFlight) {
+      markSynchronizationHealthy();
     }
     if (!stateSocket && payload.events_url && Date.now() >= stateStreamRetryAt) connectStateStream();
     else updateSyncBadge();
   } catch {
+    syncFailureMessage = "无法读取服务状态；正在等待 API 恢复";
     state.syncStatus = "offline";
     updateSyncBadge();
   }
@@ -1078,21 +1799,21 @@ async function pollStateRevision(): Promise<void> {
 async function bootstrap(): Promise<void> {
   const [healthResult, stateResult, domainResult, modelResult, jobResult] = await Promise.allSettled([
     api.health(),
-    api.stateRevision(),
+    requestAuthoritativeStateRevision(),
     api.executionDomains(),
     api.models(),
     api.jobs(),
   ]);
   if (healthResult.status === "fulfilled") state.health = healthResult.value;
-  if (stateResult.status === "fulfilled") {
-    applyStateRevision(stateResult.value);
-    stateRevisionKey = revisionKey(stateResult.value);
-  }
   if (domainResult.status === "fulfilled") state.executionDomains = domainResult.value;
   if (modelResult.status === "fulfilled") state.models = modelResult.value;
-  if (jobResult.status === "fulfilled") state.jobs = jobResult.value;
+  if (jobResult.status === "fulfilled") {
+    state.jobs = jobResult.value;
+    reconcilePendingSubmission(jobResult.value);
+  }
   ensureSelectedModel();
   ensureSelectedExecutionDomain();
+  reconcileActiveJob();
   const failure = [healthResult, stateResult, domainResult, modelResult, jobResult].find((item) => item.status === "rejected");
   if (failure?.status === "rejected") state.error = errorMessage(failure.reason);
   const persistedJobId = new URLSearchParams(window.location.search).get("job");
@@ -1106,7 +1827,16 @@ async function bootstrap(): Promise<void> {
   } else {
     await hydrateLatestSuccessfulResult();
   }
+  const active = reconcileActiveJob();
+  // Parallel bootstrap payloads are only an immediate visual snapshot. Never
+  // mark the independently fetched /state revision as applied: /models or
+  // /jobs may have been read just before that revision. The post-render state
+  // poll observes a checkpoint and, with lastRevision=null, reconciles every
+  // collection from requests that begin after the checkpoint.
+  lastRevision = null;
+  stateRevisionKey = "";
   render();
+  if (active) void resumePersistedActiveJob(active);
   void pollStateRevision();
 }
 
@@ -1114,15 +1844,30 @@ window.setInterval(() => void pollStateRevision(), STATE_POLL_INTERVAL_MS);
 window.addEventListener("focus", () => void pollStateRevision());
 window.addEventListener("online", () => void pollStateRevision());
 document.addEventListener("visibilitychange", () => {
+  setViewerActivity();
   if (document.visibilityState === "visible") void pollStateRevision();
 });
-window.addEventListener("pagehide", () => {
+window.addEventListener("pagehide", (event: PageTransitionEvent) => {
   stateSocket?.close();
   stateSocket = null;
+  jobSocket?.close();
+  jobSocket = null;
+  if (event.persisted) {
+    viewerRuntime?.setActive(false);
+    sourceViewerRuntime?.setActive(false);
+    return;
+  }
   sourceViewerRuntime?.dispose();
   sourceViewerRuntime = null;
+  sourceViewerCanvas = null;
   viewerRuntime?.dispose();
   viewerRuntime = null;
+  viewerCanvas = null;
+});
+window.addEventListener("pageshow", (event: PageTransitionEvent) => {
+  if (!event.persisted) return;
+  setViewerActivity();
+  void pollStateRevision();
 });
 void bootstrap();
 

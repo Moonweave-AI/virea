@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from virea_api.capabilities import model_capability
 from virea_api.service import (
-    REAL_ADAPTER_FAMILIES,
     ControlPlane,
     ExecutionTargetResolutionError,
     validate_inference_timeout,
@@ -54,6 +54,7 @@ def _summary(manifest) -> dict[str, Any]:
         "adapter": manifest.model.adapter_family,
         "runtime_variants": [runtime.id for runtime in manifest.runtime_variants],
         "requires_acceptance": manifest.licenses.requires_acceptance,
+        "capability": model_capability(manifest),
     }
 
 
@@ -71,9 +72,7 @@ def _installation_failure_next_action(acceptance: object) -> str:
     """Return one actionable retry instruction without exposing raw evidence."""
 
     error_code = (
-        str(acceptance.get("error_code") or "")
-        if isinstance(acceptance, dict)
-        else ""
+        str(acceptance.get("error_code") or "") if isinstance(acceptance, dict) else ""
     )
     if error_code in {"INSUFFICIENT_MEMORY", "WORKER_OOM"}:
         repair = (
@@ -256,13 +255,12 @@ def _install(args) -> int:
     if not args.apply:
         emit(plan)
         return 0
-    if (
-        not manifest.runtime_variants
-        or manifest.model.adapter_family not in REAL_ADAPTER_FAMILIES
-    ):
+    capability = model_capability(manifest)
+    if not capability["installable"]:
         plan["error"] = (
             "model is cataloged but has no real end-to-end acceptance runner"
         )
+        plan["reasons"] = capability["reasons"]
         emit(plan)
         return 2
 
@@ -556,7 +554,15 @@ def run(args) -> int:
             _emit(rows)
         else:
             for row in rows:
-                print(f"{row['id']:<30} {row['status']:<24} {','.join(row['tasks'])}")
+                boundary = (
+                    "VIREA-integrated"
+                    if row["capability"]["virea_integrated"]
+                    else "upstream-only"
+                )
+                print(
+                    f"{row['id']:<30} {boundary:<18} "
+                    f"{row['status']:<24} {','.join(row['tasks'])}"
+                )
         return 0
     if args.model_command == "info":
         manifest = catalog.get(args.model_id)

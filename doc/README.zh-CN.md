@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
 canonical: doc/README.zh-CN.md
@@ -159,6 +159,8 @@ flowchart LR
 | [PRISM 模型页](models/prism.zh-CN.md) | PRISM 技术部署、资产与发行边界 |
 | [PRISM 官方接入审计](research/prism-official-integration-audit-2026-08-21.zh-CN.md) | 固定上游、补齐资产和真实部署证据 |
 | [ACMDM 官方接入审计](research/acmdm-official-integration-audit-2026-08-21.zh-CN.md) | 官方 checkpoint 与 adapter/Worker 合同 |
+| [响应式 Studio 与统一目录 Engineering Brief](engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md) | 快速持久提交、事件流、Viewer island、统一模型能力与回滚边界 |
+| [响应式 Web/CLI 设计研究](research/responsive-studio-cli-design-2026-08-25.zh-CN.md) | RFC、Web 性能、Three.js、Rich 与领先开发工具的一手资料依据 |
 
 ## 文档维护
 

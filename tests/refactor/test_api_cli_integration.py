@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import http.client
 import importlib
 import json
@@ -20,8 +21,11 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.routing import WebSocketRoute
 from virea_api import create_app
+from virea_api.capabilities import model_capability
 from virea_api.routes import jobs_router, system_router
+from virea_api.routes.jobs import job_events
 from virea_api.service import ControlPlane, _vrma_export_filename
+from virea_cli.commands import wizard
 from virea_cli.main import (
     _requires_explicit_virea_home,
     build_parser,
@@ -29,7 +33,7 @@ from virea_cli.main import (
 from virea_cli.main import (
     main as cli_main,
 )
-from virea_contracts import JobRequest, ManagedApiLifecycle
+from virea_contracts import JobRequest, ManagedApiLifecycle, ModelSupportStatus
 from virea_contracts.execution import ExecutionTargetSelection
 from virea_contracts.installation import InstallationState
 from virea_contracts.vrm import VrmMotionResult
@@ -58,6 +62,87 @@ def _wait_for_terminal_job(
             return job
         time.sleep(0.05)
     pytest.fail(f"job {job_id} did not reach a terminal state within {timeout:g}s")
+
+
+class _JobEventStoreStub:
+    def __init__(self, *, events: list[dict], state: str) -> None:
+        self.events = events
+        self.state = state
+        self.event_reads = 0
+        self.job_reads = 0
+
+    def job_events(self, job_id: str) -> list[dict]:
+        assert job_id == "job-websocket"
+        self.event_reads += 1
+        return list(self.events)
+
+    def get_job(self, job_id: str) -> dict:
+        assert job_id == "job-websocket"
+        self.job_reads += 1
+        return {"id": job_id, "state": self.state}
+
+
+class _JobEventWebSocketStub:
+    def __init__(self, store: _JobEventStoreStub, *, disconnect: bool) -> None:
+        control = type("ControlStub", (), {"store": store})()
+        state = type("StateStub", (), {"control_plane": control})()
+        self.app = type("AppStub", (), {"state": state})()
+        self.disconnect = disconnect
+        self.accepted = False
+        self.sent: list[dict] = []
+        self.close_codes: list[int] = []
+        self.receive_calls = 0
+
+    async def accept(self) -> None:
+        self.accepted = True
+
+    async def send_json(self, payload: dict) -> None:
+        self.sent.append(payload)
+
+    async def close(self, *, code: int) -> None:
+        self.close_codes.append(code)
+
+    async def receive(self) -> dict:
+        self.receive_calls += 1
+        if self.disconnect:
+            return {"type": "websocket.disconnect", "code": 1000}
+        raise AssertionError(
+            "terminal jobs must close without waiting for client input"
+        )
+
+
+def test_job_event_websocket_observes_idle_disconnect_without_repolling() -> None:
+    store = _JobEventStoreStub(events=[], state="RUNNING")
+    websocket = _JobEventWebSocketStub(store, disconnect=True)
+
+    asyncio.run(asyncio.wait_for(job_events(websocket, "job-websocket"), timeout=0.25))
+
+    assert websocket.accepted is True
+    assert websocket.receive_calls == 1
+    assert websocket.close_codes == []
+    assert store.event_reads == 1
+    assert store.job_reads == 1
+
+
+@pytest.mark.parametrize("terminal_state", sorted(TERMINAL_STATES))
+def test_job_event_websocket_sends_last_events_then_closes_terminal_job(
+    terminal_state: str,
+) -> None:
+    events = [
+        {"sequence": 0, "state": "QUEUED"},
+        {"sequence": 1, "state": terminal_state},
+    ]
+    store = _JobEventStoreStub(events=events, state=terminal_state)
+    websocket = _JobEventWebSocketStub(store, disconnect=False)
+
+    asyncio.run(job_events(websocket, "job-websocket"))
+
+    assert websocket.accepted is True
+    assert websocket.sent == events
+    assert websocket.close_codes == [1000]
+    assert websocket.receive_calls == 0
+    assert store.event_reads == 1
+    assert store.job_reads == 1
 
 
 def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
@@ -413,6 +498,43 @@ def test_job_api_exposes_and_enforces_the_inference_timeout_budget(tmp_path) -> 
         assert accepted.json()["error_code"] == "UNKNOWN_MODEL"
 
 
+def test_job_api_rejects_idempotency_key_reuse_for_a_different_request(
+    tmp_path,
+) -> None:
+    app = create_app(
+        virea_home=tmp_path / "virea-home",
+        plugin_root=PLUGIN_ROOT,
+        include_legacy_preview=False,
+    )
+    payload = {
+        "model_id": "not-in-catalog",
+        "task": "text_to_motion",
+        "input": {"prompt": "walk"},
+        "idempotency_key": "stable-click-identity",
+    }
+    with TestClient(app) as client:
+        first = client.post("/api/v1/jobs", json=payload)
+        assert first.status_code == 202
+        duplicate = client.post("/api/v1/jobs", json=payload)
+        assert duplicate.status_code == 202
+        assert duplicate.json()["id"] == first.json()["id"]
+
+        conflict = client.post(
+            "/api/v1/jobs",
+            json={**payload, "input": {"prompt": "jump"}},
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["detail"] == {
+            "code": "IDEMPOTENCY_KEY_CONFLICT",
+            "idempotency_key": "stable-click-identity",
+            "message": (
+                "idempotency key 'stable-click-identity' is already bound "
+                "to a different JobRequest"
+            ),
+        }
+        assert len(client.get("/api/v1/jobs").json()) == 1
+
+
 def test_web_mount_serves_app_scoped_entrypoint_and_asset(
     tmp_path, monkeypatch
 ) -> None:
@@ -507,14 +629,25 @@ def test_state_revision_detects_jobs_written_through_shared_store(tmp_path) -> N
         assert current["revision"] == changed["revision"]
 
 
-def test_production_http_hides_and_rejects_test_only_models(tmp_path) -> None:
+def test_production_http_hides_and_rejects_test_only_models(
+    tmp_path, monkeypatch
+) -> None:
     app = create_app(
         virea_home=tmp_path / "virea-home",
         plugin_root=PLUGIN_ROOT,
         include_legacy_preview=False,
     )
     with TestClient(app) as client:
-        models = client.get("/api/v1/models")
+
+        def reject_full_verification(_: str) -> dict:
+            raise AssertionError("catalog rendering must not hash model assets")
+
+        monkeypatch.setattr(
+            app.state.control_plane.model_pool,
+            "verify_latest",
+            reject_full_verification,
+        )
+        models = client.get("/api/v1/models?verification_scope=metadata")
         assert models.status_code == 200
         catalog = models.json()
         assert "fake-motion-v1" not in {item["model"]["id"] for item in catalog}
@@ -526,6 +659,27 @@ def test_production_http_hides_and_rejects_test_only_models(tmp_path) -> None:
         assert flood["result_target"] == {
             "representation_id": "virea.canonical211.v3",
             "skeleton_id": "vrm1.humanoid52.v1",
+        }
+        assert flood["capability"] == {
+            "cataloged": True,
+            "upstream_runnable": True,
+            "virea_integrated": True,
+            "installable": True,
+            "reasons": [],
+        }
+        assert flood["installation"]["verification_scope"] == "metadata"
+        assert flood["installation"]["integrity_verified"] is False
+        dart = next(item for item in catalog if item["model"]["id"] == "dart-smplx")
+        assert dart["capability"] == {
+            "cataloged": True,
+            "upstream_runnable": True,
+            "virea_integrated": False,
+            "installable": False,
+            "reasons": [
+                "VIREA_ADAPTER_NOT_INTEGRATED",
+                "VIREA_RUNTIME_NOT_INTEGRATED",
+                "VIREA_ACCEPTANCE_NOT_DECLARED",
+            ],
         }
         assert client.get("/api/v1/models/fake-motion-v1").status_code == 404
 
@@ -568,6 +722,116 @@ def test_production_http_hides_and_rejects_test_only_models(tmp_path) -> None:
         assert rejected["error_code"] == "UNKNOWN_MODEL"
         assert client.get(f"/api/v1/jobs/{rejected['id']}/result").status_code == 404
 
+        upstream_response = client.post(
+            "/api/v1/jobs",
+            json={
+                "model_id": "hy-motion-1",
+                "task": "text_to_motion",
+                "input": {"prompt": "must fail before execution"},
+            },
+        )
+        assert upstream_response.status_code == 202
+        upstream_job = upstream_response.json()
+        assert upstream_job["state"] == "REJECTED"
+        assert upstream_job["error_code"] == "MODEL_NOT_INTEGRATED"
+        assert "VIREA_ADAPTER_NOT_INTEGRATED" in upstream_job["error_message"]
+
+
+def test_models_v1_default_preserves_full_integrity_readiness_semantics(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    app = create_app(
+        virea_home=tmp_path / "virea-home",
+        plugin_root=PLUGIN_ROOT,
+        include_legacy_preview=False,
+    )
+    verified: list[str] = []
+
+    def full_verification(model_id: str) -> dict:
+        verified.append(model_id)
+        return {
+            "model_id": model_id,
+            "installation_id": None,
+            "state": None,
+            "locator": None,
+            "installed": False,
+            "ready": False,
+            "latest_attempt": None,
+            "diagnostics": ["fixture"],
+        }
+
+    def forbidden_metadata(_model_id: str) -> dict:
+        raise AssertionError("the compatible v1 default must run full verification")
+
+    with TestClient(app) as client:
+        monkeypatch.setattr(
+            app.state.control_plane.model_pool,
+            "verify_latest",
+            full_verification,
+        )
+        monkeypatch.setattr(
+            app.state.control_plane.model_pool,
+            "installation_summary",
+            forbidden_metadata,
+        )
+        response = client.get("/api/v1/models")
+
+    assert response.status_code == 200
+    catalog = response.json()
+    assert len(verified) == len(catalog) == 14
+    assert all(
+        item["installation"]["verification_scope"] == "full_integrity"
+        and item["installation"]["integrity_verified"] is False
+        for item in catalog
+    )
+
+
+def test_api_and_cli_share_the_same_integrated_catalog_boundary() -> None:
+    """The API capability field is authoritative for Web and must match CLI."""
+
+    manifests = wizard._model_manifests()
+    api_integrated = {
+        manifest.model.id
+        for manifest in manifests
+        if model_capability(manifest)["virea_integrated"]
+    }
+    cli_integrated = {
+        manifest.model.id
+        for manifest in manifests
+        if wizard._is_virea_integrated(manifest)
+    }
+
+    assert len(manifests) == 14
+    assert api_integrated == cli_integrated
+    assert len(api_integrated) == 6
+    assert len(manifests) - len(api_integrated) == 8
+
+    integrated = next(
+        manifest for manifest in manifests if manifest.model.id in api_integrated
+    )
+    unsupported_adapter = integrated.model_copy(
+        update={
+            "model": integrated.model.model_copy(
+                update={"adapter_family": "future-adapter-without-runner"}
+            )
+        }
+    )
+    unsupported_capability = model_capability(unsupported_adapter)
+    assert unsupported_capability["virea_integrated"] is False
+    assert unsupported_capability["reasons"] == ["VIREA_ADAPTER_NOT_INTEGRATED"]
+
+    blocked = integrated.model_copy(
+        update={
+            "model": integrated.model.model_copy(
+                update={"status": ModelSupportStatus.BLOCKED}
+            )
+        }
+    )
+    blocked_capability = model_capability(blocked)
+    assert blocked_capability["virea_integrated"] is False
+    assert blocked_capability["reasons"] == ["UPSTREAM_BLOCKED"]
+
 
 def test_model_catalog_rejects_unverified_legacy_ready_after_restart(
     tmp_path,
@@ -607,7 +871,7 @@ def test_model_catalog_rejects_unverified_legacy_ready_after_restart(
             include_legacy_preview=False,
         )
         with TestClient(app) as client:
-            response = client.get("/api/v1/models")
+            response = client.get("/api/v1/models?verification_scope=metadata")
             assert response.status_code == 200
             flood = next(
                 item
@@ -619,13 +883,17 @@ def test_model_catalog_rejects_unverified_legacy_ready_after_restart(
                 "state": "FAILED",
                 "installed": False,
                 "ready": False,
+                "verification_scope": "metadata",
+                "integrity_verified": False,
                 "locator": "tmp/failed-retry",
                 "latest_attempt": {
                     "installation_id": "install-failed-retry",
                     "state": "FAILED",
                 },
             }
-            detail = client.get("/api/v1/models/flood-diffusion-tiny")
+            detail = client.get(
+                "/api/v1/models/flood-diffusion-tiny?verification_scope=metadata"
+            )
             assert detail.status_code == 200
             assert detail.json()["installation"] == flood["installation"]
 
@@ -660,7 +928,10 @@ def test_api_refuses_apply_for_catalog_only_model_without_creating_installation(
             json={"model_id": "hy-motion-1", "apply": True},
         )
         assert response.status_code == 409, response.text
-        assert "no integrated VIREA runtime" in response.json()["detail"]
+        assert response.json()["detail"] == (
+            "model is cataloged but has no integrated VIREA runtime and "
+            "real end-to-end acceptance runner"
+        )
         assert app.state.control_plane.store.installation_transactions() == []
 
 

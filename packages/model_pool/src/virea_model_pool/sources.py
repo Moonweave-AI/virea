@@ -147,8 +147,7 @@ def _snapshot_progress_class(
                 previous = self._virea_description
                 completed = str(desc or "")
                 if (
-                    previous == "Downloading bytes"
-                    and completed == "Download complete"
+                    previous == "Downloading bytes" and completed == "Download complete"
                 ) or (
                     previous.startswith("Reconstructing")
                     and completed == "Reconstruction complete"

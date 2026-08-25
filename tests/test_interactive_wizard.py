@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from rich.console import Console
+from virea_cli import presentation
 from virea_cli.commands import generate, wizard
 from virea_cli.main import main
-from virea_cli.presentation import TerminalUI
+from virea_cli.presentation import SelectionRow, TerminalUI, compact_diagnostic
 from virea_cli.wizard_state import (
     installed_target,
     load_preferences,
@@ -87,6 +92,376 @@ def test_saved_choice_is_visible_and_enter_reuses_it() -> None:
     assert any("beta  [saved / 已保存]" in message for message in messages)
 
 
+def test_catalog_keeps_all_models_visible_but_only_integrated_models_actionable() -> (
+    None
+):
+    """Catalog research entries must not be promoted into deployable choices."""
+
+    manifests = wizard._model_manifests()
+    by_id = {manifest.model.id: manifest for manifest in manifests}
+    integrated = {
+        model_id
+        for model_id, manifest in by_id.items()
+        if wizard._is_virea_integrated(manifest)
+    }
+
+    assert len(by_id) == 14
+    assert integrated == {
+        "acmdm-humanml3d",
+        "cmdm-humanml3d",
+        "flood-diffusion-tiny",
+        "mardm-humanml3d",
+        "momadiff-humanml3d",
+        "prism-tp2m-1-4b",
+    }
+    assert "VIREA Runtime" in wizard._model_blocker(by_id["dart-smplx"])
+    assert wizard._model_blocker(by_id["acmdm-humanml3d"]) is None
+
+
+def test_upstream_only_choice_is_explained_and_rejected_before_deployment() -> None:
+    """Selecting a catalog-only model cannot leak into execution-target resolution."""
+
+    manifests = wizard._model_manifests()
+    upstream_index = next(
+        index
+        for index, manifest in enumerate(manifests, start=1)
+        if manifest.model.id == "dart-smplx"
+    )
+    integrated_index = next(
+        index
+        for index, manifest in enumerate(manifests, start=1)
+        if manifest.model.id == "acmdm-humanml3d"
+    )
+    answers = iter([str(upstream_index), str(integrated_index)])
+    messages: list[str] = []
+
+    selected = wizard._choice(
+        lambda _prompt: next(answers),
+        messages.append,
+        title="Models",
+        items=manifests,
+        label=lambda item: item.model.id,
+        disabled_reason=wizard._model_blocker,
+    )
+
+    assert selected.model.id == "acmdm-humanml3d"
+    rendered = "\n".join(messages)
+    assert "dart-smplx" in rendered
+    assert "unavailable / 不可用" in rendered
+    assert "cannot enter deployment" in rendered
+
+
+def test_tty_selection_table_groups_semantic_model_states() -> None:
+    """The live terminal receives a compact table instead of dense label strings."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=120,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+    ui = TerminalUI(console=console)
+
+    rendered = ui.selection_table(
+        "Choose a model / 选择模型",
+        [
+            SelectionRow(
+                index=1,
+                title="ACMDM",
+                identifier="acmdm-humanml3d",
+                state="Persisted READY / 持久 READY",
+                state_kind="ready",
+                details="text_to_motion",
+                group="Persisted READY · reverify on run / 持久 READY · 执行前复验",
+                reason=(
+                    "Metadata matched; full byte verification before Worker / "
+                    "元数据匹配；Worker 前完整复验字节"
+                ),
+                saved=True,
+            ),
+            SelectionRow(
+                index=2,
+                title="DART",
+                identifier="dart-smplx",
+                state="Upstream only / 仅上游",
+                state_kind="warning",
+                details="streaming_text_to_motion",
+                group="Catalog · upstream only / 目录 · 仅上游",
+                enabled=False,
+                reason="No VIREA Runtime / 尚无 VIREA Runtime",
+            ),
+        ],
+    )
+
+    output = stream.getvalue()
+    normalized = " ".join(output.split())
+    assert rendered is True
+    assert "Persisted READY · reverify on run / 持久 READY" in normalized
+    assert "Catalog · upstream only / 目录 · 仅上游" in normalized
+    assert "acmdm-humanml3d" in normalized and "dart-smplx" in normalized
+    assert "No VIREA Runtime / 尚无 VIREA" in normalized
+
+
+@pytest.mark.parametrize("width", [40, 60])
+def test_tty_selection_table_stacks_choices_in_narrow_terminals(width: int) -> None:
+    """Narrow terminals keep one bounded line per fact instead of folding columns."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=width,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+    ui = TerminalUI(console=console)
+    rows = [
+        SelectionRow(
+            index=1,
+            title="ACMDM HumanML3D",
+            identifier="acmdm-humanml3d",
+            state="Persisted READY / 持久 READY",
+            state_kind="ready",
+            details="text_to_motion",
+            group="Persisted READY · reverify on run / 持久 READY · 执行前复验",
+            reason="Metadata matched; reverify on run / 元数据匹配；执行前复验",
+            saved=True,
+        ),
+        SelectionRow(
+            index=2,
+            title="DART SMPL-X",
+            identifier="dart-smplx",
+            state="Upstream only / 仅上游",
+            state_kind="warning",
+            details="streaming_text_to_motion",
+            group="Catalog · upstream only / 目录 · 仅上游",
+            enabled=False,
+            reason="No VIREA Runtime / 尚无 VIREA Runtime",
+        ),
+    ]
+
+    assert ui.selection_table("Choose a model / 选择模型", rows) is True
+    output = stream.getvalue()
+    lines = [line for line in output.splitlines() if line]
+    assert "State / 状态" not in output
+    assert "acmdm-humanml3d" in output
+    assert "dart-smplx" in output
+    assert "READY / 持久就绪" in output
+    assert "UPSTREAM / 仅上游" in output
+    assert len(lines) <= 12
+
+
+def test_plain_terminal_output_survives_legacy_ascii_redirection(
+    monkeypatch,
+) -> None:
+    """A non-TTY Windows-style legacy stream must never crash on bilingual text."""
+
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="ascii", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stream)
+    ui = TerminalUI()
+
+    ui.banner()
+    ui.step(1, 7, "System / 系统", "Choose an environment / 选择环境")
+    stream.flush()
+    rendered = buffer.getvalue().decode("ascii")
+
+    assert "VIREA" in rendered
+    assert "\\u4ea4" in rendered
+
+
+def test_progress_reporter_context_stops_live_region_after_exception() -> None:
+    """Unexpected command errors cannot leak Rich's refresh thread or cursor state."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=100,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+    reporter = TerminalUI(console=console).reporter("Failing operation / 失败操作")
+
+    with pytest.raises(RuntimeError, match="fixture failure"):
+        with reporter:
+            reporter.progress("1/3", "Starting / 开始")
+            assert reporter._progress is not None
+            raise RuntimeError("fixture failure")
+
+    assert reporter._progress is None
+    assert reporter._task_id is None
+
+
+def test_tty_key_values_preserve_windows_paths_with_markup_characters() -> None:
+    """A legal data-root component in brackets must render literally."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=100,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+
+    TerminalUI(console=console).key_values(
+        "Restored session / 已恢复的会话",
+        [("Data / 数据", r"E:\AI Projects\[models]\home")],
+    )
+
+    assert r"E:\AI Projects\[models]\home" in stream.getvalue()
+
+
+def test_default_prompt_survives_legacy_ascii_redirection(monkeypatch) -> None:
+    """Default interactive input sanitizes its bilingual prompt before reading."""
+
+    buffer = io.BytesIO()
+    stdout = io.TextIOWrapper(buffer, encoding="ascii", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("y\n"))
+
+    assert (
+        wizard._confirm(
+            wizard._safe_input,
+            lambda _message: None,
+            "Use this environment / 使用这个环境",
+            default=False,
+        )
+        is True
+    )
+    stdout.flush()
+    assert "\\u4f7f" in buffer.getvalue().decode("ascii")
+
+
+def test_tty_transfer_progress_uses_real_totals_and_indeterminate_unknowns() -> None:
+    """A live bar is byte-based only when the transport supplied a total."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=100,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+    reporter = TerminalUI(console=console).reporter("Model installation")
+    try:
+        reporter.transfer(
+            SimpleNamespace(
+                artifact_id="checkpoint",
+                completed_bytes=25,
+                total_bytes=100,
+                bytes_per_second=10,
+                done=False,
+            )
+        )
+        assert reporter._progress is not None
+        known = reporter._progress.tasks[0]
+        assert known.completed == 25
+        assert known.total == 100
+        assert known.fields["transfer"] is True
+
+        reporter.transfer(
+            SimpleNamespace(
+                artifact_id="checkpoint",
+                completed_bytes=100,
+                total_bytes=100,
+                bytes_per_second=10,
+                done=True,
+            )
+        )
+        assert reporter._progress.tasks[0].finished is True
+
+        reporter.transfer(
+            SimpleNamespace(
+                artifact_id="checkpoint-unknown",
+                completed_bytes=64,
+                total_bytes=None,
+                bytes_per_second=8,
+                done=False,
+            )
+        )
+        unknown = reporter._progress.tasks[0]
+        assert unknown.completed == 64
+        assert unknown.total is None
+        assert unknown.finished is False
+        reporter.result(
+            {
+                "installation_id": "installation-transfer-test",
+                "model_id": "example-model",
+                "state": "READY",
+            }
+        )
+        assert reporter._progress is None
+        assert reporter._task_id is None
+    finally:
+        reporter.close(success=False)
+
+
+def test_tty_transfer_progress_serializes_parallel_download_callbacks() -> None:
+    """Concurrent Hub callbacks own one Live region and one current Rich task."""
+
+    stream = io.StringIO()
+    console = Console(
+        file=stream,
+        force_terminal=True,
+        color_system=None,
+        width=100,
+        theme=presentation._THEME,
+        _environ={"TERM": "xterm-256color"},
+    )
+    reporter = TerminalUI(console=console).reporter("Parallel download")
+    barrier = threading.Barrier(8)
+    original_stdout = sys.stdout
+
+    def publish(worker: int) -> None:
+        barrier.wait(timeout=5.0)
+        for step in range(12):
+            reporter.transfer(
+                SimpleNamespace(
+                    artifact_id=f"asset-{(worker + step) % 4}",
+                    phase="reconstruction" if step % 3 == 0 else "download",
+                    completed_bytes=step + 1,
+                    total_bytes=None if step % 2 else 12,
+                    bytes_per_second=100,
+                    done=step == 11,
+                )
+            )
+
+    try:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = [executor.submit(publish, worker) for worker in range(8)]
+            for future in futures:
+                future.result(timeout=10.0)
+        assert reporter._progress is not None
+        assert len(reporter._progress.tasks) == 1
+    finally:
+        reporter.close(success=False)
+
+    assert reporter._progress is None
+    assert reporter._task_id is None
+    assert sys.stdout is original_stdout
+
+
+def test_worker_stderr_summary_is_bounded_and_points_to_logs() -> None:
+    """A native crash cannot flood the interactive surface with full stderr."""
+
+    huge = "WORKER_START_ERROR\n[stderr]\n" + ("native loader frame\n" * 500)
+    rendered = compact_diagnostic(huge)
+
+    assert len(rendered) < 600
+    assert rendered.startswith("WORKER_START_ERROR | [stderr]")
+    assert "truncated; see logs / 已截断，请查看日志" in rendered
+
+
 def test_preferences_survive_a_new_process_and_recover_installed_target(
     tmp_path,
 ) -> None:
@@ -129,10 +504,13 @@ def test_preferences_survive_a_new_process_and_recover_installed_target(
             }
 
     pool = SimpleNamespace(store=Store())
-    assert installed_target(
-        pool,
-        {"ready": True, "installation_id": "installation-1"},
-    ) == target
+    assert (
+        installed_target(
+            pool,
+            {"ready": True, "installation_id": "installation-1"},
+        )
+        == target
+    )
 
 
 def test_interactive_reporter_replaces_raw_json_with_compact_summary() -> None:
@@ -295,6 +673,28 @@ def test_existing_failed_installation_shows_cause_and_cache_reuse() -> None:
     assert rows["Cause / 原因"] == "CUDA out of memory"
     assert rows["Failed stages / 失败阶段"] == "model_load, inference"
     assert "不会重新下载" in rows["Retry / 重试"]
+
+
+def test_persisted_ready_summary_does_not_claim_fresh_integrity_verification() -> None:
+    """Catalog metadata and byte-integrity verification remain distinct facts."""
+
+    rows = dict(
+        wizard._deployment_rows(
+            {
+                "ready": True,
+                "installed": True,
+                "state": "READY",
+                "installation_id": "installation-ready",
+                "verification_scope": "metadata",
+                "integrity_verified": False,
+            },
+            None,
+        )
+    )
+
+    assert "Persisted READY" in rows["Deployment / 部署"]
+    assert "full byte verification before Worker" in rows["Catalog check / 目录校验"]
+    assert "scope undeclared" in wizard._deployment_label({"ready": True})
 
 
 def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:

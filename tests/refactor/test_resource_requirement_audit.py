@@ -51,7 +51,9 @@ def test_integrated_model_requirements_match_the_reviewed_baseline() -> None:
 
     assert set(integrated) == set(AUDITED_REQUIREMENTS)
     for model_id, expected_runtimes in AUDITED_REQUIREMENTS.items():
-        runtimes = {runtime.id: runtime for runtime in integrated[model_id].runtime_variants}
+        runtimes = {
+            runtime.id: runtime for runtime in integrated[model_id].runtime_variants
+        }
         assert set(runtimes) == set(expected_runtimes)
         for runtime_id, (strategy, ram_gib, vram_gib) in expected_runtimes.items():
             (profile,) = runtimes[runtime_id].resource_profiles

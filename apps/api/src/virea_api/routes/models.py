@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from virea_contracts import InstallationState
 from virea_contracts.execution import ExecutionTargetSelection
 from virea_motion_ir import CANONICAL211_PROFILE, CANONICAL211_SCHEMA
 
+from ..capabilities import model_capability
 from ..dependencies import control_plane
 from ..service import (
-    REAL_ADAPTER_FAMILIES,
     ControlPlane,
     ExecutionTargetResolutionError,
 )
@@ -99,13 +99,32 @@ def _reject_non_manifest_acceptance_request(request: InstallRequest, manifest) -
         )
 
 
-def _catalog_payload(manifest, control: ControlPlane) -> dict[str, Any]:
+def _capability_payload(manifest) -> dict[str, Any]:
+    """Backward-compatible internal alias for existing route-level tests."""
+
+    return model_capability(manifest)
+
+
+def _catalog_payload(
+    manifest,
+    control: ControlPlane,
+    *,
+    verification_scope: Literal["full_integrity", "metadata"] = "full_integrity",
+) -> dict[str, Any]:
     payload = manifest.model_dump(mode="json")
+    payload["capability"] = model_capability(manifest)
     payload["result_target"] = {
         "representation_id": CANONICAL211_SCHEMA,
         "skeleton_id": CANONICAL211_PROFILE,
     }
-    report = control.model_pool.verify_latest(manifest.model.id)
+    # The v1 default preserves the original full-verification semantics for
+    # existing clients. High-frequency first-party presentation explicitly opts
+    # into the metadata scope; explicit verify and execution remain fail-closed.
+    report = (
+        control.model_pool.installation_summary(manifest.model.id)
+        if verification_scope == "metadata"
+        else control.model_pool.verify_latest(manifest.model.id)
+    )
     latest_attempt = report.get("latest_attempt")
     installation_target = None
     installation_id = report.get("installation_id")
@@ -121,6 +140,13 @@ def _catalog_payload(manifest, control: ControlPlane) -> dict[str, Any]:
         "state": report.get("state"),
         "installed": bool(report.get("installed")),
         "ready": bool(report.get("ready")),
+        "verification_scope": report.get("verification_scope", verification_scope),
+        "integrity_verified": bool(
+            report.get(
+                "integrity_verified",
+                verification_scope == "full_integrity" and report.get("ready"),
+            )
+        ),
         "locator": report.get("locator"),
         "latest_attempt": (
             {
@@ -153,9 +179,22 @@ def _pinned_target_from_compatibility(
 
 
 @router.get("")
-def models(control: ControlPlane = Depends(control_plane)) -> list[dict[str, Any]]:
+def models(
+    verification_scope: Literal["full_integrity", "metadata"] = Query(
+        default="full_integrity",
+        description=(
+            "full_integrity preserves the v1 verified READY contract; metadata "
+            "returns persisted readiness for responsive presentation"
+        ),
+    ),
+    control: ControlPlane = Depends(control_plane),
+) -> list[dict[str, Any]]:
     return [
-        _catalog_payload(manifest, control)
+        _catalog_payload(
+            manifest,
+            control,
+            verification_scope=verification_scope,
+        )
         for manifest in control.catalog.manifests()
         if control.allow_test_models
         or manifest.model.adapter_family != "fake-root-translation"
@@ -164,7 +203,11 @@ def models(control: ControlPlane = Depends(control_plane)) -> list[dict[str, Any
 
 @router.get("/{model_id}")
 def model(
-    model_id: str, control: ControlPlane = Depends(control_plane)
+    model_id: str,
+    verification_scope: Literal["full_integrity", "metadata"] = Query(
+        default="full_integrity"
+    ),
+    control: ControlPlane = Depends(control_plane),
 ) -> dict[str, Any]:
     try:
         manifest = control.catalog.get(model_id)
@@ -173,7 +216,11 @@ def model(
             and not control.allow_test_models
         ):
             raise KeyError(model_id)
-        return _catalog_payload(manifest, control)
+        return _catalog_payload(
+            manifest,
+            control,
+            verification_scope=verification_scope,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -201,10 +248,8 @@ def install(
         and not control.allow_test_models
     ):
         raise HTTPException(status_code=404, detail="model not found")
-    if request.apply and (
-        not manifest.runtime_variants
-        or manifest.model.adapter_family not in REAL_ADAPTER_FAMILIES
-    ):
+    capability = model_capability(manifest)
+    if request.apply and not capability["installable"]:
         raise HTTPException(
             status_code=409,
             detail=(

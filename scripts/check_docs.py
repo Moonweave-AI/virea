@@ -82,6 +82,8 @@ BILINGUAL_DOCUMENT_PAIRS = {
     "doc/models/README.en.md": "doc/models/README.zh-CN.md",
     "doc/models/prism.en.md": "doc/models/prism.zh-CN.md",
     "doc/research/runtime-resource-requirements-audit-2026-08-23.en.md": "doc/research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md",
+    "doc/research/responsive-studio-cli-design-2026-08-25.en.md": "doc/research/responsive-studio-cli-design-2026-08-25.zh-CN.md",
+    "doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md": "doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md",
     "doc/development/documentation.en.md": "doc/development/documentation.zh-CN.md",
     "doc/operations/troubleshooting.en.md": "doc/operations/troubleshooting.zh-CN.md",
     "doc/operations/runtime-data-and-retention.en.md": "doc/operations/runtime-data-and-retention.zh-CN.md",

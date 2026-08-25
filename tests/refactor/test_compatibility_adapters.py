@@ -609,9 +609,7 @@ def test_prism_public_axis_angle69_preserves_native_and_uses_absolute_translatio
     assert output.metadata["translation_decode"] == "absolute_xyz_no_integration"
     assert output.source_snapshot is not None
     assert output.source_snapshot.positions.shape == (frame_count, 22, 3)
-    assert output.source_snapshot.metadata["source_profile"] == (
-        "prism_smplh_body22"
-    )
+    assert output.source_snapshot.metadata["source_profile"] == ("prism_smplh_body22")
 
 
 def test_prism_public_axis_angle69_rejects_wrong_width_clock_and_nonfinite() -> None:

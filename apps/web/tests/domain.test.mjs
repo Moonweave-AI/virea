@@ -4,17 +4,28 @@ import assert from "node:assert/strict";
 import {
   artifactBasename,
   artifactUrl,
-  createGenerationPayload,
+  createGenerationPayload as createGenerationPayloadWithKey,
   createInstallPayload,
   firstVrmaExport,
   generationDefaults,
   isInstalledReady,
+  isInstallationIntegrityDeferred,
+  isVireaIntegratedModel,
+  installationReadinessLabel,
+  modelCapabilityLabel,
   modelMotionRoute,
   productionCatalogJobs,
   productionCatalogModels,
   realRunnableModels,
   resultMotionRoute,
+  vireaIntegratedModels,
 } from "../src/domain.ts";
+
+const IDEMPOTENCY_KEY = "web-test-generation-01";
+
+function createGenerationPayload(...args) {
+  return createGenerationPayloadWithKey(...args, IDEMPOTENCY_KEY);
+}
 
 const windowsTarget = {
   schema_version: "virea.execution_target_selection.v1.0.0",
@@ -24,7 +35,7 @@ const windowsTarget = {
 };
 
 function acceptanceRequestWithTarget(request) {
-  return { ...request, execution_target: windowsTarget };
+  return { ...request, idempotency_key: IDEMPOTENCY_KEY, execution_target: windowsTarget };
 }
 
 function productionAcceptance(modelId) {
@@ -137,6 +148,26 @@ test("production catalog keeps an official blocked model visible without making 
   assert.deepEqual(realRunnableModels([blocked]), []);
 });
 
+test("catalog capability keeps upstream-only entries visible without claiming integration", () => {
+  const integrated = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
+  const upstreamOnly = manifest({ id: "hy-motion-1", runtimes: [], acceptance: null });
+  upstreamOnly.model.status = "runnable_upstream";
+
+  assert.equal(isVireaIntegratedModel(integrated), true);
+  assert.equal(isVireaIntegratedModel(upstreamOnly), false);
+  assert.deepEqual(vireaIntegratedModels([upstreamOnly, integrated]), [integrated]);
+  assert.match(modelCapabilityLabel(upstreamOnly), /Upstream only/);
+
+  integrated.capability = {
+    cataloged: true,
+    upstream_runnable: true,
+    virea_integrated: false,
+    installable: false,
+    reasons: ["VIREA_ADAPTER_NOT_INTEGRATED"],
+  };
+  assert.equal(isVireaIntegratedModel(integrated), false, "API capability is authoritative");
+});
+
 test("production activity excludes fake and unknown jobs even when they succeeded", () => {
   const real = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
   const fake = manifest({ id: "fake-motion-v1", adapter: "fake-root-translation", runtimes: ["fake-runtime"] });
@@ -157,6 +188,24 @@ test("explicit installation state takes precedence over runtime availability", (
   );
 });
 
+test("metadata-only READY is labeled as persisted state, not fresh integrity proof", () => {
+  const ready = manifest({ id: "ready", runtimes: ["runtime"], installState: "READY" });
+  ready.installation = {
+    state: "READY",
+    ready: true,
+    verification_scope: "metadata",
+    integrity_verified: false,
+  };
+
+  assert.equal(isInstalledReady(ready), true);
+  assert.equal(isInstallationIntegrityDeferred(ready), true);
+  assert.match(installationReadinessLabel(ready), /Persisted READY/);
+
+  ready.installation.integrity_verified = true;
+  assert.equal(isInstallationIntegrityDeferred(ready), false);
+  assert.match(installationReadinessLabel(ready), /integrity verified/);
+});
+
 test("generation payload carries the selected model, prompt, seconds, and seed", () => {
   const selected = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
   assert.deepEqual(createGenerationPayload(selected, "  Walk forward. ", 2.5, 17, windowsTarget), {
@@ -166,7 +215,7 @@ test("generation payload carries the selected model, prompt, seconds, and seed",
     input: { prompt: "Walk forward." },
     parameters: { seconds: 2.5, seed: 17, fps: 20 },
     avatar_id: null,
-    idempotency_key: null,
+    idempotency_key: IDEMPOTENCY_KEY,
     execution_target: windowsTarget,
   });
 });

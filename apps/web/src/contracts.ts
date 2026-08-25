@@ -109,7 +109,7 @@ export interface WebGenerationJobRequest extends JobRequest {
   input: Record<string, unknown> & { prompt: string };
   parameters: Record<string, unknown>;
   avatar_id: null;
-  idempotency_key: null;
+  idempotency_key: string;
 }
 
 export interface ProductionE2EAcceptance {
@@ -243,12 +243,23 @@ export interface ModelManifest {
     requires_acceptance: boolean;
   };
   production_acceptance: ProductionE2EAcceptance | null;
+  capability?: {
+    cataloged: boolean;
+    upstream_runnable: boolean;
+    virea_integrated: boolean;
+    installable: boolean;
+    reasons: string[];
+  };
   installation_state?: string | null;
   installation?: {
     installation_id?: string | null;
     state?: string | null;
     installed?: boolean;
     ready?: boolean;
+    /** Scope performed by this catalog response, not historical acceptance. */
+    verification_scope?: "metadata" | "full_integrity" | string;
+    /** True only when this response performed a complete asset-integrity pass. */
+    integrity_verified?: boolean;
     execution_target?: {
       requested: ExecutionTargetSelection;
       resolved: ResolvedExecutionTarget;
@@ -258,6 +269,7 @@ export interface ModelManifest {
       state?: string | null;
     } | null;
   } | null;
+  test_only?: boolean;
 }
 
 export interface JobRecord {
@@ -270,6 +282,7 @@ export interface JobRecord {
   result_id?: string;
   created_at?: string;
   updated_at?: string;
+  idempotency_key?: string | null;
   events?: Array<{
     sequence: number;
     state: string;

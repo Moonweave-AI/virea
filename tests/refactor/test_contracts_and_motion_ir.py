@@ -153,6 +153,17 @@ def test_pydantic_contracts_accept_a_complete_cross_process_envelope() -> None:
         request.task = "motion_to_motion"  # type: ignore[misc]
 
 
+@pytest.mark.parametrize("value", ["", "   ", "x" * 129])
+def test_job_request_rejects_invalid_idempotency_keys(value: str) -> None:
+    with pytest.raises(ValidationError):
+        JobRequest(
+            model_id="example-model",
+            task="text_to_motion",
+            input={"text": "walk"},
+            idempotency_key=value,
+        )
+
+
 def test_public_model_support_status_requires_production_e2e_contract() -> None:
     definition = {
         "id": "real-model",

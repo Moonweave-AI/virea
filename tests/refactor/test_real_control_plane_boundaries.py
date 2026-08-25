@@ -50,6 +50,51 @@ def test_worker_environment_exposes_all_installed_artifact_roots(tmp_path) -> No
         control.close()
 
 
+def test_verified_installation_roots_are_reused_without_a_second_hash_pass(
+    tmp_path, monkeypatch
+) -> None:
+    paths = VireaPaths(tmp_path / "home")
+    control = ControlPlane(paths=paths, plugin_root=PLUGIN_ROOT)
+    manifest = control.catalog.get("flood-diffusion-tiny")
+    snapshot = paths.model_store / "snapshots" / "verified-installation"
+    for source in manifest.artifacts:
+        (snapshot / "artifacts" / source.id).mkdir(parents=True)
+    calls = 0
+
+    def verified_report(model_id: str, *, cancel_event=None) -> dict:
+        nonlocal calls
+        calls += 1
+        assert model_id == manifest.model.id
+        assert cancel_event is None
+        return {
+            "model_id": model_id,
+            "installation_id": "verified-installation",
+            "state": "READY",
+            "locator": paths.relative_locator(snapshot),
+            "installed": True,
+            "ready": True,
+            "diagnostics": [],
+        }
+
+    monkeypatch.setattr(control.model_pool, "verify_latest", verified_report)
+    try:
+        verified = control._verify_installed_model(manifest.model.id)
+        environment = control._worker_environment(
+            job_id="job-verified",
+            model_id=manifest.model.id,
+            adapter_family=manifest.model.adapter_family,
+            artifact_roots=verified.artifact_roots,
+        )
+
+        assert calls == 1
+        assert json.loads(environment["VIREA_ARTIFACT_ROOTS_JSON"]) == {
+            source.id: str((snapshot / "artifacts" / source.id).resolve())
+            for source in manifest.artifacts
+        }
+    finally:
+        control.close()
+
+
 def _result(job_id: str, artifact: ArtifactRef, *, frames: int = 2) -> ModelResult:
     return ModelResult(
         job_id=job_id,
