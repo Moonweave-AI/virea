@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 import subprocess
@@ -7,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import virea_runtime.process_identity as process_identity
 import virea_runtime.supervisor as supervisor_module
 from virea_api.service import ControlPlane
 from virea_contracts.job import JobRequest
@@ -46,6 +48,17 @@ def _identity_entrypoint() -> tuple[str, ...]:
         "--runtime-id",
         "{runtime_id}",
     )
+
+
+def test_procfs_process_disappearance_during_read_returns_not_running(
+    monkeypatch,
+) -> None:
+    def vanished_process(_path, *args, **kwargs):
+        raise ProcessLookupError(errno.ESRCH, "No such process")
+
+    monkeypatch.setattr(Path, "read_text", vanished_process)
+
+    assert process_identity._inspect_procfs_process(424242) is None
 
 
 def test_verified_real_subprocess_is_persisted_recovered_and_reaped(tmp_path) -> None:

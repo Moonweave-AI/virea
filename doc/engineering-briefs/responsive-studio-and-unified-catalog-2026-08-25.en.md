@@ -133,8 +133,8 @@ replace `#app`, and inactive viewers must have zero frame growth.
 
 Implementation evidence collected on 2026-08-25:
 
-- Python repository suite on Windows: `699 passed, 34 skipped`.
-- Linux/WSL CI contract scope: `497 passed, 17 skipped`.
+- Python repository suite on Windows: `714 passed, 34 skipped`.
+- Linux/WSL CI contract scope: `510 passed, 17 skipped`.
 - Web unit/browser/viewer suite: `68 passed`; the production Vite build completed successfully.
 - Ruff lint and repository format checks passed.
 - The GitHub Actions workflow passed `actionlint`; its runtime and data homes resolve outside the source checkout.

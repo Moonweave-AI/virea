@@ -6,7 +6,7 @@ import mimetypes
 import os
 import re
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -132,10 +132,36 @@ def _public_http_error(exc: Exception, status_code: int = 400) -> HTTPException:
     return HTTPException(status_code=status_code, detail=detail)
 
 
+_WINDOWS_ABSOLUTE_PATH = re.compile(r"^[A-Za-z]:[\\\\/]")
+
+
+def _absolute_path_flavour(
+    value: str | Path,
+) -> Literal["native", "windows", "posix"] | None:
+    """Recognize local absolute paths independently of the server host OS."""
+    text = os.fspath(value)
+    if Path(text).is_absolute():
+        return "native"
+    if _WINDOWS_ABSOLUTE_PATH.match(text) or text.startswith("\\\\"):
+        return "windows"
+    if text.startswith("/"):
+        return "posix"
+    return None
+
+
 def _public_path(value: str | Path, registry: DatasetRegistry) -> str:
-    path = Path(value)
-    if not path.is_absolute():
+    text = os.fspath(value)
+    flavour = _absolute_path_flavour(value)
+    path = Path(text)
+    if flavour is None:
         return path.as_posix()
+    if flavour != "native":
+        name = (
+            PureWindowsPath(text).name
+            if flavour == "windows"
+            else PurePosixPath(text).name
+        )
+        return f"<redacted-local-path>/{name or 'path'}"
     try:
         resolved = path.resolve()
     except OSError:
@@ -164,7 +190,7 @@ def _public_payload(value, registry: DatasetRegistry):
         return [_public_payload(item, registry) for item in value]
     if isinstance(value, Path):
         return _public_path(value, registry)
-    if isinstance(value, str) and Path(value).is_absolute():
+    if isinstance(value, str) and _absolute_path_flavour(value) is not None:
         return _public_path(value, registry)
     return value
 

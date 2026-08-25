@@ -77,12 +77,16 @@ def test_preview_default_preserves_full_clip_and_absolute_path_redaction(
             "source_path": raw_root / "amass" / "clip.npz",
             "artifact": (processed_root / "canonical" / "clip.npz").as_posix(),
             "outside": Path("C:/Users/example/private/model.vrm"),
+            "windows_string": r"C:\Users\example\private\motion.vrma",
+            "windows_unc": r"\\render-host\private\preview.glb",
         },
         fake_registry,
     )
     assert public["source_path"] == "raw/amass/clip.npz"
     assert public["artifact"] == "processed/canonical/clip.npz"
     assert public["outside"] == "<redacted-local-path>/model.vrm"
+    assert public["windows_string"] == "<redacted-local-path>/motion.vrma"
+    assert public["windows_unc"] == "<redacted-local-path>/preview.glb"
 
     error = server_app._public_http_error(
         FileNotFoundError("C:/Users/example/private/raw/humanml3d/missing.parquet"),
