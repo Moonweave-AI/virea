@@ -47,6 +47,13 @@ test("inactive, hidden, and context-lost viewers cancel rather than spin their R
   }
 });
 
+test("motion clocks reject negative or non-finite RAF deltas before advancing animation", () => {
+  for (const source of [vrmViewer, sourceViewer]) {
+    assert.match(source, /Number\.isFinite\(measuredDelta\)/);
+    assert.match(source, /Math\.max\(0, Math\.min\(measuredDelta, 0\.1\)\)/);
+  }
+});
+
 test("VRM asynchronous loads are single-flight, epoch guarded, and mixers are uncached", () => {
   assert.match(vrmViewer, /url === this\.avatarLoadUrl && this\.avatarLoadPromise/);
   assert.match(vrmViewer, /url === this\.animationLoadUrl && this\.animationLoadPromise/);

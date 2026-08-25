@@ -11,6 +11,7 @@ from virea_contracts.execution import ExecutionDomainKind
 from virea_contracts.machine import ExecutionDomainReport
 
 _ENVIRONMENT_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_WINDOWS_DRIVE_ABSOLUTE_PATH = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def is_host_routed_wsl(domain: ExecutionDomainReport | None) -> bool:
@@ -71,15 +72,23 @@ def map_host_path_to_domain(
         unc_path = _same_distribution_unc_path(domain, raw_path)
         if unc_path is not None:
             return unc_path
-    host_path = Path(raw_path).expanduser().resolve(strict=False)
-    if not is_host_routed_wsl(domain):
+        # Tests and remote controllers may construct the WSL command on a
+        # non-Windows host.  A Windows drive path is already absolute in the
+        # source domain; resolving it with POSIX pathlib would incorrectly
+        # prefix the current checkout (for example ``/repo/D:/jobs``).
+        if _WINDOWS_DRIVE_ABSOLUTE_PATH.match(raw_path):
+            wslpath_input = raw_path.replace("\\", "/")
+        else:
+            host_path = Path(raw_path).expanduser().resolve(strict=False)
+            wslpath_input = str(host_path).replace("\\", "/")
+    else:
+        host_path = Path(raw_path).expanduser().resolve(strict=False)
         return str(host_path)
     assert domain is not None
     # ``wsl.exe`` parses the Windows command line before invoking the Linux
     # program.  An unquoted ``C:\\path\\...`` argv can therefore reach
     # ``wslpath`` as ``C:path...``.  Forward slashes preserve the Windows
     # drive path across that boundary and are accepted by wslpath.
-    wslpath_input = str(host_path).replace("\\", "/")
     command = wrap_domain_command(domain, ("wslpath", "-a", wslpath_input))
     try:
         completed = subprocess.run(

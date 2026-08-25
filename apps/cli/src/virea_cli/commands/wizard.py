@@ -21,6 +21,7 @@ from ..presentation import (
     SelectionRow,
     TerminalUI,
     compact_diagnostic,
+    stream_safe_text,
     target_label,
 )
 from ..wizard_state import (
@@ -42,15 +43,7 @@ class WizardCancelled(Exception):
 def _safe_input(prompt: str = "") -> str:
     """Prompt safely when a legacy Windows stream cannot encode Chinese."""
 
-    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
-    try:
-        safe_prompt = prompt.encode(
-            encoding,
-            errors="backslashreplace",
-        ).decode(encoding)
-    except LookupError:
-        safe_prompt = prompt.encode("ascii", errors="backslashreplace").decode("ascii")
-    sys.stdout.write(safe_prompt)
+    sys.stdout.write(stream_safe_text(prompt, sys.stdout))
     sys.stdout.flush()
     return input()
 

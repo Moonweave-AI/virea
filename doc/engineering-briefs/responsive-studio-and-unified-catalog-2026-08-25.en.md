@@ -133,9 +133,11 @@ replace `#app`, and inactive viewers must have zero frame growth.
 
 Implementation evidence collected on 2026-08-25:
 
-- Python repository suite: `697 passed, 34 skipped`.
-- Web unit/browser/viewer suite: `67 passed`; the production Vite build completed successfully.
+- Python repository suite on Windows: `714 passed, 34 skipped`.
+- Linux/WSL CI contract scope: `510 passed, 17 skipped`.
+- Web unit/browser/viewer suite: `68 passed`; the production Vite build completed successfully.
 - Ruff lint and repository format checks passed.
+- The GitHub Actions workflow passed `actionlint`; its runtime and data homes resolve outside the source checkout.
 - Generated-document drift and bilingual documentation checks passed (`141` Markdown files).
 
 No database or artifact migration is required. Rollback is the prior frontend bundle and control-plane code; persisted

@@ -190,12 +190,29 @@ def test_submit_returns_before_full_installation_verification(
 
     monkeypatch.setattr(control.model_pool, "verify_latest", slow_failed_verification)
     try:
+        machine_snapshot = control._detect_runtime_machine(
+            control.catalog.get("fake-motion-v1")
+        )
+        execution_target = ExecutionTargetSelection(
+            execution_domain_id=machine_snapshot.host_execution_domain,
+            runtime_variant_id="fake-runtime-v1",
+            resource_profile_id="cpu-serial",
+        )
+        # This contract isolates queue acknowledgement from full model hashing.
+        # Real multi-domain detection has its own tests and may legitimately
+        # invoke WSL; pin one already-observed snapshot so host probe latency
+        # cannot consume this background-scheduling deadline.
+        monkeypatch.setattr(
+            control,
+            "_detect_runtime_machine",
+            lambda _manifest, *, cancel_event=None: machine_snapshot,
+        )
         request = JobRequest(
             model_id="fake-motion-v1",
             task="text_to_motion",
             input={"prompt": "return the durable queue identity immediately"},
             idempotency_key="fast-submit-1",
-            execution_target=_execution_target(control),
+            execution_target=execution_target,
         )
         started = time.monotonic()
         job = control._submit(request, inference_timeout=120.0)
@@ -244,13 +261,26 @@ def test_cancel_interrupts_full_verification_before_runtime_or_worker_start(
     monkeypatch.setattr(control.model_pool, "verify_latest", cancellable_verification)
     monkeypatch.setattr(control, "_prepare_runtime_for_worker", forbidden_runtime)
     try:
+        machine_snapshot = control._detect_runtime_machine(
+            control.catalog.get("fake-motion-v1")
+        )
+        execution_target = ExecutionTargetSelection(
+            execution_domain_id=machine_snapshot.host_execution_domain,
+            runtime_variant_id="fake-runtime-v1",
+            resource_profile_id="cpu-serial",
+        )
+        monkeypatch.setattr(
+            control,
+            "_detect_runtime_machine",
+            lambda _manifest, *, cancel_event=None: machine_snapshot,
+        )
         job = control._submit(
             JobRequest(
                 model_id="fake-motion-v1",
                 task="text_to_motion",
                 input={"prompt": "cancel while verifying"},
                 idempotency_key="cancel-verification-1",
-                execution_target=_execution_target(control),
+                execution_target=execution_target,
             ),
             inference_timeout=120.0,
         )

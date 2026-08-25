@@ -274,6 +274,45 @@ def test_plain_terminal_output_survives_legacy_ascii_redirection(
     assert "\\u4ea4" in rendered
 
 
+def test_plain_terminal_output_preserves_utf8_bilingual_text(monkeypatch) -> None:
+    """UTF-8 redirection keeps human-readable Chinese instead of escaping it."""
+
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="utf-8", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stream)
+    ui = TerminalUI()
+
+    ui.history(
+        home=r"E:\VIREA\home",
+        selected_model=None,
+        selected_target=None,
+        ready_count=0,
+        recent_jobs=[],
+    )
+    stream.flush()
+    rendered = buffer.getvalue().decode("utf-8")
+
+    assert "Restored session / 已恢复的会话" in rendered
+    assert "\\u5df2" not in rendered
+
+
+def test_plain_terminal_output_only_escapes_unrepresentable_characters(
+    monkeypatch,
+) -> None:
+    """A Windows legacy code page retains supported text and escapes only Chinese."""
+
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stream)
+
+    presentation._safe_stdout_output("Café / 交互")
+    stream.flush()
+    rendered = buffer.getvalue().decode("cp1252")
+
+    assert rendered.startswith("Café / ")
+    assert "\\u4ea4\\u4e92" in rendered
+
+
 def test_progress_reporter_context_stops_live_region_after_exception() -> None:
     """Unexpected command errors cannot leak Rich's refresh thread or cursor state."""
 
@@ -698,11 +737,12 @@ def test_persisted_ready_summary_does_not_claim_fresh_integrity_verification() -
 
 
 def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:
-    """Redirected cross-platform output remains complete, plain, and human-first."""
+    """UTF-8 redirected output remains complete, plain, and human-first."""
 
     environment = os.environ.copy()
     environment["VIREA_HOME"] = str(tmp_path / "home")
     environment["NO_COLOR"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
     repository = Path(__file__).resolve().parents[1]
 
     completed = subprocess.run(
@@ -710,7 +750,7 @@ def test_no_argument_process_restores_state_without_raw_json(tmp_path) -> None:
         cwd=repository,
         env=environment,
         input="y\nq\n",
-        text=True,
+        encoding="utf-8",
         capture_output=True,
         timeout=60,
         check=False,

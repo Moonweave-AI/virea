@@ -126,16 +126,24 @@ def compact_diagnostic(value: object) -> str:
     return preview
 
 
+def stream_safe_text(message: str, stream: object) -> str:
+    """Preserve text unless the destination encoding truly cannot represent it."""
+
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    try:
+        message.encode(encoding, errors="strict")
+    except UnicodeEncodeError:
+        return message.encode(encoding, errors="backslashreplace").decode(encoding)
+    except LookupError:
+        return message.encode("ascii", errors="backslashreplace").decode("ascii")
+    return message
+
+
 def _safe_stdout_output(message: str) -> None:
     """Write one plain line without crashing on a legacy redirected encoding."""
 
     stream = sys.stdout
-    encoding = getattr(stream, "encoding", None) or "utf-8"
-    try:
-        safe = message.encode(encoding, errors="backslashreplace").decode(encoding)
-    except LookupError:
-        safe = message.encode("ascii", errors="backslashreplace").decode("ascii")
-    stream.write(f"{safe}\n")
+    stream.write(f"{stream_safe_text(message, stream)}\n")
 
 
 class TerminalUI:

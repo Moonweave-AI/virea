@@ -30,6 +30,7 @@ from .execution import (
     wrap_domain_command,
 )
 from .process_identity import (
+    ProcessIdentity,
     ProcessInspectionError,
     identity_mismatches,
     inspect_process,
@@ -280,6 +281,82 @@ class WorkerSupervisor:
         self._workers: dict[str, WorkerHandle] = {}
         self._lock = threading.RLock()
 
+    def _capture_worker_identity(
+        self,
+        pid: int,
+        required_tokens: dict[str, str],
+        *,
+        require_recoverable: bool,
+        expected_creation_token: str | None = None,
+    ) -> tuple[ProcessIdentity, bool]:
+        identity = inspect_process(pid)
+        if identity is None:
+            raise ProcessInspectionError(
+                "Worker exited before its operating-system identity was captured"
+            )
+        if (
+            expected_creation_token is not None
+            and identity.creation_token != expected_creation_token
+        ):
+            raise ProcessInspectionError(
+                "Worker PID changed operating-system creation time during startup"
+            )
+        token_mismatches = identity_mismatches(
+            identity.as_dict(), identity, required_tokens
+        )
+        strong_contract = (
+            set(required_tokens) == self._IDENTITY_FLAGS and not token_mismatches
+        )
+        if require_recoverable and not strong_contract:
+            detail = token_mismatches or (
+                "recoverable Worker identity flags are incomplete",
+            )
+            raise ProcessInspectionError("; ".join(detail))
+        return identity, strong_contract
+
+    def _terminate_failed_start(self, handle: WorkerHandle, *, timeout: float) -> bool:
+        """Reap a spawned process before any best-effort persistence work."""
+
+        try:
+            _terminate_spawned_process(handle.process, timeout=timeout)
+        except Exception:
+            pass
+        # The process state after the attempt is authoritative. A helper can
+        # conservatively report False while the process exits concurrently.
+        stopped = not handle.running
+        with self._lock:
+            if stopped:
+                self._workers.pop(handle.instance_id, None)
+            else:
+                # Retain the only ownership evidence so shutdown can retry.
+                self._workers[handle.instance_id] = handle
+        if stopped:
+            handle.close_streams()
+        return stopped
+
+    def _record_failed_start(
+        self,
+        instance_id: str,
+        *,
+        stopped: bool,
+        failure: str,
+        detail: str,
+    ) -> None:
+        """Persist failure evidence without ever gating process termination."""
+
+        try:
+            self.store.update_worker_instance(
+                instance_id,
+                state="FAILED" if stopped else "RECOVERY_BLOCKED",
+                stopped_at=_utc_now() if stopped else None,
+                diagnostics={"failure": failure, "failure_detail": detail},
+            )
+        except Exception:
+            # The triggering error may itself be a StateStore failure. The
+            # original exception remains the actionable evidence returned to
+            # the caller, while process ownership is already settled above.
+            pass
+
     def start(
         self,
         *,
@@ -454,19 +531,11 @@ class WorkerSupervisor:
             _streams=(stdout_stream, stderr_stream),
         )
         try:
-            identity = inspect_process(process.pid)
-            if identity is None:
-                raise ProcessInspectionError(
-                    "Worker exited before its operating-system identity was captured"
-                )
-            token_mismatches = identity_mismatches(
-                identity.as_dict(), identity, required_tokens
+            identity, strong_contract = self._capture_worker_identity(
+                process.pid,
+                required_tokens,
+                require_recoverable=bool(job_id),
             )
-            strong_contract = (
-                set(required_tokens) == self._IDENTITY_FLAGS and not token_mismatches
-            )
-            if job_id and not strong_contract:
-                raise ProcessInspectionError("; ".join(token_mismatches))
             self.store.update_worker_instance(
                 instance_id,
                 diagnostics={
@@ -475,16 +544,12 @@ class WorkerSupervisor:
                 },
             )
         except Exception as exc:
-            stopped = _terminate_spawned_process(process, timeout=5.0)
-            handle.close_streams()
-            self.store.update_worker_instance(
+            stopped = self._terminate_failed_start(handle, timeout=5.0)
+            self._record_failed_start(
                 instance_id,
-                state="FAILED" if stopped else "RECOVERY_BLOCKED",
-                stopped_at=_utc_now() if stopped else None,
-                diagnostics={
-                    "failure": "process identity capture failed",
-                    "failure_detail": str(exc),
-                },
+                stopped=stopped,
+                failure="process identity capture failed",
+                detail=str(exc),
             )
             raise WorkerStartError(
                 f"worker process identity could not be persisted safely: {exc}",
@@ -519,7 +584,40 @@ class WorkerSupervisor:
                     f"{exit_description}: {detail}"
                 )
             if client.ready():
-                self.store.update_worker_instance(instance_id, state="RUNNING")
+                try:
+                    # macOS may expose the posix_spawn/exec transition while the
+                    # process is still STARTING.  Readiness proves the Worker has
+                    # reached its final executable, so replace the provisional
+                    # identity while requiring the original birth token to match.
+                    ready_identity, ready_strong_contract = (
+                        self._capture_worker_identity(
+                            process.pid,
+                            required_tokens,
+                            require_recoverable=bool(job_id),
+                            expected_creation_token=identity.creation_token,
+                        )
+                    )
+                    self.store.update_worker_instance(
+                        instance_id,
+                        state="RUNNING",
+                        diagnostics={
+                            "process_identity": ready_identity.as_dict(),
+                            "recovery_verifiable": ready_strong_contract,
+                        },
+                    )
+                except Exception as exc:
+                    stopped = self._terminate_failed_start(handle, timeout=5.0)
+                    self._record_failed_start(
+                        instance_id,
+                        stopped=stopped,
+                        failure="ready Worker identity capture failed",
+                        detail=str(exc),
+                    )
+                    raise WorkerStartError(
+                        "ready worker process identity could not be persisted "
+                        f"safely: {exc}",
+                        process_termination_proven=stopped,
+                    ) from exc
                 with self._lock:
                     self._workers[instance_id] = handle
                 return handle
@@ -543,39 +641,64 @@ class WorkerSupervisor:
         if current is None:
             return
         with current._stop_lock:
-            row = self.store.worker_instance(current.instance_id)
+            persistence_error: Exception | None = None
+            termination_error: Exception | None = None
             try:
+                try:
+                    row = self.store.worker_instance(current.instance_id)
+                except Exception:
+                    # A StateStore read failure must not prevent OS cleanup.
+                    row = None
                 return_code = current.process.poll()
                 requested_stop = return_code is None
                 if row is not None and row["state"] not in self._TERMINAL_STATES:
-                    self.store.update_worker_instance(
-                        current.instance_id, state="STOPPING"
-                    )
+                    try:
+                        self.store.update_worker_instance(
+                            current.instance_id, state="STOPPING"
+                        )
+                    except Exception:
+                        # The terminal write below is the authoritative record.
+                        pass
                 if return_code is None:
-                    stopped = _terminate_spawned_process(
-                        current.process, timeout=timeout
-                    )
+                    try:
+                        stopped = _terminate_spawned_process(
+                            current.process, timeout=timeout
+                        )
+                    except Exception as exc:
+                        stopped = False
+                        termination_error = exc
                     return_code = current.process.poll()
                     if not stopped:
-                        self.store.update_worker_instance(
-                            current.instance_id,
-                            state="RECOVERY_BLOCKED",
-                            diagnostics={
-                                "failure": "live Worker process could not be stopped",
-                                "return_code": return_code,
-                            },
-                        )
-                        return
-                if row is None or row["state"] not in self._TERMINAL_STATES:
+                        try:
+                            self.store.update_worker_instance(
+                                current.instance_id,
+                                state="RECOVERY_BLOCKED",
+                                diagnostics={
+                                    "failure": (
+                                        "live Worker process could not be stopped"
+                                    ),
+                                    "return_code": return_code,
+                                },
+                            )
+                        except Exception as exc:
+                            persistence_error = exc
+                else:
+                    stopped = True
+                if stopped and (
+                    row is None or row["state"] not in self._TERMINAL_STATES
+                ):
                     final_state = terminal_state or (
                         "STOPPED" if requested_stop or return_code == 0 else "FAILED"
                     )
-                    self.store.update_worker_instance(
-                        current.instance_id,
-                        state=final_state,
-                        stopped_at=_utc_now(),
-                        diagnostics={"return_code": return_code},
-                    )
+                    try:
+                        self.store.update_worker_instance(
+                            current.instance_id,
+                            state=final_state,
+                            stopped_at=_utc_now(),
+                            diagnostics={"return_code": return_code},
+                        )
+                    except Exception as exc:
+                        persistence_error = exc
             finally:
                 # A handle is ownership evidence for a live process tree.  Keep
                 # it tracked when termination could not be proven so shutdown
@@ -584,16 +707,36 @@ class WorkerSupervisor:
                     current.close_streams()
                     with self._lock:
                         self._workers.pop(current.instance_id, None)
+                else:
+                    with self._lock:
+                        self._workers[current.instance_id] = current
+            if termination_error is not None:
+                raise RuntimeError(
+                    f"Worker process-tree termination failed: {termination_error}"
+                ) from termination_error
+            if persistence_error is not None:
+                raise persistence_error
 
     def stop_all(self, *, timeout: float = 10.0) -> tuple[WorkerHandle, ...]:
         """Stop every tracked Worker and return any process still alive."""
 
         with self._lock:
             handles = tuple(self._workers.values())
+        errors: list[str] = []
         for handle in handles:
-            self.stop(handle, timeout=timeout)
+            try:
+                self.stop(handle, timeout=timeout)
+            except Exception as exc:
+                # One Worker's persistence or OS error cannot gate cleanup of
+                # any other process tree in the same shutdown snapshot.
+                errors.append(f"{handle.instance_id}: {type(exc).__name__}: {exc}")
         with self._lock:
-            return tuple(handle for handle in self._workers.values() if handle.running)
+            survivors = tuple(
+                handle for handle in self._workers.values() if handle.running
+            )
+        if errors:
+            raise RuntimeError("; ".join(errors))
+        return survivors
 
     def handles(self) -> tuple[WorkerHandle, ...]:
         with self._lock:
@@ -627,24 +770,48 @@ class WorkerSupervisor:
                 diagnostics = {}
             expected = diagnostics.get("process_identity")
             required = diagnostics.get("required_tokens")
+            required_tokens = (
+                {str(key): str(value) for key, value in required.items()}
+                if isinstance(required, dict)
+                else {}
+            )
+            evidence_failure = ""
             if not isinstance(expected, dict) or not isinstance(required, dict):
-                blocked.append(
-                    self._block_recovery(
-                        instance_id,
-                        "persisted process identity evidence is incomplete",
-                    )
-                )
-                continue
-            required_tokens = {str(key): str(value) for key, value in required.items()}
-            if set(required_tokens) != self._IDENTITY_FLAGS or any(
+                evidence_failure = "persisted process identity evidence is incomplete"
+            elif set(required_tokens) != self._IDENTITY_FLAGS or any(
                 not value for value in required_tokens.values()
             ):
-                blocked.append(
-                    self._block_recovery(
-                        instance_id,
-                        "persisted command-line identity tokens are incomplete",
-                    )
+                evidence_failure = (
+                    "persisted command-line identity tokens are incomplete"
                 )
+            if evidence_failure:
+                # A failed identity write can leave a STARTING row after the
+                # spawned process was synchronously reaped. Absence is safe to
+                # recover without identity evidence; a live or uninspectable PID
+                # remains fail-closed because it could have been reused.
+                try:
+                    current = inspect_process(pid)
+                except ProcessInspectionError as exc:
+                    blocked.append(
+                        self._block_recovery(instance_id, f"{evidence_failure}: {exc}")
+                    )
+                    continue
+                if current is None:
+                    recovered.append(
+                        self.store.update_worker_instance(
+                            instance_id,
+                            state="RECOVERED",
+                            stopped_at=_utc_now(),
+                            diagnostics={
+                                "recovery": (
+                                    "incompletely persisted Worker process had "
+                                    "already exited"
+                                )
+                            },
+                        )
+                    )
+                else:
+                    blocked.append(self._block_recovery(instance_id, evidence_failure))
                 continue
             try:
                 current = inspect_process(pid)

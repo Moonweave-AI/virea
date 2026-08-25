@@ -1,17 +1,52 @@
 from __future__ import annotations
 
 import ctypes
+import errno
 import json
 import os
 import struct
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 
 class ProcessInspectionError(RuntimeError):
     """The process exists, but its identity cannot be established safely."""
+
+
+_MACOS_INSPECTION_ATTEMPTS = 6
+_MACOS_INSPECTION_RETRY_SECONDS = 0.01
+
+
+class _DarwinProcBsdInfo(ctypes.Structure):
+    """ABI layout of Darwin's ``struct proc_bsdinfo``."""
+
+    _fields_ = [
+        ("pbi_flags", ctypes.c_uint32),
+        ("pbi_status", ctypes.c_uint32),
+        ("pbi_xstatus", ctypes.c_uint32),
+        ("pbi_pid", ctypes.c_uint32),
+        ("pbi_ppid", ctypes.c_uint32),
+        ("pbi_uid", ctypes.c_uint32),
+        ("pbi_gid", ctypes.c_uint32),
+        ("pbi_ruid", ctypes.c_uint32),
+        ("pbi_rgid", ctypes.c_uint32),
+        ("pbi_svuid", ctypes.c_uint32),
+        ("pbi_svgid", ctypes.c_uint32),
+        ("rfu_1", ctypes.c_uint32),
+        ("pbi_comm", ctypes.c_char * 16),
+        ("pbi_name", ctypes.c_char * 32),
+        ("pbi_nfiles", ctypes.c_uint32),
+        ("pbi_pgid", ctypes.c_uint32),
+        ("pbi_pjobc", ctypes.c_uint32),
+        ("e_tdev", ctypes.c_uint32),
+        ("e_tpgid", ctypes.c_uint32),
+        ("pbi_nice", ctypes.c_int32),
+        ("pbi_start_tvsec", ctypes.c_uint64),
+        ("pbi_start_tvusec", ctypes.c_uint64),
+    ]
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,59 +84,126 @@ def inspect_process(pid: int) -> ProcessIdentity | None:
 
 
 def _inspect_macos_process(pid: int) -> ProcessIdentity | None:
-    first_creation = _macos_creation_token(pid)
-    if first_creation is None:
-        return None
-    first_process = _macos_procargs(pid)
-    if first_process is None:
-        return None
-    second_creation = _macos_creation_token(pid)
-    second_process = _macos_procargs(pid)
-    if second_creation is None or second_process is None:
-        return None
-    if first_creation != second_creation or first_process != second_process:
-        return None
-    executable, argv = second_process
-    if not argv:
-        raise ProcessInspectionError(
-            f"Worker process {pid} has no readable command line"
-        )
-    return ProcessIdentity(
-        pid=pid,
-        creation_token=second_creation,
-        executable=canonical_executable(executable),
-        argv=argv,
-    )
+    baseline_creation: str | None = None
+    last_error: ProcessInspectionError | None = None
+    for attempt in range(_MACOS_INSPECTION_ATTEMPTS):
+        try:
+            first_creation = _macos_creation_token(pid)
+            if first_creation is None:
+                return None
+            if baseline_creation is None:
+                baseline_creation = first_creation
+            elif first_creation != baseline_creation:
+                # Never retry into a replacement process that reused the PID.
+                return None
+
+            first_process = _macos_procargs(pid)
+            if first_process is None:
+                return None
+            second_creation = _macos_creation_token(pid)
+            if second_creation is None or second_creation != first_creation:
+                return None
+
+            second_process = _macos_procargs(pid)
+            if second_process is None:
+                return None
+            final_creation = _macos_creation_token(pid)
+            if final_creation is None or final_creation != second_creation:
+                return None
+
+            if first_process != second_process:
+                last_error = ProcessInspectionError(
+                    f"Worker process {pid} changed command line during inspection"
+                )
+            else:
+                executable, argv = second_process
+                if not argv:
+                    raise ProcessInspectionError(
+                        f"Worker process {pid} has no readable command line"
+                    )
+                return ProcessIdentity(
+                    pid=pid,
+                    creation_token=final_creation,
+                    executable=canonical_executable(executable),
+                    argv=argv,
+                )
+        except ProcessInspectionError as exc:
+            last_error = exc
+
+        if attempt + 1 < _MACOS_INSPECTION_ATTEMPTS:
+            time.sleep(_MACOS_INSPECTION_RETRY_SECONDS * (attempt + 1))
+
+    detail = str(last_error) if last_error is not None else "unstable process state"
+    raise ProcessInspectionError(
+        f"cannot establish stable identity for Worker process {pid} after "
+        f"{_MACOS_INSPECTION_ATTEMPTS} attempts: {detail}"
+    ) from last_error
 
 
 def _macos_creation_token(pid: int) -> str | None:
+    """Read a microsecond process-birth token from Darwin's public libproc ABI."""
+
+    proc_pid_tbsdinfo = 3
     try:
-        completed = subprocess.run(
-            ("/bin/ps", "-p", str(pid), "-o", "lstart="),
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5.0,
-            shell=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+    except OSError as exc:
         raise ProcessInspectionError(
-            f"cannot query macOS creation time for Worker PID {pid}: {exc}"
+            f"cannot load macOS process inspection API for Worker PID {pid}: {exc}"
         ) from exc
-    value = " ".join(completed.stdout.split())
-    if completed.returncode != 0 or not value:
+    libproc.proc_pidinfo.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_uint64,
+        ctypes.c_void_p,
+        ctypes.c_int,
+    ]
+    libproc.proc_pidinfo.restype = ctypes.c_int
+    info = _DarwinProcBsdInfo()
+    ctypes.set_errno(0)
+    copied = libproc.proc_pidinfo(
+        pid,
+        proc_pid_tbsdinfo,
+        0,
+        ctypes.byref(info),
+        ctypes.sizeof(info),
+    )
+    error = ctypes.get_errno()
+    if copied == 0 and error == errno.ESRCH:
         return None
-    return value
+    if copied != ctypes.sizeof(info):
+        raise ProcessInspectionError(
+            f"proc_pidinfo(PROC_PIDTBSDINFO, {pid}) returned {copied} bytes "
+            f"with errno {error}"
+        )
+    return _macos_creation_token_from_info(info, pid)
+
+
+def _macos_creation_token_from_info(info: _DarwinProcBsdInfo, pid: int) -> str:
+    seconds = int(info.pbi_start_tvsec)
+    microseconds = int(info.pbi_start_tvusec)
+    if int(info.pbi_pid) != pid:
+        raise ProcessInspectionError(
+            f"proc_pidinfo returned a different PID while inspecting Worker {pid}"
+        )
+    if seconds <= 0 or not 0 <= microseconds < 1_000_000:
+        raise ProcessInspectionError(
+            f"proc_pidinfo returned an invalid creation time for Worker PID {pid}"
+        )
+    return f"{seconds}.{microseconds:06d}"
 
 
 def _macos_procargs(pid: int) -> tuple[str, tuple[str, ...]] | None:
     """Read KERN_PROCARGS2 so arguments containing spaces stay unambiguous."""
 
     ctl_kern = 1
+    kern_argmax = 8
     kern_procargs2 = 49
-    libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    try:
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    except OSError as exc:
+        raise ProcessInspectionError(
+            f"cannot load macOS sysctl API for Worker PID {pid}: {exc}"
+        ) from exc
     libc.sysctl.argtypes = [
         ctypes.POINTER(ctypes.c_int),
         ctypes.c_uint,
@@ -111,32 +213,66 @@ def _macos_procargs(pid: int) -> tuple[str, tuple[str, ...]] | None:
         ctypes.c_size_t,
     ]
     libc.sysctl.restype = ctypes.c_int
-    mib = (ctypes.c_int * 3)(ctl_kern, kern_procargs2, pid)
-    size = ctypes.c_size_t()
-    if libc.sysctl(mib, 3, None, ctypes.byref(size), None, 0) != 0:
+
+    # A per-process size preflight races exec(2): XNU intentionally permits a
+    # subsequently larger command line to be returned as a truncated success.
+    # KERN_ARGMAX provides a stable upper bound, including across that window.
+    argmax_mib = (ctypes.c_int * 2)(ctl_kern, kern_argmax)
+    argmax = ctypes.c_int()
+    argmax_size = ctypes.c_size_t(ctypes.sizeof(argmax))
+    ctypes.set_errno(0)
+    if (
+        libc.sysctl(
+            argmax_mib,
+            2,
+            ctypes.byref(argmax),
+            ctypes.byref(argmax_size),
+            None,
+            0,
+        )
+        != 0
+    ):
         error = ctypes.get_errno()
-        if error in {3}:  # ESRCH
-            return None
-        raise ProcessInspectionError(
-            f"sysctl(KERN_PROCARGS2, {pid}) size query failed with errno {error}"
-        )
-    if size.value < struct.calcsize("i") or size.value > 16 * 1024 * 1024:
-        raise ProcessInspectionError(
-            f"sysctl(KERN_PROCARGS2, {pid}) returned an invalid size"
-        )
-    buffer = ctypes.create_string_buffer(size.value)
+        raise ProcessInspectionError(f"sysctl(KERN_ARGMAX) failed with errno {error}")
+    if (
+        argmax_size.value != ctypes.sizeof(argmax)
+        or argmax.value < 4096
+        or argmax.value > 16 * 1024 * 1024
+    ):
+        raise ProcessInspectionError("sysctl(KERN_ARGMAX) returned an invalid value")
+
+    capacity = argmax.value + struct.calcsize("=i")
+    buffer = ctypes.create_string_buffer(capacity)
+    size = ctypes.c_size_t(capacity)
+    mib = (ctypes.c_int * 3)(ctl_kern, kern_procargs2, pid)
+    ctypes.set_errno(0)
     if libc.sysctl(mib, 3, buffer, ctypes.byref(size), None, 0) != 0:
         error = ctypes.get_errno()
-        if error in {3}:
+        if error == errno.ESRCH:
             return None
         raise ProcessInspectionError(
             f"sysctl(KERN_PROCARGS2, {pid}) failed with errno {error}"
         )
+    if size.value < struct.calcsize("=i") or size.value > capacity:
+        raise ProcessInspectionError(
+            f"sysctl(KERN_PROCARGS2, {pid}) returned an invalid size"
+        )
     data = buffer.raw[: size.value]
-    argc = struct.unpack_from("i", data, 0)[0]
+    return _parse_macos_procargs(data, pid)
+
+
+def _parse_macos_procargs(data: bytes, pid: int) -> tuple[str, tuple[str, ...]]:
+    """Parse ``argc + executable + padding + argv + env`` from XNU."""
+
+    integer_size = struct.calcsize("=i")
+    if len(data) < integer_size:
+        raise ProcessInspectionError(
+            f"Worker process {pid} has truncated KERN_PROCARGS2 data"
+        )
+    argc = struct.unpack_from("=i", data, 0)[0]
     if argc <= 0 or argc > 100_000:
         raise ProcessInspectionError(f"Worker process {pid} has invalid argc")
-    offset = struct.calcsize("i")
+    offset = integer_size
     try:
         executable_end = data.index(b"\0", offset)
     except ValueError as exc:
@@ -144,7 +280,11 @@ def _macos_procargs(pid: int) -> tuple[str, tuple[str, ...]] | None:
             f"Worker process {pid} has malformed KERN_PROCARGS2 data"
         ) from exc
     executable = data[offset:executable_end].decode("utf-8", errors="surrogateescape")
-    offset = executable_end
+    if not executable:
+        raise ProcessInspectionError(
+            f"Worker process {pid} has empty KERN_PROCARGS2 executable"
+        )
+    offset = executable_end + 1
     while offset < len(data) and data[offset] == 0:
         offset += 1
     argv: list[str] = []
@@ -161,6 +301,10 @@ def _macos_procargs(pid: int) -> tuple[str, tuple[str, ...]] | None:
             ) from exc
         argv.append(data[offset:end].decode("utf-8", errors="surrogateescape"))
         offset = end + 1
+    if not argv[0]:
+        raise ProcessInspectionError(
+            f"Worker process {pid} has empty KERN_PROCARGS2 argv[0]"
+        )
     return executable, tuple(argv)
 
 
@@ -226,9 +370,12 @@ def _inspect_procfs_process(pid: int) -> ProcessIdentity | None:
         executable = os.readlink(process_root / "exe")
         raw_argv = (process_root / "cmdline").read_bytes()
         second_stat = (process_root / "stat").read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return None
-    except (OSError, PermissionError) as exc:
+    except OSError as exc:
+        # A process can disappear between opening and reading any procfs node.
+        # Linux/WSL may report that race as either ENOENT or ESRCH
+        # (ProcessLookupError); both prove that this PID is no longer live.
+        if exc.errno in {errno.ENOENT, errno.ESRCH}:
+            return None
         raise ProcessInspectionError(
             f"cannot inspect Worker process {pid}: {exc}"
         ) from exc
