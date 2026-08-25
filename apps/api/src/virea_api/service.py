@@ -29,19 +29,22 @@ from virea_bootstrap import (
     select_resource_profile,
 )
 from virea_compat import (
+    AdapterConversionContext,
     AdapterOutput,
-    body22_positions_to_motion_ir,
-    humanml3d_263_denormalized_to_motion_ir,
-    mardm_ric67_to_motion_ir,
-    prism_smplh_body22_axis_angle69_to_motion_ir,
+    adapter_spec_for_family,
 )
 from virea_contracts.execution import (
     ExecutionDomainKind,
     ExecutionTargetSelection,
 )
+from virea_contracts.installation import InstallationState
 from virea_contracts.job import TERMINAL_JOB_STATES, JobRequest, JobState
 from virea_contracts.machine import ExecutionDomainReport, MachineReport
-from virea_contracts.model import ProductionArtifactKind, ProductionE2EStage
+from virea_contracts.model import (
+    ProductionArtifactKind,
+    ProductionE2EAcceptance,
+    ProductionE2EStage,
+)
 from virea_contracts.result import ArtifactRef, ModelResult
 from virea_contracts.runtime import RuntimeBackend, RuntimeSpec
 from virea_contracts.runtime_identity import (
@@ -67,7 +70,6 @@ from virea_model_pool import (
 from virea_motion_ir import (
     CANONICAL211_PROFILE,
     CANONICAL211_SCHEMA,
-    canonical211_to_motion_ir,
     save_motion_ir,
 )
 from virea_retarget import retarget_motion_ir
@@ -88,7 +90,6 @@ from virea_runtime import (
 from virea_vrm import export_vrma
 
 from virea.motion.skeleton import FK_BONES, FK_EDGES, forward_kinematics_from_sequence
-from virea.motion.snapshot import SourceSnapshot
 
 from .capabilities import REAL_ADAPTER_FAMILIES, model_capability
 from .coordination import (
@@ -104,10 +105,93 @@ WORKER_CONTROL_TIMEOUT_SECONDS = 30.0
 CANCEL_JOIN_TIMEOUT_SECONDS = 15.0
 CANCEL_WORKER_STOP_TIMEOUT_SECONDS = 5.0
 SOURCE_SKELETON_PREVIEW_SCHEMA = "virea.source_skeleton_preview.v1.0.0"
+_CROSS_DOMAIN_PATH_FIELD_TYPES = frozenset(
+    {"array_or_npy_path", "audio", "mono_pcm_audio", "mono_pcm_audio_stream"}
+)
+
+
+def _is_installation_artifact_identity(value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {"schema_version", "sha256"}:
+        return False
+    digest = value.get("sha256")
+    return (
+        value.get("schema_version")
+        == "virea.installation_artifact_identity.v1.0.0"
+        and isinstance(digest, str)
+        and len(digest) == 64
+        and all(character in "0123456789abcdef" for character in digest)
+    )
+
+
+def _domain_file_reference(
+    value: Any,
+    domain: ExecutionDomainReport,
+) -> Any:
+    if not isinstance(value, str):
+        return value
+    rendered = value.strip()
+    if not rendered:
+        return value
+    if rendered.startswith(("artifact://", "data:")):
+        return rendered
+    if rendered[:1] in {"'", '"'} or rendered[-1:] in {"'", '"'}:
+        raise ValueError("execution-domain file paths must not include outer quotes")
+    if rendered.startswith("/"):
+        if "\0" in rendered or ".." in rendered.split("/"):
+            raise ValueError("execution-domain POSIX path is unsafe")
+        return rendered
+    return map_host_path_to_domain(domain, rendered)
+
+
+def _request_for_execution_domain(
+    request: JobRequest,
+    manifest: Any,
+    domain: ExecutionDomainReport,
+) -> JobRequest:
+    """Map host-local request files into a selected WSL domain.
+
+    Job persistence and idempotency retain the caller's original request. Only
+    the copy crossing the Worker boundary receives domain-visible paths.
+    """
+
+    if not is_host_routed_wsl(domain):
+        return request
+    schema = next(
+        (
+            candidate
+            for candidate in manifest.inputs
+            if candidate.get("task") == request.task
+        ),
+        None,
+    )
+    if not isinstance(schema, dict):
+        return request
+    fields = schema.get("fields")
+    if not isinstance(fields, dict):
+        return request
+    mapped = dict(request.input)
+    changed = False
+    for name, field in fields.items():
+        if name not in mapped or not isinstance(field, dict):
+            continue
+        field_type = str(field.get("type") or "")
+        if field_type not in _CROSS_DOMAIN_PATH_FIELD_TYPES and not field.get(
+            "representation_id"
+        ):
+            continue
+        current = mapped[name]
+        if field_type == "mono_pcm_audio_stream" and isinstance(current, (list, tuple)):
+            replacement = [_domain_file_reference(item, domain) for item in current]
+        else:
+            replacement = _domain_file_reference(current, domain)
+        if replacement != current:
+            mapped[name] = replacement
+            changed = True
+    return request.model_copy(update={"input": mapped}) if changed else request
 
 
 def _source_skeleton_preview_payload(
-    snapshot: SourceSnapshot,
+    adapted: AdapterOutput,
     *,
     result_id: str,
     job_id: str,
@@ -115,29 +199,78 @@ def _source_skeleton_preview_payload(
 ) -> dict[str, Any]:
     """Serialize the model-space skeleton before any VRM retarget operation."""
 
-    positions = np.asarray(snapshot.positions, dtype=np.float32)
-    if positions.ndim != 3 or positions.shape[0] < 1 or positions.shape[2] != 3:
-        raise ValueError("source skeleton positions must have shape (T, J, 3)")
-    if positions.shape[1] != len(snapshot.joint_names):
-        raise ValueError("source skeleton joint names do not match its positions")
-    if not np.isfinite(positions).all():
-        raise ValueError("source skeleton positions contain NaN or infinity")
-    joint_count = int(positions.shape[1])
-    edges = tuple((int(parent), int(child)) for parent, child in snapshot.edges)
-    if any(
-        parent < 0
-        or child < 0
-        or parent >= joint_count
-        or child >= joint_count
-        or parent == child
-        for parent, child in edges
-    ):
-        raise ValueError("source skeleton contains an invalid edge")
-    fps = float(snapshot.fps)
+    motion = adapted.motion_ir
+    snapshot = adapted.source_snapshot
+    fps = float(snapshot.fps if snapshot is not None else motion.fps)
     if not math.isfinite(fps) or fps <= 0:
         raise ValueError("source skeleton fps must be finite and positive")
+    actors: list[dict[str, Any]] = []
+    frame_count: int | None = None
+    for actor_index, actor in enumerate(motion.actors):
+        if snapshot is not None and actor_index == 0:
+            positions = np.asarray(snapshot.positions, dtype=np.float32)
+            joint_names = tuple(snapshot.joint_names)
+            edges = tuple((int(parent), int(child)) for parent, child in snapshot.edges)
+        elif actor.global_positions_m is not None:
+            positions = np.asarray(actor.global_positions_m, dtype=np.float32)
+            joint_names = tuple(actor.joint_names)
+            edges = tuple(
+                (int(parent), child)
+                for child, parent in enumerate(actor.parent_indices)
+                if parent >= 0
+            )
+        elif (
+            len(motion.actors) == 1
+            and actor.skeleton_profile_id == CANONICAL211_PROFILE
+            and adapted.canonical211 is not None
+        ):
+            positions = forward_kinematics_from_sequence(adapted.canonical211)
+            joint_names = tuple(FK_BONES)
+            edges = tuple((int(parent), int(child)) for parent, child in FK_EDGES)
+        else:
+            raise ValueError(
+                f"actor {actor.actor_id} has no reconstructable source positions"
+            )
+        if positions.ndim != 3 or positions.shape[0] < 1 or positions.shape[2] != 3:
+            raise ValueError("source skeleton positions must have shape (T, J, 3)")
+        if positions.shape[1] != len(joint_names):
+            raise ValueError("source skeleton joint names do not match its positions")
+        if not np.isfinite(positions).all():
+            raise ValueError("source skeleton positions contain NaN or infinity")
+        if frame_count is None:
+            frame_count = int(positions.shape[0])
+        elif positions.shape[0] != frame_count:
+            raise ValueError("source skeleton actors have different frame counts")
+        joint_count = int(positions.shape[1])
+        if any(
+            parent < 0
+            or child < 0
+            or parent >= joint_count
+            or child >= joint_count
+            or parent == child
+            for parent, child in edges
+        ):
+            raise ValueError("source skeleton contains an invalid edge")
+        actors.append(
+            {
+                "actor_id": actor.actor_id,
+                "joint_names": list(joint_names),
+                "edges": [list(edge) for edge in edges],
+                "positions_xyz": positions.reshape(-1).tolist(),
+            }
+        )
+    if frame_count is None:
+        raise ValueError("source skeleton preview has no actors")
+    if frame_count != motion.frame_count:
+        raise ValueError("source skeleton frame count differs from Motion IR")
     metadata = json.loads(
-        json.dumps(snapshot.metadata or {}, ensure_ascii=False, allow_nan=False)
+        json.dumps(
+            (snapshot.metadata or {})
+            if snapshot is not None
+            else {"source_preview_origin": "motion_ir"},
+            ensure_ascii=False,
+            allow_nan=False,
+        )
     )
     return {
         "schema_version": SOURCE_SKELETON_PREVIEW_SCHEMA,
@@ -146,18 +279,15 @@ def _source_skeleton_preview_payload(
         "stage": "model_output_pre_retarget",
         "representation_id": model_result.native.representation_id,
         "skeleton_id": model_result.native.skeleton_id,
-        "coordinate_system": snapshot.coordinate_system,
+        "coordinate_system": (
+            snapshot.coordinate_system
+            if snapshot is not None
+            else model_result.native.coordinate_system
+        ),
         "fps": fps,
-        "frame_count": int(positions.shape[0]),
-        "duration_seconds": float(positions.shape[0] / fps),
-        "actors": [
-            {
-                "actor_id": "actor-0",
-                "joint_names": list(snapshot.joint_names),
-                "edges": [list(edge) for edge in edges],
-                "positions_xyz": positions.reshape(-1).tolist(),
-            }
-        ],
+        "frame_count": frame_count,
+        "duration_seconds": float(frame_count / fps),
+        "actors": actors,
         "display_transform": {
             "coordinates_normalized_for_preview": True,
             "vrm_retarget_applied": False,
@@ -477,12 +607,8 @@ class ControlPlane:
             native=native,
             model_result=model_result,
         )
-        if adapted.source_snapshot is None:
-            raise ValueError(
-                "legacy model adapter cannot reconstruct a source skeleton"
-            )
         return _source_skeleton_preview_payload(
-            adapted.source_snapshot,
+            adapted,
             result_id=result.result_id,
             job_id=result.job_id,
             model_result=model_result,
@@ -495,8 +621,24 @@ class ControlPlane:
         model_roots: dict[str, Path] | None = None,
         allow_unready_model: bool = False,
         inference_timeout: float = DEFAULT_INFERENCE_TIMEOUT_SECONDS,
+        acceptance_installation_id: str | None = None,
+        acceptance_artifact_identity: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         inference_timeout = validate_inference_timeout(inference_timeout)
+        acceptance_context_declared = (
+            acceptance_installation_id is not None
+            or acceptance_artifact_identity is not None
+        )
+        if acceptance_context_declared and (
+            not acceptance_installation_id
+            or not allow_unready_model
+            or not _is_installation_artifact_identity(
+                acceptance_artifact_identity
+            )
+        ):
+            raise ValueError(
+                "acceptance context requires one content-bound staged installation"
+            )
         if self._closing.is_set():
             raise RuntimeError("control plane is closing")
         row, created = self.store.create_job_once(request)
@@ -585,7 +727,13 @@ class ControlPlane:
             )
         thread = threading.Thread(
             target=runner,
-            args=(job_id, request, allow_unready_model),
+            args=(
+                job_id,
+                request,
+                allow_unready_model,
+                acceptance_installation_id,
+                acceptance_artifact_identity,
+            ),
             name=f"virea-job-{job_id}",
             daemon=True,
         )
@@ -613,6 +761,8 @@ class ControlPlane:
         job_id: str,
         request: JobRequest,
         allow_unready_model: bool = False,
+        acceptance_installation_id: str | None = None,
+        acceptance_artifact_identity: dict[str, str] | None = None,
     ) -> None:
         handle: WorkerHandle | None = None
         resource_lease: ResourceLease | None = None
@@ -649,7 +799,48 @@ class ControlPlane:
                         raise _ModelInstallationNotReady(
                             "unready-model execution requires explicit staged artifact roots"
                         )
-                    verified_artifact_roots = dict(staged_roots)
+                    if acceptance_installation_id is None:
+                        if not (self.allow_test_models and manifest.test_only):
+                            raise _ModelInstallationNotReady(
+                                "acceptance execution requires installation binding"
+                            )
+                        verified_artifact_roots = dict(staged_roots)
+                    else:
+                        if acceptance_artifact_identity is None:
+                            raise _ModelInstallationNotReady(
+                                "acceptance execution requires artifact binding"
+                            )
+                        transaction = self.store.installation_transaction(
+                            acceptance_installation_id
+                        )
+                        if transaction is None:
+                            raise _ModelInstallationNotReady(
+                                "acceptance installation transaction is missing"
+                            )
+                        transaction_payload = json.loads(transaction["payload_json"])
+                        staged_outcome = InstallOutcome(
+                            installation_id=acceptance_installation_id,
+                            model_id=request.model_id,
+                            state=InstallationState.BUILDING_RUNTIME,
+                            locator=transaction_payload.get("locator"),
+                        )
+                        verified_artifact_roots = (
+                            self.model_pool.verify_staged_artifacts(
+                                staged_outcome,
+                                cancel_event=cancel_event,
+                            )
+                        )
+                        if verified_artifact_roots != staged_roots:
+                            raise _ModelInstallationNotReady(
+                                "acceptance artifact roots differ from staged installation"
+                            )
+                        if (
+                            self.model_pool.acceptance_artifact_identity(staged_outcome)
+                            != acceptance_artifact_identity
+                        ):
+                            raise _ModelInstallationNotReady(
+                                "acceptance artifact identity differs after verification"
+                            )
                 else:
                     verified = self._verify_installed_model(
                         request.model_id,
@@ -675,6 +866,11 @@ class ControlPlane:
             selected_strategy = prepared.selected_strategy
             selected_accelerator = prepared.selected_accelerator
             resource_lease = prepared.resource_lease
+            worker_request = _request_for_execution_domain(
+                request,
+                manifest,
+                execution_domain,
+            )
             self.store.transition_job(
                 job_id,
                 JobState.STARTING_WORKER,
@@ -710,6 +906,8 @@ class ControlPlane:
                             selected_accelerator=selected_accelerator,
                         ),
                     },
+                    "acceptance_installation_id": acceptance_installation_id,
+                    "acceptance_artifact_identity": acceptance_artifact_identity,
                 },
             )
             self._raise_if_cancelled(job_id)
@@ -832,7 +1030,7 @@ class ControlPlane:
                     "worker_runtime_core_identity": worker_runtime_core_identity,
                 },
             )
-            model_result = client.infer(job_id, request)
+            model_result = client.infer(job_id, worker_request)
             self._raise_if_cancelled(job_id)
             result_runtime_core_identity = _validate_runtime_core_identity(
                 model_result.provenance.generation_parameters.get(
@@ -873,11 +1071,6 @@ class ControlPlane:
                 model_result=model_result,
             )
             motion = adapted.motion_ir
-            if adapted.source_snapshot is None:
-                raise ValueError(
-                    "model adapter did not preserve a pre-retarget source skeleton"
-                )
-            source_snapshot = adapted.source_snapshot
             self.store.transition_job(job_id, JobState.RETARGETING)
             retarget = retarget_motion_ir(motion)
             self.store.transition_job(job_id, JobState.VALIDATING)
@@ -914,7 +1107,7 @@ class ControlPlane:
             source_skeleton_path = atomic_write_json(
                 result_dir / "source-skeleton.json",
                 _source_skeleton_preview_payload(
-                    source_snapshot,
+                    adapted,
                     result_id=result_id,
                     job_id=job_id,
                     model_result=model_result,
@@ -1360,11 +1553,122 @@ class ControlPlane:
         *,
         execution_target: ExecutionTargetSelection | None = None,
     ) -> dict[str, Any]:
+        """Execute every immutable task contract in declaration order."""
+
+        manifest = self.catalog.get(outcome.model_id)
+        contracts = manifest.production_acceptance_contracts
+        if not contracts:
+            raise ValueError(
+                f"{outcome.model_id} has no production acceptance contract"
+            )
+        artifact_identity = self.model_pool.acceptance_artifact_identity(outcome)
+        acceptances: list[dict[str, Any]] = []
+        for contract in contracts:
+            try:
+                acceptance = self._run_real_acceptance_contract(
+                    outcome,
+                    contract,
+                    execution_target=execution_target,
+                )
+            except Exception as exc:
+                required_stages = tuple(
+                    stage.value for stage in contract.required_stages
+                )
+                acceptance = {
+                    "schema_version": (
+                        "virea.installation_acceptance_evidence.v1.0.0"
+                    ),
+                    "kind": "installation_real_e2e",
+                    "installation_id": outcome.installation_id,
+                    "artifact_identity": artifact_identity,
+                    "contract": contract.model_dump(mode="json"),
+                    "request": contract.request.model_dump(mode="json"),
+                    "expected": contract.expected.model_dump(mode="json"),
+                    "required_stages": list(required_stages),
+                    "timeout_seconds": contract.timeout_seconds,
+                    "stages": {stage: False for stage in required_stages},
+                    "observed": {
+                        "representation_id": None,
+                        "skeleton_id": None,
+                        "frame_count": None,
+                        "artifacts": [],
+                    },
+                    "installation_acceptance_succeeded": False,
+                    "production_e2e_succeeded": False,
+                    "outstanding_required_stages": list(required_stages),
+                    "web_playback": {
+                        "passed": False,
+                        "status": "requires_external_browser_evidence",
+                    },
+                    "job_id": None,
+                    "job_state": JobState.FAILED.value,
+                    "result_id": None,
+                    "error_code": "ACCEPTANCE_EXECUTION_FAILED",
+                    "error_message": f"{type(exc).__name__}: {exc}",
+                    "compatibility": {},
+                    "build_preflight": {},
+                    "execution_target": None,
+                    "missing_installation_files": [],
+                }
+            acceptances.append(acceptance)
+        if manifest.production_acceptance_suite is None:
+            return acceptances[0]
+        suite = manifest.production_acceptance_suite
+        if suite is None:
+            raise ValueError("multiple acceptance contracts require a suite contract")
+        all_succeeded = all(
+            item.get("installation_acceptance_succeeded") is True
+            for item in acceptances
+        )
+        outstanding: list[str] = []
+        for contract in contracts:
+            for stage in contract.required_stages:
+                if stage.value not in outstanding:
+                    outstanding.append(stage.value)
+        if all_succeeded:
+            outstanding = [ProductionE2EStage.WEB_PLAYBACK.value]
+        failures = [
+            {
+                "task": contract.request.task,
+                "error_code": acceptance.get("error_code"),
+                "error_message": acceptance.get("error_message"),
+            }
+            for contract, acceptance in zip(contracts, acceptances, strict=True)
+            if acceptance.get("installation_acceptance_succeeded") is not True
+        ]
+        return {
+            "schema_version": (
+                "virea.installation_acceptance_suite_evidence.v1.0.0"
+            ),
+            "kind": "installation_real_e2e_suite",
+            "installation_id": outcome.installation_id,
+            "artifact_identity": artifact_identity,
+            "model_id": outcome.model_id,
+            "contract": suite.model_dump(mode="json"),
+            "tasks": [contract.request.task for contract in contracts],
+            "task_acceptances": acceptances,
+            "installation_acceptance_succeeded": all_succeeded,
+            "production_e2e_succeeded": False,
+            "outstanding_required_stages": outstanding,
+            "web_playback": {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
+            "task_failures": failures,
+        }
+
+    def _run_real_acceptance_contract(
+        self,
+        outcome: InstallOutcome,
+        contract: ProductionE2EAcceptance,
+        *,
+        execution_target: ExecutionTargetSelection | None = None,
+    ) -> dict[str, Any]:
         """Run a real checkpoint acceptance job against staged installation files.
 
         This is the same Worker -> ArtifactRef -> MotionIR -> retarget -> VRMA
         production path used by generate.  The request, expectations, stages,
-        and timeout come exclusively from ``manifest.production_acceptance``;
+        and timeout come exclusively from one immutable manifest contract;
         callers cannot weaken or replace that release contract.
 
         ``web_playback`` is intentionally reported as outstanding here.  A
@@ -1374,11 +1678,8 @@ class ControlPlane:
         """
 
         manifest = self.catalog.get(outcome.model_id)
-        contract = manifest.production_acceptance
-        if contract is None:
-            raise ValueError(
-                f"{outcome.model_id} has no production acceptance contract"
-            )
+        if contract not in manifest.production_acceptance_contracts:
+            raise ValueError("acceptance contract is not declared by the manifest")
         timeout = validate_inference_timeout(contract.timeout_seconds)
         request = contract.request.model_copy(deep=True)
         if request.model_id != outcome.model_id:
@@ -1402,6 +1703,7 @@ class ControlPlane:
                 "caller execution target differs from the persisted installation target"
             )
         installation_root = self.paths.resolve_locator(outcome.locator)
+        artifact_identity = self.model_pool.acceptance_artifact_identity(outcome)
         artifact_roots = {
             source.id: (
                 installation_root
@@ -1488,6 +1790,8 @@ class ControlPlane:
             return {
                 "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
                 "kind": "installation_real_e2e",
+                "installation_id": outcome.installation_id,
+                "artifact_identity": artifact_identity,
                 "contract": contract.model_dump(mode="json"),
                 "request": request.model_dump(mode="json"),
                 "expected": expected,
@@ -1595,6 +1899,8 @@ class ControlPlane:
             model_roots=artifact_roots,
             allow_unready_model=True,
             inference_timeout=timeout,
+            acceptance_installation_id=outcome.installation_id,
+            acceptance_artifact_identity=artifact_identity,
         )
         if job["state"] in {JobState.REJECTED.value, JobState.FAILED.value}:
             terminal = job
@@ -2455,126 +2761,21 @@ class ControlPlane:
         model_result: ModelResult,
         adapter_family: str,
     ) -> tuple[Path, Any]:
-        frame_count = model_result.native.frame_count
-        if adapter_family == "humanml3d-motion263-body22":
-            if (
-                model_result.native.representation_id != "humanml3d.vector263.v1"
-                or model_result.native.skeleton_id != "humanml3d.body22.v1"
-            ):
-                raise ValueError("HumanML3D native identity does not match its adapter")
-            artifact, path, values = self._load_unique_float32_npy(
-                job_root=job_root,
-                job_id=job_id,
-                model_result=model_result,
-                expected_shape=(frame_count, 263),
-            )
-            return path, values
-        if adapter_family == "joint-positions-body22":
-            if (
-                model_result.native.representation_id != "humanml3d.body22.positions.v1"
-                or model_result.native.skeleton_id != "humanml3d.body22.v1"
-            ):
-                raise ValueError(
-                    "body22 position native identity does not match its adapter"
-                )
-            _, path, values = self._load_unique_float32_npy(
-                job_root=job_root,
-                job_id=job_id,
-                model_result=model_result,
-                expected_shape=(frame_count, 22, 3),
-            )
-            return path, values
-        if adapter_family == "mardm-ric67-body22":
-            if (
-                model_result.native.representation_id != "mardm.humanml3d.ric67.v1"
-                or model_result.native.skeleton_id != "humanml3d.body22.v1"
-            ):
-                raise ValueError("MARDM native identity does not match its adapter")
-            required = {
-                "source_mardm_ric67_normalized": (frame_count, 67),
-                "mardm_t2m_eval_mean": (67,),
-                "mardm_t2m_eval_std": (67,),
-            }
-            loaded: dict[str, np.ndarray] = {}
-            primary_path: Path | None = None
-            for name, shape in required.items():
-                matches = [
-                    artifact
-                    for artifact in model_result.native.artifacts
-                    if artifact.name == name
-                    and artifact.media_type == "application/x-npy"
-                ]
-                if len(matches) != 1:
-                    raise ValueError(
-                        f"MARDM ModelResult must contain exactly one {name!r} NPY artifact"
-                    )
-                artifact = matches[0]
-                path = self._artifact_path(
-                    job_root=job_root,
-                    job_id=job_id,
-                    artifact=artifact,
-                )
-                values = self._validate_float32_npy(
-                    artifact=artifact,
-                    path=path,
-                    expected_shape=shape,
-                    label=name,
-                )
-                loaded[name] = values
-                if name == "source_mardm_ric67_normalized":
-                    primary_path = path
-            assert primary_path is not None
-            return primary_path, loaded
-        if adapter_family == "prism-smplh-body22-axis-angle69":
-            if (
-                model_result.native.representation_id
-                != "prism.smplh_body22.axis_angle69.v1"
-                or model_result.native.skeleton_id != "smplh.body22.v1"
-            ):
-                raise ValueError("PRISM native identity does not match its adapter")
-            matches = [
-                artifact
-                for artifact in model_result.native.artifacts
-                if artifact.name == "source_prism_smplh_body22_axis_angle69"
-                and artifact.media_type == "application/x-npy"
-            ]
-            if len(matches) != 1:
-                raise ValueError(
-                    "PRISM ModelResult must contain exactly one public body22 carrier"
-                )
-            artifact = matches[0]
-            path = self._artifact_path(
+        try:
+            spec = adapter_spec_for_family(adapter_family)
+        except KeyError as exc:
+            raise ValueError(str(exc)) from exc
+        spec.validate_identity(model_result.native)
+        loaded = spec.load_native(
+            model_result.native.artifacts,
+            frame_count=model_result.native.frame_count,
+            resolve_path=lambda artifact: self._artifact_path(
                 job_root=job_root,
                 job_id=job_id,
                 artifact=artifact,
-            )
-            values = self._validate_float32_npy(
-                artifact=artifact,
-                path=path,
-                expected_shape=(frame_count, 69),
-                label=artifact.name,
-            )
-            return path, values
-        if adapter_family != "fake-root-translation":
-            raise ValueError(f"no native artifact contract for {adapter_family!r}")
-        matches = [
-            artifact
-            for artifact in model_result.native.artifacts
-            if artifact.name == "motion" and artifact.media_type == "application/json"
-        ]
-        if len(matches) != 1:
-            raise ValueError(
-                "ModelResult must contain exactly one 'motion' JSON artifact"
-            )
-        artifact = matches[0]
-        path = self._artifact_path(job_root=job_root, job_id=job_id, artifact=artifact)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        root = np.asarray(payload.get("root_translation_m"), dtype=np.float32)
-        if root.shape != (frame_count, 3) or not np.isfinite(root).all():
-            raise ValueError("fake compatibility artifact has invalid root translation")
-        if artifact.shape != root.shape:
-            raise ValueError("fake compatibility ArtifactRef shape does not match")
-        return path, payload
+            ),
+        )
+        return loaded.primary_path, loaded.payload
 
     def _load_unique_float32_npy(
         self,
@@ -2636,80 +2837,21 @@ class ControlPlane:
         native: Any,
         model_result: ModelResult,
     ) -> AdapterOutput:
-        if adapter_family == "humanml3d-motion263-body22":
-            return humanml3d_263_denormalized_to_motion_ir(
-                native,
-                source_model_id=model_result.model.id,
+        if model_result.native.fps is None:
+            raise ValueError("adapter conversion requires an explicit FPS")
+        try:
+            spec = adapter_spec_for_family(adapter_family)
+        except KeyError as exc:
+            raise ValueError(str(exc)) from exc
+        return spec.convert(
+            native,
+            AdapterConversionContext(
+                model_id=model_result.model.id,
                 upstream_revision=model_result.model.upstream_revision,
                 fps=float(model_result.native.fps),
                 motion_id=f"motion-{new_ulid()}",
-            )
-        if adapter_family == "joint-positions-body22":
-            return body22_positions_to_motion_ir(
-                native,
-                source_model_id=model_result.model.id,
-                upstream_revision=model_result.model.upstream_revision,
-                fps=float(model_result.native.fps),
-                motion_id=f"motion-{new_ulid()}",
-            )
-        if adapter_family == "mardm-ric67-body22":
-            revision = model_result.model.upstream_revision
-            return mardm_ric67_to_motion_ir(
-                native["source_mardm_ric67_normalized"],
-                mean=native["mardm_t2m_eval_mean"],
-                std=native["mardm_t2m_eval_std"],
-                checkpoint_id=f"mardm-source-{revision[:8]}:t2m-eval-stats",
-                source_model_id=model_result.model.id,
-                upstream_revision=revision,
-                fps=float(model_result.native.fps),
-                motion_id=f"motion-{new_ulid()}",
-            )
-        if adapter_family == "prism-smplh-body22-axis-angle69":
-            return prism_smplh_body22_axis_angle69_to_motion_ir(
-                native,
-                fps=float(model_result.native.fps),
-                motion_id=f"motion-{new_ulid()}",
-                source_model_id=model_result.model.id,
-                upstream_revision=model_result.model.upstream_revision,
-            )
-        if adapter_family == "fake-root-translation":
-            root_translation = np.asarray(
-                native["root_translation_m"], dtype=np.float32
-            )
-            frame_count = int(root_translation.shape[0])
-            rotations = np.zeros((frame_count, 52, 4), dtype=np.float32)
-            rotations[..., 3] = 1.0
-            canonical = np.concatenate(
-                (root_translation, rotations.reshape(frame_count, -1)), axis=1
-            ).astype(np.float32)
-            motion = canonical211_to_motion_ir(
-                canonical,
-                fps=float(model_result.native.fps),
-                motion_id=f"motion-{new_ulid()}",
-                provenance={
-                    "model_result_schema": model_result.schema_version,
-                    "model_id": model_result.model.id,
-                    "upstream_revision": model_result.model.upstream_revision,
-                    "compatibility_only": True,
-                },
-            )
-            return AdapterOutput(
-                motion_ir=motion,
-                canonical211=canonical,
-                metadata=motion.provenance,
-                native_artifacts={
-                    "root_translation_m": root_translation.copy(),
-                },
-                source_snapshot=SourceSnapshot(
-                    positions=forward_kinematics_from_sequence(canonical),
-                    joint_names=list(FK_BONES),
-                    edges=list(FK_EDGES),
-                    fps=float(model_result.native.fps),
-                    coordinate_system="world_normalized",
-                    metadata={"compatibility_only": True},
-                ),
-            )
-        raise ValueError(f"no adapter runner for {adapter_family!r}")
+            ),
+        )
 
     @staticmethod
     def _adapt_native_motion(

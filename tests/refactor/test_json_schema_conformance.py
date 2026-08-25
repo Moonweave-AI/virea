@@ -118,6 +118,7 @@ def test_catalog_projects_to_public_model_definition_schema() -> None:
             redistribution_allowed=manifest.licenses.redistribution_allowed,
             requires_acceptance=manifest.licenses.requires_acceptance,
             production_acceptance=manifest.production_acceptance,
+            production_acceptance_suite=manifest.production_acceptance_suite,
             test_only=manifest.test_only,
             notes=manifest.notes,
         )
@@ -144,6 +145,28 @@ def test_production_e2e_acceptance_matches_json_contract() -> None:
         "v1/production_e2e_acceptance.schema.json",
         acceptance.model_dump(mode="json"),
     )
+
+    reused_job = acceptance.model_dump(mode="json")
+    reused_job["request"]["idempotency_key"] = "reused-acceptance-job"
+    with pytest.raises(JsonSchemaValidationError):
+        _validate("v1/production_e2e_acceptance.schema.json", reused_job)
+
+    idempotent_public_definition = {
+        "schema_version": "virea.model_definition.v1.0.0",
+        "id": "idempotent-acceptance-model",
+        "display_name": "Idempotent acceptance model",
+        "plugin_version": "1.0.0",
+        "upstream_repository": "https://example.invalid/model.git",
+        "upstream_revision": "revision-1",
+        "tasks": ["text_to_motion"],
+        "adapter_family": "example-adapter",
+        "status": "integrated_experimental",
+        "runtime_variants": ["example-runtime"],
+        "production_acceptance": reused_job,
+        "test_only": False,
+    }
+    with pytest.raises(JsonSchemaValidationError):
+        _validate("v1/model_definition.schema.json", idempotent_public_definition)
 
     invalid_public_definition = {
         "schema_version": "virea.model_definition.v1.0.0",

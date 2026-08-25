@@ -1,0 +1,33 @@
+schema_version: virea.runtime_spec.v1.0.0
+id: hy-motion-1-cu128
+backend: uv-native
+platforms: [win-64, linux-64]
+python: ">=3.11,<3.12"
+accelerator:
+  kind: nvidia
+  abi: cu128
+  min_vram_gib: 26.0
+lockfile: uv.lock
+min_storage_gib: 52.0
+resource_profiles:
+  - id: cuda-full
+    strategy: cuda_full
+    min_free_vram_gib: 26.0
+    min_free_ram_gib: 24.0
+    min_free_swap_gib: 0.0
+entrypoint_argv: [python, -m, virea_hy_motion.worker]
+startup_timeout_seconds: 1800
+environment_allowlist:
+  - VIREA_ARTIFACT_ROOTS_JSON
+  - VIREA_RESOURCE_PROFILE
+  - VIREA_MEMORY_STRATEGY
+  - VIREA_RUNTIME_ID
+  - HF_HOME
+  - HF_HUB_OFFLINE
+  - TRANSFORMERS_OFFLINE
+  - TOKENIZERS_PARALLELISM
+working_directory: plugins/models/hy-motion-1/runtime-cu128
+project_package: virea-model-hy-motion-1-cu128-runtime
+project_version: 0.2.0
+runtime_core_epoch: virea-runtime-core-20260821.2
+availability: pinned_official_worker_build_and_contract_requires_local_real_checkpoint_acceptance

@@ -3,12 +3,13 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-20
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: 2025–2026 motion generation 首批适配候选的官方制品、许可证、运行时、输出表示与真实支持状态。
 canonical: doc/model-catalog/first-wave-2026-08-20.zh-CN.md
 related:
+  - first-wave-2026-08-20.en.md
   - ../../registries/models/motion-model-registry.v1.0.0.yaml
   - ../../registries/models/first-wave.v1.yaml
   - motion-generation-registry-2026-08-20.zh-CN.md
@@ -23,9 +24,16 @@ visibility: public
 
 # Motion Generation 首批适配清单
 
+> [中文](first-wave-2026-08-20.zh-CN.md) · [English](first-wave-2026-08-20.en.md)
+
 ## 结论
 
-2026-08-20 的研究优先矩阵建议覆盖九个模型族，并分为三类：
+2026-08-20 的初始研究优先矩阵覆盖九个模型族；2026-08-26 的 VIREA 集成叠加层另加入 MoMask，并把
+InterMask、MotionCraft、DART、HY-Motion、SentiAvatar、DisCoRD、ReMoMask 与 MoMask 的真实 Worker、
+隔离 Runtime、adapter 和逐模型 target-acceptance 合同纳入目录。当前 14 个非测试目录模型均为
+`integrated_experimental`，InterMimic 仍是独立的上游物理桥接候选。
+
+初始研究优先级分为三类：
 
 1. 优先建立真实推理与 Motion IR 适配：MARDM、InterMask、MotionCraft、DART、DisCoRD。
 2. 以显式许可证选择启用：HY-Motion 1.0、SentiAvatar、ReMoMask。
@@ -33,13 +41,11 @@ visibility: public
 
 这是一份适配优先级与上游可用性参考，不是统一 SOTA 排名。HumanML3D、InterHuman、音乐、共语手势和物理 HOI 的指标、数据分布与输出空间不可直接横向排序。
 
-本页同时记录 2026-08-21 的工程状态：FloodDiffusionTiny、MoMADiff、MARDM、ACMDM、CMDM 与 PRISM
-`prism-tp2m-1-4b` 此前分别完成过固定正式制品、仓库外安装、独立 Worker、真实推理、Motion IR/Canonical211、
-VRMA validator 和 fresh Web 浏览器播放，因此 manifest 保留受限 `integrated_experimental`。但旧 validated
-evidence / validator `v1.0.0` 已失效；当前 `v1.1.0` 六模型重采集尚未写入，有效 `passed = 0`。目标范围仍是
-前五条 Windows native / RTX 5090 Laptop GPU 与 PRISM `wsl:Ubuntu-24.04` component-split，但不能把目标或
-历史 ID 当作当前证据。当前没有真实模型达到 `supported`；单机事实不能外推到原生 Linux、macOS、其他
-GPU、CPU profile、公开再分发或 GA。
+本页同时记录 2026-08-26 的工程状态：14 个模型都已有集成合同，但 target acceptance 是必须执行的门禁，
+不是已经通过的 evidence。旧 validated evidence / validator `v1.0.0` 的六条历史记录已失效；当前
+`v1.1.0` 没有可用于晋级的真实 checkpoint 记录，有效 `passed = 0`。当前没有模型达到 `supported`；
+Runtime 平台声明或单机历史事实不能外推到原生 Windows、Linux、WSL2、macOS、其他 GPU/CPU profile、
+公开再分发或 GA。
 
 ## 状态语义
 
@@ -47,7 +53,7 @@ GPU、CPU profile、公开再分发或 GA。
 |---|---|
 | registered | 只登记研究工作、目标能力和来源；不声明代码、权重、许可证或推理可用 |
 | runnable_upstream | 作者上游存在官方代码、官方权重或必要 checkpoint，以及至少一条有文档的推理路径；VIREA 尚未完成要求的 production E2E，期间可以已有部分 managed Runtime/Worker |
-| integrated_experimental | VIREA 已有 worker、运行时描述和 Motion IR 解码，并跑通真实安装、真实 checkpoint 推理与受限 production acceptance，但覆盖、许可证或端到端回归仍不完整 |
+| integrated_experimental | VIREA 已有 worker、隔离 Runtime、Motion IR 解码和逐模型 target-acceptance 合同；当前真实 checkpoint 是否通过只由当前 evidence 记录回答，不能从该状态推导 |
 | supported | 已有经过测试的 VIREA worker、runtime manifest、解码器、端到端 VRM 回归和明确许可证声明 |
 
 登记不是实现；上游可运行也不是 VIREA 支持。状态只能按证据向前推进，不能因论文发表、仓库存在或文件下载成功直接提升。
@@ -55,7 +61,8 @@ GPU、CPU profile、公开再分发或 GA。
 ## 历史 v1.0 真实接入快照（2026-08-21，仅追溯）
 
 下表保留旧轮次定位信息用于排错与审计，所有 evidence/result/VRMA 字段均不再代表当前 `passed`。新 v1.1
-record 必须由当前六条完整链生成后从 registry 读取，不能在下表上替换 schema 版本或复用旧 result。
+record 必须由这六条历史路径重新执行完整链并从 registry 读取；其余八个已接入模型也必须独立完成自己的
+target acceptance。不能在下表上替换 schema 版本或复用旧 result。
 
 | 模型 | 固定上游 | 已验证边界 | 状态与未外推项 |
 |---|---|---|---|
@@ -85,7 +92,7 @@ pinned-upstream contract fixture 不是 checkpoint 输出或模型效果证据�
 | Adapter family | 当前引用模型 | 契约覆盖 | 未覆盖 |
 |---|---|---|---|
 | `dart-smplx-primitives` | DART | 保留 betas、primitive half-open boundaries、text segments、rollout provenance 与 native SMPL-X arrays；要求 rollout/overlap 前置声明 | continuity 仅为 caller upstream attestation；无 VIREA rollout/checkpoint golden，legacy preview 不应用 betas、仍 shape-agnostic |
-| `humanml3d-motion263-body22` | FloodDiffusionTiny、MoMADiff、CMDM、DisCoRD、MoMask、ReMoMask | 精确 `(T,263)`、20 FPS、finite；normalized producer 要求 checkpoint identity/mean/std，已反归一化 producer 禁止二次 denormalize；source/stats 逐值保留 | Flood、MoMADiff、CMDM 已有逐模型真实 Worker/E2E；fixture 本身不替代该证据 |
+| `humanml3d-motion263-body22` | FloodDiffusionTiny、MoMADiff、CMDM、DisCoRD、MoMask、ReMoMask | 精确 `(T,263)`、20 FPS、finite；normalized producer 要求 checkpoint identity/mean/std，已反归一化 producer 禁止二次 denormalize；source/stats 逐值保留 | 六个模型均有 Worker/Runtime/target-acceptance 合同；当前真实 checkpoint evidence 均须单独登记，fixture 本身不替代该证据 |
 | `hy-motion-body22` | HY-Motion 1 | pre-postprocess `[T,201]` 是 `hy_motion.latent201.v1` side artifact（`135:201` opaque）；registered decoded profile 是 `hy_motion.body22.rot6d_translation.v1` `[T,135]`，包含 translation3 + 22×6D，按上游 `view(3, 2)` 解码并要求 smoothing/ground flags | 官方 checkpoint decode、GPU/runtime 与 Avatar golden；其他 smoothing/ground mode 需要独立 profile；冗余 root rotation matrix 不声明为 preserved artifact |
 | `intermask-interhuman-two-actor` | InterMask | Worker/native 是两个 `interhuman.motion262.v1` `[T,262]`；adapter output 是两个 `interhuman.two_actor_smpl22.pos3_rot6d.v1` `[T,22,9]`；`132:258` non-root 6D pass-through、root zero sentinel→identity，并保留 262D/shared transform/source artifact | 真实 262D checkpoint/export golden、multi-actor VRM 产品路径；不能无损转 single-actor canonical211；不声称 runtime BVH/IK |
 | `mardm-ric67-body22` | MARDM | 精确 67D、20 FPS、finite、checkpoint identity/mean/std、RIC67 recovery 与 normalized/denormalized/stat 逐值保留 | 已有固定官方 checkpoint Worker/E2E；fixture 不等于该 checkpoint 证据 |
@@ -95,27 +102,29 @@ pinned-upstream contract fixture 不是 checkpoint 输出或模型效果证据�
 | `sentiavatar-susu-mta63` | SentiAvatar | body 精确 153D、左右手各 120D、20 FPS 与 finite；仅 body 使用 153D checkpoint mean/std，hands 必须显式标记为已反归一化；root cm delta+cumsum 直接换算米而不重复 legacy scale；MTA63/BVH/cm 仅 native/intermediate provenance，output 为 `virea.canonical211.v3` `[T,211]`、`vrm1.humanoid52.v1`、meters、`quaternion_xyzw`；ARKit51/body/hands/stat arrays 逐值保留 | 音频/标签 Worker、真实流式输出、许可验收与 VRM 表情 golden |
 
 这里的 pinned-upstream contract fixture 只证明按固定上游格式做 fail-closed 验证并保留 native artifacts；
-逐值 fixture 不是上游 checkpoint golden，也不证明模型效果。六个 integrated model 的历史真实独立
-runtime/Worker/E2E 与当前待采集的 v1.1 record 是另一组证据，其中目标范围为五个 Windows native 与一条
-PRISM WSL；在新 record 落盘前不得宣称当前 evidence 已关闭。全部真实模型的 `supported = 0`。
+逐值 fixture 不是上游 checkpoint golden，也不证明模型效果。六个早期模型的历史真实独立
+runtime/Worker/E2E 与当前待采集的 v1.1 record 是另一组证据；其余八个已接入模型同样没有可借用的
+checkpoint evidence。在新 record 落盘前不得宣称当前 evidence 已关闭。14 个目录模型的 `supported = 0`。
 
-本页的 2026-08-20 研究优先矩阵仍把 InterMimic 作为高复杂度物理桥接候选；历史 0.3 plugin slice 曾
-注册了共享 HumanML3D adapter 的 MoMask。两者都不能据此称为已集成。当前工程状态以
-[WP00-WP15 实现映射](../refactor/WP00_WP15_IMPLEMENTATION_MAP.md)为准。
+本页的 2026-08-20 研究优先矩阵仍把 InterMimic 作为高复杂度物理桥接候选。MoMask 已在 2026-08-26
+补齐独立 Worker、CPU/CUDA Runtime、精确人工制品边界、HumanML3D adapter 和 target-acceptance 合同，状态为
+`integrated_experimental`；当前真实 checkpoint evidence 仍为 false。当前工程状态以 manifest、Runtime
+registry 和本页 YAML 叠加层为准。
 
 ## 首批优先矩阵
 
 | 顺序 | 模型与发布日期 | 官方代码与权重 | 输入与原生输出 | 许可证 | 官方运行时边界 | 当前状态 / 难度 |
 |---:|---|---|---|---|---|---|
-| 1 | MARDM；CVPR 2025，arXiv v1 2024-11-25 | [官方仓库](https://github.com/neu-vi/MARDM)、[论文](https://arxiv.org/abs/2411.16575)；仓库脚本从作者 Hugging Face 下载 SiT/DDPM、AE、长度估计器与 evaluator | 文本 + 可选长度；HumanML3D 原生 67D / KIT 64D，官方 sample 可恢复为 (T,22,3) / (T,21,3) joint XYZ | MIT | Python 3.10.13、PyTorch 2.2.0、CUDA 12.1；纯生成不要求训练集 | `integrated_experimental`；已完成固定 SiT-XL 路径的 Win64/RTX 5090 真实验收，仍非 `supported` |
-| 2 | InterMask；ICLR 2025，arXiv v1 2024-10-13 | [官方仓库](https://github.com/gohar-malik/intermask)、[论文](https://arxiv.org/abs/2410.10010)；官方脚本下载 InterHuman/Inter-X 的 VQ-VAE 和 Inter-M Transformer | 文本，或参考演员 + 文本；Worker/native 为两个演员各 `(T,262)`、30 FPS；adapter output 为 position3 + rotation6d 的两个 `(T,22,9)` track | MIT；InterHuman、Inter-X、SMPL-X 另有条款 | Python 3.7.7、PyTorch 1.13.1；Inter-X 需要 SMPL-X | runnable_upstream；P0，中等难度。需共享 world/time 的 multi-actor IR |
-| 3 | MotionCraft；AAAI 2025，arXiv v1 2024-07-30 | [官方仓库](https://github.com/cure-lab/MotionCraft)、[论文](https://arxiv.org/abs/2407.21136)；官方提供 T2M、Speech-to-Gesture、Music-to-Dance 三个 checkpoint | 文本 / 语音 / 音乐；MC-Bench 的 Worker/native carrier 使用 SMPL-X 322D；adapter body output 为 Canonical211，expression50 为标准 Motion IR face track | Apache-2.0；训练数据另行授权 | Python 3.9、PyTorch 1.12.1、CUDA 11.3、mmcv-full、Tutel、PyTorch3D | runnable_upstream；P0，高难度。是同一代码族的三套任务 checkpoint，不是单权重全模态 |
-| 4 | DART / DartControl；ICLR 2025 Spotlight，arXiv v1 2024-10-07 | [官方仓库](https://github.com/zkf1997/DART)、[论文](https://arxiv.org/abs/2410.05260)；作者 Google Drive 提供 checkpoint 与必要数据 | 历史/seed + 连续文本，可附 keyframe、trajectory、waypoint、goal 或 scene SDF；输出自回归 SMPL-X motion primitives、PKL/NPZ；BABEL 30 FPS，HML3D/SMPL-H 20 FPS | Apache-2.0；SMPL-X/H、AMASS、BABEL 各自授权 | 官方测试 Ubuntu 22.04、RTX 4090；需 SMPL-X/H；场景模式需要 mesh/SDF，policy 模式含 RL | runnable_upstream；P0/P1，高难度。应拆成 text_stream、inbetween、trajectory、scene、policy 能力 |
-| 5 | HY-Motion 1.0 / Lite；官方发布 2025-12-30 | [官方仓库](https://github.com/Tencent-Hunyuan/HY-Motion-1.0)、[官方权重](https://huggingface.co/tencent/HY-Motion-1.0)、[论文](https://arxiv.org/abs/2512.23464)、[许可证](https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/master/License.txt) | 英文文本 + 可选时长/提示重写；201D 是 pre-postprocess model tensor/side artifact，公开 decoded body profile 为 135D（translation3 + 22×6D）；应包装官方 skeleton 解码和动画导出链 | Tencent HY-MOTION 1.0 Community License；不适用于 EU、英国、韩国；月活超过一百万需另行授权；不得用输出改进其他 AI 模型 | 1.0B 最低 26GB VRAM，Lite 0.46B 最低 24GB VRAM；官方称 Windows、macOS、Linux；依赖 PyTorch、Qwen/CLIP、SMPL/H、PyTorch3D、FBX SDK 等 | runnable_upstream；许可证门控 P0，中高难度，不得默认启用 |
-| 6 | SentiAvatar；arXiv 2026-04-03 | [官方仓库](https://github.com/SentiAvatar/SentiAvatar)、[官方权重](https://huggingface.co/Chuhaojin/SentiAvatar)、[论文](https://arxiv.org/abs/2604.02908)、[许可证](https://github.com/SentiAvatar/SentiAvatar/blob/main/LICENSE) | 16 kHz 普通话音频 + 中文动作标签；20 FPS；body (T,153)=root 3+25×6D，左右手各 (T,120)=20×6D，另有 ARKit 51 表情；导出 BVH、UE JSON、WAV | SentiPulse Non-Commercial Source License v1.0；禁止商业、SaaS 与商业组织内部生产使用 | Python 3.10、Qwen2-0.5B、Chinese HuBERT、vLLM、RVQ-VAE、Mask Transformer | runnable_upstream；非商业隔离 P0/P1，中高难度 |
-| 7 | DisCoRD；ICCV 2025 Highlight；官方推理 2025-01-01、训练代码 2025-09-27 | [官方仓库](https://github.com/whwjdqls/DisCoRD)、[论文](https://arxiv.org/abs/2411.19527)；作者提供基于 MoMask 的 checkpoint | 文本 + 长度；MoMask/HumanML3D 离散 token 经 rectified-flow 连续解码器得到运动 | MIT | Python 3.8.5、CUDA 11.8；依赖 MoMask checkpoint 和 HumanML/KIT 工具链 | runnable_upstream；P1，低至中等难度。更适合 continuous_decoder/refiner adapter family |
-| 8 | ReMoMask；arXiv 2025-08-04，ECCV 2026 | [官方仓库](https://github.com/AIGeeksGroup/ReMoMask)、[官方权重](https://huggingface.co/AIGeeksGroup/ReMoMask)、[论文](https://arxiv.org/abs/2508.02605) | 文本 + 可选长度 + retrieval database；HumanML3D 路线的 22-joint / SMPL 可视化输出 | CC BY-NC-SA 4.0；非商业且 ShareAlike；CLIP、SMPL 与数据集条款叠加 | Python 3.10、PyTorch 2.1、CUDA 11.8；官方 Hugging Face 当前约 8.87GB，包含 Part-TMR、TMR、VQ 与生成模型 | runnable_upstream；非商业隔离 P1，中高难度。官方仓库 README 的 coming soon 已落后于 HF 文件状态 |
-| 9 | InterMimic；CVPR 2025 Highlight，arXiv 2025-02-27 | [官方仓库](https://github.com/Sirui-Xu/InterMimic)、[论文](https://arxiv.org/abs/2502.20390)；作者提供 teacher/student 示例 checkpoint，但 teacher 覆盖并非完整 17 类 | SMPL-X/InterAct 等参考 HOI 轨迹 + 物体几何/状态；输出模拟中的 SMPL-X 或 Unitree G1 状态、物体 6-DoF、接触和 rollout | MIT；Isaac、PHC、数据、机器人和物体资产各有条款 | Isaac Gym 路线为 Python 3.8、PyTorch/CUDA 11.6；另支持 Isaac Sim 5.1 + IsaacLab 2.3.1 | runnable_upstream；P1/P2，极高难度。只能先覆盖已发布情景，不能宣称 universal HOI 全支持 |
+| 1 | MARDM；CVPR 2025，arXiv v1 2024-11-25 | [官方仓库](https://github.com/neu-vi/MARDM)、[论文](https://arxiv.org/abs/2411.16575)；仓库脚本从作者 Hugging Face 下载 SiT/DDPM、AE、长度估计器与 evaluator | 文本 + 可选长度；HumanML3D 原生 67D / KIT 64D，官方 sample 可恢复为 (T,22,3) / (T,21,3) joint XYZ | MIT | Python 3.10.13、PyTorch 2.2.0、CUDA 12.1；纯生成不要求训练集 | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 2 | MoMask；CVPR 2024 | [官方仓库](https://github.com/EricGuo5513/momask-codes/tree/94a6636c9c463b7a9414c3401a6f1b67e6c51824)、[论文](https://arxiv.org/abs/2312.00063)；精确 Google Drive 人工 checkpoint archive | 文本 + 长度；反归一化 HumanML3D `(T,263)`，20 FPS | 代码 MIT；权重无单独许可声明 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；人工 checkpoint 必须按精确文件名提供 | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 3 | InterMask；ICLR 2025，arXiv v1 2024-10-13 | [官方仓库](https://github.com/gohar-malik/intermask)、[论文](https://arxiv.org/abs/2410.10010)；官方脚本下载 InterHuman/Inter-X 的 VQ-VAE 和 Inter-M Transformer | 文本，或参考演员 + 文本；Worker/native 为两个演员各 `(T,262)`、30 FPS；adapter output 为 position3 + rotation6d 的两个 `(T,22,9)` track | MIT；权重、InterHuman、Inter-X、SMPL-X 条款另行审查 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；checkpoint 为精确人工资产 | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 4 | MotionCraft；AAAI 2025，arXiv v1 2024-07-30 | [官方仓库](https://github.com/cure-lab/MotionCraft)、[论文](https://arxiv.org/abs/2407.21136)；官方提供 T2M、Speech-to-Gesture、Music-to-Dance 三个 checkpoint | 文本 / 语音 / 音乐；MC-Bench 的 Worker/native carrier 使用 SMPL-X 322D；adapter body output 为 Canonical211，expression50 为标准 Motion IR face track | 代码 Apache-2.0；权重、训练数据与可选 SMPL-X 条款另行审查 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；三类任务分别选择 checkpoint | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 5 | DART / DartControl；ICLR 2025 Spotlight，arXiv v1 2024-10-07 | [官方仓库](https://github.com/zkf1997/DART)、[论文](https://arxiv.org/abs/2410.05260)；作者 Google Drive 提供 checkpoint 与必要数据 | 历史/seed + 连续文本，可附 keyframe、trajectory、waypoint、goal 或 scene SDF；输出自回归 SMPL-X motion primitives、PKL/NPZ | 代码 Apache-2.0；权重、SMPL-X/H、AMASS、BABEL 各自授权 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；checkpoint 与 SMPL-X 为精确人工资产 | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 6 | HY-Motion 1.0 / Lite；官方发布 2025-12-30 | [官方仓库](https://github.com/Tencent-Hunyuan/HY-Motion-1.0)、[官方权重](https://huggingface.co/tencent/HY-Motion-1.0)、[论文](https://arxiv.org/abs/2512.23464)、[许可证](https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/master/License.txt) | 英文文本 + 可选时长/提示重写；decoded body profile 为 translation3 + 22×6D | Tencent HY-MOTION 1.0 Community License；地区、规模、用途与下游通知受限 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；官方资源门槛仍适用 | `integrated_experimental`；许可需显式审查；target acceptance required，当前真实 checkpoint evidence=false |
+| 7 | SentiAvatar；arXiv 2026-04-03 | [官方仓库](https://github.com/SentiAvatar/SentiAvatar)、[官方权重](https://huggingface.co/Chuhaojin/SentiAvatar)、[论文](https://arxiv.org/abs/2604.02908)、[许可证](https://github.com/SentiAvatar/SentiAvatar/blob/main/LICENSE) | 16 kHz 普通话音频 + 中文动作标签；20 FPS；body、双手与 ARKit-51 表情 | SentiPulse Non-Commercial Source License v1.0；禁止商业、SaaS 与商业组织内部生产使用 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime | `integrated_experimental`；非商业隔离；target acceptance required，当前真实 checkpoint evidence=false |
+| 8 | DisCoRD；ICCV 2025 Highlight | [官方仓库](https://github.com/whwjdqls/DisCoRD)、[论文](https://arxiv.org/abs/2411.19527)；作者提供基于 MoMask 的 checkpoint | 文本 + 长度；rectified-flow 连续解码器输出 HumanML3D `(T,263)` | 代码 MIT；两个 checkpoint archive 均无单独权重许可声明 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime；两个 archive 为精确人工资产 | `integrated_experimental`；target acceptance required，当前真实 checkpoint evidence=false |
+| 9 | ReMoMask；arXiv 2025-08-04，ECCV 2026 | [官方仓库](https://github.com/AIGeeksGroup/ReMoMask)、[官方权重](https://huggingface.co/AIGeeksGroup/ReMoMask)、[论文](https://arxiv.org/abs/2508.02605) | 文本 + 可选长度 + retrieval database；HumanML3D `(T,263)` | CC BY-NC-SA 4.0；非商业且 ShareAlike；下游资产条款叠加 | VIREA 锁定 CPU 四平台和 CUDA Windows/Linux Runtime | `integrated_experimental`；非商业隔离；target acceptance required，当前真实 checkpoint evidence=false |
+| 10 | InterMimic；CVPR 2025 Highlight，arXiv 2025-02-27 | [官方仓库](https://github.com/Sirui-Xu/InterMimic)、[论文](https://arxiv.org/abs/2502.20390)；作者提供 teacher/student 示例 checkpoint，但 teacher 覆盖并非完整 17 类 | SMPL-X/InterAct 等参考 HOI 轨迹 + 物体几何/状态；输出模拟中的 SMPL-X 或 Unitree G1 状态、物体 6-DoF、接触和 rollout | MIT；Isaac、PHC、数据、机器人和物体资产各有条款 | Isaac Gym 路线为 Python 3.8、PyTorch/CUDA 11.6；另支持 Isaac Sim 5.1 + IsaacLab 2.3.1 | `runnable_upstream`；仍是物理策略桥接候选，不属于 14 个直接模型插件 |
 
 ### 输出表示注意事项
 

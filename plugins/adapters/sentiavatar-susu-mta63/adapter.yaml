@@ -4,7 +4,7 @@ display_name: SentiAvatar SuSu body, hands, root delta, and ARKit face
 source_models:
   - sentiavatar-susu
 implementation_status: pinned_upstream_contract_adapter_implemented
-support_status: runnable_upstream
+support_status: integrated_experimental
 native_profile:
   representation_id: susu.body25_hands40.cont6d_root_delta.v1
   carrier: synchronized_named_tensor_streams

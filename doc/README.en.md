@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: English task-oriented VIREA documentation hub, paired with the Chinese hub and anchored at a clean git clone.
 canonical: doc/README.en.md
@@ -13,6 +13,8 @@ related:
   - getting-started.en.md
   - reference/cli.en.md
   - platforms/README.en.md
+  - reference/status-semantics.en.md
+  - model-catalog/first-wave-2026-08-20.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -25,6 +27,11 @@ Start every user workflow from a clean `git clone`. Keep environments and mutabl
 choose an execution domain, then install, generate, and play a result. Each active entry below has a Chinese or English
 counterpart; the command reference is complete in both languages.
 
+The current catalog contains 14 integrated-experimental model plugins and 19 public tasks; the former
+six-integrated/eight-upstream-only split is superseded. Every task has an immutable acceptance contract, but declared
+integration is not cross-device evidence: each installation must pass its complete task suite on the selected Runtime.
+No model is promoted to `supported` until its required release evidence and licensing gates are complete.
+
 ## Start here
 
 | Goal | English | 中文 |
@@ -34,6 +41,8 @@ counterpart; the command reference is complete in both languages.
 | Learn every command and option | [CLI reference](reference/cli.en.md) | [CLI 参数参考](reference/cli.zh-CN.md) |
 | Select Windows, Linux, WSL2, or macOS | [Platform guide](platforms/README.en.md) | [平台指南](platforms/README.zh-CN.md) |
 | Select a model or inspect its Runtime | [Model catalog](models/README.en.md) | [模型目录](models/README.zh-CN.md) |
+| Interpret model integration, license, platform, and evidence status | [Status semantics](reference/status-semantics.en.md) | [状态语义](reference/status-semantics.zh-CN.md) |
+| Review first-wave upstream and integration evidence | [First-wave catalog](model-catalog/first-wave-2026-08-20.en.md) | [首波模型目录](model-catalog/first-wave-2026-08-20.zh-CN.md) |
 | Diagnose local state and retain data safely | [Troubleshooting summary](getting-started.en.md#8-advanced-troubleshooting-and-safe-maintenance) | [排错与维护](getting-started.zh-CN.md#8-高级：排错与安全维护) |
 | Maintain documentation | [Documentation policy](development/documentation.en.md) | [文档规范](development/documentation.zh-CN.md) |
 
@@ -74,10 +83,10 @@ python scripts/check_docs.py
 See [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), and [third-party notices](../THIRD_PARTY_NOTICES.md)
 before publishing or redistributing any model, asset, Avatar or media.
 
-## Specialist records and source-language archives
+## Specialist records and archives
 
-The following records retain their source language because they capture historical decisions, research evidence, or
-third-party wording. This hub gives an English purpose statement; use the Chinese hub for the matching Chinese navigation.
+Some records retain their source language because they capture historical decisions, research evidence, or third-party
+wording. Active paired records link to the English page directly; use the Chinese hub for matching Chinese navigation.
 
 | English purpose | Record |
 |---|---|
@@ -86,7 +95,7 @@ third-party wording. This hub gives an English purpose statement; use the Chines
 | Execution-domain routing decision | [ADR-0004](adrs/0004-execution-domain-routing.zh-CN.md) |
 | Production release boundary and current Go/No-Go facts | [Release acceptance](refactor/RELEASE_ACCEPTANCE_0.4.0.md) |
 | Dataset/legacy pipeline handling | [Pipeline guide](pipeline.zh-CN.md) |
-| Upstream model and integration research | [Model catalog](model-catalog/first-wave-2026-08-20.zh-CN.md) and [research records](research/) |
+| Upstream model and integration research | [First-wave model catalog](model-catalog/first-wave-2026-08-20.en.md), [中文](model-catalog/first-wave-2026-08-20.zh-CN.md), and [research records](research/) |
 | Responsive Web/CLI architecture and primary-source evidence | [Engineering Brief](engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md) and [research log](research/responsive-studio-cli-design-2026-08-25.en.md) |
 
 When promoting a specialist record into an active user workflow, create a paired `.en.md` and `.zh-CN.md` page first,

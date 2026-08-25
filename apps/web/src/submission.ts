@@ -11,6 +11,8 @@ export interface SubmissionIdentity {
   prompt: string;
   seconds: number;
   seed: number;
+  fields?: Record<string, unknown>;
+  acceptanceRequest?: unknown;
   executionTarget: unknown;
 }
 
@@ -35,6 +37,8 @@ export async function submissionFingerprint(identity: SubmissionIdentity): Promi
     prompt: identity.prompt,
     seconds: identity.seconds,
     seed: identity.seed,
+    fields: identity.fields,
+    acceptance_request: identity.acceptanceRequest,
     execution_target: identity.executionTarget,
   }));
   const digest = await globalThis.crypto.subtle.digest(

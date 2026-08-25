@@ -4,7 +4,7 @@ display_name: DART BABEL SMPL-X primitive rollout
 source_models:
   - dart-smplx
 implementation_status: pinned_upstream_contract_adapter_implemented
-support_status: runnable_upstream
+support_status: integrated_experimental
 native_profile:
   representation_id: dart.smplx.body22.axis_angle_primitives.v1
   carrier: ordered_motion_primitive_parameter_records

@@ -2,89 +2,223 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: motioncraft-smplx
   display_name: MotionCraft MC-Bench SMPL-X 322D
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/cure-lab/MotionCraft
     revision: a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9
     release: AAAI 2025
-  tasks:
-    - text_to_motion
-    - speech_to_gesture
-    - music_to_dance
+  tasks: [text_to_motion, speech_to_gesture, music_to_dance]
   adapter_family: motioncraft-smplx322
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_motion
     fields:
-      prompt:
-        type: string
-        required: true
+      prompt: {type: string, required: true, maximum_length: 8000}
+      motion_length_frames: {type: integer, required: false, minimum: 30, maximum: 196}
+      duration_seconds: {type: number, required: false, minimum: 1.0, maximum: 6.533}
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
   - schema_version: virea.job_request.v1.0.0
     task: speech_to_gesture
     fields:
-      audio:
-        type: audio
-        required: true
-      transcript:
-        type: string
-        required: false
+      audio: {type: audio, required: true, accepted_values: [browser_audio_data_uri, server_local_path], description: "Browser audio data URI or unquoted server-local path, decoded to mono 16 kHz PCM"}
+      transcript: {type: string, required: false, maximum_length: 8000}
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
   - schema_version: virea.job_request.v1.0.0
     task: music_to_dance
     fields:
-      audio:
-        type: audio
-        required: true
+      audio: {type: audio, required: true, accepted_values: [browser_audio_data_uri, server_local_path], description: "Browser audio data URI or unquoted server-local path, converted with the official FineDance/AIST++ 35D extractor"}
+      style_prompt: {type: string, required: false, maximum_length: 8000}
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: motionx.smplx322.v1
   skeleton_id: motionx.smplx53.v1
   fps: 30.0
   coordinate_system: motionx.right_handed_y_up_profile_defined_forward
-  units: motionx_profile_defined_translation_units
-  root_translation_semantics: absolute_world_translation_at_features_309_to_312_with_subsource_scale_calibration_required
+  units: meters_after_task_checkpoint_denormalization
+  root_translation_semantics: absolute_world_translation_at_features_309_to_312_with_explicit_source_profile
   root_rotation_semantics: smplx_global_orient_axis_angle_at_features_0_to_3_local_to_world
-  face_representation_ids:
-    - smplx.expression50.v1
-runtime_variants: []
+  face_representation_ids: [smplx.expression50.v1]
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: motioncraft-smplx-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 12.0}
+    lockfile: uv.lock
+    min_storage_gib: 14.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 12.0, min_free_ram_gib: 24.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_motioncraft.worker]
+    startup_timeout_seconds: 1800
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/motioncraft-smplx/runtime-cu128
+    project_package: virea-model-motioncraft-smplx-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_three_task_cuda_build_and_contract_requires_local_real_checkpoint_acceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: motioncraft-smplx-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 24.0, min_free_swap_gib: 8.0}
+    entrypoint_argv: [python, -m, virea_motioncraft.worker]
+    startup_timeout_seconds: 1800
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/motioncraft-smplx/runtime-cpu
+    project_package: virea-model-motioncraft-smplx-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_three_task_cpu_build_and_contract_requires_local_real_checkpoint_acceptance
 artifacts:
+  - id: motioncraft-source
+    kind: https
+    url: https://github.com/cure-lab/MotionCraft/archive/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9.zip
+    revision: a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9
+    expected_files:
+      - source/mogen/models/architectures/diffusion_architecture.py
+      - source/mogen/models/transformers/controlnet.py
+      - source/configs/stmogen/T2M_motionx_align_Finedance_Beats2_face_no_loss_0_125b.py
+      - source/configs/stmogen/S2G_Beats2_no_face_loss_025b.py
+      - source/configs/stmogen/M2D_finedance_no_face_loss_0125b.py
+      - source/data/datasets/motionx/humanml3d_align_mean.npy
+      - source/data/datasets/motionx/humanml3d_align_std.npy
+      - source/data/datasets/beats2/mean.npy
+      - source/data/datasets/beats2/std.npy
+      - source/data/datasets/finedance/mean.npy
+      - source/data/datasets/finedance/std.npy
+    unpack:
+      - path: a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9.zip
+        format: zip
+        destination: source
+        strip_components: 1
+        remove_archive: true
   - id: motioncraft-task-checkpoints
     kind: manual
     url: https://drive.google.com/drive/folders/1cY7JFtmqBEsI2R_UKcIzxcsLETw1OXwF
+    revision: google-drive-folder-1cY7JFtmqBEsI2R_UKcIzxcsLETw1OXwF
     expected_files:
-      - text_to_motion_checkpoint
-      - speech_to_gesture_checkpoint
-      - music_to_dance_checkpoint
-  - id: motioncraft-evaluation-encoders
-    kind: manual
-    url: https://drive.google.com/drive/folders/1cy3tRnMpb1k-A3bX2rY4JlY8cMENPLZ2
+      - t2m_no_face_loss_l4_latentdim128_ffsize512/epoch_12.pth
+      - S2G_t2m_no_face_loss_l8_latentdim128_ffsize512/epoch_24.pth
+      - M2D_t2m_no_face_loss_l4_latentdim128_ffsize512/epoch_48.pth
+  - id: openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files: [ViT-B-32.pt]
 licenses:
   code: Apache-2.0
   weights: upstream_does_not_state_a_separate_weight_license
-  dataset_lineage:
-    - Motion-X
-    - HumanML3D
-    - BEAT2
-    - FineDance
-  body_model:
-    - SMPL-X license and model download terms apply
+  dataset_lineage: [Motion-X, HumanML3D, BEAT2, FineDance, AMASS]
+  body_model: [SMPL-X license and model download terms apply to optional body rendering assets]
   commercial_allowed: null
   redistribution_allowed: null
   requires_acceptance: true
   source_urls:
     - https://github.com/cure-lab/MotionCraft/blob/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9/LICENSE
     - https://github.com/cure-lab/MotionCraft/blob/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9/README.md
+    - https://github.com/li-ronghui/FineDance/blob/0476cd42619e57fb6ec4840e81acaf7743b1507d/data/code/pre_music.py
 resources:
   upstream_tested_python: "3.9"
   upstream_tested_pytorch: 1.12.1
   upstream_tested_cuda: "11.3"
-  required_libraries:
-    - mmcv
-    - tutel
-    - pytorch3d
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   native_feature_dim: 322
   native_fps: 30.0
+  task_graphs_loaded_one_at_a_time: true
+  upstream_inference_entrypoints:
+    text_to_motion: tools/test.py
+    speech_to_gesture: tools/s2g_test.py
+    music_to_dance: tools/m2d_test.py
+  implementation: plugins/models/motioncraft-smplx/runtime/src/virea_motioncraft/worker.py
+  complete_offline_artifact_closure:
+    - pinned MotionCraft source and all six task normalization vectors
+    - all three exact official Google Drive checkpoints
+    - pinned OpenAI CLIP ViT-B/32 weight
+  portability:
+    closure: pure_pytorch_single_process_moe_mmcv_openai_clip_librosa
+    deviation: Tutel distributed/JIT dispatch replaced by checkpoint-compatible top-k pure Torch routing; unused PyTorch3D renderer construction removed
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+  normalization_sha256:
+    text_mean: 080fe1b3279bb2f150ba039372c7995225dd7f3f90d3c5335873ec4dea901884
+    text_std: 13ad5f581d41edf746fd56f826ac217b6057603a5fb5c0ab4d80179c28184422
+    speech_mean: f5a8b989ce1a18c15a3257c0b984de3e2d6c77d6e2418c288b2acb9e7a2b875c
+    speech_std: b869942e9e455be42d1d1aac4dbe969b3cb0cbebe6aae5fac236bdff3be09ac5
+    music_mean: 3ad4d8734ee3c34e9711ce4b33c006c0fd647a2be814b083988839287d49ac7b
+    music_std: 23c793d3ae85499515adecf90cb2890972791a1e38e6a62fa76c4a256736f108
+  integration_state: integrated_experimental
+production_acceptance_suite:
+  schema_version: virea.production_e2e_acceptance_suite.v1.0.0
+  kind: production_e2e_suite
+  contracts:
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: motioncraft-smplx
+        task: text_to_motion
+        input: {prompt: "A person walks forward, turns left, and waves with the right hand.", motion_length_frames: 60}
+        parameters: {seed: 42}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: motionx.smplx322.v1
+        skeleton_id: motionx.smplx53.v1
+        min_frames: 60
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 7200.0
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: motioncraft-smplx
+        task: speech_to_gesture
+        input:
+          audio: &motioncraft_acceptance_wav "data:audio/wav;base64,UklGRqQ+AABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YYA+AACAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4gIiQmJ+kqa2vsK+tqqWgmZKKgnlxamNcV1RRUFBSVVpfZm11fYWNlZyiqKyusLCuq6einJSNhXx0bGVfWVVSUFBRVFhdY2pyeoKKkpqgpqqusLCvramknpeQiH93b2hhW1ZTUVBRU1ZbYWhvd3+IkJeepKmtr7CwrqqmoJqSioJ6cmpjXVhUUVBQUlVZX2VsdHyFjZScoqerrrCwrqyoopyVjYV9dW1mX1pVUlBQUVRXXGNqcXmCipKZoKWqra+wr62ppJ+YkIiAeHBoYVxXU1FQUVNWW2BnbnZ+h4+WnaSprK+wsK6rpqGak4uDe3NrZF5YVFJQUFJVWV5kbHN7hIyUm6Gnq66wsK+sqKOdlo6GfnZuZmBaVlJQUFFTV1xiaXB4gYmRmJ+lqq2vsK+tqqWfmJGJgXhwaWJcV1NRUFBSVlpgZm52foaOlp2jqKyvsLCuq6ehm5SMhHtzbGReWVVSUFBSVFheZGtze4OLk5qhpquusLCvrKmknZaPh352bmdgW1ZTUVBRU1dcYWhweICIkJifpKmtr7CvraqloJmSioJ5cWpjXFdUUVBQUlVaX2ZtdX2FjZWcoqisrrCwrqunopyUjYV8dGxlX1lVUlBQUVRYXWNqcnqCipKaoKaqrrCwr62ppJ6XkIh/d29oYVtWU1FQUVNWW2Fob3d/iJCXnqSpra+wsK6qpqCakoqCenJqY11YVFFQUFJVWV9lbHR8hY2UnKKnq66wsK6sqKKclY2FfXVtZl9aVVJQUFFUV1xjanF5goqSmaClqq2vsK+tqaSfmJCIgHhwaGFcV1NRUFFTVltgZ252foePlp2kqayvsLCuq6ahmpOLg3tza2ReWFRSUFBSVVleZGxze4SMlJuhp6uusLCvrKijnZaOhn52bmZgWlZSUFBRU1dcYmlweIGJkZifpaqtr7Cvraqln5iRiYF4cGliXFdTUVBQUlZaYGZudn6Gjpado6isr7CwrqunoZuUjIR7c2xkXllVUlBQUlRYXmRrc3uDi5OaoaarrrCwr6yppJ2Wj4d+dm5nYFtWU1FQUVNXXGFocHiAiJCYn6Spra+wr62qpaCZkoqCeXFqY1xXVFFQUFJVWl9mbXV9hY2VnKKorK6wsK6rp6KclI2FfHRsZV9ZVVJQUFFUWF1janJ6goqSmqCmqq6wsK+tqaSel5CIf3dvaGFbVlNRUFFTVlthaG93f4iQl56kqa2vsLCuqqagmpKKgnpyamNdWFRRUFBSVVlfZWx0fIWNlJyip6uusLCurKiinJWNhX11bWZfWlVSUFBRVFdcY2pxeYKKkpmgpaqtr7Cvramkn5iQiIB4cGhhXFdTUVBRU1ZbYGdudn6Hj5adpKmsr7CwrqumoZqTi4N7c2tkXlhUUlBQUlVZXmRsc3uEjJSboaerrrCwr6yoo52WjoZ+dm5mYFpWUlBQUVNXXGJpcHiBiZGYn6Wqra+wr62qpZ+YkYmBeHBpYlxXU1FQUFJWWmBmbnZ+ho6WnaOorK+wsK6rp6GblIyEe3NsZF5ZVVJQUFJUWF5ka3N7g4uTmqGmq66wsK+sqaSdlo+HfnZuZ2BbVlNRUFFTV1xhaHB4"
+          transcript: "Welcome. Let us build a reliable motion system together."
+        parameters: {seed: 42}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: motionx.smplx322.v1
+        skeleton_id: motionx.smplx53.v1
+        min_frames: 30
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 7200.0
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: motioncraft-smplx
+        task: music_to_dance
+        input:
+          audio: *motioncraft_acceptance_wav
+          style_prompt: "A dancer performs a rhythmic whole-body dance."
+        parameters: {seed: 42}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: motionx.smplx322.v1
+        skeleton_id: motionx.smplx53.v1
+        min_frames: 30
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 7200.0
 notes:
-  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
-  - runnable_upstream is an upstream reproducibility statement only; the three task checkpoints have not been wrapped or run through VIREA's production end-to-end acceptance path.
-  - The 322D carrier has exact SMPL-X parameter slices, but translation scale is a Motion-X sub-source fact; conversion must fail closed when provenance is absent instead of assuming all sources are meters.
+  - The Worker executes the three released STMoGen/ControlNet graphs and their exact checkpoints; no task substitutes synthetic or generic motion.
+  - The task-specific mean/std vectors are pinned in the source commit and emitted as finite float32 NPY files beside normalized [T,322] output, so downstream conversion cannot silently use the wrong dataset statistics.
+  - The official FineDance/AIST++ 35D librosa feature algorithm is applied to local music; speech is decoded to the official mono 16 kHz waveform carrier.
+  - MotionDiffusion instantiated a CUDA/PyTorch3D visualization skeleton that inference never reads. The Worker removes only that unused constructor and uses a state-dict-compatible pure Torch implementation of Tutel's single-process top-k MoE equations on every OS.
+  - CLIP is loaded only from the supervisor-installed ViT-B/32 file. HF_HUB_OFFLINE and TRANSFORMERS_OFFLINE are forced, and all implicit network access is forbidden.
+  - integrated_experimental records a complete implemented and locked runtime contract. READY is still published only after the selected local device passes the full production acceptance path above.

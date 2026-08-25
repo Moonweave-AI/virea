@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -25,11 +26,25 @@ MARKDOWN_EXCLUDED_PARTS = {
 
 
 def repository_markdown() -> list[Path]:
-    """Discover every project-owned Markdown file, not only the docs folder."""
+    """Discover version-controlled Markdown, excluding local agent/user files."""
 
+    listed = subprocess.run(
+        ["git", "ls-files", "--cached", "--", "*.md"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    candidates = (
+        (ROOT / relative for relative in listed.stdout.splitlines() if relative)
+        if listed.returncode == 0
+        else ROOT.rglob("*.md")
+    )
     return sorted(
         path
-        for path in ROOT.rglob("*.md")
+        for path in candidates
+        if path.is_file()
         if not any(part in MARKDOWN_EXCLUDED_PARTS for part in path.parts)
         and ".egg-info" not in path.as_posix()
     )
@@ -54,17 +69,11 @@ METADATA_EXEMPT = {
     # This is a byte-for-byte archival copy of the user-supplied registry
     # snapshot. Governance metadata lives in its catalog/index sidecars.
     "doc/model-catalog/motion-generation-registry-2026-08-20.zh-CN.md",
-    # Conventional legal notices are consumed verbatim by packaging and
-    # license scanners. They remain in the all-Markdown link/content checks,
-    # but governance metadata lives in the owning model manifest or root docs.
-    "THIRD_PARTY_NOTICES.md",
-    "plugins/models/acmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
-    "plugins/models/cmdm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
-    "plugins/models/flood-diffusion-tiny/runtime/THIRD_PARTY_NOTICES.md",
-    "plugins/models/mardm-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
-    "plugins/models/momadiff-humanml3d/runtime/THIRD_PARTY_NOTICES.md",
-    "plugins/models/prism-tp2m-1-4b/runtime/THIRD_PARTY_NOTICES.md",
 }
+# Conventional legal notices are consumed verbatim by packaging and license
+# scanners. They remain in all Markdown link/content checks, while governance
+# metadata lives in each owning manifest or runtime guide.
+METADATA_EXEMPT_NAMES = {"THIRD_PARTY_NOTICES.md"}
 BILINGUAL_DOCUMENT_PAIRS = {
     "README.md": "README.zh-CN.md",
     "doc/README.en.md": "doc/README.zh-CN.md",
@@ -351,7 +360,7 @@ def check_markdown(path: Path) -> list[str]:
     prose = without_code(text)
     rel = path.relative_to(ROOT).as_posix()
 
-    if rel not in METADATA_EXEMPT:
+    if rel not in METADATA_EXEMPT and path.name not in METADATA_EXEMPT_NAMES:
         metadata, metadata_error = metadata_mapping(text)
         if metadata_error:
             errors.append(f"{rel}: {metadata_error}")

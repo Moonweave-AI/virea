@@ -13,7 +13,10 @@ import {
   artifactBasename,
   artifactUrl,
   createGenerationPayload,
+  createManifestGenerationPayload,
   createInstallPayload,
+  productionAcceptanceTimeoutSeconds,
+  type GenerationFormDraft,
 } from "./domain";
 import { request } from "./http";
 export type { JobRecord, ModelManifest } from "./contracts";
@@ -29,11 +32,15 @@ export interface HealthStatus {
 const HEALTH_TIMEOUT_MS = 5_000;
 const SYSTEM_DIAGNOSTIC_TIMEOUT_MS = 180_000;
 
-function installTimeout(manifest: ModelManifest): number {
-  const acceptanceTimeoutSeconds = Number(manifest.production_acceptance?.timeout_seconds);
-  return Number.isFinite(acceptanceTimeoutSeconds) && acceptanceTimeoutSeconds > 0
-    ? Math.ceil(acceptanceTimeoutSeconds * 1_000) + 120_000
-    : SYSTEM_DIAGNOSTIC_TIMEOUT_MS;
+export function installTimeout(manifest: ModelManifest): number {
+  try {
+    const acceptanceTimeoutSeconds = productionAcceptanceTimeoutSeconds(manifest);
+    return acceptanceTimeoutSeconds > 0
+      ? Math.ceil(acceptanceTimeoutSeconds * 1_000) + 120_000
+      : SYSTEM_DIAGNOSTIC_TIMEOUT_MS;
+  } catch {
+    return SYSTEM_DIAGNOSTIC_TIMEOUT_MS;
+  }
 }
 
 export const api = {
@@ -69,6 +76,16 @@ export const api = {
     request<JobRecord>("/jobs", {
       method: "POST",
       body: JSON.stringify(createGenerationPayload(manifest, prompt, seconds, seed, executionTarget, idempotencyKey)),
+    }),
+  generateFromFields: (
+    manifest: ModelManifest,
+    draft: GenerationFormDraft,
+    executionTarget: ExecutionTargetSelection,
+    idempotencyKey: string,
+  ) =>
+    request<JobRecord>("/jobs", {
+      method: "POST",
+      body: JSON.stringify(createManifestGenerationPayload(manifest, draft, executionTarget, idempotencyKey)),
     }),
   result: (jobId: string) => request<VrmMotionResult>(`/jobs/${encodeURIComponent(jobId)}/result`),
   sourceSkeleton: (resultId: string) =>

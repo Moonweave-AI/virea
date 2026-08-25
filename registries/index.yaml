@@ -53,6 +53,7 @@ registries:
     - registries/representations/dart-smplx-body22.v1.yaml
     - registries/representations/interhuman-position-velocity132.v1.yaml
     - registries/representations/interhuman-motion262.v1.yaml
+    - registries/representations/interhuman-motion262-single-actor.v1.yaml
     - registries/representations/smplx-expression50.v1.yaml
     - registries/representations/arkit-blendshape51.v1.yaml
     - registries/representations/prism-smplh-body22-axis-angle69.v1.yaml
@@ -70,6 +71,22 @@ registries:
     - registries/runtimes/cmdm-humanml3d-cpu.yaml
     - registries/runtimes/prism-tp2m-1-4b-cu128-component-split.yaml
     - registries/runtimes/prism-tp2m-1-4b-cpu.yaml
+    - registries/runtimes/momask-humanml3d-cu128.yaml
+    - registries/runtimes/momask-humanml3d-cpu.yaml
+    - registries/runtimes/discord-humanml3d-cu128.yaml
+    - registries/runtimes/discord-humanml3d-cpu.yaml
+    - registries/runtimes/remomask-humanml3d-cu128.yaml
+    - registries/runtimes/remomask-humanml3d-cpu.yaml
+    - registries/runtimes/hy-motion-1-cu128.yaml
+    - registries/runtimes/hy-motion-1-cpu.yaml
+    - registries/runtimes/intermask-interhuman-cu128.yaml
+    - registries/runtimes/intermask-interhuman-cpu.yaml
+    - registries/runtimes/dart-smplx-cu128.yaml
+    - registries/runtimes/dart-smplx-cpu.yaml
+    - registries/runtimes/motioncraft-smplx-cu128.yaml
+    - registries/runtimes/motioncraft-smplx-cpu.yaml
+    - registries/runtimes/sentiavatar-susu-cu128.yaml
+    - registries/runtimes/sentiavatar-susu-cpu.yaml
   bundles: []
 legacy_registries:
   datasets: registries/datasets.yaml

@@ -942,7 +942,6 @@ requires-dist = [
     { name = "transformers", specifier = ">=4.57,<5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-model-pool", marker = "extra == 'dev'", editable = "../../../../packages/model_pool" },
     { name = "virea-model-sdk", editable = "../../../../packages/model_sdk" },
 ]
 provides-extras = ["dev"]

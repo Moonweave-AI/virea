@@ -1,14 +1,14 @@
 overlay_version: virea.motion_model_first_wave_overlay.v1.0.0
-snapshot_date: '2026-08-20'
+snapshot_date: '2026-08-26'
 status: draft
 owner: VIREA maintainers
 base_registry:
   path: motion-model-registry.v1.0.0.yaml
   registry_version: virea.motion_model_registry.v1.0.0
 purpose: >-
-  A sparse evidence and integration-status overlay for first-wave candidates and
-  notable registration-only models. It intentionally does not duplicate the
-  519-entry base registry.
+  A sparse evidence and integration-status overlay for the 14 catalog models
+  with VIREA integration contracts, plus notable upstream and registration-only
+  research records. It does not duplicate the broader base registry.
 status_semantics:
   registered: >-
     Tracked as a research work or integration target only. No inference,
@@ -19,9 +19,10 @@ status_semantics:
     a managed Runtime, Worker, or adapter, but the current production-acceptance
     contract has not completed and the model is not counted as integrated.
   integrated_experimental: >-
-    A VIREA Worker, isolated runtime, Motion IR decoder, and real official
-    checkpoint production-acceptance path have run successfully, but hardware,
-    platform, licensing, quality, or regression coverage remains incomplete.
+    A VIREA Worker, isolated Runtime, Motion IR decoder, and model-specific
+    production-acceptance target are implemented. This status does not claim
+    that a current real-checkpoint acceptance record passed; that fact is kept
+    separately in virea_evidence.
   supported: >-
     A tested VIREA worker, runtime manifest, decoder, end-to-end VRM regression,
     and explicit license declaration exist.
@@ -32,14 +33,18 @@ status_semantics:
 invariants:
   registration_is_not_support: true
   upstream_runnable_is_not_virea_integrated: true
+  integrated_experimental_requires_target_acceptance_contract: true
+  integration_status_is_not_real_checkpoint_evidence: true
   supported_requires_real_integration_evidence: true
   supported_entries_in_this_snapshot: 0
+  integrated_experimental_entries_in_this_snapshot: 14
 entries:
   - uid: 2025-flood-diffusion-tiny
     model_id: flood-diffusion-tiny
     role: integrated_model
     wave: 1
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       code_and_weights: https://huggingface.co/AlayaLab/FloodDiffusionTiny/tree/e86746efa2f16b94a1bb08550e3d8d4a32163f14
       text_encoder: https://huggingface.co/google/umt5-base/tree/0de9394d54f8975e71838d309de1cb496c894ab9
@@ -55,48 +60,19 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
-      manifest_runtime_availability: real_checkpoint_production_acceptance_passed_on_win64_rtx5090
-      ready_installation_id: 01M0H5HQJ5VXE5AR1S1ARFY7MG
-      acceptance_job_id: 01M0H5PX11VNF79ZY5FS4H1BH6
-      acceptance_result_id: 01M0H5RRBP5J51NR182HKA83PW
-      exact_job_id: 01M0H5SERHQP1AKZPJDSFAQXWJ
-      exact_result_id: 01M0H5T4WC1YAXX0X041E4KMJ3
-      real_install_ready_verify: true
-      real_checkpoint_inference: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
       motion_ir_decoder: true
-      canonical211: true
-      vrma_validator: true
-      real_browser_playback: true
-      end_to_end_regression: true
-      tested_platform: Windows win64; NVIDIA RTX 5090
-      exact_result:
-        native_shape: [77, 263]
-        native_finite: true
-        canonical_shape: [77, 211]
-        fps: 20
-        vrma_bytes: 83664
-        vrma_frames: 77
-        vrma_duration_seconds: 3.80
-        vrma_rotation_tracks: 52
-        vrma_translation_tracks: 1
-        rest_hips_meters: 1.0
-        load_seconds: 19.388
-        inference_seconds: 3.059
-        total_seconds: 22.673
-        validator_ok: true
-        production_e2e_complete: false
-        outstanding_external_stage: web_playback
-      external_browser_evidence:
-        current_bundle_port: 8015
-        full_avatar_playback: true
-        console_warning_count: 0
-        console_error_count: 0
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-momadiff
     model_id: momadiff-humanml3d
     role: integrated_model
     wave: 1
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       code: https://github.com/zzysteve/MoMADiff/tree/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
       weights: https://huggingface.co/SteveZh/momadiff_models/tree/daf83c1441fbb9e8bacd377e28f557b54080c2a1
@@ -115,21 +91,20 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
-      real_install_ready_verify: true
-      real_checkpoint_inference: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
       motion_ir_decoder: true
-      canonical211: true
-      vrma_validator: true
-      real_browser_playback: true
-      end_to_end_regression: true
-      tested_platform: Windows win64; NVIDIA RTX 5090
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2026-prism
     model_id: prism-tp2m-1-4b
-    role: first_wave_candidate
+    role: integrated_model
     wave: 1
     priority_rank: 1
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2603.08590
       code: https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186
@@ -154,18 +129,20 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
       motion_ir_decoder: true
-      real_checkpoint_inference: true
-      managed_runtime_product_e2e: true
-      end_to_end_regression: true
-      tested_platform: WSL2 Ubuntu 24.04; NVIDIA RTX 5090 Laptop GPU
+      real_checkpoint_inference: false
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-mardm
     model_id: mardm-humanml3d
-    role: first_wave_candidate
+    role: integrated_model
     wave: 1
     priority_rank: 2
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2411.16575
       code: https://github.com/neu-vi/MARDM/tree/5e32b69723376028f38125ccee33011549cd341d
@@ -187,20 +164,19 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
-      real_install_ready_verify: true
-      real_checkpoint_inference: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
       motion_ir_decoder: true
-      canonical211: true
-      vrma_validator: true
-      real_browser_playback: true
-      end_to_end_regression: true
-      tested_platform: Windows win64; NVIDIA RTX 5090
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-acmdm
     model_id: acmdm-humanml3d
     role: integrated_model
     wave: 1
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       code: https://github.com/neu-vi/ACMDM/tree/25ed4ba22fb54d9c3e99361609ee344e7c940303
       weights: https://huggingface.co/cr8br0ze/ACMDM_Flow_S_PatchSize22/tree/f7b77ecb16968afb0329a4a706978780843a1fc9
@@ -219,20 +195,19 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
-      real_install_ready_verify: true
-      real_checkpoint_inference: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
       motion_ir_decoder: true
-      canonical211: true
-      vrma_validator: true
-      real_browser_playback: true
-      end_to_end_regression: true
-      tested_platform: Windows win64; NVIDIA RTX 5090
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-cmdm
     model_id: cmdm-humanml3d
     role: integrated_model
     wave: 1
     integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       code: https://github.com/lycorp-jp/CMDM/tree/7fac27ecd78365115db5c29937f20889c318d79d
       weights: https://huggingface.co/ly-corporation/CMDM/tree/be818de05ee83018d25dfeb9fbcd3fadddf4ccd8
@@ -251,20 +226,50 @@ entries:
     virea_evidence:
       worker: true
       runtime_manifest: true
-      real_install_ready_verify: true
-      real_checkpoint_inference: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
       motion_ir_decoder: true
-      canonical211: true
-      vrma_validator: true
-      real_browser_playback: true
-      end_to_end_regression: true
-      tested_platform: Windows win64; NVIDIA RTX 5090
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
-  - uid: 2025-intermask
-    role: first_wave_candidate
+  - uid: 2024-momask
+    model_id: momask-humanml3d
+    role: integrated_model
     wave: 1
     priority_rank: 3
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
+    official_sources:
+      paper: https://arxiv.org/abs/2312.00063
+      code: https://github.com/EricGuo5513/momask-codes/tree/94a6636c9c463b7a9414c3401a6f1b67e6c51824
+      weights: https://drive.google.com/file/d/1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0/view
+    artifact_status: pinned_official_code_and_exact_manual_checkpoint_archive
+    license:
+      code: MIT
+      weights: upstream_does_not_state_a_separate_weight_license
+      status: license_review_required_for_weights
+    runtime: VIREA locked CPU Runtime on win-64, linux-64, osx-arm64, and osx-64; locked CUDA Runtime on win-64 and linux-64
+    input: text plus optional motion length, sampling steps, conditioning scale, and seed
+    output: denormalized HumanML3D (T,263) at 20 FPS
+    adapter_family: humanml3d-motion263-body22
+    virea_evidence:
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
+      end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
+
+  - uid: 2025-intermask
+    model_id: intermask-interhuman
+    role: integrated_model
+    wave: 1
+    priority_rank: 3
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2410.10010
       code: https://github.com/gohar-malik/intermask
@@ -277,19 +282,25 @@ entries:
     runtime: Python 3.7.7; PyTorch 1.13.1
     input: text; reaction mode can condition on a reference actor
     output: two actor tensors, each shaped (T, 22, 9), at 30 FPS
-    adapter_family: multi_actor_motion
+    adapter_family: intermask-interhuman-two-actor
     adaptation_difficulty: medium
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-motioncraft
-    role: first_wave_candidate
+    model_id: motioncraft-smplx
+    role: integrated_model
     wave: 1
     priority_rank: 4
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2407.21136
       code: https://github.com/cure-lab/MotionCraft
@@ -302,21 +313,27 @@ entries:
     runtime: Python 3.9; PyTorch 1.12.1; CUDA 11.3; mmcv-full; Tutel; PyTorch3D
     input: text, speech, or music depending on the selected checkpoint
     output: unified SMPL-X whole-body representation; repository layout uses smplx_322
-    adapter_family: smplx_whole_body
+    adapter_family: motioncraft-smplx322
     adaptation_difficulty: high
     limitations:
       - The three tasks use separate checkpoints; this is not one all-modal checkpoint.
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-dart
-    role: first_wave_candidate
+    model_id: dart-smplx
+    role: integrated_model
     wave: 1
     priority_rank: 5
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2410.05260
       code: https://github.com/zkf1997/DART
@@ -329,7 +346,7 @@ entries:
     runtime: Tested upstream on Ubuntu 22.04 and RTX 4090
     input: motion history plus streaming text; optional keyframes, trajectories, goals, or scene SDF
     output: autoregressive SMPL-X motion primitives exported as PKL or NPZ
-    adapter_family: smplx_whole_body
+    adapter_family: dart-smplx-primitives
     adaptation_difficulty: high
     capabilities:
       - text_stream
@@ -338,16 +355,22 @@ entries:
       - scene_control
       - goal_policy
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-hy-motion-1-0
-    role: first_wave_candidate
+    model_id: hy-motion-1
+    role: integrated_model
     wave: 2
     priority_rank: 6
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2512.23464
       code: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
@@ -364,20 +387,26 @@ entries:
     runtime: Full model minimum 26GB VRAM; Lite minimum 24GB VRAM
     input: English text plus optional duration estimation and prompt rewriting
     output: model configuration input_dim is 201; field mapping awaits official-decoder adapter work
-    adapter_family: smpl_smplh_axis_angle
+    adapter_family: hy-motion-body22
     adaptation_difficulty: medium_high
     default_enablement: opt_in_only
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2026-sentiavatar-susuinteracts
-    role: first_wave_candidate
+    model_id: sentiavatar-susu
+    role: integrated_model
     wave: 2
     priority_rank: 7
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2604.02908
       code: https://github.com/SentiAvatar/SentiAvatar
@@ -391,21 +420,27 @@ entries:
     runtime: Python 3.10; Qwen2-0.5B; Chinese HuBERT; vLLM; RVQ-VAE; Mask Transformer
     input: 16kHz Mandarin audio plus a Chinese action tag
     output: 20 FPS body (T,153), left hand (T,120), right hand (T,120), ARKit-51 expression; BVH and UE JSON export
-    adapter_family: streaming_audio_motion
+    adapter_family: sentiavatar-susu-mta63
     adaptation_difficulty: medium_high
     upstream_inconsistency: README says 63 joints while 25 + 20 + 20 equals 65; use tensor shapes and named-joint maps
     default_enablement: noncommercial_opt_in_only
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-discord
-    role: first_wave_candidate
+    model_id: discord-humanml3d
+    role: integrated_model
     wave: 1
     priority_rank: 8
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2411.19527
       code: https://github.com/whwjdqls/DisCoRD
@@ -417,20 +452,26 @@ entries:
     runtime: Python 3.8.5; CUDA 11.8; MoMask and HumanML/KIT toolchain
     input: text plus explicit motion length
     output: MoMask-compatible HumanML3D or KIT motion through a rectified-flow continuous decoder
-    adapter_family: humanml3d_263d_body22
+    adapter_family: humanml3d-motion263-body22
     adaptation_difficulty: low_medium
     recommended_role: continuous_decoder_refiner
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-remomask
-    role: first_wave_candidate
+    model_id: remomask-humanml3d
+    role: integrated_model
     wave: 2
     priority_rank: 9
-    integration_status: runnable_upstream
+    integration_status: integrated_experimental
+    target_acceptance_required: true
     official_sources:
       paper: https://arxiv.org/abs/2508.02605
       code: https://github.com/AIGeeksGroup/ReMoMask
@@ -444,15 +485,19 @@ entries:
     runtime: Python 3.10; PyTorch 2.1.0; CUDA 11.8; approximately 8.87GB official HF artifacts
     input: text plus optional length and retrieval database
     output: HumanML3D route with 22-joint or SMPL visualization
-    adapter_family: humanml3d_263d_body22
+    adapter_family: humanml3d-motion263-body22
     adaptation_difficulty: medium_high
     upstream_inconsistency: GitHub README says weights are coming soon, while the official HF repository contains them
     default_enablement: noncommercial_opt_in_only
     virea_evidence:
-      worker: false
-      runtime_manifest: false
-      motion_ir_decoder: false
+      worker: true
+      runtime_manifest: true
+      target_acceptance_contract: true
+      real_install_ready_verify: false
+      real_checkpoint_inference: false
+      motion_ir_decoder: true
       end_to_end_regression: false
+      evidence_scope: current_policy_v1.1
 
   - uid: 2025-intermimic
     role: first_wave_candidate

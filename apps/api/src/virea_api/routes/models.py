@@ -55,8 +55,8 @@ class InstallRequest(BaseModel):
 
 
 def _reject_non_manifest_acceptance_request(request: InstallRequest, manifest) -> None:
-    contract = manifest.production_acceptance
-    if contract is None:
+    contracts = manifest.production_acceptance_contracts
+    if not contracts:
         raise HTTPException(
             status_code=409,
             detail={
@@ -64,23 +64,30 @@ def _reject_non_manifest_acceptance_request(request: InstallRequest, manifest) -
                 "model_id": request.model_id,
             },
         )
-    expected = contract.request
+    def required(getter):
+        values = {
+            contract.request.task: getter(contract)
+            for contract in contracts
+        }
+        distinct = {json.dumps(value, sort_keys=True) for value in values.values()}
+        return next(iter(values.values())) if len(distinct) == 1 else values
+
     checks = {
         "validation_prompt": (
             request.validation_prompt,
-            expected.input.get("prompt"),
+            required(lambda contract: contract.request.input.get("prompt")),
         ),
         "validation_seconds": (
             request.validation_seconds,
-            expected.parameters.get("seconds"),
+            required(lambda contract: contract.request.parameters.get("seconds")),
         ),
         "validation_seed": (
             request.validation_seed,
-            expected.parameters.get("seed"),
+            required(lambda contract: contract.request.parameters.get("seed")),
         ),
         "validation_timeout": (
             request.validation_timeout,
-            contract.timeout_seconds,
+            required(lambda contract: contract.timeout_seconds),
         ),
     }
     mismatches = {
@@ -112,6 +119,15 @@ def _catalog_payload(
     verification_scope: Literal["full_integrity", "metadata"] = "full_integrity",
 ) -> dict[str, Any]:
     payload = manifest.model_dump(mode="json")
+    contracts = manifest.production_acceptance_contracts
+    # Keep the v1 primary field readable for existing Web/CLI clients while the
+    # complete immutable suite remains available in production_acceptance_suite.
+    payload["production_acceptance"] = (
+        contracts[0].model_dump(mode="json") if contracts else None
+    )
+    payload["production_acceptance_primary_task"] = (
+        contracts[0].request.task if contracts else None
+    )
     payload["capability"] = model_capability(manifest)
     payload["result_target"] = {
         "representation_id": CANONICAL211_SCHEMA,
@@ -353,18 +369,56 @@ def install(
     try:
         acceptance = control.run_real_acceptance(outcome)
     except Exception as exc:
-        acceptance = {
-            "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
-            "kind": "installation_real_e2e",
-            "contract": manifest.production_acceptance.model_dump(mode="json"),
-            "job_id": None,
-            "job_state": "FAILED",
-            "installation_acceptance_succeeded": False,
-            "production_e2e_succeeded": False,
-            "result_id": None,
-            "error_code": type(exc).__name__.upper(),
-            "error_message": str(exc),
-        }
+        contracts = manifest.production_acceptance_contracts
+        try:
+            artifact_identity = control.model_pool.acceptance_artifact_identity(outcome)
+        except (OSError, ValueError, json.JSONDecodeError):
+            artifact_identity = None
+        if manifest.production_acceptance_suite is not None:
+            acceptance = {
+                "schema_version": (
+                    "virea.installation_acceptance_suite_evidence.v1.0.0"
+                ),
+                "kind": "installation_real_e2e_suite",
+                "installation_id": outcome.installation_id,
+                "artifact_identity": artifact_identity,
+                "model_id": manifest.model.id,
+                "contract": manifest.production_acceptance_suite.model_dump(
+                    mode="json"
+                ),
+                "tasks": [contract.request.task for contract in contracts],
+                "task_acceptances": [],
+                "installation_acceptance_succeeded": False,
+                "production_e2e_succeeded": False,
+                "outstanding_required_stages": [],
+                "web_playback": {
+                    "passed": False,
+                    "status": "requires_external_browser_evidence",
+                },
+                "task_failures": [
+                    {
+                        "task": contract.request.task,
+                        "error_code": type(exc).__name__.upper(),
+                        "error_message": str(exc),
+                    }
+                    for contract in contracts
+                ],
+            }
+        else:
+            acceptance = {
+                "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
+                "kind": "installation_real_e2e",
+                "installation_id": outcome.installation_id,
+                "artifact_identity": artifact_identity,
+                "contract": contracts[0].model_dump(mode="json"),
+                "job_id": None,
+                "job_state": "FAILED",
+                "installation_acceptance_succeeded": False,
+                "production_e2e_succeeded": False,
+                "result_id": None,
+                "error_code": type(exc).__name__.upper(),
+                "error_message": str(exc),
+            }
         acceptance_diagnostics.append(
             f"real acceptance did not complete: {type(exc).__name__}: {exc}"
         )

@@ -10,6 +10,7 @@ export const schemaVersions = {
   workerProtocol: "virea.worker_protocol.v1.0.0",
   motionIr: "virea.motion_ir.v2.0.0",
   productionE2eAcceptance: "virea.production_e2e_acceptance.v1.0.0",
+  productionE2eAcceptanceSuite: "virea.production_e2e_acceptance_suite.v1.0.0",
 } as const;
 
 export type ExecutionDomainKind = "windows-native" | "linux-native" | "macos-native" | "wsl";
@@ -106,10 +107,32 @@ export interface JobRequest {
 }
 
 export interface WebGenerationJobRequest extends JobRequest {
-  input: Record<string, unknown> & { prompt: string };
+  input: Record<string, unknown>;
   parameters: Record<string, unknown>;
   avatar_id: null;
   idempotency_key: string;
+}
+
+export interface ManifestInputField {
+  type?: string;
+  required?: boolean;
+  default?: unknown;
+  enum?: unknown[];
+  description?: string;
+  representation_id?: string;
+  minimum?: number;
+  maximum?: number;
+  exclusive_minimum?: number;
+  multiple_of?: number;
+  maximum_length?: number;
+  sample_rate_hz?: number;
+  [key: string]: unknown;
+}
+
+export interface ManifestInputSchema {
+  schema_version: typeof schemaVersions.jobRequest;
+  task: string;
+  fields: Record<string, ManifestInputField>;
 }
 
 export interface ProductionE2EAcceptance {
@@ -124,6 +147,12 @@ export interface ProductionE2EAcceptance {
   };
   required_stages: string[];
   timeout_seconds: number;
+}
+
+export interface ProductionE2EAcceptanceSuite {
+  schema_version: typeof schemaVersions.productionE2eAcceptanceSuite;
+  kind: "production_e2e_suite";
+  contracts: ProductionE2EAcceptance[];
 }
 
 export interface ModelInstallPayload {
@@ -221,6 +250,7 @@ export interface ModelManifest {
     tasks: string[];
     adapter_family: string;
   };
+  inputs: ManifestInputSchema[];
   output: {
     envelope: typeof schemaVersions.modelResult;
     representation_id: string;
@@ -243,6 +273,8 @@ export interface ModelManifest {
     requires_acceptance: boolean;
   };
   production_acceptance: ProductionE2EAcceptance | null;
+  production_acceptance_suite?: ProductionE2EAcceptanceSuite | null;
+  production_acceptance_primary_task?: string | null;
   capability?: {
     cataloged: boolean;
     upstream_runnable: boolean;

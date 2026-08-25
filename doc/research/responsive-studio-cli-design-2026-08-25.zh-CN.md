@@ -3,8 +3,8 @@ type: research-log
 status: Active
 owner: VIREA maintainers
 created: 2026-08-25
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: 响应式任务提交、持久实时进度、可交互 WebGL Viewer，以及语义化 CLI/Web 呈现所依据的一手资料研究。
 canonical: doc/research/responsive-studio-cli-design-2026-08-25.zh-CN.md
@@ -12,6 +12,7 @@ related:
   - responsive-studio-cli-design-2026-08-25.en.md
   - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
   - ../getting-started/browser-playback.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
@@ -49,9 +50,11 @@ SHA-256 扫描。750 ms Job 轮询与全局 revision stream 同时刷新任务�
 manifest、重建完整 DOM，并移除两个 canvas。两个 Viewer 在 inactive 状态仍安排 RAF，没有相机 controls；
 源骨架每帧还会覆盖相机位置。
 
-目录包含 14 个非测试 manifest，其中 6 个有 VIREA Runtime 与 production acceptance，另 8 个只说明上游
-项目可运行。真实界面应显示全部记录，但当 Worker、Runtime、任务输入合同、制品安装、adapter 和真实验收
-不存在时，必须禁用对应操作并直接说明原因。
+在 2026-08-25 的观察快照中，目录有 14 个非测试 manifest：6 个具有 VIREA Runtime 与 production-
+acceptance 合同，另外 8 个只说明上游项目可运行。真实界面因此必须显示全部记录，并在 Worker、Runtime、
+任务输入合同、制品安装、adapter 与 target acceptance 不存在时禁用操作。该快照已由 2026-08-26 的集成
+取代：14 个模型现在都具备这些集成合同并标为 `integrated_experimental`，但当前真实 checkpoint 验收仍是
+独立 evidence。
 
 ## 决策与被拒方案
 
@@ -63,8 +66,10 @@ manifest、重建完整 DOM，并移除两个 canvas。两个 Viewer 在 inactiv
 仍是支持取消、同一安装 single-flight 的 Worker 准入门禁，但不再位于 HTTP 关键路径或只读目录展示中。
 生命周期边界生成确定性进度，不显示虚构 ETA 或推理百分比。
 
-拒绝单纯加快轮询、取消 timeout 却不做幂等、把 metadata 缓存当完整校验、把 8 个 upstream-only 项目显示
-成可执行，以及一边加入 OrbitControls 一边继续逐帧覆盖相机。这些方案仍会重复工作或错误陈述系统事实。
+拒绝单纯加快轮询、取消 timeout 却不做幂等、把 metadata 缓存当完整校验、在 2026-08-25 尚未接入时把那
+8 个 upstream-only 项目显示成 VIREA 可执行，以及一边加入 OrbitControls 一边继续逐帧覆盖相机。它们在
+2026-08-26 完成接入会改变能力事实，但不会把 target-acceptance 合同变成真实 checkpoint evidence；上述
+被拒方案仍会重复工作或错误陈述系统事实。
 
 ## 验收与限制
 

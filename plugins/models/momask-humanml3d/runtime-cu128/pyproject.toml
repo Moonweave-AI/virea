@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-momask-humanml3d-cu128-runtime"
+version = "0.2.0"
+description = "CUDA 12.8 environment for the shared VIREA MoMask Worker"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+dependencies = [
+  "virea-model-momask-humanml3d-runtime==0.2.0",
+  "torch==2.11.0",
+  "torchvision==0.26.0",
+]
+
+[project.scripts]
+virea-model-momask-humanml3d-cu128-worker = "virea_momask.worker:main"
+
+[tool.uv.sources]
+virea-model-momask-humanml3d-runtime = { path = "../runtime", editable = false }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.setuptools.packages.find]
+where = ["src"]

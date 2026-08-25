@@ -1,5 +1,5 @@
 registry_version: virea.motion_model_registry.v1.0.0
-snapshot_date: '2026-08-20'
+snapshot_date: '2026-08-26'
 scope:
   included:
   - 3D human or character motion generation
@@ -13,10 +13,11 @@ scope:
   - pure action recognition or motion understanding
   - datasets and evaluation methods as direct workers
   - video-only systems that expose no stable 3D motion representation
-  completeness_statement: Best-effort public research census as of 2026-08-20. It is deliberately broader than the set of
+  completeness_statement: Best-effort public research census updated through 2026-08-26. It is deliberately broader than the set of
     runnable plugins and must be maintained as a versioned registry.
 support_semantics:
   registered: Tracked as a VIREA support target or adjacent dependency.
+  integrated_experimental: A VIREA Worker, isolated Runtime, adapter, and target acceptance contract exist; current real-checkpoint evidence is recorded separately and is not implied.
   implemented: A tested worker, runtime manifest, decoder and end-to-end VRM regression exist.
   warning: Registration never implies implementation, redistributable weights, or a commercially usable license.
 adapter_families:
@@ -61,7 +62,7 @@ deduplication:
   dropped_non_model_placeholders:
   - HGM³-CoSpeech
   - Sim-to-Humanoid Motion Policy Bridge
-  unique_research_works_or_systems: 519
+  unique_research_works_or_systems: 521
   rule: A model/system appears once. Multiple tasks, categories and VIREA tracks are stored as arrays. Same-name but genuinely
     distinct papers retain disambiguating suffixes.
 models:
@@ -307,6 +308,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2026-cmdm
+  model_id: cmdm-humanml3d
   name: CMDM
   work_titles:
   - Causal Motion Diffusion Model
@@ -323,13 +325,15 @@ models:
   - paper_or_project_unverified
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: primary_linked
+  runtime_status: integrated_experimental
+  source_status: primary_verified
   primary_sources:
   - https://arxiv.org/abs/2602.18057
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  - https://github.com/lycorp-jp/CMDM/tree/7fac27ecd78365115db5c29937f20889c318d79d
+  - https://huggingface.co/ly-corporation/CMDM/tree/be818de05ee83018d25dfeb9fbcd3fadddf4ccd8
+  code_or_weights_status: pinned_official_code_and_weights
+  license_status: code_cc0_1_0_weights_card_apache_2_0_but_pinned_weight_license_file_missing
+  notes: VIREA integration and target acceptance contracts exist. Current real-checkpoint evidence is tracked separately; the missing pinned weight-license file remains a release-review caveat.
 - uid: 2026-comovi
   name: CoMoVi
   work_titles:
@@ -2017,6 +2021,7 @@ models:
   license_status: review_required
   notes: Long-horizon behavior planning and physics control.
 - uid: 2026-prism
+  model_id: prism-tp2m-1-4b
   name: PRISM
   work_titles:
   - Streaming Motion Generation with Per-Joint Latent Decomposition
@@ -2031,18 +2036,18 @@ models:
   priority: P1
   maturity_labels:
   - official_code_and_weights_published
-  - upstream_incomplete
+  - official_external_assets_pinned
   work_types:
   - model_or_system
-  runtime_status: blocked_upstream_incomplete
+  runtime_status: integrated_experimental
   source_status: primary_verified
   primary_sources:
   - https://arxiv.org/abs/2603.08590
-  - https://github.com/ZeyuLing/PRISM
-  - https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B
-  code_or_weights_status: official_code_and_partial_inference_artifact_missing_tokenizer_stats_and_smpl_assets
-  license_status: blocked_missing_code_and_weight_terms
-  notes: Official source and 1.4B weights are public, but the pinned loader requires tokenizer, stats.json, and SMPL assets absent from the official HF snapshot. The PRISM README redirects licensing to VersatileMotion, whose pinned repository has no LICENSE.
+  - https://github.com/ZeyuLing/PRISM/tree/3c58bc5d946f0827171a3712ed36314f4b1a5186
+  - https://huggingface.co/ZeyuLing/PRISM-TP2M-1.4B/tree/825daaa27f4f3845eb0978674c3acb378a12cda6
+  code_or_weights_status: pinned_official_code_checkpoint_tokenizer_and_motionhub_statistics
+  license_status: external_assets_only_license_review_required_no_usable_code_or_weight_terms
+  notes: VIREA integration and target acceptance contracts exist without redistributing upstream assets. Current real-checkpoint evidence is tracked separately; no usable PRISM code or checkpoint redistribution terms are published.
 - uid: 2026-real-time-human-centric-world-model-for-upper-body-hoi
   name: Real-Time Human-Centric World Model for Upper-Body HOI
   work_titles:
@@ -2373,6 +2378,7 @@ models:
   notes: This entry is not a standalone inference worker. It belongs in VIREA's dataset, tokenizer, training, evaluation,
     safety, or conversion registries.
 - uid: 2026-sentiavatar-susuinteracts
+  model_id: sentiavatar-susu
   name: SentiAvatar-SuSuInterActs
   work_titles:
   - Speech/Text to Body, Hands and ARKit Expression
@@ -2386,16 +2392,17 @@ models:
   - direct.motion_ir.streaming_whole_body_face_hands
   priority: P0
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_and_weights_pinned
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: primary_linked
+  runtime_status: integrated_experimental
+  source_status: primary_verified
   primary_sources:
-  - https://github.com/SentiAvatar/SentiAvatar
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: Source-available/non-commercial restrictions must be enforced at install time.
+  - https://github.com/SentiAvatar/SentiAvatar/tree/71c61b05a0609a41c17aa146c9f4ee7778ebc649
+  - https://huggingface.co/Chuhaojin/SentiAvatar/tree/242b2031a913dd1b25f43fe1f3e112611864c9cc
+  code_or_weights_status: pinned_official_code_and_weights
+  license_status: sentipulse_noncommercial_source_1_0_restricted
+  notes: VIREA integration and target acceptance contracts exist, but current real-checkpoint evidence is not implied. Non-commercial, SaaS, and internal-production restrictions require explicit enforcement and review.
 - uid: 2026-sketch2motion
   name: Sketch2Motion
   work_titles:
@@ -2816,6 +2823,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-acmdm
+  model_id: acmdm-humanml3d
   name: ACMDM
   work_titles:
   - ACMDM
@@ -2829,15 +2837,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_and_weights_pinned
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/neu-vi/ACMDM/tree/25ed4ba22fb54d9c3e99361609ee344e7c940303
+  - https://huggingface.co/cr8br0ze/ACMDM_Flow_S_PatchSize22/tree/f7b77ecb16968afb0329a4a706978780843a1fc9
+  code_or_weights_status: pinned_official_code_weights_autoencoder_and_text_encoder
+  license_status: mit_for_recorded_code_and_model_artifacts_dataset_terms_separate
+  notes: VIREA integration and target acceptance contracts exist. Current real-checkpoint evidence is tracked separately and does not imply cross-platform acceptance.
 - uid: 2025-acmo
   name: ACMo
   work_titles:
@@ -3468,6 +3478,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-dart
+  model_id: dart-smplx
   name: DART
   work_titles:
   - DART
@@ -3481,15 +3492,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_pinned_manual_checkpoint_assets
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/zkf1997/DART/tree/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+  - https://drive.google.com/drive/folders/1vJg3GFVPT6kr6cA0HrQGmiAEBE2dkaps
+  code_or_weights_status: pinned_official_code_exact_manual_checkpoint_bundle_and_user_supplied_smplx
+  license_status: code_apache_2_0_weights_and_smplx_terms_require_separate_review
+  notes: VIREA integration and target acceptance contracts exist, but the Google Drive bundle and SMPL-X files remain exact user-supplied assets. Current real-checkpoint evidence is not implied.
 - uid: 2025-demogen
   name: DeMoGen
   work_titles:
@@ -3587,6 +3600,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-discord
+  model_id: discord-humanml3d
   name: DisCoRD
   work_titles:
   - DisCoRD
@@ -3600,15 +3614,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_pinned_manual_checkpoint_assets
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/whwjdqls/DisCoRD/tree/782deffca1a263a2241b6321cfe6532a022f284e
+  - https://drive.google.com/file/d/1glQFuMvWI_dKeQeS7s8V_4zdOHfIv1wS/view
+  code_or_weights_status: pinned_official_code_and_exact_manual_discord_and_momask_checkpoint_archives
+  license_status: code_mit_weights_have_no_separately_stated_license
+  notes: VIREA integration and target acceptance contracts exist. Both checkpoint archives remain manual external assets, and current real-checkpoint evidence is not implied.
 - uid: 2025-dsdfm
   name: DSDFM
   work_titles:
@@ -4003,6 +4019,32 @@ models:
   code_or_weights_status: not_individually_verified
   license_status: review_required
   notes: ''
+- uid: 2025-flood-diffusion-tiny
+  model_id: flood-diffusion-tiny
+  name: FloodDiffusion Tiny
+  work_titles:
+  - FloodDiffusion Tiny
+  primary_year: 2025
+  all_year_labels:
+  - 2025
+  aliases:
+  - FloodDiffusionTiny
+  categories:
+  - text_and_general_motion
+  virea_integration_tracks:
+  - direct.motion_ir.body_or_whole_body
+  priority: P1
+  maturity_labels:
+  - official_weights_pinned
+  work_types:
+  - model_or_system
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://huggingface.co/AlayaLab/FloodDiffusionTiny/tree/e86746efa2f16b94a1bb08550e3d8d4a32163f14
+  code_or_weights_status: pinned_official_weights_and_text_encoder
+  license_status: apache_2_0_for_recorded_model_artifacts
+  notes: VIREA integration and target acceptance contracts exist. Current real-checkpoint evidence is tracked separately and does not imply cross-platform acceptance.
 - uid: 2025-free-t2m
   name: Free-T2M
   work_titles:
@@ -4728,6 +4770,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-hy-motion-1-0
+  model_id: hy-motion-1
   name: HY-Motion 1.0
   work_titles:
   - HY-Motion 1.0
@@ -4741,15 +4784,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_and_weights_pinned
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/tree/4e426f5a1021cbcf7f375458c37b840ee7225229
+  - https://huggingface.co/tencent/HY-Motion-1.0/tree/620dd559f8d964aac2f82f1204fe6a35ad8ad14d
+  code_or_weights_status: pinned_official_code_weights_and_text_encoders
+  license_status: tencent_hy_motion_1_0_community_restricted_territory_use_and_scale_review_required
+  notes: VIREA integration and target acceptance contracts exist, but current real-checkpoint evidence is not implied. Territory, acceptable-use, downstream-notice, output-use, and large-service conditions remain enforceable.
 - uid: 2025-ikmo
   name: IKMo
   work_titles:
@@ -4935,6 +4980,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-intermask
+  model_id: intermask-interhuman
   name: InterMask
   work_titles:
   - InterMask
@@ -4948,15 +4994,17 @@ models:
   - extended.multi_actor
   priority: P2
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_pinned_manual_checkpoint_assets
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/gohar-malik/intermask/tree/5100c555de9839b325d0f3d6904669698c5c87f5
+  - https://drive.google.com/drive/folders/1WCFR7Opc5S3cke26cjEhdvSOH_CXL2Ut
+  code_or_weights_status: pinned_official_code_and_exact_manual_interhuman_checkpoint_bundle
+  license_status: code_mit_weights_unspecified_interhuman_interx_and_smplx_terms_separate
+  notes: VIREA integration and target acceptance contracts exist. The checkpoint folder remains an exact manual external asset, and current real-checkpoint evidence is not implied.
 - uid: 2025-intermimic
   name: InterMimic
   work_titles:
@@ -5374,6 +5422,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-mardm
+  model_id: mardm-humanml3d
   name: MARDM
   work_titles:
   - MARDM
@@ -5387,15 +5436,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_and_weights_pinned
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/neu-vi/MARDM/tree/5e32b69723376028f38125ccee33011549cd341d
+  - https://huggingface.co/cr8br0ze/MARDM_SiT_XL/tree/6b9a9d6ea5456995e9883bda317e45ef111ecad3
+  code_or_weights_status: pinned_official_code_weights_autoencoder_length_estimator_and_text_encoder
+  license_status: mit_for_recorded_code_and_model_artifacts_dataset_terms_separate
+  notes: VIREA integration and target acceptance contracts exist. Current real-checkpoint evidence is tracked separately and does not imply cross-platform acceptance.
 - uid: 2025-marrs
   name: MARRS
   work_titles:
@@ -5672,6 +5723,32 @@ models:
   code_or_weights_status: not_individually_verified
   license_status: review_required
   notes: ''
+- uid: 2025-momadiff
+  model_id: momadiff-humanml3d
+  name: MoMADiff
+  work_titles:
+  - MoMADiff
+  primary_year: 2025
+  all_year_labels:
+  - 2025
+  aliases: []
+  categories:
+  - text_and_general_motion
+  virea_integration_tracks:
+  - direct.motion_ir.body_or_whole_body
+  priority: P1
+  maturity_labels:
+  - official_code_and_weights_pinned
+  work_types:
+  - model_or_system
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/zzysteve/MoMADiff/tree/6dd9bea254bbca6cf19756ac3ee037cbf4f6021c
+  - https://huggingface.co/SteveZh/momadiff_models/tree/daf83c1441fbb9e8bacd377e28f557b54080c2a1
+  code_or_weights_status: pinned_official_code_weights_and_text_encoder
+  license_status: mit_for_recorded_code_and_weights_humanml3d_and_amass_terms_separate
+  notes: VIREA integration and target acceptance contracts exist. Current real-checkpoint evidence is tracked separately and does not imply cross-platform acceptance.
 - uid: 2025-monster
   name: MonSTeR
   work_titles:
@@ -5915,6 +5992,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-motioncraft
+  model_id: motioncraft-smplx
   name: MotionCraft
   work_titles:
   - MotionCraft
@@ -5928,15 +6006,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_pinned_manual_checkpoint_assets
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/cure-lab/MotionCraft/tree/a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9
+  - https://drive.google.com/drive/folders/1cY7JFtmqBEsI2R_UKcIzxcsLETw1OXwF
+  code_or_weights_status: pinned_official_code_and_exact_manual_task_checkpoint_bundle
+  license_status: code_apache_2_0_weights_unspecified_datasets_and_optional_smplx_terms_separate
+  notes: VIREA integration and target acceptance contracts exist for separately selected text, speech, and music checkpoint paths. Current real-checkpoint evidence is not implied.
 - uid: 2025-motiondreamer
   name: MotionDreamer
   work_titles:
@@ -7012,6 +7092,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2025-remomask
+  model_id: remomask-humanml3d
   name: ReMoMask
   work_titles:
   - ReMoMask
@@ -7025,15 +7106,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P1
   maturity_labels:
-  - paper_or_project_unverified
+  - official_code_and_weights_pinned
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/AIGeeksGroup/ReMoMask/tree/630eda1f825bcc2ffb613a7270e1f5b6ac8baea2
+  - https://huggingface.co/AIGeeksGroup/ReMoMask/tree/e4b8dd8479e70cbe16015024e0ccbe55d923a7ab
+  code_or_weights_status: pinned_official_code_weights_retrieval_database_and_clip_assets
+  license_status: cc_by_nc_sa_4_0_noncommercial_sharealike_downstream_terms_separate
+  notes: VIREA integration and target acceptance contracts exist, but current real-checkpoint evidence is not implied. Commercial use is not allowed under the recorded repository-level terms.
 - uid: 2025-rmd-hoi
   name: RMD-HOI
   work_titles:
@@ -9164,6 +9247,7 @@ models:
   license_status: review_required
   notes: ''
 - uid: 2024-momask
+  model_id: momask-humanml3d
   name: MoMask
   work_titles:
   - MoMask
@@ -9177,15 +9261,17 @@ models:
   - direct.motion_ir.body_or_whole_body
   priority: P0
   maturity_labels:
-  - widely_used_or_public_project_candidate
+  - official_code_pinned_manual_checkpoint_assets
   work_types:
   - model_or_system
-  runtime_status: not_implemented
-  source_status: discovery_indexed_primary_verification_pending
-  primary_sources: []
-  code_or_weights_status: not_individually_verified
-  license_status: review_required
-  notes: ''
+  runtime_status: integrated_experimental
+  source_status: primary_verified
+  primary_sources:
+  - https://github.com/EricGuo5513/momask-codes/tree/94a6636c9c463b7a9414c3401a6f1b67e6c51824
+  - https://drive.google.com/file/d/1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0/view
+  code_or_weights_status: pinned_official_code_and_exact_manual_checkpoint_archive
+  license_status: code_mit_weights_have_no_separately_stated_license
+  notes: VIREA integration and target acceptance contracts exist. The checkpoint archive remains an exact manual external asset, and current real-checkpoint evidence is not implied.
 - uid: 2024-momu-diffusion
   name: MoMu-Diffusion
   work_titles:

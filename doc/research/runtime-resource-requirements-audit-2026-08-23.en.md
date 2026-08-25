@@ -3,16 +3,17 @@ type: research-log
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
-summary: Evidence audit for all integrated model RAM/VRAM profiles, nominal-capacity handling, PRISM Windows CUDA, and WSL2 quota diagnosis.
+summary: Historical six-model resource-profile evidence audit, with the boundary to the current 14-model integrated catalog, nominal-capacity handling, PRISM Windows CUDA, and WSL2 quota diagnosis.
 canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.en.md
 related:
   - runtime-resource-requirements-audit-2026-08-23.zh-CN.md
   - ../models/prism.en.md
   - ../platforms/wsl2.en.md
   - ../operations/troubleshooting.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -37,6 +38,10 @@ Baseline: branch `codex/model-resource-audit-wsl-capacity` from commit
 WSL total RAM 19.5 GiB, available 13.2 GiB; GPU total VRAM 15.9 GiB. This is diagnostic input, not a new VIREA-run
 benchmark record.
 
+Catalog note as of 2026-08-26: all 14 non-test model manifests now have VIREA integration and target-acceptance
+contracts. This audit's measurements and frozen profiles cover only the six-model 2026-08-23 snapshot; they do not supply
+resource calibration, platform observation, or real-checkpoint evidence for the eight models integrated later.
+
 ## Hypothesis and criteria
 
 Hypothesis: the Windows host can build PRISM's component-split CUDA Runtime, while the detected WSL domain is limited by
@@ -46,7 +51,7 @@ configuration. Success requires all of the following:
 - a materially smaller device still fails;
 - PRISM CUDA lock resolution succeeds on `win-64` and the manifest/registry declare the same platforms;
 - WSL 20 GiB on a host able to reserve 32 GiB is labeled configuration-limited and ranked ahead of incapable targets;
-- all six integrated model profiles are frozen in a regression test; and
+- all six profiles in the 2026-08-23 integrated-model snapshot are frozen in a regression test; and
 - claims distinguish local measurement, upstream recommendation, conservative unmeasured floor, and lock-only evidence.
 
 Failure includes adding RAM to VRAM, admitting a device more than 512 MiB/2% below a profile, treating WSL quota as host
@@ -85,7 +90,9 @@ reported machine this is irrelevant because the audited Windows CUDA path is the
 
 ## Model/Eval Card and limits
 
-Evaluation target: execution-domain and resource admission for the six `integrated_experimental` text-to-motion plugins.
+Historical evaluation target: execution-domain and resource admission for the six `integrated_experimental` text-to-
+motion plugins present in the 2026-08-23 snapshot. The current catalog contains 14 integrated models, but the additional
+eight are outside this audit's calibration evidence.
 Inputs: pinned manifests/registries, recorded calibration fields, official upstream README/model cards, Windows lock
 resolution, and synthetic 64/16 and WSL-20/host-64 contract fixtures. Outputs: selected Runtime/profile, capacity status,
 configuration diagnosis, and exact remediation. No model-quality score, generation latency, or new checkpoint inference

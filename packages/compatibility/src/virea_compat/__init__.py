@@ -1,3 +1,12 @@
+from .adapter_specs import (
+    AdapterConversionContext,
+    AdapterSpec,
+    LoadedNativeArtifacts,
+    NativeArtifactSpec,
+    adapter_spec_for_family,
+    adapter_specs,
+    real_adapter_families,
+)
 from .model_adapters import (
     AdapterOutput,
     adapter_for_family,
@@ -16,8 +25,14 @@ from .model_adapters import (
 )
 
 __all__ = [
+    "AdapterConversionContext",
     "AdapterOutput",
+    "AdapterSpec",
+    "LoadedNativeArtifacts",
+    "NativeArtifactSpec",
     "adapter_for_family",
+    "adapter_spec_for_family",
+    "adapter_specs",
     "body22_positions_to_motion_ir",
     "dart_smplx_primitives_to_motion_ir",
     "humanml3d_263_denormalized_to_motion_ir",
@@ -28,6 +43,7 @@ __all__ = [
     "mardm_ric67_to_motion_ir",
     "motionx_322_to_motion_ir",
     "prism_smplh_body22_axis_angle69_to_motion_ir",
+    "real_adapter_families",
     "smplx_fullpose_to_motion_ir",
     "susu_body_hands_to_motion_ir",
 ]

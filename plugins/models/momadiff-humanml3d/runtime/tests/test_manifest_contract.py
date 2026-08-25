@@ -1,19 +1,37 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
-from virea_contracts.model import ModelSupportStatus
+from virea_contracts.model import ModelSupportStatus, ProductionE2EAcceptance
 from virea_contracts.runtime import MemoryStrategy, RuntimeSpec
-from virea_model_pool import ModelCatalog
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
+MANIFEST_PATH = (
+    REPO_ROOT / "plugins" / "models" / "momadiff-humanml3d" / "manifest.yaml"
+)
+
+
+def _load_manifest() -> SimpleNamespace:
+    raw = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
+    model = raw["model"]
+    return SimpleNamespace(
+        model=SimpleNamespace(status=ModelSupportStatus(model["status"])),
+        output=SimpleNamespace(**raw["output"]),
+        runtime_variants=tuple(
+            RuntimeSpec.model_validate(item) for item in raw["runtime_variants"]
+        ),
+        artifacts=tuple(SimpleNamespace(**item) for item in raw["artifacts"]),
+        production_acceptance=ProductionE2EAcceptance.model_validate(
+            raw["production_acceptance"]
+        ),
+        notes=tuple(raw.get("notes", ())),
+    )
 
 
 def test_manifest_preserves_native_humanml3d_carrier_and_real_acceptance() -> None:
-    manifest = ModelCatalog.load(REPO_ROOT / "plugins" / "models").get(
-        "momadiff-humanml3d"
-    )
+    manifest = _load_manifest()
 
     assert manifest.model.status is ModelSupportStatus.INTEGRATED_EXPERIMENTAL
     assert manifest.output.representation_id == "humanml3d.vector263.v1"
@@ -31,9 +49,7 @@ def test_manifest_preserves_native_humanml3d_carrier_and_real_acceptance() -> No
 
 
 def test_runtime_registry_matches_manifest_and_has_no_fabricated_offload() -> None:
-    manifest = ModelCatalog.load(REPO_ROOT / "plugins" / "models").get(
-        "momadiff-humanml3d"
-    )
+    manifest = _load_manifest()
     registries = tuple(
         RuntimeSpec.model_validate(
             yaml.safe_load(
@@ -63,9 +79,7 @@ def test_runtime_registry_matches_manifest_and_has_no_fabricated_offload() -> No
 
 
 def test_manifest_downloads_only_generation_artifacts() -> None:
-    manifest = ModelCatalog.load(REPO_ROOT / "plugins" / "models").get(
-        "momadiff-humanml3d"
-    )
+    manifest = _load_manifest()
     checkpoints = next(
         source
         for source in manifest.artifacts

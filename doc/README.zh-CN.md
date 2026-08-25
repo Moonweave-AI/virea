@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
 canonical: doc/README.zh-CN.md
@@ -39,10 +39,9 @@ superseded_by: []
 > 文档严格区分产品目标、Runtime 声明、当前实现和带机器身份的实测证据。模型或平台出现在表格中，
 > 不自动等于已安装、已实测、可公开再分发或达到 `supported`。
 
-六模型 manifest 保留此前有界 `integrated_experimental`，`supported = 0`；但旧 validated evidence /
-validator `v1.0.0` 已被当前 `v1.1.0` policy 判定失效，新的 5 条 Windows-native 与 1 条 PRISM WSL
-Ubuntu 24.04 全链正在重采集。在新 record 写入 registry 前，当前有效 `passed` 数量为 0，不能复用旧 result
-或预填 ID。最终冻结树的完整测试与 fresh release artifact 仍待重跑，公开 GA 为 No-Go。
+当前目录包含 14 个 `integrated_experimental` 模型插件与 19 个公开任务；原“六个已接入、八个仅上游”划分已
+失效。每个任务都有不可变验收合同，但声明接入不等于跨设备实测：每次安装都必须在所选 Runtime 上通过完整任务
+套件。任何模型只有完成要求的发布证据与许可门禁后才能晋级 `supported`，不得复用旧 result 或预填证据 ID。
 
 仓库当前没有统一的项目代码 `LICENSE`。各目录、Runtime、Web bundle、模型 integration 和媒体可能具有
 不同的第三方条款；[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) 及分目录 notice 只说明来源与
@@ -111,7 +110,7 @@ flowchart LR
 | [模型支持矩阵](models/support-matrix.generated.md) | manifest 生成的 task、骨骼、表示、Runtime 与资源摘要 |
 | [平台目录](platforms/README.zh-CN.md) | Windows、Linux、WSL2、macOS 执行域定义 |
 | [平台支持矩阵](platforms/support-matrix.generated.md) | Runtime 声明与平台级 evidence 边界 |
-| [状态语义](reference/status-semantics.zh-CN.md) | `registered`、`runnable_upstream`、`integrated_experimental`、`supported` 等精确定义 |
+| [状态语义](reference/status-semantics.zh-CN.md)（[English](reference/status-semantics.en.md)） | `registered`、`runnable_upstream`、`integrated_experimental`、`supported` 等精确定义 |
 | [`packages/contracts/schemas/`](../packages/contracts/schemas) | Model、Runtime、Worker、Result、Motion IR、VRM、Machine JSON Schema |
 | [`registries/`](../registries) | Runtime、骨骼、表示、bundle 与执行目标机器事实 |
 | [Annotation / Viewer](annotation-viewer.zh-CN.md) | annotation、时间区间、channel 与 Viewer 行为 |
@@ -154,7 +153,7 @@ flowchart LR
 | [0.4.0 QA 计划](refactor/QA_PLAN.md) | 软件、模型、平台、packaging 与浏览器分层门禁 |
 | [0.4.0 发布验收](refactor/RELEASE_ACCEPTANCE_0.4.0.md) | 当前范围的 Go/No-Go 与精确证据 |
 | [WP00–WP15 映射](refactor/WP00_WP15_IMPLEMENTATION_MAP.md) | 原规划到当前实现的逐项状态 |
-| [首波模型目录](model-catalog/first-wave-2026-08-20.zh-CN.md) | 2025–2026 候选、固定上游与接入边界 |
+| [首波模型目录](model-catalog/first-wave-2026-08-20.zh-CN.md)（[English](model-catalog/first-wave-2026-08-20.en.md)） | 2025–2026 候选、固定上游与接入边界 |
 | [Motion generation 总 registry](model-catalog/motion-generation-registry-2026-08-20.zh-CN.md) | 用户提供快照的只读归档 |
 | [PRISM 模型页](models/prism.zh-CN.md) | PRISM 技术部署、资产与发行边界 |
 | [PRISM 官方接入审计](research/prism-official-integration-audit-2026-08-21.zh-CN.md) | 固定上游、补齐资产和真实部署证据 |

@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: English guide to selecting and operating VIREA execution domains on Windows, Linux, WSL2, and macOS.
 canonical: doc/platforms/README.en.md
@@ -12,6 +12,7 @@ related:
   - README.zh-CN.md
   - ../getting-started.en.md
   - ../reference/cli.en.md
+  - ../reference/status-semantics.en.md
   - support-matrix.generated.md
 supersedes: []
 superseded_by: []
@@ -80,8 +81,14 @@ The [generated support matrix](support-matrix.generated.md) separates:
 3. **Observed evidence coverage** — a specific model/runtime/domain/device chain was recorded.
 
 An empty blocker list and a declared CPU Runtime do not mean that every model has run inference on every OS. For the
-current scope and evidence status, consult the [Chinese status semantics](../reference/status-semantics.zh-CN.md) and the
+current scope and evidence status, consult the [status semantics](../reference/status-semantics.en.md) and the
 [production evidence contract](../quality/production-e2e.zh-CN.md).
+
+All 14 non-test catalog models declare locked whole-model CPU Runtime variants for `win-64`, `linux-64`, `osx-arm64`
+and `osx-64`, plus model-specific CUDA variants for `win-64` and `linux-64`. This removes the former six-integrated/eight-
+upstream-only capability split, but it does not create real-device evidence. A target acceptance contract is required for
+every model, and current real-checkpoint, platform, license and artifact facts remain separate gates. Intel macOS CPU
+locks pair the compatible legacy `torch==2.2.2` path with `numpy==1.26.4`; they never resolve that ABI to NumPy 2.x.
 
 ## Operating-system notes
 

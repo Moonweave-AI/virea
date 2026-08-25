@@ -41,6 +41,15 @@ function modelManifest() {
       tasks: ["text_to_motion"],
       adapter_family: "humanml3d-motion263-body22",
     },
+    inputs: [{
+      schema_version: "virea.job_request.v1.0.0",
+      task: "text_to_motion",
+      fields: {
+        prompt: { type: "string", required: true, maximum_length: 8_000 },
+        seconds: { type: "number", default: 4, minimum: 1, maximum: 90 },
+        seed: { type: "integer", default: 42, minimum: 0, maximum: 2_147_483_647 },
+      },
+    }],
     output: {
       envelope: "virea.model_result.v1.0.0",
       representation_id: "humanml3d.vector263.v1",

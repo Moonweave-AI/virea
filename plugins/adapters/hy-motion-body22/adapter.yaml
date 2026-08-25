@@ -4,7 +4,7 @@ display_name: HY-Motion 1.0 decoded body-22 rotation and translation
 source_models:
   - hy-motion-1
 implementation_status: pinned_upstream_contract_adapter_implemented
-support_status: runnable_upstream
+support_status: integrated_experimental
 native_profile:
   representation_id: hy_motion.body22.rot6d_translation.v1
   carrier: decoded_dictionary

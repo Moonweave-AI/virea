@@ -5,9 +5,11 @@ import threading
 from types import SimpleNamespace
 
 import pytest
+import virea_api.service as service_module
 from virea_api.service import (
     ControlPlane,
     ExecutionTargetResolutionError,
+    _request_for_execution_domain,
 )
 from virea_bootstrap import (
     resolve_runtime,
@@ -19,6 +21,7 @@ from virea_contracts.execution import (
     ExecutionTargetSelection,
     execution_domain_id,
 )
+from virea_contracts.job import JobRequest
 from virea_contracts.machine import (
     AcceleratorReport,
     ExecutionDomainReport,
@@ -1139,6 +1142,78 @@ def test_windows_drive_path_uses_wslpath_without_backslash_loss(monkeypatch) -> 
 
     assert mapped == "/mnt/d/project/jobs/job-1"
     assert captured["argv"][-1] == "D:/project/jobs/job-1"
+
+
+def test_worker_request_maps_host_file_fields_into_selected_wsl(monkeypatch) -> None:
+    """Only file references cross domains; data/artifact URIs and text stay exact."""
+
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
+    )
+    observed: list[str] = []
+
+    def fake_map(_domain, value):
+        rendered = str(value)
+        observed.append(rendered)
+        drive = rendered[0].lower()
+        tail = rendered[2:].replace("\\", "/")
+        return f"/mnt/{drive}{tail}"
+
+    monkeypatch.setattr(service_module, "map_host_path_to_domain", fake_map)
+    manifest = SimpleNamespace(
+        inputs=(
+            {
+                "task": "cross_domain_audio",
+                "fields": {
+                    "audio": {"type": "audio"},
+                    "audio_chunks": {"type": "mono_pcm_audio_stream"},
+                    "conditioning_actor_motion": {
+                        "type": "array_or_npy_path",
+                        "representation_id": "fixture.motion.v1",
+                    },
+                    "dialogue_turns": {"type": "text_stream"},
+                },
+            },
+        )
+    )
+    original = JobRequest(
+        model_id="cross-domain-probe",
+        task="cross_domain_audio",
+        input={
+            "audio": r"D:\media\speech.wav",
+            "audio_chunks": [
+                "data:audio/wav;base64,UklGRg==",
+                r"E:\turns\second.wav",
+                "/home/user/third.wav",
+            ],
+            "conditioning_actor_motion": r"C:\motions\actor.npy",
+            "dialogue_turns": ["hello", "goodbye"],
+        },
+        parameters={},
+    )
+
+    mapped = _request_for_execution_domain(original, manifest, wsl)
+
+    assert mapped.input == {
+        "audio": "/mnt/d/media/speech.wav",
+        "audio_chunks": [
+            "data:audio/wav;base64,UklGRg==",
+            "/mnt/e/turns/second.wav",
+            "/home/user/third.wav",
+        ],
+        "conditioning_actor_motion": "/mnt/c/motions/actor.npy",
+        "dialogue_turns": ["hello", "goodbye"],
+    }
+    assert original.input["audio"] == r"D:\media\speech.wav"
+    assert observed == [
+        r"D:\media\speech.wav",
+        r"E:\turns\second.wav",
+        r"C:\motions\actor.npy",
+    ]
 
 
 @pytest.mark.parametrize(

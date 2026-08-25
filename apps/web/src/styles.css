@@ -173,7 +173,7 @@ h2 { margin-bottom: 4px; font-size: 1.05rem; letter-spacing: -.02em; }
 .section-title p { margin: 0; color: var(--muted); font-size: .77rem; line-height: 1.35; }
 .section-title.small { margin-bottom: 20px; }
 .field { display: grid; gap: 8px; margin-bottom: 17px; }
-.field > span { color: #bac4cf; font-size: .74rem; font-weight: 700; }
+.field > span, .field > .schema-field-label { color: #bac4cf; font-size: .74rem; font-weight: 700; }
 .field > small { color: var(--muted); font-size: .68rem; line-height: 1.4; }
 textarea, input, select {
   width: 100%;
@@ -188,6 +188,15 @@ textarea:hover, input:hover, select:hover { border-color: #657182; }
 textarea { min-height: 148px; resize: vertical; line-height: 1.55; }
 .prompt-field { margin-top: 21px; }
 .parameter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.schema-parameter-grid { align-items: start; }
+.schema-field-full { grid-column: 1 / -1; }
+.schema-field textarea { min-height: 92px; resize: vertical; }
+.boolean-control { min-height: 45px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid #333b36; border-radius: 4px; background: #101512; color: #d9ded6; }
+.boolean-control input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.schema-file-picker { display: inline-flex; width: fit-content; }
+.schema-file-picker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
+.schema-file-picker span { display: inline-flex; min-height: 34px; align-items: center; padding: 0 10px; border: 1px solid #3b443e; border-radius: 4px; color: #d9ded6; background: #171c19; font-size: .68rem; cursor: pointer; }
+.schema-file-picker input:focus-visible + span { outline: 3px solid rgb(216 255 99 / 30%); outline-offset: 2px; }
 .model-readiness { min-height: 42px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--line); border-top: 0; background: #0d1218; }
 .model-readiness > div { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .model-readiness i, .state-badge i { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--warning); }

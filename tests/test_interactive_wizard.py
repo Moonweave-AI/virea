@@ -37,6 +37,168 @@ def test_data_root_prompt_rejects_outer_quotes() -> None:
         wizard._data_root_from_input('"/mnt/virea-data"')
 
 
+def test_manifest_generation_request_preserves_text_to_motion_defaults() -> None:
+    """The wizard derives the familiar prompt/duration controls from inputs."""
+
+    manifest = next(
+        item for item in wizard._model_manifests() if item.model.id == "acmdm-humanml3d"
+    )
+    schema = wizard._input_schemas(manifest)[0]
+    answers = iter(["A person waves.", "", "", ""])
+    messages: list[str] = []
+
+    task, request_input, parameters = wizard._generation_request(
+        manifest,
+        schema,
+        lambda _prompt: next(answers),
+        messages.append,
+    )
+
+    assert task == "text_to_motion"
+    assert request_input == {"prompt": "A person waves."}
+    assert parameters == {
+        "seed": 3407,
+        "cfg": 3.0,
+        "fps": 20.0,
+        "seconds": 4.0,
+    }
+    assert any("Example / 示例" in message for message in messages)
+
+
+def test_manifest_generation_request_accepts_file_and_json_inputs(
+    tmp_path: Path,
+) -> None:
+    """Non-text schemas accept local files and structured inline JSON."""
+
+    audio = tmp_path / "speech.wav"
+    audio.write_bytes(b"RIFF")
+    manifest = SimpleNamespace(
+        model=SimpleNamespace(id="schema-probe", tasks=("speech_to_gesture",)),
+        inputs=(
+            {
+                "task": "speech_to_gesture",
+                "fields": {
+                    "audio": {"type": "audio", "required": True},
+                    "prompt_rewrite": {"type": "boolean", "default": False},
+                    "waypoints": {
+                        "type": "world_space_constraints",
+                        "required": True,
+                    },
+                },
+            },
+        ),
+        production_acceptance=None,
+    )
+    answers = iter(
+        [
+            str(audio),
+            "y",
+            '[{"time_seconds":1.0,"position":[0,0,1]}]',
+        ]
+    )
+
+    task, request_input, parameters = wizard._generation_request(
+        manifest,
+        wizard._input_schemas(manifest)[0],
+        lambda _prompt: next(answers),
+        lambda _message: None,
+    )
+
+    assert task == "speech_to_gesture"
+    assert request_input["audio"] == str(audio.resolve())
+    assert request_input["waypoints"] == [{"time_seconds": 1.0, "position": [0, 0, 1]}]
+    assert parameters == {"prompt_rewrite": True}
+
+
+def test_manifest_generation_request_accepts_audio_stream_arrays() -> None:
+    manifest = SimpleNamespace(
+        model=SimpleNamespace(
+            id="stream-probe", tasks=("streaming_dialogue_avatar_motion",)
+        ),
+        inputs=(
+            {
+                "task": "streaming_dialogue_avatar_motion",
+                "fields": {
+                    "audio_chunks": {
+                        "type": "mono_pcm_audio_stream",
+                        "required": True,
+                    },
+                    "dialogue_turns": {"type": "text_stream", "required": True},
+                },
+            },
+        ),
+        production_acceptance=None,
+    )
+    answers = iter(
+        [
+            '["D:/media/turn-1.wav","D:/media/turn-2.wav"]',
+            '["你好","欢迎"]',
+        ]
+    )
+
+    task, request_input, parameters = wizard._generation_request(
+        manifest,
+        wizard._input_schemas(manifest)[0],
+        lambda _prompt: next(answers),
+        lambda _message: None,
+    )
+
+    assert task == "streaming_dialogue_avatar_motion"
+    assert request_input == {
+        "audio_chunks": ["D:/media/turn-1.wav", "D:/media/turn-2.wav"],
+        "dialogue_turns": ["你好", "欢迎"],
+    }
+    assert parameters == {}
+
+
+def test_multi_audio_example_is_valid_json_with_windows_friendly_paths() -> None:
+    """The displayed Windows example must be pasteable JSON, not bad escapes."""
+
+    rendered = wizard._field_example("audio_chunks", {"type": "mono_pcm_audio_stream"})
+    example = rendered.split(" (", 1)[0]
+
+    assert json.loads(example) == [
+        "D:/media/turn-1.wav",
+        "D:/media/turn-2.wav",
+    ]
+
+
+def test_dart_text_segment_string_syntax_is_not_treated_as_a_local_path() -> None:
+    """DART's public action*count shorthand is a value, not a filename."""
+
+    manifest = SimpleNamespace(
+        model=SimpleNamespace(
+            id="dart-smplx",
+            tasks=("streaming_text_to_motion",),
+        ),
+        inputs=(
+            {
+                "schema_version": "virea.job_request.v1.0.0",
+                "task": "streaming_text_to_motion",
+                "fields": {
+                    "text_timeline": {
+                        "type": "text_segments",
+                        "required": True,
+                        "string_syntax": "action*primitive_count,...",
+                    }
+                },
+            },
+        ),
+        production_acceptance=None,
+    )
+
+    task, request_input, parameters = wizard._generation_request(
+        manifest,
+        wizard._input_schemas(manifest)[0],
+        lambda _prompt: "walk forward*4,turn left*2",
+        lambda _message: None,
+    )
+
+    assert task == "streaming_text_to_motion"
+    assert request_input == {"text_timeline": "walk forward*4,turn left*2"}
+    assert parameters == {}
+
+
 def test_data_root_step_reprompts_then_configures_unquoted_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -92,10 +254,8 @@ def test_saved_choice_is_visible_and_enter_reuses_it() -> None:
     assert any("beta  [saved / 已保存]" in message for message in messages)
 
 
-def test_catalog_keeps_all_models_visible_but_only_integrated_models_actionable() -> (
-    None
-):
-    """Catalog research entries must not be promoted into deployable choices."""
+def test_catalog_exposes_every_model_as_an_integrated_actionable_choice() -> None:
+    """Every released catalog model has a complete deployable product path."""
 
     manifests = wizard._model_manifests()
     by_id = {manifest.model.id: manifest for manifest in manifests}
@@ -106,40 +266,35 @@ def test_catalog_keeps_all_models_visible_but_only_integrated_models_actionable(
     }
 
     assert len(by_id) == 14
-    assert integrated == {
-        "acmdm-humanml3d",
-        "cmdm-humanml3d",
-        "flood-diffusion-tiny",
-        "mardm-humanml3d",
-        "momadiff-humanml3d",
-        "prism-tp2m-1-4b",
-    }
-    assert "VIREA Runtime" in wizard._model_blocker(by_id["dart-smplx"])
-    assert wizard._model_blocker(by_id["acmdm-humanml3d"]) is None
+    assert integrated == set(by_id)
+    assert all(
+        by_id[model_id].runtime_variants
+        and by_id[model_id].production_acceptance_contracts
+        for model_id in integrated
+    )
+    assert all(wizard._model_blocker(manifest) is None for manifest in manifests)
+
+    incomplete = by_id["dart-smplx"].model_copy(update={"runtime_variants": ()})
+    assert "Runtime" in wizard._model_blocker(incomplete)
 
 
-def test_upstream_only_choice_is_explained_and_rejected_before_deployment() -> None:
-    """Selecting a catalog-only model cannot leak into execution-target resolution."""
+def test_incomplete_choice_is_explained_and_rejected_before_deployment() -> None:
+    """A structurally incomplete manifest cannot enter target resolution."""
 
     manifests = wizard._model_manifests()
-    upstream_index = next(
-        index
-        for index, manifest in enumerate(manifests, start=1)
-        if manifest.model.id == "dart-smplx"
+    dart = next(manifest for manifest in manifests if manifest.model.id == "dart-smplx")
+    incomplete = dart.model_copy(update={"runtime_variants": ()})
+    integrated = next(
+        manifest for manifest in manifests if manifest.model.id == "acmdm-humanml3d"
     )
-    integrated_index = next(
-        index
-        for index, manifest in enumerate(manifests, start=1)
-        if manifest.model.id == "acmdm-humanml3d"
-    )
-    answers = iter([str(upstream_index), str(integrated_index)])
+    answers = iter(["1", "2"])
     messages: list[str] = []
 
     selected = wizard._choice(
         lambda _prompt: next(answers),
         messages.append,
         title="Models",
-        items=manifests,
+        items=[incomplete, integrated],
         label=lambda item: item.model.id,
         disabled_reason=wizard._model_blocker,
     )
@@ -624,15 +779,44 @@ def test_redirected_download_progress_is_rate_limited_and_has_a_final_snapshot()
             done=True,
         )
     )
+    reporter.transfer(
+        SimpleNamespace(
+            artifact_id="checkpoint",
+            completed_bytes=100 * 1024 * 1024,
+            total_bytes=200 * 1024 * 1024,
+            bytes_per_second=40 * 1024 * 1024,
+            phase="integrity",
+            done=False,
+        )
+    )
+    reporter.transfer(
+        SimpleNamespace(
+            artifact_id="checkpoint",
+            completed_bytes=200 * 1024 * 1024,
+            total_bytes=200 * 1024 * 1024,
+            bytes_per_second=40 * 1024 * 1024,
+            phase="integrity",
+            done=True,
+        )
+    )
 
-    download_lines = [line for line in messages if "[download]" in line]
-    assert len(download_lines) == 4
-    assert "Downloading / 正在下载" in download_lines[0]
-    assert "Downloaded / 下载完成" in download_lines[1]
-    assert "Reconstructing / 正在重建" in download_lines[2]
-    assert "Reconstructed / 重建完成" in download_lines[-1]
-    assert "200.0 MiB" in download_lines[-1]
-    assert "30.0 MiB/s" in download_lines[-1]
+    transfer_lines = [
+        line
+        for line in messages
+        if any(
+            marker in line
+            for marker in ("[download]", "[reconstruction]", "[integrity]")
+        )
+    ]
+    assert len(transfer_lines) == 6
+    assert "Downloading / 正在下载" in transfer_lines[0]
+    assert "Downloaded / 下载完成" in transfer_lines[1]
+    assert "Reconstructing / 正在重建" in transfer_lines[2]
+    assert "Reconstructed / 重建完成" in transfer_lines[3]
+    assert "Verifying / 正在校验" in transfer_lines[4]
+    assert "Verified / 校验完成" in transfer_lines[-1]
+    assert "200.0 MiB" in transfer_lines[-1]
+    assert "40.0 MiB/s" in transfer_lines[-1]
 
 
 def test_failed_installation_prioritizes_acceptance_cause_and_retry_action() -> None:
@@ -823,6 +1007,61 @@ def test_guided_generation_reports_stages_and_ids_without_json(
     assert "[3/3]" in rendered
     assert "job-1" in rendered and "result-1" in rendered
     assert '"job"' not in rendered
+
+
+def test_generate_command_accepts_manifest_driven_non_prompt_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Wizard requests bypass only the legacy raw-CLI prompt construction."""
+
+    class Store:
+        @staticmethod
+        def result_for_job(_job_id: str):
+            return None
+
+    class Control:
+        def __init__(self, **_kwargs) -> None:
+            self.catalog = SimpleNamespace(
+                get=lambda _model_id: SimpleNamespace(
+                    model=SimpleNamespace(adapter_family="real-adapter")
+                )
+            )
+            self.store = Store()
+
+        @staticmethod
+        def submit(request, *, inference_timeout: float):
+            assert inference_timeout == 30.0
+            assert request.task == "speech_to_gesture"
+            assert request.input == {"audio": "D:/media/speech.wav"}
+            assert request.parameters == {"seed": 7}
+            return {"id": "job-schema", "state": "QUEUED"}
+
+        @staticmethod
+        def wait(job_id: str, *, timeout: float):
+            assert (job_id, timeout) == ("job-schema", 30.0)
+            return {"id": "job-schema", "state": "SUCCEEDED"}
+
+        @staticmethod
+        def close() -> None:
+            return None
+
+    monkeypatch.setattr(generate, "ControlPlane", Control)
+    args = SimpleNamespace(
+        model="motioncraft-smplx",
+        task="speech_to_gesture",
+        request_input={"audio": "D:/media/speech.wav"},
+        request_parameters={"seed": 7},
+        idempotency_key=None,
+        execution_domain=None,
+        runtime_variant=None,
+        resource_profile=None,
+        timeout=30.0,
+        virea_home=str(tmp_path / "home"),
+        interactive_progress=False,
+        interactive_reporter=None,
+    )
+
+    assert generate.run(args) == 0
 
 
 def test_target_step_uses_the_exact_domain_runtime_and_profile_selected_by_user() -> (

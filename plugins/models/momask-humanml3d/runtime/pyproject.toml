@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-momask-humanml3d-runtime"
+version = "0.2.0"
+description = "Managed official MoMask HumanML3D Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy>=1.26,<3",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "torch>=2.2.2,<2.12",
+  "torchvision>=0.17.2,<0.27",
+  "clip @ git+https://github.com/openai/CLIP.git@d05afc436d78f1c48dc0dbf8e5980a9d471f35f6",
+  "einops>=0.8,<1",
+  "ftfy>=6.2,<7",
+  "regex>=2024.9.11",
+  "tqdm>=4.65,<5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pyyaml>=6,<7"]
+
+[project.scripts]
+virea-model-momask-humanml3d-worker = "virea_momask.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

@@ -36,6 +36,7 @@ from virea_contracts.model import ModelIdentity
 from virea_contracts.result import ModelResult, NativeMotionDescriptor, ValidSegment
 from virea_contracts.runtime import AcceleratorSpec, RuntimeBackend, RuntimeSpec
 from virea_contracts.vrm import VrmMotionResult
+from virea_core import db as state_db_module
 from virea_core.db import IdempotencyConflict, StateStore
 from virea_core.jobs import InvalidJobTransition, next_job_states
 from virea_core.paths import VireaPaths, safe_component
@@ -52,6 +53,7 @@ from virea_model_pool.pool import (
     ModelPool,
     ModelVerificationCancelled,
     _create_directory_reference,
+    _expected_artifact_content_identity,
     _internal_asset_tree,
     _remove_directory_reference,
 )
@@ -173,6 +175,16 @@ def _persist_completed_acceptance(
                 )
             }
         )
+    transaction = pool.store.installation_transaction(installation_id)
+    assert transaction is not None
+    transaction_payload = json.loads(transaction["payload_json"])
+    staged_outcome = InstallOutcome(
+        installation_id=installation_id,
+        model_id=manifest.model.id,
+        state=InstallationState.BUILDING_RUNTIME,
+        locator=transaction_payload["locator"],
+    )
+    artifact_identity = pool.acceptance_artifact_identity(staged_outcome)
     pool.store.create_job(request, job_id=job_id)
     for state in (
         JobState.ADMITTED,
@@ -185,17 +197,21 @@ def _persist_completed_acceptance(
         JobState.VALIDATING,
         JobState.EXPORTING,
     ):
-        if state is JobState.STARTING_WORKER and execution_target is not None:
+        if state is JobState.STARTING_WORKER:
+            selection_payload: dict[str, object] = {
+                "acceptance_installation_id": installation_id,
+                "acceptance_artifact_identity": artifact_identity,
+            }
+            if execution_target is not None:
+                selection_payload["execution_target"] = {
+                    "requested": request.execution_target.model_dump(mode="json"),
+                    "resolved": runtime_selected_resolved_target,
+                }
             pool.store.transition_job(
                 job_id,
                 state,
                 event_type="job.runtime_selected",
-                payload={
-                    "execution_target": {
-                        "requested": request.execution_target.model_dump(mode="json"),
-                        "resolved": runtime_selected_resolved_target,
-                    }
-                },
+                payload=selection_payload,
             )
         else:
             pool.store.transition_job(job_id, state)
@@ -290,6 +306,8 @@ def _persist_completed_acceptance(
     evidence: dict[str, object] = {
         "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
         "kind": "installation_real_e2e",
+        "installation_id": installation_id,
+        "artifact_identity": artifact_identity,
         "contract": contract.model_dump(mode="json"),
         "request": contract.request.model_dump(mode="json"),
         "expected": contract.expected.model_dump(mode="json"),
@@ -571,8 +589,14 @@ def _atomic_result_payload(job_id: str, result_id: str) -> dict[str, object]:
 def test_finalize_success_publishes_job_result_and_artifacts_atomically(
     tmp_path,
 ) -> None:
-    store = StateStore(VireaPaths(tmp_path / "virea-home"))
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
     _create_exporting_job(store, "job-atomic-success")
+    result_root = paths.result_directory("result-atomic")
+    result_root.mkdir(parents=True)
+    (result_root / "native" / "motion.npy").parent.mkdir(parents=True)
+    (result_root / "native" / "motion.npy").write_bytes(b"n" * 1024)
+    (result_root / "motion-actor-0.vrma").write_bytes(b"v" * 2048)
     artifacts = (
         {
             "name": "native",
@@ -603,6 +627,9 @@ def test_finalize_success_publishes_job_result_and_artifacts_atomically(
         "native",
         "vrma:actor-0",
     ]
+    assert all(
+        len(item["sha256"]) == 64 for item in finalized["artifacts"]
+    )
     assert store.result_for_job("job-atomic-success")["id"] == "result-atomic"
     assert store.get_result("result-atomic")["job_id"] == "job-atomic-success"
     assert store.job_events("job-atomic-success")[-1]["event_type"] == "job.succeeded"
@@ -663,8 +690,12 @@ def test_cancellation_wins_before_atomic_result_publication(tmp_path) -> None:
 def test_finalize_success_rolls_back_job_and_result_on_artifact_failure(
     tmp_path,
 ) -> None:
-    store = StateStore(VireaPaths(tmp_path / "virea-home"))
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
     _create_exporting_job(store, "job-artifact-rollback")
+    result_root = paths.result_directory("result-rolled-back")
+    result_root.mkdir(parents=True)
+    (result_root / "motion.npy").write_bytes(b"artifact-123")
     with store.connect() as connection:
         connection.execute(
             """
@@ -740,6 +771,48 @@ def test_state_store_read_context_releases_database_file(tmp_path) -> None:
     moved = paths.database.with_suffix(".moved")
     paths.database.replace(moved)
     moved.replace(paths.database)
+
+
+def test_state_store_concurrent_v1_upgrade_is_serialized(tmp_path: Path) -> None:
+    for iteration in range(5):
+        paths = VireaPaths(tmp_path / f"virea-home-{iteration}")
+        paths.ensure_layout()
+        with sqlite3.connect(paths.database) as connection:
+            connection.executescript(state_db_module._MIGRATION_V1)
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                "VALUES (1, ?)",
+                ("2026-08-26T00:00:00+00:00",),
+            )
+
+        barrier = threading.Barrier(8)
+
+        def open_migrated_store() -> str:
+            barrier.wait(timeout=10.0)
+            return StateStore(paths).journal_mode()
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            modes = list(executor.map(lambda _index: open_migrated_store(), range(8)))
+
+        assert modes == ["wal"] * 8
+        with sqlite3.connect(paths.database) as connection:
+            transaction_columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(transactions)")
+            }
+            artifact_columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(result_artifacts)")
+            }
+            versions = [
+                row[0]
+                for row in connection.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+            ]
+        assert "integrity_policy" in transaction_columns
+        assert "sha256" in artifact_columns
+        assert versions == [1, 2]
 
 
 def test_installation_transaction_compare_and_swap_is_single_claim(
@@ -1686,6 +1759,35 @@ def test_internal_asset_reference_and_expected_files_tampering_fail_closed(
     )
 
 
+def test_new_installation_cannot_drop_internal_content_identity(tmp_path: Path) -> None:
+    manifest = _revisioned_local_manifest(
+        tmp_path,
+        model_id="missing-internal-content-identity",
+        revision="revision-a",
+    )
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    staged = pool.stage_artifacts(manifest.model.id)
+    installation = paths.resolve_locator(staged.locator or "")
+    reference_path = installation / "internal-artifact-roots.json"
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifacts"][0].pop("content_tree_sha256")
+    reference_path.write_text(json.dumps(reference), encoding="utf-8")
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+    )
+
+    failed = pool.publish_ready(staged, acceptance=acceptance)
+
+    assert failed.state is InstallationState.FAILED
+    assert any(
+        "internal artifact content identity is missing" in item
+        for item in failed.diagnostics
+    )
+
+
 @pytest.mark.parametrize(
     "tamper",
     ("locator", "identity", "ordinary_directory", "target"),
@@ -1935,6 +2037,36 @@ def _explicit_execution_target() -> dict[str, object]:
     }
 
 
+def test_acceptance_job_and_result_cannot_be_replayed_across_installations(
+    tmp_path: Path,
+) -> None:
+    manifest = _production_manifest(_manifest_payload("acceptance-replay-model"))
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+
+    first = pool.stage_artifacts(manifest.model.id)
+    first_acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=first.installation_id,
+    )
+    ready = pool.publish_ready(first, acceptance=first_acceptance)
+    assert ready.state is InstallationState.READY
+
+    second = pool.stage_artifacts(manifest.model.id)
+    forged = deepcopy(first_acceptance)
+    forged["installation_id"] = second.installation_id
+    forged["artifact_identity"] = pool.acceptance_artifact_identity(second)
+    replayed = pool.publish_ready(second, acceptance=forged)
+
+    assert replayed.state is InstallationState.FAILED
+    assert any(
+        "already bound to installation" in diagnostic
+        or "not bound to this installation" in diagnostic
+        for diagnostic in replayed.diagnostics
+    )
+
+
 def _partial_execution_target() -> dict[str, object]:
     target = _explicit_execution_target()
     target["requested"]["runtime_variant_id"] = None
@@ -2078,6 +2210,8 @@ def test_model_pool_external_root_reference_is_domain_capability_aware(
     source.mkdir()
     weights = source / "weights.bin"
     weights.write_bytes(b"external official artifact bytes")
+    runtime_source = source / "runtime_loader.py"
+    runtime_source.write_text("MODEL_GRAPH = 'official'\n", encoding="utf-8")
     payload = _manifest_payload("external-root-model")
     payload["artifacts"] = [
         {
@@ -2093,15 +2227,25 @@ def test_model_pool_external_root_reference_is_domain_capability_aware(
     pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
 
     execution_domain = "windows-native" if os.name == "nt" else "linux-native"
+    progress_snapshots: list[object] = []
     outcome = pool.stage_artifacts(
         manifest.model.id,
         external_artifact_roots={"weights": source},
         external_artifact_revisions={"weights": "external-revision-1"},
         external_execution_domain=execution_domain,
         external_domain_paths={"weights": str(source.resolve())},
+        progress=progress_snapshots.append,
     )
 
     assert outcome.state is InstallationState.BUILDING_RUNTIME
+    assert progress_snapshots
+    assert {getattr(snapshot, "phase") for snapshot in progress_snapshots} == {
+        "integrity"
+    }
+    assert getattr(progress_snapshots[-1], "done") is True
+    assert getattr(progress_snapshots[-1], "completed_bytes") == sum(
+        path.stat().st_size for path in (weights, runtime_source)
+    )
     installation = paths.resolve_locator(outcome.locator or "")
     linked = installation / "artifacts" / "weights"
     reference_kind = (
@@ -2133,10 +2277,24 @@ def test_model_pool_external_root_reference_is_domain_capability_aware(
                 "manifest_revision": "external-revision-1",
                 "user_confirmed_revision": "external-revision-1",
                 "expected_files": ["weights.bin"],
+                "content_identity": _expected_artifact_content_identity(
+                    source,
+                    manifest.artifacts[0],
+                ),
                 "reference_kind": reference_kind,
             }
         ],
     }
+    runtime_source.write_text("MODEL_GRAPH = 'modified'\n", encoding="utf-8")
+    with pytest.raises(AcceptanceFailure, match="content differs"):
+        _validated_external_artifact_roots(installation, manifest)
+    with pytest.raises(OSError, match="staged artifact verification failed"):
+        pool.verify_staged_artifacts(outcome)
+    runtime_source.write_text("MODEL_GRAPH = 'official'\n", encoding="utf-8")
+    weights.write_bytes(b"different external artifact bytes")
+    with pytest.raises(AcceptanceFailure, match="content differs"):
+        _validated_external_artifact_roots(installation, manifest)
+    weights.write_bytes(b"external official artifact bytes")
     acceptance = _persist_completed_acceptance(
         pool,
         manifest,
@@ -2145,6 +2303,321 @@ def test_model_pool_external_root_reference_is_domain_capability_aware(
     ready = pool.publish_ready(outcome, acceptance=acceptance)
     assert ready.state is InstallationState.READY
     assert pool.verify_latest(manifest.model.id)["ready"] is True
+
+
+def test_new_installation_cannot_drop_external_content_identity(tmp_path: Path) -> None:
+    source = tmp_path / "existing-weights"
+    source.mkdir()
+    (source / "weights.bin").write_bytes(b"external official artifact bytes")
+    payload = _manifest_payload("missing-external-content-identity")
+    payload["artifacts"] = [
+        {
+            "id": "weights",
+            "kind": "local",
+            "local_path": str(source),
+            "revision": "external-revision-1",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    execution_domain = "windows-native" if os.name == "nt" else "linux-native"
+    staged = pool.stage_artifacts(
+        manifest.model.id,
+        external_artifact_roots={"weights": source},
+        external_artifact_revisions={"weights": "external-revision-1"},
+        external_execution_domain=execution_domain,
+        external_domain_paths={"weights": str(source.resolve())},
+    )
+    installation = paths.resolve_locator(staged.locator or "")
+    reference_path = installation / "external-artifact-roots.json"
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifacts"][0].pop("content_identity")
+    reference_path.write_text(json.dumps(reference), encoding="utf-8")
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+    )
+
+    failed = pool.publish_ready(staged, acceptance=acceptance)
+
+    assert failed.state is InstallationState.FAILED
+    assert any(
+        "external artifact content identity is missing" in item
+        for item in failed.diagnostics
+    )
+
+
+def test_ready_content_binding_marker_prevents_legacy_downgrade(tmp_path: Path) -> None:
+    source = tmp_path / "existing-weights"
+    source.mkdir()
+    (source / "weights.bin").write_bytes(b"external official artifact bytes")
+    payload = _manifest_payload("ready-content-binding-downgrade")
+    payload["artifacts"] = [
+        {
+            "id": "weights",
+            "kind": "local",
+            "local_path": str(source),
+            "revision": "external-revision-1",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    execution_domain = "windows-native" if os.name == "nt" else "linux-native"
+    staged = pool.stage_artifacts(
+        manifest.model.id,
+        external_artifact_roots={"weights": source},
+        external_artifact_revisions={"weights": "external-revision-1"},
+        external_execution_domain=execution_domain,
+        external_domain_paths={"weights": str(source.resolve())},
+    )
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+    )
+    ready = pool.publish_ready(staged, acceptance=acceptance)
+    assert ready.state is InstallationState.READY
+
+    snapshot = paths.resolve_locator(ready.locator or "")
+    reference_path = snapshot / "external-artifact-roots.json"
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifacts"][0].pop("content_identity")
+    reference_path.write_text(json.dumps(reference), encoding="utf-8")
+    transaction = pool.store.installation_transaction(ready.installation_id)
+    assert transaction is not None
+    transaction_payload = json.loads(transaction["payload_json"])
+    assert transaction["integrity_policy"] == "complete-tree-sha256-v2"
+    transaction_payload.pop("artifact_content_binding")
+    transaction_payload["acceptance"].pop("installation_id")
+    transaction_payload["acceptance"].pop("artifact_identity")
+    _replace_installation_payload(
+        pool.store,
+        ready.installation_id,
+        transaction_payload,
+    )
+
+    verified = pool.verify_latest(manifest.model.id)
+
+    assert verified["ready"] is False
+    assert any(
+        "external artifact content identity is missing" in item
+        or "acceptance installation identity differs" in item
+        or "content-binding marker is missing" in item
+        for item in verified["diagnostics"]
+    )
+
+
+def test_transaction_integrity_policy_is_immutable(tmp_path: Path) -> None:
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    store.create_installation_transaction(
+        installation_id="immutable-integrity-policy",
+        state=InstallationState.BUILDING_RUNTIME.value,
+        payload={"model_id": "example-model"},
+        integrity_policy="complete-tree-sha256-v2",
+    )
+
+    with pytest.raises(sqlite3.IntegrityError, match="integrity policy is immutable"):
+        with store.transaction() as connection:
+            connection.execute(
+                "UPDATE transactions SET integrity_policy = NULL WHERE id = ?",
+                ("immutable-integrity-policy",),
+            )
+
+    with pytest.raises(sqlite3.IntegrityError, match="integrity policy is immutable"):
+        with store.transaction() as connection:
+            connection.execute(
+                "DELETE FROM transactions WHERE id = ?",
+                ("immutable-integrity-policy",),
+            )
+
+    with pytest.raises(sqlite3.IntegrityError, match="integrity policy is immutable"):
+        with store.transaction() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO transactions(
+                    id, kind, state, payload_json, created_at, updated_at,
+                    integrity_policy
+                )
+                SELECT id, kind, state, payload_json, created_at, updated_at, NULL
+                FROM transactions WHERE id = ?
+                """,
+                ("immutable-integrity-policy",),
+            )
+
+
+def test_ready_installation_detects_same_length_result_artifact_tamper(
+    tmp_path: Path,
+) -> None:
+    manifest = _production_manifest(_manifest_payload("result-content-binding"))
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    staged = pool.stage_artifacts(manifest.model.id)
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+    )
+    ready = pool.publish_ready(staged, acceptance=acceptance)
+    assert ready.state is InstallationState.READY
+
+    result = pool.store.result_for_job(str(acceptance["job_id"]))
+    assert result is not None
+    native_row = next(
+        row
+        for row in pool.store.result_artifacts(result["id"])
+        if row["name"] == "native"
+    )
+    native_path = paths.resolve_locator(native_row["locator"])
+    native_path.write_bytes(b"x" * native_path.stat().st_size)
+
+    verified = pool.verify_latest(manifest.model.id)
+
+    assert verified["ready"] is False
+    assert any(
+        "indexed artifact SHA-256 differs: native" in diagnostic
+        for diagnostic in verified["diagnostics"]
+    )
+
+
+def test_external_content_tree_binds_safe_internal_directory_reference(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "external-source"
+    source.mkdir()
+    implementation = source / "implementation"
+    implementation.mkdir()
+    weights = implementation / "weights.bin"
+    weights.write_bytes(b"official linked artifact bytes")
+    reference_kind = _create_directory_reference(source / "current", implementation)
+    payload = _manifest_payload("internal-reference-artifact")
+    payload["artifacts"] = [
+        {
+            "id": "weights",
+            "kind": "local",
+            "local_path": str(source),
+            "revision": "external-revision-1",
+            "expected_files": ["current/weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    execution_domain = "windows-native" if os.name == "nt" else "linux-native"
+
+    staged = pool.stage_artifacts(
+        manifest.model.id,
+        external_artifact_roots={"weights": source},
+        external_artifact_revisions={"weights": "external-revision-1"},
+        external_execution_domain=execution_domain,
+        external_domain_paths={"weights": str(source.resolve())},
+    )
+
+    assert staged.state is InstallationState.BUILDING_RUNTIME
+    installation = paths.resolve_locator(staged.locator or "")
+    external = json.loads(
+        (installation / "external-artifact-roots.json").read_text(encoding="utf-8")
+    )
+    identity = external["artifacts"][0]["content_identity"]
+    assert identity["schema_version"] == "virea.artifact_content_identity.v2.0.0"
+    assert identity["references"] == [
+        {
+            "path": "current",
+            "kind": reference_kind,
+            "target": "implementation",
+        }
+    ]
+    weights.write_bytes(b"modified linked artifact bytes")
+    with pytest.raises(AcceptanceFailure, match="content differs"):
+        _validated_external_artifact_roots(installation, manifest)
+
+
+def test_external_content_tree_rejects_reference_outside_root(tmp_path: Path) -> None:
+    source = tmp_path / "external-source"
+    source.mkdir()
+    outside = tmp_path / "outside-source"
+    outside.mkdir()
+    (outside / "weights.bin").write_bytes(b"outside artifact bytes")
+    _create_directory_reference(source / "current", outside)
+    payload = _manifest_payload("escaping-reference-artifact")
+    payload["artifacts"] = [
+        {
+            "id": "weights",
+            "kind": "local",
+            "local_path": str(source),
+            "revision": "external-revision-1",
+            "expected_files": ["current/weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    execution_domain = "windows-native" if os.name == "nt" else "linux-native"
+
+    failed = pool.stage_artifacts(
+        manifest.model.id,
+        external_artifact_roots={"weights": source},
+        external_artifact_revisions={"weights": "external-revision-1"},
+        external_execution_domain=execution_domain,
+        external_domain_paths={"weights": str(source.resolve())},
+    )
+
+    assert failed.state is InstallationState.FAILED
+    assert any(
+        "escapes" in item and "root" in item for item in failed.diagnostics
+    ), (
+        failed.diagnostics
+    )
+
+
+def test_external_content_tree_fails_closed_when_directory_scan_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "external-source"
+    source.mkdir()
+
+    def unreadable_walk(_root: Path, **kwargs):
+        onerror = kwargs.get("onerror")
+        assert callable(onerror)
+        onerror(PermissionError("simulated unreadable artifact subtree"))
+        yield from ()
+
+    monkeypatch.setattr(model_pool_module.os, "walk", unreadable_walk)
+
+    with pytest.raises(PermissionError, match="unreadable artifact subtree"):
+        model_pool_module._artifact_content_tree(
+            source,
+            schema_version="virea.artifact_content_identity.v2.0.0",
+            artifact_id="weights",
+            allow_internal_references=True,
+        )
+
+
+def test_external_content_tree_rejects_member_added_during_hashing(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "external-source"
+    source.mkdir()
+    (source / "weights.bin").write_bytes(b"official artifact bytes")
+    injected = source / "late-file.bin"
+
+    def mutate_after_initial_scan(_progress: object) -> None:
+        if not injected.exists():
+            injected.write_bytes(b"appeared during hashing")
+
+    with pytest.raises(OSError, match="tree changed while hashing"):
+        model_pool_module._artifact_content_tree(
+            source,
+            schema_version="virea.artifact_content_identity.v2.0.0",
+            artifact_id="weights",
+            allow_internal_references=True,
+            progress=mutate_after_initial_scan,
+        )
 
 
 @pytest.mark.skipif(os.name != "nt", reason="NTFS junctions are Windows-only")

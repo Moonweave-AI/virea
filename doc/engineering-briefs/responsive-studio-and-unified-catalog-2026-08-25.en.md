@@ -3,8 +3,8 @@ type: engineering-brief
 status: Implemented
 owner: VIREA maintainers
 created: 2026-08-25
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: Cross-layer design for immediate generation feedback, durable job streaming, stable interactive viewers, and one truthful model-capability catalog.
 canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
@@ -13,6 +13,7 @@ related:
   - ../research/responsive-studio-cli-design-2026-08-25.en.md
   - ../getting-started/browser-playback.en.md
   - ../reference/cli.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -28,10 +29,12 @@ keeps both WebGL viewers mounted across ordinary state updates, and makes the AP
 the browser and interactive CLI. The existing public `uv run virea` entry point, JobRequest v1 payload, persistent data
 root, result artifacts, and explicit full-integrity verification command remain compatible.
 
-The catalog currently contains 14 real model records. Six have a VIREA Runtime and production acceptance; eight only
-record an upstream-runnable project. The UI must expose all 14 without calling the latter eight installed or supported.
-Adding their Workers, isolated Runtimes, task-input schemas, artifacts, adapters, and real E2E evidence is separate model
-integration work, not a frontend switch.
+At this brief's 2026-08-25 snapshot, the catalog contained 14 real model records: six had a VIREA Runtime and production-
+acceptance contract, while eight only recorded an upstream-runnable project. The UI therefore had to expose all 14
+without calling the latter eight installed or supported. That capability snapshot was superseded on 2026-08-26: all 14
+now have Workers, isolated Runtimes, task-input schemas, artifact boundaries, adapters, and target-acceptance contracts
+and are `integrated_experimental`. This current status still does not claim a real-checkpoint pass or `supported` state;
+those facts remain separate evidence and release gates.
 
 ## Problem, goals, and non-goals
 
@@ -53,7 +56,8 @@ Goals:
 
 Non-goals:
 
-- Claiming that the eight Runtime-less model records can generate through VIREA.
+- At the 2026-08-25 snapshot, claiming that the eight Runtime-less records could generate through VIREA; after their
+  2026-08-26 integration, claiming current real-checkpoint acceptance from the contract alone remains a non-goal.
 - Inventing percentages, ETA, transfer totals, model-quality scores, or cross-platform evidence.
 - Replacing JobRequest v1, model manifests, the persistent SQLite store, or production artifact formats.
 - Copying another product's branding, assets, or pixel layout.

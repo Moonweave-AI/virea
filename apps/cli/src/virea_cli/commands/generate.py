@@ -65,21 +65,40 @@ def run(args) -> int:
                 }
             )
             return 2
-        if not args.prompt.strip():
+        request_input = getattr(args, "request_input", None)
+        request_parameters = getattr(args, "request_parameters", None)
+        if request_input is None and request_parameters is None:
+            # Keep the explicit ``virea generate`` command backward compatible.
+            # The interactive wizard supplies the manifest-driven maps below.
+            if not args.prompt.strip():
+                emit(
+                    {
+                        "error": "PROMPT_REQUIRED",
+                        "message": "--prompt must be a non-empty string",
+                    }
+                )
+                return 2
+            request_input = {"prompt": args.prompt.strip()}
+            request_parameters = {
+                "seconds": args.seconds,
+                "fps": args.fps,
+                "seed": args.seed,
+            }
+            if args.denoise_steps is not None:
+                request_parameters["denoise_steps"] = args.denoise_steps
+        elif not isinstance(request_input, dict) or not isinstance(
+            request_parameters, dict
+        ):
             emit(
                 {
-                    "error": "PROMPT_REQUIRED",
-                    "message": "--prompt must be a non-empty string",
+                    "error": "INVALID_MANIFEST_INPUT",
+                    "message": (
+                        "interactive request_input and request_parameters must both "
+                        "be JSON objects"
+                    ),
                 }
             )
             return 2
-        parameters = {
-            "seconds": args.seconds,
-            "fps": args.fps,
-            "seed": args.seed,
-        }
-        if args.denoise_steps is not None:
-            parameters["denoise_steps"] = args.denoise_steps
         execution_domain = getattr(args, "execution_domain", None)
         runtime_variant = getattr(args, "runtime_variant", None)
         resource_profile = getattr(args, "resource_profile", None)
@@ -107,8 +126,8 @@ def run(args) -> int:
         request = JobRequest(
             model_id=model_id,
             task=args.task,
-            input={"prompt": args.prompt.strip()},
-            parameters=parameters,
+            input=request_input,
+            parameters=request_parameters,
             idempotency_key=args.idempotency_key,
             execution_target=execution_target,
         )

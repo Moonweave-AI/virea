@@ -27,6 +27,8 @@ Examples::
 from __future__ import annotations
 
 import argparse
+import filecmp
+import hashlib
 import json
 import math
 import os
@@ -50,8 +52,11 @@ from virea_contracts.vrm import VrmMotionResult
 from virea_contracts.worker import RuntimeCoreIdentity
 from virea_model_pool import ModelCatalog
 from virea_model_pool.pool import (
+    _ARTIFACT_CONTENT_BINDING,
     _INTERNAL_ASSET_IDENTITY,
     _INTERNAL_ASSET_TREE,
+    _expected_artifact_content_identity,
+    _installation_artifact_identity,
     _internal_asset_identity,
     _internal_asset_key,
     _internal_asset_locator_name_is_valid,
@@ -92,6 +97,22 @@ class AcceptanceFailure(RuntimeError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise AcceptanceFailure(message)
+
+
+def _is_sha256_digest(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _finite_tree(value: Any, *, label: str) -> None:
@@ -242,7 +263,10 @@ def _is_ordinary_directory(path: Path) -> bool:
 
 
 def _validated_external_artifact_roots(
-    installation_root: Path, manifest: Any
+    installation_root: Path,
+    manifest: Any,
+    *,
+    require_content_identity: bool = False,
 ) -> dict[str, Path]:
     reference_path = installation_root / "external-artifact-roots.json"
     if not reference_path.exists():
@@ -306,6 +330,17 @@ def _validated_external_artifact_roots(
             link.resolve(strict=True) == target,
             f"external artifact reference target differs: {source.id}",
         )
+        if require_content_identity:
+            _require(
+                entry.get("content_identity") is not None,
+                f"external artifact content identity is missing: {source.id}",
+            )
+        if entry.get("content_identity") is not None:
+            _require(
+                entry["content_identity"]
+                == _expected_artifact_content_identity(target, source),
+                f"external artifact content differs: {source.id}",
+            )
         roots[source.id] = target
     return roots
 
@@ -314,6 +349,8 @@ def _validated_internal_artifact_roots(
     home: Path,
     installation_root: Path,
     manifest: Any,
+    *,
+    require_content_identity: bool = False,
 ) -> dict[str, Path]:
     reference_path = installation_root / "internal-artifact-roots.json"
     if not reference_path.exists():
@@ -385,6 +422,25 @@ def _validated_internal_artifact_roots(
             f"internal artifact persisted identity differs: {source.id}",
         )
         persisted_tree = _load_json(target / _INTERNAL_ASSET_TREE)
+        if require_content_identity:
+            _require(
+                entry.get("content_tree_sha256") is not None,
+                f"internal artifact content identity is missing: {source.id}",
+            )
+        if entry.get("content_tree_sha256") is not None:
+            _require(
+                entry["content_tree_sha256"]
+                == hashlib.sha256(
+                    json.dumps(
+                        persisted_tree,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    ).encode("utf-8")
+                ).hexdigest(),
+                f"internal artifact content identity differs: {source.id}",
+            )
         observed_tree = _internal_asset_tree(target)
         _require(
             persisted_tree == observed_tree,
@@ -1049,6 +1105,93 @@ def _result_store_integrity(
     }
 
 
+def _production_contract_for_task(manifest: Any, task: str | None):
+    contracts = getattr(manifest, "production_acceptance_contracts", None)
+    if contracts is None:
+        legacy = getattr(manifest, "production_acceptance", None)
+        _require(legacy is not None, "model manifest has no production acceptance")
+        if task is None:
+            return legacy
+        contracts = (legacy,)
+    matches = tuple(
+        contract
+        for contract in contracts
+        if contract.request.task == task
+    )
+    _require(
+        len(matches) == 1,
+        f"model manifest has no unique production acceptance for task {task}",
+    )
+    return matches[0]
+
+
+def _task_acceptance_evidence(
+    manifest: Any,
+    acceptance: dict[str, Any],
+    *,
+    task: str,
+    require_binding: bool = False,
+) -> dict[str, Any]:
+    suite = manifest.production_acceptance_suite
+    if suite is None:
+        return acceptance
+    contracts = manifest.production_acceptance_contracts
+    tasks = [contract.request.task for contract in contracts]
+    _require(
+        acceptance.get("schema_version")
+        == "virea.installation_acceptance_suite_evidence.v1.0.0"
+        and acceptance.get("kind") == "installation_real_e2e_suite"
+        and acceptance.get("model_id") == manifest.model.id
+        and acceptance.get("contract") == suite.model_dump(mode="json")
+        and acceptance.get("tasks") == tasks,
+        "installation acceptance suite differs from manifest",
+    )
+    _require(
+        acceptance.get("installation_acceptance_succeeded") is True
+        and acceptance.get("production_e2e_succeeded") is False
+        and acceptance.get("outstanding_required_stages")
+        == [ProductionE2EStage.WEB_PLAYBACK.value],
+        "installation acceptance suite did not pass every task",
+    )
+    task_acceptances = acceptance.get("task_acceptances")
+    _require(
+        isinstance(task_acceptances, list)
+        and len(task_acceptances) == len(contracts),
+        "installation acceptance suite task count differs",
+    )
+    matches = [
+        item
+        for item in task_acceptances
+        if isinstance(item, dict)
+        and isinstance(item.get("request"), dict)
+        and item["request"].get("task") == task
+    ]
+    _require(
+        len(matches) == 1,
+        f"installation acceptance suite has no unique evidence for task {task}",
+    )
+    task_acceptance = matches[0]
+    if require_binding:
+        _require(
+            isinstance(acceptance.get("installation_id"), str)
+            and bool(acceptance["installation_id"])
+            and isinstance(acceptance.get("artifact_identity"), dict),
+            "acceptance suite installation/artifact binding is missing",
+        )
+    if acceptance.get("installation_id") is not None:
+        _require(
+            task_acceptance.get("installation_id")
+            == acceptance.get("installation_id"),
+            "suite task installation identity differs",
+        )
+        _require(
+            task_acceptance.get("artifact_identity")
+            == acceptance.get("artifact_identity"),
+            "suite task artifact identity differs",
+        )
+    return task_acceptance
+
+
 def _validate_installation_chain(
     connection: sqlite3.Connection,
     *,
@@ -1059,8 +1202,7 @@ def _validate_installation_chain(
 ) -> dict[str, Any]:
     """Bind doctor, install, acceptance, and READY verification evidence."""
 
-    contract = manifest.production_acceptance
-    _require(contract is not None, "model manifest has no production acceptance")
+    contract = _production_contract_for_task(manifest, job.get("task"))
 
     candidates: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for row in connection.execute(
@@ -1107,6 +1249,18 @@ def _validate_installation_chain(
     )
     transaction, payload = usable_candidates[-1]
     acceptance = payload["acceptance"]
+    trusted_integrity_policy = transaction.get("integrity_policy")
+    suite_binding_required = (
+        acceptance.get("installation_id") is not None
+        or payload.get("artifact_content_binding") == _ARTIFACT_CONTENT_BINDING
+        or trusted_integrity_policy is not None
+    )
+    acceptance = _task_acceptance_evidence(
+        manifest,
+        acceptance,
+        task=contract.request.task,
+        require_binding=suite_binding_required,
+    )
     doctor, doctor_path = _select_preinstallation_machine_report(
         home,
         installation_created_at=transaction["created_at"],
@@ -1140,6 +1294,25 @@ def _validate_installation_chain(
         payload.get("artifact_source_ids")
         == [source.id for source in manifest.artifacts],
         "installation artifact-source identities differ",
+    )
+    declared_content_binding = payload.get("artifact_content_binding")
+    _require(
+        declared_content_binding in {None, _ARTIFACT_CONTENT_BINDING},
+        "installation artifact content-binding version differs",
+    )
+    _require(
+        trusted_integrity_policy in {None, _ARTIFACT_CONTENT_BINDING},
+        "trusted installation integrity-policy version differs",
+    )
+    if trusted_integrity_policy is not None:
+        _require(
+            declared_content_binding == trusted_integrity_policy,
+            "installation artifact content-binding marker is missing or differs",
+        )
+    binding_required = (
+        acceptance.get("installation_id") is not None
+        or declared_content_binding == _ARTIFACT_CONTENT_BINDING
+        or trusted_integrity_policy is not None
     )
     license_acceptance = payload.get("license_acceptance")
     if license_acceptance is None and not manifest.licenses.requires_acceptance:
@@ -1312,6 +1485,24 @@ def _validate_installation_chain(
         }
         for row in acceptance_event_rows
     ]
+    if binding_required:
+        _require(
+            acceptance.get("installation_id") == transaction["id"],
+            "installation acceptance identity differs",
+        )
+        binding_events = [
+            event
+            for event in acceptance_events
+            if event["event_type"] == "job.runtime_selected"
+        ]
+        _require(
+            len(binding_events) == 1
+            and binding_events[0]["payload"].get("acceptance_installation_id")
+            == transaction["id"]
+            and binding_events[0]["payload"].get("acceptance_artifact_identity")
+            == acceptance.get("artifact_identity"),
+            "acceptance Job event is not bound to this installation",
+        )
     _validate_pinned_execution_target(
         payload,
         acceptance,
@@ -1350,9 +1541,27 @@ def _validate_installation_chain(
         _load_json(manifest_snapshot) == manifest.model_dump(mode="json"),
         "READY installation manifest snapshot differs",
     )
-    external_roots = _validated_external_artifact_roots(installation_root, manifest)
+    if binding_required:
+        _require(
+            acceptance.get("artifact_identity") is not None,
+            "installation acceptance artifact identity is missing",
+        )
+    if acceptance.get("artifact_identity") is not None:
+        _require(
+            acceptance.get("artifact_identity")
+            == _installation_artifact_identity(installation_root),
+            "installation acceptance artifact identity differs",
+        )
+    external_roots = _validated_external_artifact_roots(
+        installation_root,
+        manifest,
+        require_content_identity=binding_required,
+    )
     internal_roots = _validated_internal_artifact_roots(
-        home, installation_root, manifest
+        home,
+        installation_root,
+        manifest,
+        require_content_identity=binding_required,
     )
     installed_files: dict[str, list[str]] = {}
     for source in manifest.artifacts:
@@ -1407,6 +1616,7 @@ def _validate_installation_chain(
             "acceptance_job_id": acceptance_job_id,
             "acceptance_result_id": acceptance_result_id,
             "license_acceptance": license_acceptance,
+            "artifact_content_binding": declared_content_binding,
         },
         "verification": {
             "ready": True,
@@ -1449,10 +1659,36 @@ def _validate_common_job(
     _require(
         request.task in manifest.model.tasks, "job task is not declared by its manifest"
     )
-    prompt = request.input.get("prompt")
+    matching_input_schemas = [
+        schema
+        for schema in manifest.inputs
+        if isinstance(schema, dict) and schema.get("task") == request.task
+    ]
     _require(
-        isinstance(prompt, str) and bool(prompt.strip()),
-        "real job request has no input.prompt",
+        len(matching_input_schemas) == 1,
+        "job task has no unique manifest input schema",
+    )
+    fields = matching_input_schemas[0].get("fields")
+    _require(isinstance(fields, dict), "job task input schema has no fields")
+    supplied = {**request.parameters, **request.input}
+    required_fields = {
+        name
+        for name, field in fields.items()
+        if isinstance(name, str)
+        and isinstance(field, dict)
+        and field.get("required") is True
+    }
+    missing_fields = sorted(
+        name
+        for name in required_fields
+        if name not in supplied
+        or supplied[name] is None
+        or (isinstance(supplied[name], str) and not supplied[name].strip())
+        or (isinstance(supplied[name], (list, tuple, dict)) and not supplied[name])
+    )
+    _require(
+        not missing_fields,
+        "real job request omits required task inputs: " + ", ".join(missing_fields),
     )
     _require(bool(events), "job has no append-only events")
     sequences = [int(event["sequence"]) for event in events]
@@ -1461,17 +1697,110 @@ def _validate_common_job(
         "job event sequence has a gap or duplicate",
     )
     _require(events[0]["state"] == "QUEUED", "job history does not start at QUEUED")
-    metrics = {
+    metrics: dict[str, Any] = {
         "job_id": job["id"],
         "model_id": job["model_id"],
         "task": job["task"],
-        "prompt": prompt.strip(),
+        "input_fields": sorted(request.input),
+        "parameter_fields": sorted(request.parameters),
         "states": [event["state"] for event in events],
         "elapsed_seconds": _duration_seconds(
             events[0]["created_at"], events[-1]["created_at"]
         ),
     }
+    prompt = request.input.get("prompt")
+    if isinstance(prompt, str):
+        metrics["prompt"] = prompt.strip()
     return request, metrics
+
+
+def _validate_generation_metadata(
+    metadata: dict[str, Any],
+    *,
+    job_id: str,
+    model_id: str,
+    upstream_revision: str,
+    runtime_id: str,
+    request: JobRequest,
+    frame_count: int,
+    primary_shape: tuple[int, ...],
+) -> None:
+    """Validate both legacy and portable Worker metadata envelopes.
+
+    Older Workers nest identity under ``model``/``runtime`` while the portable
+    upstream Workers expose ``model_id``/``runtime_id`` at the top level.  Both
+    formats remain immutable evidence; task-specific inputs such as audio are
+    intentionally not copied into this diagnostic JSON.
+    """
+
+    _require(metadata.get("job_id") == job_id, "generation metadata job id differs")
+    nested_model = metadata.get("model")
+    if isinstance(nested_model, dict) and nested_model:
+        declared_model_id = nested_model.get("id", model_id)
+        _require(declared_model_id == model_id, "generation metadata model id differs")
+        declared_revision = nested_model.get(
+            "revision", nested_model.get("source_revision")
+        )
+        if declared_revision is not None:
+            _require(
+                declared_revision == upstream_revision,
+                "generation metadata model revision differs",
+            )
+    else:
+        _require(
+            metadata.get("model_id") == model_id,
+            "generation metadata model id differs",
+        )
+
+    nested_runtime = metadata.get("runtime")
+    metadata_runtime_id = (
+        nested_runtime.get("runtime_id")
+        if isinstance(nested_runtime, dict)
+        else metadata.get("runtime_id")
+    )
+    _require(
+        metadata_runtime_id == runtime_id,
+        "generation metadata runtime id differs",
+    )
+
+    output = metadata.get("output")
+    output = output if isinstance(output, dict) else {}
+    observed_frame_count = output.get("frame_count", metadata.get("frame_count"))
+    _require(
+        observed_frame_count == frame_count,
+        "generation metadata frame count differs",
+    )
+    if "shape" in output:
+        _require(
+            output["shape"] == list(primary_shape),
+            "generation metadata shape differs",
+        )
+
+    expected_seed = request.parameters.get("seed")
+    if expected_seed is not None:
+        metadata_request = metadata.get("request")
+        metadata_parameters = metadata.get("parameters")
+        observed_seed = (
+            metadata_request.get("seed")
+            if isinstance(metadata_request, dict) and "seed" in metadata_request
+            else metadata_parameters.get("seed")
+            if isinstance(metadata_parameters, dict) and "seed" in metadata_parameters
+            else metadata.get("seed")
+        )
+        _require(observed_seed == expected_seed, "generation metadata seed differs")
+
+    expected_prompt = request.input.get("prompt")
+    if isinstance(expected_prompt, str):
+        metadata_request = metadata.get("request")
+        observed_prompt = (
+            metadata_request.get("prompt")
+            if isinstance(metadata_request, dict) and "prompt" in metadata_request
+            else metadata.get("prompt")
+        )
+        _require(
+            observed_prompt == expected_prompt,
+            "generation metadata prompt differs",
+        )
 
 
 def _validate_terminal_only(
@@ -1519,9 +1848,9 @@ def _validate_success(
     request: JobRequest,
     manifest: Any,
     indexed_artifacts: list[dict[str, Any]],
+    require_artifact_sha256: bool = False,
 ) -> dict[str, Any]:
-    contract = manifest.production_acceptance
-    _require(contract is not None, "model manifest has no production acceptance")
+    contract = _production_contract_for_task(manifest, request.task)
     _require(
         request.model_dump(mode="json") == contract.request.model_dump(mode="json"),
         "job request differs from the exact manifest production request",
@@ -1707,6 +2036,8 @@ def _validate_success(
         "native",
         *(f"vrma:{actor_id}" for actor_id in result.actor_ids),
     }
+    if result.tracks.get("source_skeleton"):
+        expected_index_names.add("source_skeleton")
     _require(
         {row["name"] for row in indexed_artifacts} == expected_index_names,
         "atomic result artifact index is incomplete or contains extra entries",
@@ -1724,10 +2055,22 @@ def _validate_success(
                 path.stat().st_size == row["byte_length"],
                 f"indexed artifact length differs: {row['name']}",
             )
+        persisted_sha256 = row.get("sha256")
+        if require_artifact_sha256:
+            _require(
+                _is_sha256_digest(persisted_sha256),
+                f"indexed artifact SHA-256 is missing: {row['name']}",
+            )
+        if _is_sha256_digest(persisted_sha256):
+            _require(
+                _sha256_file(path) == persisted_sha256,
+                f"indexed artifact SHA-256 differs: {row['name']}",
+            )
         indexed_artifact_metrics[row["name"]] = {
             "locator": row["locator"],
             "media_type": row["media_type"],
             "bytes": path.stat().st_size,
+            "sha256": persisted_sha256,
         }
     required_export_locators = {
         result.tracks["humanoid"]: ("npz", "application/x-npz"),
@@ -1844,14 +2187,17 @@ def _validate_success(
         generation.get("virea_runtime_core_identity") == worker_runtime_core,
         "ModelResult runtime core identity differs from Worker attestation",
     )
-    _require(
-        generation.get("prompt") == request.input.get("prompt"),
-        "provenance prompt differs",
-    )
-    _require(
-        generation.get("frame_count") == native.frame_count,
-        "provenance frame count differs",
-    )
+    request_prompt = request.input.get("prompt")
+    if isinstance(request_prompt, str):
+        _require(
+            generation.get("prompt") == request_prompt,
+            "provenance prompt differs",
+        )
+    if "frame_count" in generation:
+        _require(
+            generation["frame_count"] == native.frame_count,
+            "provenance frame count differs",
+        )
     expected_sources = {
         (source.repository, source.revision)
         for source in manifest.artifacts
@@ -1879,18 +2225,27 @@ def _validate_success(
         "generation_metadata" in artifact_paths,
         "ModelResult has no generation metadata",
     )
+    copied_native = np.load(track_paths["native"], allow_pickle=False)
+    _require(
+        isinstance(copied_native, np.ndarray),
+        "native .npy does not contain one ndarray",
+    )
+    _require(
+        copied_native.dtype == np.dtype("float32"), "native output dtype is not float32"
+    )
+    _require_finite_array(copied_native, label="native model motion")
     native_candidates = [
         artifact
         for artifact in native.artifacts
         if artifact.media_type == "application/x-npy"
         and artifact.dtype == "float32"
         and artifact.shape is not None
-        and len(artifact.shape) >= 2
-        and artifact.shape[0] == native.frame_count
+        and tuple(artifact.shape) == copied_native.shape
+        and artifact_paths[artifact.name].name == track_paths["native"].name
     ]
     _require(
         len(native_candidates) == 1,
-        "ModelResult must expose exactly one frame-major float32 native motion artifact",
+        "ModelResult has no unique primary artifact matching the persisted native track",
     )
     source_ref = native_candidates[0]
     _require(source_ref.dtype == "float32", "native ArtifactRef dtype is not float32")
@@ -1905,30 +2260,28 @@ def _validate_success(
     )
     _require(staged_native.shape == source_ref.shape, "staged native shape differs")
     _require_finite_array(staged_native, label="staged native model motion")
-    copied_native = np.load(track_paths["native"], allow_pickle=False)
-    _require(
-        isinstance(copied_native, np.ndarray),
-        "native .npy does not contain one ndarray",
-    )
-    _require(
-        copied_native.dtype == np.dtype("float32"), "native output dtype is not float32"
-    )
     _require(copied_native.shape == source_ref.shape, "native output shape differs")
-    _require_finite_array(copied_native, label="native model motion")
+    _require(
+        filecmp.cmp(
+            artifact_paths[source_ref.name],
+            track_paths["native"],
+            shallow=False,
+        ),
+        "persisted native track differs from the Worker's primary artifact",
+    )
     native_metrics = _array_metrics(copied_native)
     _require(native_metrics["std"] > 1e-8, "native model output is degenerate/constant")
 
     generation_metadata = _load_json(artifact_paths["generation_metadata"])
-    _require(
-        generation_metadata.get("job_id") == job["id"],
-        "generation metadata job id differs",
-    )
-    metadata_model = generation_metadata.get("model", {})
-    _require(isinstance(metadata_model, dict), "generation metadata model is invalid")
-    _require(
-        metadata_model.get("revision", metadata_model.get("source_revision"))
-        == manifest.model.upstream.revision,
-        "generation metadata model revision differs",
+    _validate_generation_metadata(
+        generation_metadata,
+        job_id=job["id"],
+        model_id=manifest.model.id,
+        upstream_revision=manifest.model.upstream.revision,
+        runtime_id=selection["runtime_id"],
+        request=request,
+        frame_count=native.frame_count,
+        primary_shape=tuple(source_ref.shape),
     )
     for source in manifest.artifacts:
         if source.id == "umt5-base-pinned-hf":
@@ -1937,26 +2290,6 @@ def _validate_success(
                 == source.revision,
                 "generation metadata text encoder revision differs",
             )
-    _require(
-        generation_metadata.get("request", {}).get("prompt")
-        == request.input.get("prompt"),
-        "generation metadata prompt differs",
-    )
-    _require(
-        generation_metadata.get("request", {}).get("seed")
-        == request.parameters.get("seed"),
-        "generation metadata seed differs",
-    )
-    _require(
-        generation_metadata.get("output", {}).get("shape") == list(source_ref.shape),
-        "generation metadata shape differs",
-    )
-    _require(
-        generation_metadata.get("runtime", {}).get("runtime_id")
-        == selection["runtime_id"],
-        "generation metadata runtime id differs",
-    )
-
     motion = load_motion_ir(track_paths["motion_ir"])
     _require(
         motion.motion_id == result.source_motion_id, "Motion IR id differs from result"
@@ -2200,6 +2533,13 @@ def main(argv: list[str] | None = None) -> int:
                 request=request,
                 manifest=manifest,
                 indexed_artifacts=indexed_artifacts,
+                require_artifact_sha256=bool(
+                    installation_chain
+                    and installation_chain["installation"].get(
+                        "artifact_content_binding"
+                    )
+                    == _ARTIFACT_CONTENT_BINDING
+                ),
             )
             if args.expect == "success"
             else _validate_terminal_only(

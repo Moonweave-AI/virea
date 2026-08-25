@@ -50,8 +50,9 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 
 安装/部署能力按设备**总 RAM/VRAM**判断，不会因为桌面、浏览器或其他程序暂时占用内存就把硬件判为不支持；
 当前可用 RAM/VRAM 仍会记录为实时观测，并在多张合格 GPU 之间用于选择更空闲的设备。swap/pagefile 与磁盘
-仍按当前可用量检查。某 Runtime 若没有实现当前执行域，就不会出现在可选 Runtime 列表中：例如 PRISM CUDA
-只在 Linux/WSL 提供，Windows 下只能选择其已声明的 CPU Runtime，而该 CPU profile 需要 96 GiB 总 RAM。
+仍按当前可用量检查。某 Runtime 若没有实现当前执行域，就不会出现在可选 Runtime 列表中。PRISM 当前在
+Windows 与 Linux/WSL 均提供 CUDA component-split Runtime；96 GiB 总 RAM 是无合格 GPU 时 CPU fallback 的要求，
+不是 Windows 的唯一部署路径。
 
 ## 最短可复现路径
 

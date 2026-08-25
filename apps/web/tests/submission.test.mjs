@@ -14,6 +14,16 @@ const identity = {
   prompt: "walk forward",
   seconds: 4,
   seed: 7,
+  acceptanceRequest: {
+    schema_version: "virea.job_request.v1.0.0",
+    model_id: "flood-diffusion-tiny",
+    task: "text_to_motion",
+    input: { prompt: "canonical acceptance" },
+    parameters: { seconds: 4, seed: 42 },
+    avatar_id: null,
+    idempotency_key: null,
+    execution_target: null,
+  },
   executionTarget: {
     execution_domain_id: "windows-native",
     runtime_variant_id: "flood-diffusion-tiny-cpu",
@@ -90,4 +100,19 @@ test("the persisted fingerprint is stable but contains neither prompt nor absolu
   assert.match(first, /^sha256:[0-9a-f]{64}$/);
   assert.equal(first.includes(identity.prompt), false);
   assert.equal(first.includes(identity.vireaHome), false);
+});
+
+test("a changed immutable acceptance request receives a distinct retry identity", async () => {
+  const before = structuredClone(identity.acceptanceRequest);
+  const first = await submissionFingerprint(identity);
+  const second = await submissionFingerprint({
+    ...identity,
+    acceptanceRequest: {
+      ...identity.acceptanceRequest,
+      input: { prompt: "new canonical acceptance" },
+    },
+  });
+
+  assert.notEqual(first, second);
+  assert.deepEqual(identity.acceptanceRequest, before);
 });

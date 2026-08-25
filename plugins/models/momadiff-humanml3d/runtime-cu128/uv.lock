@@ -803,6 +803,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.8,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
     { name = "pyyaml", specifier = ">=6,<7" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6,<7" },
     { name = "regex", specifier = ">=2024.11" },
     { name = "torch", specifier = ">=2.2.2,<2.12" },
     { name = "torch-ema", specifier = "==0.3" },
@@ -810,7 +811,6 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66,<5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-model-pool", marker = "extra == 'dev'", editable = "../../../../packages/model_pool" },
     { name = "virea-model-sdk", editable = "../../../../packages/model_sdk" },
 ]
 provides-extras = ["dev"]

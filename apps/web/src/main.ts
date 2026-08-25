@@ -10,6 +10,7 @@ import {
 import type {
   ExecutionDomainCandidates,
   ExecutionTargetSelection,
+  ManifestInputField,
   ModelExecutionOption,
   ModelResult,
   SourceSkeletonPreview,
@@ -19,17 +20,21 @@ import type {
 import {
   artifactUrl,
   firstVrmaExport,
-  generationDefaults,
+  generationFormDefaults,
+  generationInputFields,
+  generationTaskSchemas,
   installationState,
   isInstalledReady,
   isInstallationIntegrityDeferred,
   isVireaIntegratedModel,
   modelCapabilityLabel,
   modelMotionRoute,
+  productionAcceptanceForTask,
   productionCatalogModels,
   productionCatalogJobs,
   resultMotionRoute,
   vireaIntegratedModels,
+  type GenerationFormDraft,
 } from "./domain";
 import { RealVrmViewer, type ViewerStatus } from "./viewer";
 import { SourceSkeletonViewer, type SourceViewerStatus } from "./source-viewer";
@@ -43,7 +48,7 @@ import {
 type View = "playground" | "catalog" | "overview";
 type SyncStatus = "connecting" | "live" | "polling" | "degraded" | "offline";
 type GenerationPhase = "idle" | "validating" | "submitting" | "tracking" | "loading_result";
-type Draft = { prompt: string; seconds: number; seed: number };
+type Draft = GenerationFormDraft;
 type JobEvent = NonNullable<JobRecord["events"]>[number];
 
 const TERMINAL_JOB_STATES = new Set([
@@ -340,11 +345,33 @@ function ensureSelectedModel(): void {
       ?? "";
   }
   const manifest = selectedManifest();
-  if (manifest && !state.drafts[manifest.model.id]) {
+  if (manifest) {
+    const current = state.drafts[manifest.model.id];
     try {
-      state.drafts[manifest.model.id] = generationDefaults(manifest);
+      const schemas = generationTaskSchemas(manifest);
+      const task = current && schemas.some((schema) => schema.task === current.task)
+        ? current.task
+        : undefined;
+      const defaults = generationFormDefaults(manifest, task);
+      if (current && current.task === defaults.task) {
+        const visibleNames = new Set(
+          generationInputFields(manifest, defaults.task).map(([name]) => name),
+        );
+        defaults.values = Object.fromEntries(
+          Object.entries(defaults.values).map(([name, value]) => [
+            name,
+            visibleNames.has(name) && Object.hasOwn(current.values, name)
+              ? current.values[name]
+              : value,
+          ]),
+        );
+      }
+      state.drafts[manifest.model.id] = defaults;
     } catch {
-      state.drafts[manifest.model.id] = { prompt: "", seconds: 4, seed: 42 };
+      state.drafts[manifest.model.id] = {
+        task: "",
+        values: {},
+      };
     }
   }
 }
@@ -558,10 +585,130 @@ function recentActivity(limit = 6): string {
   }).join("")}</div>`;
 }
 
+const GENERATION_TASK_LABELS: Record<string, string> = {
+  audio_text_to_avatar_motion: "音频 + 文本生成 Avatar 动作 / Audio + text to avatar motion",
+  interaction_reaction_generation: "互动反应生成 / Interaction reaction generation",
+  music_to_dance: "音乐生成舞蹈 / Music to dance",
+  retrieval_augmented_text_to_motion: "检索增强文本生成动作 / Retrieval-augmented text to motion",
+  speech_to_gesture: "语音生成手势 / Speech to gesture",
+  streaming_dialogue_avatar_motion: "流式对话 Avatar 动作 / Streaming dialogue avatar motion",
+  streaming_text_to_motion: "流式文本生成动作 / Streaming text to motion",
+  text_guided_motion_editing: "文本引导动作编辑 / Text-guided motion editing",
+  text_to_motion: "文本生成动作 / Text to motion",
+  text_to_two_person_interaction: "双人互动生成 / Two-person interaction",
+  waypoint_controlled_motion: "路点控制动作 / Waypoint-controlled motion",
+};
+
+const GENERATION_FIELD_LABELS: Record<string, string> = {
+  action_and_expression_tags: "动作与表情标签 / Action & expression tags",
+  audio: "音频 / Audio",
+  audio_chunks: "音频分块 / Audio chunks",
+  cfg: "引导强度 CFG / Guidance scale",
+  conditioning_actor_motion: "条件角色动作 / Conditioning actor motion",
+  dialogue_text: "对话文本 / Dialogue text",
+  dialogue_turns: "对话轮次 / Dialogue turns",
+  duration_seconds: "时长（秒）/ Duration (seconds)",
+  edit_interval: "编辑区间 / Edit interval",
+  guidance_scale: "引导强度 / Guidance scale",
+  inference_steps: "推理步数 / Inference steps",
+  initial_motion: "初始动作 / Initial motion",
+  motion_length_frames: "动作帧数 / Motion frames",
+  num_frames: "动作帧数 / Motion frames",
+  prompt: "动作描述 / Motion description",
+  prompt_rewrite: "自动改写提示词 / Rewrite prompt",
+  retrieval_database: "检索动作库 / Retrieval database",
+  seed: "随机种子 / Seed",
+  seconds: "时长（秒）/ Duration (seconds)",
+  source_motion: "源动作 / Source motion",
+  text_timeline: "文本时间线 / Text timeline",
+  time_steps: "采样步数 / Sampling steps",
+  transcript: "音频转写 / Transcript",
+  waypoints: "世界空间路点 / World-space waypoints",
+};
+
+function draftDisplayValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string" && value.startsWith("data:")) {
+    return `[local file loaded / 已读取本地文件 · ${Math.ceil(value.length / 1_024)} KiB data URL]`;
+  }
+  return typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+}
+
+function fieldConstraintHelp(name: string, field: ManifestInputField): string {
+  const details: string[] = [];
+  if (field.required === true) details.push("必填 / required");
+  if (typeof field.minimum === "number") details.push(`最小 / min ${field.minimum}`);
+  if (typeof field.maximum === "number") details.push(`最大 / max ${field.maximum}`);
+  if (typeof field.multiple_of === "number") details.push(`步长倍数 / multiple ${field.multiple_of}`);
+  if (field.representation_id) details.push(`representation ${field.representation_id}`);
+  if (typeof field.sample_rate_hz === "number") details.push(`${field.sample_rate_hz} Hz`);
+  if (typeof field.description === "string") details.push(field.description);
+  if (name === "prompt") details.push("写清人物、方向、节奏和动作结束方式。 / Describe actor, direction, tempo, and ending.");
+  return details.join(" · ");
+}
+
+function generationFieldMarkup(
+  name: string,
+  field: ManifestInputField,
+  value: unknown,
+  disabled: boolean,
+): string {
+  const fieldType = field.type ?? "structured";
+  const label = GENERATION_FIELD_LABELS[name] ?? name.replaceAll("_", " ");
+  const id = name;
+  const disabledAttribute = disabled ? "disabled" : "";
+  const help = fieldConstraintHelp(name, field);
+  const required = field.required === true ? "required" : "";
+  const common = `id="${escapeHtml(id)}" data-generation-field="${escapeHtml(name)}" ${required} ${disabledAttribute}`;
+  let control: string;
+  if (Array.isArray(field.enum)) {
+    control = `<select ${common}>${field.enum.map((option) => (
+      `<option value="${escapeHtml(option)}" ${String(option) === String(value) ? "selected" : ""}>${escapeHtml(option)}</option>`
+    )).join("")}</select>`;
+  } else if (fieldType === "boolean") {
+    control = `<span class="boolean-control"><input ${common} type="checkbox" ${value === true ? "checked" : ""} /><span>${value === true ? "已启用 / On" : "按需启用 / Optional"}</span></span>`;
+  } else if (fieldType === "integer" || fieldType === "number") {
+    const step = fieldType === "integer" ? 1 : field.multiple_of ?? "any";
+    const min = field.minimum ?? field.exclusive_minimum;
+    control = `<input ${common} type="number" ${min == null ? "" : `min="${escapeHtml(min)}"`} ${field.maximum == null ? "" : `max="${escapeHtml(field.maximum)}"`} step="${escapeHtml(step)}" value="${escapeHtml(draftDisplayValue(value))}" />`;
+  } else {
+    const browserAudio = ["audio", "mono_pcm_audio", "mono_pcm_audio_stream"].includes(fieldType);
+    const browserText = ["text_segments", "text_stream", "world_space_constraints", "remomask_part_motion_database", "normalized_half_open_interval"].includes(fieldType);
+    const fileLike = browserAudio
+      || browserText
+      || Boolean(field.representation_id);
+    const placeholder = fileLike
+      ? "服务端本地路径（不加首尾引号），或直接粘贴 JSON / Unquoted server-local path or inline JSON"
+      : name === "prompt"
+        ? "例如：A person walks forward, turns left, and waves."
+        : "请输入内容 / Enter a value";
+    const maximumLength = typeof field.maximum_length === "number"
+      ? `maxlength="${escapeHtml(field.maximum_length)}"`
+      : "";
+    control = `<textarea ${common} ${maximumLength} placeholder="${escapeHtml(placeholder)}">${escapeHtml(draftDisplayValue(value))}</textarea>`;
+    if (browserAudio || browserText) {
+      const accept = browserAudio
+        ? "audio/wav,audio/x-wav,audio/mpeg,audio/flac,audio/ogg,.wav,.mp3,.flac,.ogg"
+        : "application/json,text/plain,.json,.jsonl,.txt";
+      const multiple = fieldType === "mono_pcm_audio_stream" ? "multiple" : "";
+      control += `<label class="schema-file-picker"><input type="file" accept="${accept}" ${multiple} data-generation-file="${escapeHtml(name)}" ${disabledAttribute} /><span>读取本地文件 / Load local file</span></label><small>${fieldType === "mono_pcm_audio_stream" ? "可一次选择多个音频，顺序即对话顺序。 / Select multiple audio chunks in dialogue order. " : ""}也可填写服务端可访问且不带首尾引号的路径；浏览器音频以内联 data URL 传输，结构化文件仅接受 UTF-8 JSON/文本。</small>`;
+    } else if (fileLike) {
+      control += "<small>请输入服务端可访问且不带首尾引号的路径，或直接粘贴 JSON；浏览器不会把 .npy 等二进制文件错误地当作文本读取。 / Enter an unquoted server-local path or inline JSON; binary files such as .npy are not decoded as text in the browser.</small>";
+    }
+  }
+  return `<div class="field schema-field ${name === "prompt" ? "prompt-field schema-field-full" : ""}"><label class="schema-field-label" for="${escapeHtml(id)}">${escapeHtml(label)}</label>${control}${help ? `<small>${escapeHtml(help)}</small>` : ""}</div>`;
+}
+
 function playground(): string {
   ensureSelectedModel();
   const manifest = selectedManifest();
-  const draft = manifest ? state.drafts[manifest.model.id]! : { prompt: "", seconds: 4, seed: 42 };
+  const draft = manifest
+    ? state.drafts[manifest.model.id]!
+    : { task: "", values: {} };
+  const taskSchemas = manifest ? generationTaskSchemas(manifest) : [];
+  const generationFields = manifest && draft.task
+    ? generationInputFields(manifest, draft.task)
+    : [];
   const ready = manifest ? modelReady(manifest) : false;
   const integrated = manifest ? isVireaIntegratedModel(manifest) : false;
   const installState = manifest ? currentInstallationState(manifest) : null;
@@ -586,6 +733,7 @@ function playground(): string {
       <article class="composer-card surface">
         <div class="section-title"><span>01</span><div><h2>动作生成</h2><p>使用已部署模型创建可追溯结果</p></div></div>
         <label class="field"><span>模型</span><select id="model-id" ${availableModels().length ? "" : "disabled"}>${modelSelectOptions()}</select></label>
+        ${taskSchemas.length ? `<label class="field"><span>任务 / Task</span><select id="generation-task">${taskSchemas.map((schema) => `<option value="${escapeHtml(schema.task)}" ${schema.task === draft.task ? "selected" : ""}>${escapeHtml(GENERATION_TASK_LABELS[schema.task] ?? schema.task)}</option>`).join("")}</select><small>任务和字段均来自当前模型的 manifest.inputs；切换任务会载入该任务自己的默认值。</small></label>` : '<div class="capability-note"><strong>缺少输入 schema / No input schema</strong></div>'}
         <div class="model-readiness ${ready && integrated ? "ready" : integrated ? "pending" : "unsupported"}">
           <div><i></i><span>${manifest ? escapeHtml(manifest.model.display_name) : "没有可执行模型"}</span></div>
           <strong>${manifest ? escapeHtml(integrated ? ready ? modelReadyBadge(manifest) : installationLabel(installState) : "UPSTREAM ONLY") : "UNAVAILABLE"}</strong>
@@ -593,11 +741,7 @@ function playground(): string {
         ${manifest && ready && integrated ? `<p class="readiness-evidence">${escapeHtml(modelIntegrityNote(manifest))}</p>` : ""}
         ${manifest && !integrated ? `<div class="capability-note" role="note"><strong>仅上游登记，尚未接入 VIREA</strong><p>${escapeHtml(capabilityReason(manifest))}。此模型仍可浏览，但不会伪装成可部署。</p></div>` : ""}
         ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "部署这个模型"}</button>` : ""}
-        <label class="field prompt-field"><span>动作描述</span><textarea id="prompt" maxlength="8000" placeholder="例如：A person walks forward, turns left, and waves." ${integrated ? "" : "disabled"}>${escapeHtml(draft.prompt)}</textarea><small>写清人物、方向、节奏和动作结束方式。</small></label>
-        <div class="parameter-grid">
-          <label class="field"><span>时长（秒）</span><input id="seconds" type="number" min="1" max="90" step="0.01" value="${escapeHtml(draft.seconds)}" ${integrated ? "" : "disabled"} /></label>
-          <label class="field"><span>随机种子</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="${escapeHtml(draft.seed)}" ${integrated ? "" : "disabled"} /></label>
-        </div>
+        <div class="parameter-grid schema-parameter-grid">${generationFields.map(([name, field]) => generationFieldMarkup(name, field, draft.values[name], !integrated)).join("")}</div>
         <button class="primary generate-button" id="generate" ${canGenerate ? "" : "disabled"}>
           <span data-generate-button-label>${active ? jobLabel(active.state) : !hasFreshVireaHomeAuthority() ? "等待数据根同步" : !integrated ? "该模型尚未接入" : ready ? "生成动作" : "请先完成模型部署"}</span><i>→</i>
         </button>
@@ -801,6 +945,46 @@ function nextPaint(): Promise<void> {
   return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
+function readBrowserFile(file: File, asText: boolean): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("file read failed")));
+    if (asText) reader.readAsText(file);
+    else reader.readAsDataURL(file);
+  });
+}
+
+function isBrowserTextFile(file: File): boolean {
+  return file.type.includes("json")
+    || file.type.startsWith("text/")
+    || /\.(json|jsonl|txt)$/i.test(file.name);
+}
+
+function supportedBrowserAudioMime(file: File): string | null {
+  const supported = new Set([
+    "audio/flac",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/wav",
+    "audio/wave",
+    "audio/x-wav",
+  ]);
+  const declared = file.type.toLowerCase();
+  if (supported.has(declared)) return declared;
+  const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? "";
+  return ({
+    ".flac": "audio/flac",
+    ".mp3": "audio/mpeg",
+    ".ogg": "audio/ogg",
+    ".wav": "audio/wav",
+  } as Record<string, string>)[extension] ?? null;
+}
+
+function normalizedAudioDataUri(value: string, mimeType: string): string {
+  return value.replace(/^data:[^;,]*;base64,/i, `data:${mimeType};base64,`);
+}
+
 function output(id: string, value: unknown): void {
   const node = document.querySelector<HTMLElement>(`#${id}`);
   if (node) node.textContent = JSON.stringify(value, null, 2);
@@ -818,14 +1002,79 @@ function bindDraftInputs(): void {
   const manifest = selectedManifest();
   if (!manifest) return;
   const draft = state.drafts[manifest.model.id]!;
-  document.querySelector<HTMLTextAreaElement>("#prompt")?.addEventListener("input", (event) => {
-    draft.prompt = (event.currentTarget as HTMLTextAreaElement).value;
+  document.querySelector<HTMLSelectElement>("#generation-task")?.addEventListener("change", (event) => {
+    try {
+      state.drafts[manifest.model.id] = generationFormDefaults(
+        manifest,
+        (event.currentTarget as HTMLSelectElement).value,
+      );
+      state.error = "";
+    } catch (error) {
+      state.error = errorMessage(error);
+    }
+    render();
   });
-  document.querySelector<HTMLInputElement>("#seconds")?.addEventListener("input", (event) => {
-    draft.seconds = Number((event.currentTarget as HTMLInputElement).value);
+  document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    "[data-generation-field]",
+  ).forEach((control) => {
+    control.addEventListener("input", (event) => {
+      const current = event.currentTarget as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      const name = current.dataset.generationField;
+      if (!name) return;
+      draft.values[name] = current instanceof HTMLInputElement && current.type === "checkbox"
+        ? current.checked
+        : current.value;
+    });
   });
-  document.querySelector<HTMLInputElement>("#seed")?.addEventListener("input", (event) => {
-    draft.seed = Number((event.currentTarget as HTMLInputElement).value);
+  document.querySelectorAll<HTMLInputElement>("[data-generation-file]").forEach((control) => {
+    control.addEventListener("change", () => {
+      const files = Array.from(control.files ?? []);
+      const name = control.dataset.generationFile;
+      if (!files.length || !name) return;
+      const field = generationInputFields(manifest, draft.task).find(([candidate]) => candidate === name)?.[1];
+      const audioStream = field?.type === "mono_pcm_audio_stream";
+      const maximumItems = Number(field?.maximum_items ?? 64);
+      if ((!audioStream && files.length !== 1) || files.length > maximumItems) {
+        state.error = `${name} 最多允许 ${audioStream ? maximumItems : 1} 个文件 / accepts at most ${audioStream ? maximumItems : 1} file(s)`;
+        render();
+        return;
+      }
+      const totalBytes = files.reduce((total, file) => total + file.size, 0);
+      if (totalBytes > 64 * 1_024 * 1_024) {
+        state.error = `${name} 的浏览器内联总量超过 64 MiB；请填写服务端可访问的本地路径。 / Combined inline files exceed 64 MiB; use server-local paths.`;
+        render();
+        return;
+      }
+      const audioField = ["audio", "mono_pcm_audio", "mono_pcm_audio_stream"].includes(field?.type ?? "");
+      const audioMimes = audioField
+        ? files.map((file) => supportedBrowserAudioMime(file))
+        : [];
+      if (audioField && audioMimes.some((mimeType) => mimeType == null)) {
+        state.error = `${name} 只接受 WAV、MP3、FLAC 或 OGG；其他格式没有锁定的跨平台解码保证。 / Only WAV, MP3, FLAC, and OGG have a pinned cross-platform decode path.`;
+        render();
+        return;
+      }
+      if (!audioField && files.some((file) => !isBrowserTextFile(file))) {
+        state.error = `${name} 的浏览器选择器只接受 UTF-8 JSON/文本；.npy 等二进制输入请填写服务端路径。 / Browser selection accepts UTF-8 JSON/text only; use a server-local path for binary inputs such as .npy.`;
+        render();
+        return;
+      }
+      void Promise.all(files.map((file, index) => (
+        readBrowserFile(file, !audioField).then((value) => (
+          audioField ? normalizedAudioDataUri(value, audioMimes[index]!) : value
+        ))
+      )))
+        .then((values) => {
+          draft.values[name] = audioStream ? JSON.stringify(values) : values[0];
+          state.error = "";
+          state.notice = `${files.length} 个文件已读入字段 ${name} / ${files.length} file(s) loaded into ${name}`;
+          render();
+        })
+        .catch(() => {
+          state.error = `无法读取 ${name} 的本地文件 / Could not read local file(s) for ${name}`;
+          render();
+        });
+    });
   });
 }
 
@@ -1181,11 +1430,9 @@ async function submitGeneration(
   idempotencyKey: string,
 ): Promise<JobRecord> {
   try {
-    return await api.generate(
+    return await api.generateFromFields(
       manifest,
-      draft.prompt,
-      draft.seconds,
-      draft.seed,
+      draft,
       target,
       idempotencyKey,
     );
@@ -1203,19 +1450,42 @@ async function submitGeneration(
   }
 }
 
+function draftNumber(draft: Draft, names: string[], fallback: number): number {
+  for (const name of names) {
+    const value = Number(draft.values[name]);
+    if (Number.isFinite(value)) return value;
+  }
+  return fallback;
+}
+
+function draftDurationSeconds(manifest: ModelManifest, draft: Draft): number {
+  const direct = draftNumber(draft, ["seconds", "duration_seconds"], Number.NaN);
+  if (Number.isFinite(direct)) return direct;
+  const frames = draftNumber(draft, ["motion_length_frames", "num_frames"], Number.NaN);
+  return Number.isFinite(frames) && typeof manifest.output.fps === "number" && manifest.output.fps > 0
+    ? frames / manifest.output.fps
+    : 0;
+}
+
 async function generationRequestFingerprint(
   manifest: ModelManifest,
   draft: Draft,
   target: ExecutionTargetSelection,
   vireaHome: string,
 ): Promise<string> {
+  const acceptance = productionAcceptanceForTask(manifest, draft.task);
+  if (!acceptance) {
+    throw new Error(`${manifest.model.id} 的任务 ${draft.task} 没有 immutable production acceptance request`);
+  }
   return submissionFingerprint({
     vireaHome,
     modelId: manifest.model.id,
-    task: manifest.production_acceptance?.request.task ?? manifest.model.tasks[0] ?? "",
-    prompt: draft.prompt,
-    seconds: draft.seconds,
-    seed: draft.seed,
+    task: draft.task,
+    prompt: String(draft.values.prompt ?? ""),
+    seconds: draftDurationSeconds(manifest, draft),
+    seed: draftNumber(draft, ["seed"], 0),
+    fields: draft.values,
+    acceptanceRequest: acceptance.request,
     executionTarget: target,
   });
 }
@@ -1351,7 +1621,11 @@ async function generate(): Promise<void> {
     state.generationMessage = "正在载入源骨架与最终 VRMA / Loading both motion stages";
     renderLiveRegions();
     await loadPersistedSuccessfulJob(job.id);
-    state.lastGeneration = { modelId: manifest.model.id, seconds: draft.seconds, seed: draft.seed };
+    state.lastGeneration = {
+      modelId: manifest.model.id,
+      seconds: draftDurationSeconds(manifest, draft),
+      seed: draftNumber(draft, ["seed"], 0),
+    };
     state.notice = "动作已经生成，并载入重定向前 / 重定向后的双阶段 Viewer。";
     state.generationEvidence = JSON.stringify({
       job,

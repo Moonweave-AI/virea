@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import sqlite3
+import stat
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +17,9 @@ from .ids import new_ulid
 from .jobs import validate_job_transition
 from .paths import VireaPaths
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+_SQLITE_BUSY_TIMEOUT_MS = 30_000
+_SQLITE_RETRY_DEADLINE_SECONDS = 30.0
 
 _MIGRATION_V1 = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -181,6 +187,40 @@ CREATE TRIGGER IF NOT EXISTS result_artifacts_no_delete
 BEFORE DELETE ON result_artifacts BEGIN SELECT RAISE(ABORT, 'result_artifacts are immutable'); END;
 """
 
+_MIGRATION_V2_TRIGGERS = """
+CREATE TRIGGER IF NOT EXISTS transactions_integrity_policy_no_update
+BEFORE UPDATE OF integrity_policy ON transactions
+WHEN OLD.integrity_policy IS NOT NEW.integrity_policy
+BEGIN SELECT RAISE(ABORT, 'transaction integrity policy is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS transactions_integrity_identity_no_update
+BEFORE UPDATE OF id, kind ON transactions
+WHEN OLD.integrity_policy IS NOT NULL
+ AND (OLD.id IS NOT NEW.id OR OLD.kind IS NOT NEW.kind)
+BEGIN SELECT RAISE(ABORT, 'transaction integrity policy is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS transactions_integrity_policy_no_delete
+BEFORE DELETE ON transactions
+WHEN OLD.integrity_policy IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'transaction integrity policy is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS transactions_integrity_policy_no_replace
+BEFORE INSERT ON transactions
+WHEN EXISTS (
+    SELECT 1 FROM transactions
+    WHERE id = NEW.id AND integrity_policy IS NOT NULL
+)
+BEGIN SELECT RAISE(ABORT, 'transaction integrity policy is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS results_no_replace
+BEFORE INSERT ON results
+WHEN EXISTS (SELECT 1 FROM results WHERE id = NEW.id OR job_id = NEW.job_id)
+BEGIN SELECT RAISE(ABORT, 'results are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS result_artifacts_no_replace
+BEFORE INSERT ON result_artifacts
+WHEN EXISTS (
+    SELECT 1 FROM result_artifacts
+    WHERE result_id = NEW.result_id AND name = NEW.name
+)
+BEGIN SELECT RAISE(ABORT, 'result_artifacts are immutable'); END;
+"""
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -194,6 +234,87 @@ def _json(value: Any) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
+
+
+def _sqlite_statements(script: str) -> tuple[str, ...]:
+    """Split a trusted migration script without breaking trigger bodies."""
+
+    statements: list[str] = []
+    pending = ""
+    for line in script.splitlines(keepends=True):
+        pending += line
+        if sqlite3.complete_statement(pending):
+            statement = pending.strip()
+            if statement:
+                statements.append(statement)
+            pending = ""
+    if pending.strip():
+        raise ValueError("incomplete SQLite migration statement")
+    return tuple(statements)
+
+
+def _is_sqlite_lock_error(error: sqlite3.OperationalError) -> bool:
+    code = getattr(error, "sqlite_errorcode", None)
+    return code in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED} or "locked" in str(
+        error
+    ).lower()
+
+
+def _result_artifact_digest(path: Path) -> tuple[int, str]:
+    """Hash one ordinary file while rejecting path or handle replacement."""
+
+    before = path.lstat()
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"result artifact is not an ordinary file: {path}")
+    snapshot = (
+        int(before.st_dev),
+        int(before.st_ino),
+        int(before.st_mode),
+        int(before.st_size),
+        int(before.st_mtime_ns),
+    )
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    digest = hashlib.sha256()
+    observed_bytes = 0
+    with os.fdopen(descriptor, "rb") as handle:
+        opened = os.fstat(handle.fileno())
+        opened_snapshot = (
+            int(opened.st_dev),
+            int(opened.st_ino),
+            int(opened.st_mode),
+            int(opened.st_size),
+            int(opened.st_mtime_ns),
+        )
+        if opened_snapshot != snapshot:
+            raise OSError(f"result artifact changed while hashing: {path}")
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+            observed_bytes += len(chunk)
+        closed = os.fstat(handle.fileno())
+        closed_snapshot = (
+            int(closed.st_dev),
+            int(closed.st_ino),
+            int(closed.st_mode),
+            int(closed.st_size),
+            int(closed.st_mtime_ns),
+        )
+    after = path.lstat()
+    after_snapshot = (
+        int(after.st_dev),
+        int(after.st_ino),
+        int(after.st_mode),
+        int(after.st_size),
+        int(after.st_mtime_ns),
+    )
+    if (
+        opened_snapshot != snapshot
+        or closed_snapshot != snapshot
+        or after_snapshot != snapshot
+        or observed_bytes != snapshot[3]
+    ):
+        raise OSError(f"result artifact changed while hashing: {path}")
+    return observed_bytes, digest.hexdigest()
 
 
 class IdempotencyConflict(ValueError):
@@ -215,11 +336,30 @@ class StateStore:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.database, timeout=30.0)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA synchronous=NORMAL")
+        deadline = time.monotonic() + _SQLITE_RETRY_DEADLINE_SECONDS
+        delay = 0.01
+        connection: sqlite3.Connection | None = None
+        while connection is None:
+            candidate = sqlite3.connect(
+                self.database,
+                timeout=_SQLITE_BUSY_TIMEOUT_MS / 1000,
+            )
+            try:
+                candidate.row_factory = sqlite3.Row
+                candidate.execute(f"PRAGMA busy_timeout={_SQLITE_BUSY_TIMEOUT_MS}")
+                candidate.execute("PRAGMA foreign_keys=ON")
+                current_mode = candidate.execute("PRAGMA journal_mode").fetchone()
+                if current_mode is None or str(current_mode[0]).lower() != "wal":
+                    candidate.execute("PRAGMA journal_mode=WAL")
+                candidate.execute("PRAGMA synchronous=NORMAL")
+            except sqlite3.OperationalError as exc:
+                candidate.close()
+                if not _is_sqlite_lock_error(exc) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 0.5)
+            else:
+                connection = candidate
         try:
             yield connection
             connection.commit()
@@ -236,12 +376,50 @@ class StateStore:
             yield connection
 
     def migrate(self) -> None:
-        with self.connect() as connection:
-            connection.executescript(_MIGRATION_V1)
-            connection.execute(
-                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
-                (_SCHEMA_VERSION, _now()),
-            )
+        deadline = time.monotonic() + _SQLITE_RETRY_DEADLINE_SECONDS
+        delay = 0.01
+        while True:
+            try:
+                with self.connect() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    for statement in _sqlite_statements(_MIGRATION_V1):
+                        connection.execute(statement)
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (?, ?)",
+                        (1, _now()),
+                    )
+                    transaction_columns = {
+                        str(row["name"])
+                        for row in connection.execute("PRAGMA table_info(transactions)")
+                    }
+                    if "integrity_policy" not in transaction_columns:
+                        connection.execute(
+                            "ALTER TABLE transactions ADD COLUMN integrity_policy TEXT"
+                        )
+                    result_artifact_columns = {
+                        str(row["name"])
+                        for row in connection.execute(
+                            "PRAGMA table_info(result_artifacts)"
+                        )
+                    }
+                    if "sha256" not in result_artifact_columns:
+                        connection.execute(
+                            "ALTER TABLE result_artifacts ADD COLUMN sha256 TEXT"
+                        )
+                    for statement in _sqlite_statements(_MIGRATION_V2_TRIGGERS):
+                        connection.execute(statement)
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (?, ?)",
+                        (_SCHEMA_VERSION, _now()),
+                    )
+                return
+            except sqlite3.OperationalError as exc:
+                if not _is_sqlite_lock_error(exc) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 0.5)
 
     def journal_mode(self) -> str:
         with self.connect() as connection:
@@ -777,6 +955,36 @@ class StateStore:
                     "result artifact byte_length must be a non-negative integer"
                 )
 
+        with self.connect() as connection:
+            job = connection.execute(
+                "SELECT state FROM jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+        if job is None:
+            raise KeyError(f"unknown job: {job_id}")
+        validate_job_transition(job["state"], JobState.SUCCEEDED)
+
+        result_root = self.paths.result_directory(result_id).resolve(strict=True)
+        for artifact in normalized_artifacts:
+            artifact_path = self.paths.resolve_locator(artifact["locator"]).resolve(
+                strict=True
+            )
+            try:
+                artifact_path.relative_to(result_root)
+            except ValueError as exc:
+                raise ValueError(
+                    f"result artifact is outside its result directory: {artifact['name']}"
+                ) from exc
+            observed_bytes, sha256 = _result_artifact_digest(artifact_path)
+            if (
+                artifact["byte_length"] is not None
+                and artifact["byte_length"] != observed_bytes
+            ):
+                raise ValueError(
+                    f"result artifact byte_length differs: {artifact['name']}"
+                )
+            artifact["byte_length"] = observed_bytes
+            artifact["sha256"] = sha256
+
         now = _now()
         with self.transaction() as connection:
             job = connection.execute(
@@ -804,8 +1012,8 @@ class StateStore:
                 connection.execute(
                     """
                     INSERT INTO result_artifacts(
-                        result_id, name, media_type, locator, byte_length
-                    ) VALUES (?, ?, ?, ?, ?)
+                        result_id, name, media_type, locator, byte_length, sha256
+                    ) VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         result_id,
@@ -813,6 +1021,7 @@ class StateStore:
                         artifact["media_type"],
                         artifact["locator"],
                         artifact["byte_length"],
+                        artifact["sha256"],
                     ),
                 )
             connection.execute(
@@ -940,7 +1149,10 @@ class StateStore:
         installation_id: str,
         state: str,
         payload: dict[str, Any],
+        integrity_policy: str | None = None,
     ) -> dict[str, Any]:
+        if integrity_policy is not None and not integrity_policy.strip():
+            raise ValueError("transaction integrity policy must not be empty")
         now = _now()
         document = {
             **payload,
@@ -957,10 +1169,19 @@ class StateStore:
         with self.transaction() as connection:
             connection.execute(
                 """
-                INSERT INTO transactions(id, kind, state, payload_json, created_at, updated_at)
-                VALUES (?, 'model_installation', ?, ?, ?, ?)
+                INSERT INTO transactions(
+                    id, kind, state, payload_json, created_at, updated_at, integrity_policy
+                )
+                VALUES (?, 'model_installation', ?, ?, ?, ?, ?)
                 """,
-                (installation_id, state, _json(document), now, now),
+                (
+                    installation_id,
+                    state,
+                    _json(document),
+                    now,
+                    now,
+                    integrity_policy,
+                ),
             )
             row = connection.execute(
                 "SELECT * FROM transactions WHERE id = ?", (installation_id,)

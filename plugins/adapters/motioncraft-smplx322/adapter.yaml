@@ -4,7 +4,7 @@ display_name: MotionCraft Motion-X SMPL-X 322D parameter carrier
 source_models:
   - motioncraft-smplx
 implementation_status: pinned_upstream_contract_adapter_implemented
-support_status: runnable_upstream
+support_status: integrated_experimental
 native_profile:
   representation_id: motionx.smplx322.v1
   carrier: dense_float_tensor

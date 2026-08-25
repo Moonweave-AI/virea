@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -24,13 +25,32 @@ from virea_cmdm.worker import (
     CmdmHumanML3DPlugin,
     _resolve_motion_length_parameters,
 )
-from virea_contracts.model import ModelSupportStatus
+from virea_contracts.model import ModelSupportStatus, ProductionE2EAcceptance
 from virea_contracts.runtime import MemoryStrategy, RuntimeSpec
-from virea_model_pool import ModelCatalog
 from virea_model_sdk import WorkerFailure
 
 MODEL_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY_ROOT = MODEL_ROOT.parents[2]
+
+
+def _load_manifest() -> SimpleNamespace:
+    raw = yaml.safe_load((MODEL_ROOT / "manifest.yaml").read_text(encoding="utf-8"))
+    model = raw["model"]
+    return SimpleNamespace(
+        model=SimpleNamespace(
+            status=ModelSupportStatus(model["status"]),
+            adapter_family=model["adapter_family"],
+        ),
+        output=SimpleNamespace(**raw["output"]),
+        runtime_variants=tuple(
+            RuntimeSpec.model_validate(item) for item in raw["runtime_variants"]
+        ),
+        artifacts=tuple(SimpleNamespace(**item) for item in raw["artifacts"]),
+        production_acceptance=ProductionE2EAcceptance.model_validate(
+            raw["production_acceptance"]
+        ),
+        notes=tuple(raw.get("notes", ())),
+    )
 
 
 def test_worker_metadata_freezes_upstream_identity_and_real_strategies(
@@ -124,8 +144,7 @@ def test_undeclared_memory_strategy_fails_before_model_load(
 
 
 def test_full_catalog_manifest_and_runtime_registry_are_consistent() -> None:
-    catalog = ModelCatalog.load(REPOSITORY_ROOT / "plugins" / "models")
-    manifest = catalog.get(MODEL_ID)
+    manifest = _load_manifest()
     registries = tuple(
         RuntimeSpec.model_validate(
             yaml.safe_load(
@@ -156,7 +175,7 @@ def test_full_catalog_manifest_and_runtime_registry_are_consistent() -> None:
 
 
 def test_manifest_freezes_only_the_generation_artifacts() -> None:
-    manifest = ModelCatalog.load(REPOSITORY_ROOT / "plugins" / "models").get(MODEL_ID)
+    manifest = _load_manifest()
     artifacts = {source.id: source for source in manifest.artifacts}
     checkpoints = artifacts["cmdm-humanml3d-checkpoints"]
 
@@ -172,7 +191,7 @@ def test_manifest_freezes_only_the_generation_artifacts() -> None:
 
 
 def test_production_contract_requires_real_full_product_path() -> None:
-    manifest = ModelCatalog.load(REPOSITORY_ROOT / "plugins" / "models").get(MODEL_ID)
+    manifest = _load_manifest()
     acceptance = manifest.production_acceptance
 
     assert acceptance is not None

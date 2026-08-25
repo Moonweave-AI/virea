@@ -26,6 +26,7 @@ from .model import (
     ProductionAcceptanceExpectation,
     ProductionArtifactKind,
     ProductionE2EAcceptance,
+    ProductionE2EAcceptanceSuite,
     ProductionE2EStage,
 )
 from .motion_ir import MotionIRDescriptor
@@ -71,6 +72,7 @@ __all__ = [
     "ProductionE2EEvidence",
     "ProductionArtifactKind",
     "ProductionE2EAcceptance",
+    "ProductionE2EAcceptanceSuite",
     "ProductionE2EStage",
     "RepresentationProfile",
     "ResultIdentity",

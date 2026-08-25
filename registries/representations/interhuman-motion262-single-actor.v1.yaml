@@ -1,0 +1,20 @@
+schema_version: virea.representation_profile.v1.0.0
+id: interhuman.motion262.single_actor.v1
+version: 1.0.0
+kind: single_actor_native_motion_features
+skeleton_id: interhuman.two_actor_smpl22.v1
+dtype: float32
+frame_shape: [262]
+rotation_representation: continuous_6d
+rotation_layout: columns
+rotation_space: pinned_source_parent_local_non_root_root_absent
+root_translation_semantics: actor_motion_expressed_in_the_shared_interhuman_canonical_frame
+root_rotation_semantics: absent_zero_sentinel_in_export
+coordinate_system_id: interhuman.actor1_heading_positive_z_y_up.v1
+units: meters
+fps: 30.0
+timebase: [1, 30]
+source_urls:
+  - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/models/mask_transformer/transformer.py
+  - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/models/vq/model.py
+validation_status: source_verified

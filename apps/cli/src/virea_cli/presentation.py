@@ -658,6 +658,8 @@ class ProgressReporter:
         transfer_key = f"{artifact_id}:{phase}"
         if phase == "reconstruction":
             status = "Reconstructed / 重建完成" if done else "Reconstructing / 正在重建"
+        elif phase == "integrity":
+            status = "Verified / 校验完成" if done else "Verifying / 正在校验"
         else:
             status = "Downloaded / 下载完成" if done else "Downloading / 正在下载"
         live_message = f"{status} {artifact_id}"
@@ -685,7 +687,7 @@ class ProgressReporter:
             or done
             or now - self._transfer_last_log_at >= _PLAIN_TRANSFER_INTERVAL_SECONDS
         ):
-            self.ui.write(f"  [download] {message}")
+            self.ui.write(f"  [{phase}] {message}")
             self._transfer_artifact_id = transfer_key
             self._transfer_last_log_at = now
 

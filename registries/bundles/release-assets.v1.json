@@ -343,6 +343,326 @@
           ]
         }
       ]
+    },
+    {
+      "model_id": "dart-smplx",
+      "manifest": "plugins/models/dart-smplx/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/dart-smplx/runtime",
+        "project_package": "virea-model-dart-smplx-runtime",
+        "assets": [
+          "plugins/models/dart-smplx/runtime/LICENSE",
+          "plugins/models/dart-smplx/runtime/README.md",
+          "plugins/models/dart-smplx/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/dart-smplx/runtime/pyproject.toml",
+          "plugins/models/dart-smplx/runtime/uv.lock",
+          "plugins/models/dart-smplx/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_dart/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/dart-smplx/runtime-cu128",
+        "project_package": "virea-model-dart-smplx-cu128-runtime",
+        "assets": [
+          "plugins/models/dart-smplx/runtime-cu128/LICENSE",
+          "plugins/models/dart-smplx/runtime-cu128/README.md",
+          "plugins/models/dart-smplx/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/dart-smplx/runtime-cu128/pyproject.toml",
+          "plugins/models/dart-smplx/runtime-cu128/uv.lock",
+          "plugins/models/dart-smplx/runtime-cu128/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_dart_cu128_runtime/__init__.py"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/dart-smplx/runtime-cpu",
+        "project_package": "virea-model-dart-smplx-cpu-runtime",
+        "assets": [
+          "plugins/models/dart-smplx/runtime-cpu/LICENSE",
+          "plugins/models/dart-smplx/runtime-cpu/README.md",
+          "plugins/models/dart-smplx/runtime-cpu/THIRD_PARTY_NOTICES.md",
+          "plugins/models/dart-smplx/runtime-cpu/pyproject.toml",
+          "plugins/models/dart-smplx/runtime-cpu/uv.lock",
+          "plugins/models/dart-smplx/runtime-cpu/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_dart_cpu_runtime/__init__.py"]
+      }]
+    },
+    {
+      "model_id": "discord-humanml3d",
+      "manifest": "plugins/models/discord-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/discord-humanml3d/runtime",
+        "project_package": "virea-model-discord-humanml3d-runtime",
+        "assets": [
+          "plugins/models/discord-humanml3d/runtime/README.md",
+          "plugins/models/discord-humanml3d/runtime/pyproject.toml",
+          "plugins/models/discord-humanml3d/runtime/uv.lock",
+          "plugins/models/discord-humanml3d/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_discord/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/discord-humanml3d/runtime-cu128",
+        "project_package": "virea-model-discord-humanml3d-cu128-runtime",
+        "assets": [
+          "plugins/models/discord-humanml3d/runtime-cu128/README.md",
+          "plugins/models/discord-humanml3d/runtime-cu128/pyproject.toml",
+          "plugins/models/discord-humanml3d/runtime-cu128/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/discord-humanml3d/runtime-cpu",
+        "project_package": "virea-model-discord-humanml3d-cpu-runtime",
+        "assets": [
+          "plugins/models/discord-humanml3d/runtime-cpu/README.md",
+          "plugins/models/discord-humanml3d/runtime-cpu/pyproject.toml",
+          "plugins/models/discord-humanml3d/runtime-cpu/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      }]
+    },
+    {
+      "model_id": "hy-motion-1",
+      "manifest": "plugins/models/hy-motion-1/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/hy-motion-1/runtime",
+        "project_package": "virea-model-hy-motion-1-runtime",
+        "assets": [
+          "plugins/models/hy-motion-1/runtime/LICENSE",
+          "plugins/models/hy-motion-1/runtime/README.md",
+          "plugins/models/hy-motion-1/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/hy-motion-1/runtime/pyproject.toml",
+          "plugins/models/hy-motion-1/runtime/uv.lock",
+          "plugins/models/hy-motion-1/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_hy_motion/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/hy-motion-1/runtime-cu128",
+        "project_package": "virea-model-hy-motion-1-cu128-runtime",
+        "assets": [
+          "plugins/models/hy-motion-1/runtime-cu128/LICENSE",
+          "plugins/models/hy-motion-1/runtime-cu128/README.md",
+          "plugins/models/hy-motion-1/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/hy-motion-1/runtime-cu128/pyproject.toml",
+          "plugins/models/hy-motion-1/runtime-cu128/uv.lock",
+          "plugins/models/hy-motion-1/runtime-cu128/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_hy_motion_cu128_runtime/__init__.py"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/hy-motion-1/runtime-cpu",
+        "project_package": "virea-model-hy-motion-1-cpu-runtime",
+        "assets": [
+          "plugins/models/hy-motion-1/runtime-cpu/LICENSE",
+          "plugins/models/hy-motion-1/runtime-cpu/README.md",
+          "plugins/models/hy-motion-1/runtime-cpu/THIRD_PARTY_NOTICES.md",
+          "plugins/models/hy-motion-1/runtime-cpu/pyproject.toml",
+          "plugins/models/hy-motion-1/runtime-cpu/uv.lock",
+          "plugins/models/hy-motion-1/runtime-cpu/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_hy_motion_cpu_runtime/__init__.py"]
+      }]
+    },
+    {
+      "model_id": "intermask-interhuman",
+      "manifest": "plugins/models/intermask-interhuman/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/intermask-interhuman/runtime",
+        "project_package": "virea-model-intermask-interhuman-runtime",
+        "assets": [
+          "plugins/models/intermask-interhuman/runtime/LICENSE",
+          "plugins/models/intermask-interhuman/runtime/README.md",
+          "plugins/models/intermask-interhuman/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/intermask-interhuman/runtime/pyproject.toml",
+          "plugins/models/intermask-interhuman/runtime/uv.lock",
+          "plugins/models/intermask-interhuman/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_intermask/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/intermask-interhuman/runtime-cu128",
+        "project_package": "virea-model-intermask-interhuman-cu128-runtime",
+        "assets": [
+          "plugins/models/intermask-interhuman/runtime-cu128/LICENSE",
+          "plugins/models/intermask-interhuman/runtime-cu128/README.md",
+          "plugins/models/intermask-interhuman/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/intermask-interhuman/runtime-cu128/pyproject.toml",
+          "plugins/models/intermask-interhuman/runtime-cu128/uv.lock",
+          "plugins/models/intermask-interhuman/runtime-cu128/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_intermask_cu128_runtime/__init__.py"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/intermask-interhuman/runtime-cpu",
+        "project_package": "virea-model-intermask-interhuman-cpu-runtime",
+        "assets": [
+          "plugins/models/intermask-interhuman/runtime-cpu/LICENSE",
+          "plugins/models/intermask-interhuman/runtime-cpu/README.md",
+          "plugins/models/intermask-interhuman/runtime-cpu/THIRD_PARTY_NOTICES.md",
+          "plugins/models/intermask-interhuman/runtime-cpu/pyproject.toml",
+          "plugins/models/intermask-interhuman/runtime-cpu/uv.lock",
+          "plugins/models/intermask-interhuman/runtime-cpu/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_intermask_cpu_runtime/__init__.py"]
+      }]
+    },
+    {
+      "model_id": "momask-humanml3d",
+      "manifest": "plugins/models/momask-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/momask-humanml3d/runtime",
+        "project_package": "virea-model-momask-humanml3d-runtime",
+        "assets": [
+          "plugins/models/momask-humanml3d/runtime/README.md",
+          "plugins/models/momask-humanml3d/runtime/pyproject.toml",
+          "plugins/models/momask-humanml3d/runtime/uv.lock",
+          "plugins/models/momask-humanml3d/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_momask/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/momask-humanml3d/runtime-cu128",
+        "project_package": "virea-model-momask-humanml3d-cu128-runtime",
+        "assets": [
+          "plugins/models/momask-humanml3d/runtime-cu128/README.md",
+          "plugins/models/momask-humanml3d/runtime-cu128/pyproject.toml",
+          "plugins/models/momask-humanml3d/runtime-cu128/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/momask-humanml3d/runtime-cpu",
+        "project_package": "virea-model-momask-humanml3d-cpu-runtime",
+        "assets": [
+          "plugins/models/momask-humanml3d/runtime-cpu/README.md",
+          "plugins/models/momask-humanml3d/runtime-cpu/pyproject.toml",
+          "plugins/models/momask-humanml3d/runtime-cpu/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      }]
+    },
+    {
+      "model_id": "motioncraft-smplx",
+      "manifest": "plugins/models/motioncraft-smplx/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/motioncraft-smplx/runtime",
+        "project_package": "virea-model-motioncraft-smplx-runtime",
+        "assets": [
+          "plugins/models/motioncraft-smplx/runtime/LICENSE",
+          "plugins/models/motioncraft-smplx/runtime/README.md",
+          "plugins/models/motioncraft-smplx/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/motioncraft-smplx/runtime/pyproject.toml",
+          "plugins/models/motioncraft-smplx/runtime/uv.lock",
+          "plugins/models/motioncraft-smplx/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_motioncraft/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/motioncraft-smplx/runtime-cu128",
+        "project_package": "virea-model-motioncraft-smplx-cu128-runtime",
+        "assets": [
+          "plugins/models/motioncraft-smplx/runtime-cu128/LICENSE",
+          "plugins/models/motioncraft-smplx/runtime-cu128/README.md",
+          "plugins/models/motioncraft-smplx/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/motioncraft-smplx/runtime-cu128/pyproject.toml",
+          "plugins/models/motioncraft-smplx/runtime-cu128/uv.lock",
+          "plugins/models/motioncraft-smplx/runtime-cu128/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_motioncraft_cu128_runtime/__init__.py"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/motioncraft-smplx/runtime-cpu",
+        "project_package": "virea-model-motioncraft-smplx-cpu-runtime",
+        "assets": [
+          "plugins/models/motioncraft-smplx/runtime-cpu/LICENSE",
+          "plugins/models/motioncraft-smplx/runtime-cpu/README.md",
+          "plugins/models/motioncraft-smplx/runtime-cpu/THIRD_PARTY_NOTICES.md",
+          "plugins/models/motioncraft-smplx/runtime-cpu/pyproject.toml",
+          "plugins/models/motioncraft-smplx/runtime-cpu/uv.lock",
+          "plugins/models/motioncraft-smplx/runtime-cpu/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_motioncraft_cpu_runtime/__init__.py"]
+      }]
+    },
+    {
+      "model_id": "remomask-humanml3d",
+      "manifest": "plugins/models/remomask-humanml3d/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/remomask-humanml3d/runtime",
+        "project_package": "virea-model-remomask-humanml3d-runtime",
+        "assets": [
+          "plugins/models/remomask-humanml3d/runtime/README.md",
+          "plugins/models/remomask-humanml3d/runtime/pyproject.toml",
+          "plugins/models/remomask-humanml3d/runtime/uv.lock",
+          "plugins/models/remomask-humanml3d/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_remomask/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/remomask-humanml3d/runtime-cu128",
+        "project_package": "virea-model-remomask-humanml3d-cu128-runtime",
+        "assets": [
+          "plugins/models/remomask-humanml3d/runtime-cu128/README.md",
+          "plugins/models/remomask-humanml3d/runtime-cu128/pyproject.toml",
+          "plugins/models/remomask-humanml3d/runtime-cu128/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/remomask-humanml3d/runtime-cpu",
+        "project_package": "virea-model-remomask-humanml3d-cpu-runtime",
+        "assets": [
+          "plugins/models/remomask-humanml3d/runtime-cpu/README.md",
+          "plugins/models/remomask-humanml3d/runtime-cpu/pyproject.toml",
+          "plugins/models/remomask-humanml3d/runtime-cpu/uv.lock"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock"]
+      }]
+    },
+    {
+      "model_id": "sentiavatar-susu",
+      "manifest": "plugins/models/sentiavatar-susu/manifest.yaml",
+      "shared_worker_project": {
+        "root": "plugins/models/sentiavatar-susu/runtime",
+        "project_package": "virea-model-sentiavatar-susu-runtime",
+        "assets": [
+          "plugins/models/sentiavatar-susu/runtime/LICENSE",
+          "plugins/models/sentiavatar-susu/runtime/README.md",
+          "plugins/models/sentiavatar-susu/runtime/THIRD_PARTY_NOTICES.md",
+          "plugins/models/sentiavatar-susu/runtime/pyproject.toml",
+          "plugins/models/sentiavatar-susu/runtime/uv.lock",
+          "plugins/models/sentiavatar-susu/runtime/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_sentiavatar/worker.py"]
+      },
+      "runtime_project": {
+        "root": "plugins/models/sentiavatar-susu/runtime-cu128",
+        "project_package": "virea-model-sentiavatar-susu-cu128-runtime",
+        "assets": [
+          "plugins/models/sentiavatar-susu/runtime-cu128/LICENSE",
+          "plugins/models/sentiavatar-susu/runtime-cu128/README.md",
+          "plugins/models/sentiavatar-susu/runtime-cu128/THIRD_PARTY_NOTICES.md",
+          "plugins/models/sentiavatar-susu/runtime-cu128/pyproject.toml",
+          "plugins/models/sentiavatar-susu/runtime-cu128/uv.lock",
+          "plugins/models/sentiavatar-susu/runtime-cu128/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_sentiavatar_cu128_runtime/__init__.py"]
+      },
+      "additional_runtime_projects": [{
+        "root": "plugins/models/sentiavatar-susu/runtime-cpu",
+        "project_package": "virea-model-sentiavatar-susu-cpu-runtime",
+        "assets": [
+          "plugins/models/sentiavatar-susu/runtime-cpu/LICENSE",
+          "plugins/models/sentiavatar-susu/runtime-cpu/README.md",
+          "plugins/models/sentiavatar-susu/runtime-cpu/THIRD_PARTY_NOTICES.md",
+          "plugins/models/sentiavatar-susu/runtime-cpu/pyproject.toml",
+          "plugins/models/sentiavatar-susu/runtime-cpu/uv.lock",
+          "plugins/models/sentiavatar-susu/runtime-cpu/src"
+        ],
+        "required_files": ["pyproject.toml", "uv.lock", "src/virea_sentiavatar_cpu_runtime/__init__.py"]
+      }]
     }
   ]
 }

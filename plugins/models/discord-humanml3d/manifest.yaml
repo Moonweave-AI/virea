@@ -2,26 +2,24 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: discord-humanml3d
   display_name: DisCoRD MoMask HumanML3D
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/whwjdqls/DisCoRD
     revision: 782deffca1a263a2241b6321cfe6532a022f284e
-    release: ICCV 2025 Highlight; training code released 2025-09-27
-  tasks:
-    - text_to_motion
+    release: ICCV 2025 Highlight
+  tasks: [text_to_motion]
   adapter_family: humanml3d-motion263-body22
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_motion
     fields:
-      prompt:
-        type: string
-        required: true
-      motion_length_frames:
-        type: integer
-        required: true
-        description: The official DisCoRD inference requires an explicit fixed motion length.
+      prompt: {type: string, required: true, maximum_length: 8000}
+      motion_length_frames: {type: integer, required: true, minimum: 40, maximum: 196, multiple_of: 4}
+      seconds: {type: number, required: false, minimum: 2.0, maximum: 9.8, multiple_of: 0.2}
+      seed: {type: integer, default: 24, minimum: 0, maximum: 2147483647}
+      time_steps: {type: integer, default: 10, minimum: 1, maximum: 100}
+      rf_steps: {type: integer, default: 16, minimum: 2, maximum: 100}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: humanml3d.vector263.v1
@@ -32,25 +30,70 @@ output:
   root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
   root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: discord-humanml3d-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 8.0}
+    lockfile: uv.lock
+    min_storage_gib: 10.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 8.0, min_free_ram_gib: 10.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_discord.worker]
+    startup_timeout_seconds: 600
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/discord-humanml3d/runtime-cu128
+    project_package: virea-model-discord-humanml3d-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_graph_contract_and_lock_baseline_manual_weight_acceptance_required
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: discord-humanml3d-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 14.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_discord.worker]
+    startup_timeout_seconds: 900
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/discord-humanml3d/runtime-cpu
+    project_package: virea-model-discord-humanml3d-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pure_pytorch_cpu_contract_and_lock_baseline_manual_weight_acceptance_required
 artifacts:
   - id: discord-momask-rf-decoder
     kind: manual
     url: https://drive.google.com/file/d/1glQFuMvWI_dKeQeS7s8V_4zdOHfIv1wS/view
-    expected_files:
-      - checkpoints/DisCoRD_Momask_RFDecoder_best.pth
-  - id: discord-momask-dependencies
+    revision: google-drive-file-1glQFuMvWI_dKeQeS7s8V_4zdOHfIv1wS
+    expected_files: [DisCoRD_Momask_RFDecoder_best.pth]
+  - id: momask-humanml3d-models
     kind: manual
-    repository: https://github.com/whwjdqls/DisCoRD
+    url: https://drive.google.com/file/d/1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0/view
+    revision: google-drive-file-1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0
+    expected_files: [humanml3d_models.zip]
+    expected_total_bytes: 188067025
+  - id: discord-source
+    kind: https
+    url: https://github.com/whwjdqls/DisCoRD/archive/782deffca1a263a2241b6321cfe6532a022f284e.zip
     revision: 782deffca1a263a2241b6321cfe6532a022f284e
-    url: https://github.com/whwjdqls/DisCoRD/blob/782deffca1a263a2241b6321cfe6532a022f284e/prepare/download_models.sh
+    expected_files: [782deffca1a263a2241b6321cfe6532a022f284e.zip]
+  - id: openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files: [ViT-B-32.pt]
+    expected_total_bytes: 353976522
 licenses:
   code: MIT
   weights: upstream_does_not_state_a_separate_weight_license
-  dataset_lineage:
-    - HumanML3D
-    - MoMask
-    - AMASS
+  dataset_lineage: [HumanML3D, MoMask, AMASS]
   body_model: []
   commercial_allowed: null
   redistribution_allowed: null
@@ -60,12 +103,40 @@ licenses:
     - https://github.com/whwjdqls/DisCoRD/blob/782deffca1a263a2241b6321cfe6532a022f284e/README.md
 resources:
   upstream_tested_python: 3.8.5
+  upstream_tested_pytorch: 2.2.2
   upstream_tested_cuda: "11.8"
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   upstream_inference_entrypoint: visualize.py
-  base_generator: MoMask
+  implementation: plugins/models/discord-humanml3d/runtime/src/virea_discord/worker.py
   native_feature_dim: 263
   native_fps: 20.0
+  portability:
+    closure: pure_pytorch_momask_transformers_rectified_flow_openai_clip
+    deviation: training_and_visualization_dependencies_removed_and_legacy_wheels_replaced_graph_and_checkpoints_unchanged
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+  integration_state: integrated_experimental
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: discord-humanml3d
+    task: text_to_motion
+    input: {prompt: "A person walks forward, turns left, and waves with the right hand."}
+    parameters: {motion_length_frames: 80, seed: 24, time_steps: 10, rf_steps: 16, fps: 20.0}
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: humanml3d.vector263.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+  required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+  timeout_seconds: 3600.0
 notes:
-  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
-  - Upstream inference depends on both the DisCoRD rectified-flow decoder checkpoint and MoMask checkpoints; neither dependency has a VIREA runtime lock or production end-to-end acceptance record.
-  - The HumanML3D 263D output follows the shared adapter contract and must not be treated as direct joint-local rotations.
+  - The Worker runs the official MoMask mask/residual token graph and feeds its released RVQ code embeddings into the official DisCoRD rectified-flow decoder. It does not fall back to MoMask motion or synthetic output.
+  - The native artifact is inverse-normalized finite float32 [T,263]. The HumanML3D adapter performs recovery downstream and never interprets the 263D child-edge block as direct glTF local rotations.
+  - Both Google Drive files are precise manual external-root requirements because the upstream RF file currently cannot be fetched anonymously and neither weight bundle has a separately stated license. Wildcard expected_files are forbidden.
+  - The CPU graph contains no .cuda() inference call; training-only CUDA modules are excluded. integrated_experimental still requires real-checkpoint acceptance on every published platform/runtime wrapper.

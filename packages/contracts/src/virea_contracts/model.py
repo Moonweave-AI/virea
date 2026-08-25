@@ -82,6 +82,14 @@ class ProductionE2EAcceptance(ContractModel):
     required_stages: tuple[ProductionE2EStage, ...]
     timeout_seconds: float = Field(default=1800.0, gt=0.0, le=7200.0)
 
+    @model_validator(mode="after")
+    def request_must_create_a_fresh_job(self) -> ProductionE2EAcceptance:
+        if self.request.idempotency_key is not None:
+            raise ValueError(
+                "production acceptance requests must not declare idempotency_key"
+            )
+        return self
+
     @field_validator("required_stages")
     @classmethod
     def requires_complete_production_path(
@@ -94,6 +102,30 @@ class ProductionE2EAcceptance(ContractModel):
             names = ", ".join(sorted(item.value for item in missing))
             raise ValueError(
                 f"production acceptance must require end-to-end stages: {names}"
+            )
+        return value
+
+
+class ProductionE2EAcceptanceSuite(ContractModel):
+    """One immutable production-path acceptance contract per declared task."""
+
+    schema_version: Literal["virea.production_e2e_acceptance_suite.v1.0.0"] = (
+        "virea.production_e2e_acceptance_suite.v1.0.0"
+    )
+    kind: Literal["production_e2e_suite"] = "production_e2e_suite"
+    contracts: tuple[ProductionE2EAcceptance, ...]
+
+    @field_validator("contracts")
+    @classmethod
+    def contracts_are_non_empty_and_task_unique(
+        cls, value: tuple[ProductionE2EAcceptance, ...]
+    ) -> tuple[ProductionE2EAcceptance, ...]:
+        if not value:
+            raise ValueError("production acceptance suite must not be empty")
+        tasks = tuple(contract.request.task for contract in value)
+        if len(tasks) != len(set(tasks)):
+            raise ValueError(
+                "production acceptance suite must contain exactly one contract per task"
             )
         return value
 
@@ -132,6 +164,7 @@ class ModelDefinition(ContractModel):
     redistribution_allowed: bool | None = None
     requires_acceptance: bool = False
     production_acceptance: ProductionE2EAcceptance | None = None
+    production_acceptance_suite: ProductionE2EAcceptanceSuite | None = None
     test_only: bool = False
     notes: tuple[str, ...] = ()
 
@@ -148,6 +181,14 @@ class ModelDefinition(ContractModel):
     def support_status_requires_production_evidence_contract(
         self,
     ) -> ModelDefinition:
+        if (
+            self.production_acceptance is not None
+            and self.production_acceptance_suite is not None
+        ):
+            raise ValueError(
+                "model cannot declare both legacy and suite production acceptance"
+            )
+        contracts = self.production_acceptance_contracts
         production_status = self.status in {
             ModelSupportStatus.INTEGRATED_EXPERIMENTAL,
             ModelSupportStatus.SUPPORTED,
@@ -155,13 +196,18 @@ class ModelDefinition(ContractModel):
         if production_status:
             if self.test_only:
                 raise ValueError("test-only models cannot claim production support")
-            if not self.runtime_variants or self.production_acceptance is None:
+            if not self.runtime_variants or not contracts:
                 raise ValueError(
                     "integrated models require a runtime and production E2E acceptance"
                 )
-        if self.production_acceptance is not None:
-            request = self.production_acceptance.request
-            expected = self.production_acceptance.expected
+        if contracts and tuple(contract.request.task for contract in contracts) != self.tasks:
+            raise ValueError(
+                "integrated models must declare exactly one production acceptance "
+                "contract for every task, in task order"
+            )
+        for contract in contracts:
+            request = contract.request
+            expected = contract.expected
             if request.model_id != self.id:
                 raise ValueError(
                     "production acceptance request model must match model id"
@@ -177,3 +223,13 @@ class ModelDefinition(ContractModel):
                     "production acceptance output identities must not be empty"
                 )
         return self
+
+    @property
+    def production_acceptance_contracts(self) -> tuple[ProductionE2EAcceptance, ...]:
+        """Return the canonical read-only contract sequence for old and new models."""
+
+        if self.production_acceptance_suite is not None:
+            return self.production_acceptance_suite.contracts
+        if self.production_acceptance is not None:
+            return (self.production_acceptance,)
+        return ()

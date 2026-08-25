@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-dart-smplx-runtime"
+version = "0.2.0"
+description = "Offline upstream DART BABEL SMPL-X Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy>=1.26,<3",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "clip @ git+https://github.com/openai/CLIP.git@d05afc436d78f1c48dc0dbf8e5980a9d471f35f6",
+  "einops>=0.7,<1",
+  "ftfy>=6.1,<7",
+  "loralib>=0.1.2,<1",
+  "omegaconf>=2.3,<3",
+  "pyyaml>=6,<7",
+  "regex>=2023.12",
+  "scipy>=1.10,<2",
+  "smplx==0.1.28",
+  "spacy>=3.7,<4",
+  "tqdm>=4.66,<5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+virea-model-dart-smplx-worker = "virea_dart.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

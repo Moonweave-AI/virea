@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: Windows、Linux、WSL2、macOS 的统一执行域选择、Runtime 能力与观测证据边界。
 canonical: doc/platforms/README.zh-CN.md
@@ -72,11 +72,13 @@ uv run virea generate --model MODEL --execution-domain DOMAIN [--runtime RUNTIME
   target-level 状态不得扩散给同一平台 ABI 的整行模型，证据也不参与候选域选择或排序。
 
 缺少观测记录表示“待该配置实测”，不能改写为 OS 不受支持；缺少 Runtime 实现则是必须明确展示的模型级
-能力缺口。六个 integrated 模型现在都声明并锁定了覆盖 `win-64`、`linux-64`、`osx-arm64` 与 `osx-64`
-的 whole-model CPU Runtime。ACMDM、MARDM、FloodDiffusionTiny 与 PRISM 的新 CPU variant 目前只通过
-合同/import/lock 基线，真实 CPU model load/infer 与原生 Linux/macOS observation 仍为空；PRISM 使用
-96 GiB 保守 fail-closed RAM floor。当前没有登记结构化 portability blocker，但这不等于全平台完成。
-项目仍不能宣称“任意模型已经在所有平台运行”，也不能用某次 Windows/WSL 观测把模型永久绑定到那个系统。
+能力缺口。14 个非测试目录模型现在都声明并锁定了覆盖 `win-64`、`linux-64`、`osx-arm64` 与 `osx-64`
+的 whole-model CPU Runtime，并按模型声明覆盖 `win-64`、`linux-64` 的 CUDA Runtime。原来的“六个已接入、
+八个 upstream-only”能力划分已经取消，但这不会自动产生真实设备 evidence。每个模型都必须完成自己的 target
+acceptance；当前真实 checkpoint、平台、许可和人工资产条件仍是独立门禁。PRISM 继续使用 96 GiB 保守
+fail-closed CPU RAM floor。Intel macOS CPU lock 会把兼容的旧版 `torch==2.2.2` 路径固定到
+`numpy==1.26.4`，绝不会让该 ABI 解析到 NumPy 2.x。项目不能宣称“任意模型已经在所有平台实测通过”，也不能用某次 Windows/WSL
+观测把模型永久绑定到那个系统。
 
 旧 validated evidence / validator v1.0 已失效；当前 record 的有效性、ID 与 promotion 结论只以 production
 evidence registry 为准。历史或后续单域记录不得外推到原生 Linux、macOS、其他 GPU、CPU、ROCm、MPS

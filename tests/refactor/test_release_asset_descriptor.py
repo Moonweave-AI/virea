@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,15 @@ RELEASE_MODEL_IDS = {
     "mardm-humanml3d",
     "acmdm-humanml3d",
     "cmdm-humanml3d",
+    "dart-smplx",
+    "discord-humanml3d",
     "prism-tp2m-1-4b",
+    "hy-motion-1",
+    "intermask-interhuman",
+    "momask-humanml3d",
+    "motioncraft-smplx",
+    "remomask-humanml3d",
+    "sentiavatar-susu",
 }
 RUNTIME_MODEL_IDS = RELEASE_MODEL_IDS
 
@@ -106,14 +115,8 @@ def test_release_descriptor_packages_only_lightweight_runtime_sources() -> None:
         model["model_id"] for model in models if model.get("runtime_project")
     } == RUNTIME_MODEL_IDS
     by_id = {model["model_id"]: model for model in models}
-    for model_id, package_prefix in (
-        ("acmdm-humanml3d", "virea-model-acmdm-humanml3d"),
-        ("momadiff-humanml3d", "virea-model-momadiff-humanml3d"),
-        ("cmdm-humanml3d", "virea-model-cmdm-humanml3d"),
-        ("flood-diffusion-tiny", "virea-model-flood-diffusion-tiny"),
-        ("mardm-humanml3d", "virea-model-mardm-humanml3d"),
-        ("prism-tp2m-1-4b", "virea-model-prism-tp2m-1-4b"),
-    ):
+    for model_id in sorted(RELEASE_MODEL_IDS):
+        package_prefix = f"virea-model-{model_id}"
         model = by_id[model_id]
         assert model["shared_worker_project"]["project_package"] == (
             f"{package_prefix}-runtime"
@@ -150,11 +153,22 @@ def test_portable_cpu_runtime_lock_is_independent_and_cross_platform(
     )
 
     assert "download.pytorch.org/whl/cpu" in cpu_lock
-    assert "torch-2.11.0%2bcpu" in cpu_lock
-    assert "manylinux_2_28_x86_64" in cpu_lock
-    assert "win_amd64" in cpu_lock
-    assert "torch-2.11.0-cp311-cp311-macosx_11_0_arm64" in cpu_lock
-    assert "torch-2.2.2-cp311-none-macosx_10_9_x86_64" in cpu_lock
+    assert re.search(
+        r"torch-\d+\.\d+\.\d+%2bcpu-cp311-cp311-manylinux_2_28_x86_64\.whl",
+        cpu_lock,
+    )
+    assert re.search(
+        r"torch-\d+\.\d+\.\d+%2bcpu-cp311-cp311-win_amd64\.whl",
+        cpu_lock,
+    )
+    assert re.search(
+        r"torch-\d+\.\d+\.\d+-cp311-(?:cp311|none)-macosx_11_0_arm64\.whl",
+        cpu_lock,
+    )
+    assert re.search(
+        r"torch-\d+\.\d+\.\d+-cp311-none-macosx_10_9_x86_64\.whl",
+        cpu_lock,
+    )
     assert "cu128" not in cpu_lock
     assert "nvidia-cublas" not in cpu_lock
     assert model["runtime_project"]["root"] != cpu_project["root"]

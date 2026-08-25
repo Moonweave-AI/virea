@@ -4,7 +4,7 @@ display_name: InterMask InterHuman canonical two-actor output
 source_models:
   - intermask-interhuman
 implementation_status: pinned_upstream_contract_adapter_implemented
-support_status: runnable_upstream
+support_status: integrated_experimental
 native_profile:
   representation_id: interhuman.motion262.v1
   carrier: two_actor_dense_float_tensors

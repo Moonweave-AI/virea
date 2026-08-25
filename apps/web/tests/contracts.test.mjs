@@ -13,7 +13,9 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   const sourceViewer = fs.readFileSync(path.join(root, "src", "source-viewer.ts"), "utf8");
   assert.match(http, /`\/api\/v1\$\{path\}`/);
   assert.match(api, /createInstallPayload\(manifest, executionTarget\)/);
+  assert.match(api, /productionAcceptanceTimeoutSeconds\(manifest\)/);
   assert.match(api, /createGenerationPayload\(manifest, prompt, seconds, seed, executionTarget, idempotencyKey\)/);
+  assert.match(api, /createManifestGenerationPayload\(manifest, draft, executionTarget, idempotencyKey\)/);
   assert.match(api, /"\/execution-domains"/);
   assert.match(api, /\/execution-options/);
   assert.match(api, /"\/state"/);
@@ -64,6 +66,12 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(contracts, /execution_domain_id\?: string \| null/);
   assert.match(contracts, /execution_target\?:/);
   assert.match(contracts, /virea_integrated: boolean/);
+  assert.match(contracts, /inputs: ManifestInputSchema\[\]/);
+  assert.match(contracts, /production_acceptance_suite\?: ProductionE2EAcceptanceSuite \| null/);
+  assert.match(contracts, /virea\.production_e2e_acceptance_suite\.v1\.0\.0/);
+  assert.match(main, /generationInputFields\(manifest, draft\.task\)/);
+  assert.match(main, /api\.generateFromFields\(/);
+  assert.match(main, /productionAcceptanceForTask\(manifest, draft\.task\)/);
   assert.match(contracts, /verification_scope\?: "metadata" \| "full_integrity"/);
   assert.match(contracts, /integrity_verified\?: boolean/);
   assert.match(main, /capabilityReason/);

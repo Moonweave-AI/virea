@@ -5,7 +5,11 @@ from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from virea_contracts.base import ContractModel
-from virea_contracts.model import ModelSupportStatus, ProductionE2EAcceptance
+from virea_contracts.model import (
+    ModelSupportStatus,
+    ProductionE2EAcceptance,
+    ProductionE2EAcceptanceSuite,
+)
 from virea_contracts.runtime import RuntimeSpec
 
 
@@ -127,6 +131,7 @@ class ModelPluginManifest(ContractModel):
     licenses: LicenseFacts
     resources: dict[str, Any] = Field(default_factory=dict)
     production_acceptance: ProductionE2EAcceptance | None = None
+    production_acceptance_suite: ProductionE2EAcceptanceSuite | None = None
     test_only: bool = False
     test_fixture: TestFixtureSpec | None = None
     notes: tuple[str, ...] = ()
@@ -148,6 +153,14 @@ class ModelPluginManifest(ContractModel):
 
     @model_validator(mode="after")
     def validate_support_and_acceptance_claims(self) -> ModelPluginManifest:
+        if (
+            self.production_acceptance is not None
+            and self.production_acceptance_suite is not None
+        ):
+            raise ValueError(
+                "manifest cannot declare both legacy and suite production acceptance"
+            )
+        contracts = self.production_acceptance_contracts
         production_status = self.model.status in {
             ModelSupportStatus.INTEGRATED_EXPERIMENTAL,
             ModelSupportStatus.SUPPORTED,
@@ -157,17 +170,17 @@ class ModelPluginManifest(ContractModel):
         if self.test_only:
             if production_status:
                 raise ValueError("test-only models cannot claim production support")
-            if self.production_acceptance is not None:
+            if contracts:
                 raise ValueError(
                     "test-only models cannot declare production acceptance"
                 )
         if production_status and (
-            not self.runtime_variants or self.production_acceptance is None
+            not self.runtime_variants or not contracts
         ):
             raise ValueError(
                 "integrated models require a runtime and production E2E acceptance"
             )
-        if self.production_acceptance is not None:
+        if contracts:
             unversioned_runtimes = [
                 runtime.id
                 for runtime in self.runtime_variants
@@ -181,8 +194,14 @@ class ModelPluginManifest(ContractModel):
                     "project_version, and runtime_core_epoch: "
                     + ", ".join(unversioned_runtimes)
                 )
-            request = self.production_acceptance.request
-            expected = self.production_acceptance.expected
+            if tuple(contract.request.task for contract in contracts) != self.model.tasks:
+                raise ValueError(
+                    "integrated models must declare exactly one production acceptance "
+                    "contract for every task, in task order"
+                )
+        for contract in contracts:
+            request = contract.request
+            expected = contract.expected
             if request.model_id != self.model.id:
                 raise ValueError(
                     "production acceptance request model must match model id"
@@ -198,3 +217,13 @@ class ModelPluginManifest(ContractModel):
                     "production acceptance skeleton must match model output"
                 )
         return self
+
+    @property
+    def production_acceptance_contracts(self) -> tuple[ProductionE2EAcceptance, ...]:
+        """Return the canonical read-only contract sequence for old and new manifests."""
+
+        if self.production_acceptance_suite is not None:
+            return self.production_acceptance_suite.contracts
+        if self.production_acceptance is not None:
+            return (self.production_acceptance,)
+        return ()

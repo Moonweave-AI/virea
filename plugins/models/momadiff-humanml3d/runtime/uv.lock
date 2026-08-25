@@ -204,22 +204,6 @@ wheels = [
 ]
 
 [[package]]
-name = "hf-xet"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1b/ab/522a2ab67f27971a9d48ca666d4fca85ef7d5282d142e31fd087e27b1bbe/hf_xet-1.6.0.tar.gz", hash = "sha256:2e58454a340b3556dfa4972d5451aff4fba8dd42a236600ba1a1d2b1514f0fef", size = 920527, upload-time = "2026-08-03T22:33:13.243Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/50/7afa2c9c787405864fc47a0d1bbc02c62e9101947ed43c1f43899fc7d91d/hf_xet-1.6.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:633dc0cd71d32da58ab8c03ad38e2fac452c15c2b0a2866ebf6ededfe0a5061d", size = 4071729, upload-time = "2026-08-03T22:33:00.721Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/69/55b8dcf636142ae660fec1869fcac14c4da2e8412e14d6eee1523be77e9f/hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:f0906082d9932ae0c0057fa194041c22b4e2cdb46b2592ef3b91f020d62a081a", size = 3876287, upload-time = "2026-08-03T22:33:02.251Z" },
-    { url = "https://files.pythonhosted.org/packages/67/4e/a28359bf1c1ecf11eba22123168c138698f7cb576ac678f5a2e16cd5da08/hf_xet-1.6.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d62671bb130879cef0ee4c9ebe47a14af6c66ec53e6d84dc15936e5ffdfac82f", size = 4464663, upload-time = "2026-08-03T22:33:03.802Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/69/1f0cbc2fb22ae6082d094f743d1b8945a3f36f6089cb95f42b7ee348cda7/hf_xet-1.6.0-cp38-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:0e6e21fa3cdfcdcd76748564bf593870a5e013f47d97cf10aed63aa222cff5b7", size = 4262538, upload-time = "2026-08-03T22:33:05.287Z" },
-    { url = "https://files.pythonhosted.org/packages/d1/3a/4f4f2301ade26e404462d3336fa11f7958d914cabbabdd6e03c3c5d5658c/hf_xet-1.6.0-cp38-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:4fc74352a17015bd0ee90038bc9efe38db894cde45f268b6712b04fce8cd0acb", size = 4460520, upload-time = "2026-08-03T22:33:06.81Z" },
-    { url = "https://files.pythonhosted.org/packages/ab/5f/311725e2a905534dfee2dcb5b08414f249147f1f12252bfc2bd24caa075c/hf_xet-1.6.0-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:8fb4f71cba6129110c3374a33f919001ff130488fc23553698e34cc1c2a1198c", size = 4675937, upload-time = "2026-08-03T22:33:08.616Z" },
-    { url = "https://files.pythonhosted.org/packages/98/b7/8c59a66d15205024662f1d66968136f13893f96df1ddc5087e2e281fc95f/hf_xet-1.6.0-cp38-abi3-win_amd64.whl", hash = "sha256:fb4fadde1b2b70bf4c0c14a6dccbe7194b1c28947fefd5bbe3fed9d940676c3b", size = 4033128, upload-time = "2026-08-03T22:33:10.171Z" },
-    { url = "https://files.pythonhosted.org/packages/73/63/ca511b6f802f28cf3489b280fe77475bcca8de85e81a6299d7916b5b5555/hf_xet-1.6.0-cp38-abi3-win_arm64.whl", hash = "sha256:3dc3e35441ba395006af5aaacc40ef2e603c51ef46c3530b9156185f00935ea3", size = 3859359, upload-time = "2026-08-03T22:33:11.725Z" },
-]
-
-[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -260,26 +244,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
-]
-
-[[package]]
-name = "huggingface-hub"
-version = "1.28.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "filelock" },
-    { name = "fsspec" },
-    { name = "hf-xet", marker = "platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'" },
-    { name = "httpx" },
-    { name = "packaging" },
-    { name = "pyyaml" },
-    { name = "tqdm" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c6/ae/222a91937ebee7f62c0ca8f5ee0afd97577caf24c0abb927d1f5c7e9f6d2/huggingface_hub-1.28.0.tar.gz", hash = "sha256:46a2e950c09234de54093d587d1675382f0d08dbd600d9fb599b5932f5b2c6cb", size = 959609, upload-time = "2026-08-18T12:27:15.101Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/0e/eafef18f1a75e125e68395db21131db0cf868a128ecd2fce69b4df6c584b/huggingface_hub-1.28.0-py3-none-any.whl", hash = "sha256:58a8bacb03072edfc38067065e9dc24bbb34805410fcd36a1632de0b329660bb", size = 793202, upload-time = "2026-08-18T12:27:12.719Z" },
 ]
 
 [[package]]
@@ -861,21 +825,6 @@ wheels = [
 ]
 
 [[package]]
-name = "virea-bootstrap"
-version = "0.4.0"
-source = { editable = "../../../../packages/bootstrap" }
-dependencies = [
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
-]
-
-[[package]]
 name = "virea-contracts"
 version = "0.4.0"
 source = { editable = "../../../../packages/contracts" }
@@ -885,17 +834,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "pydantic", specifier = ">=2.0" }]
-
-[[package]]
-name = "virea-core"
-version = "0.4.0"
-source = { editable = "../../../../packages/core" }
-dependencies = [
-    { name = "virea-contracts" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "virea-contracts", editable = "../../../../packages/contracts" }]
 
 [[package]]
 name = "virea-model-momadiff-humanml3d-runtime"
@@ -923,7 +861,7 @@ dependencies = [
 dev = [
     { name = "httpx" },
     { name = "pytest" },
-    { name = "virea-model-pool" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -937,6 +875,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.8,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
     { name = "pyyaml", specifier = ">=6,<7" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6,<7" },
     { name = "regex", specifier = ">=2024.11" },
     { name = "torch", specifier = ">=2.2.2,<2.12" },
     { name = "torch-ema", specifier = "==0.3" },
@@ -944,33 +883,9 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66,<5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-model-pool", marker = "extra == 'dev'", editable = "../../../../packages/model_pool" },
     { name = "virea-model-sdk", editable = "../../../../packages/model_sdk" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "virea-model-pool"
-version = "0.4.0"
-source = { editable = "../../../../packages/model_pool" }
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-    { name = "virea-runtime" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "huggingface-hub", specifier = ">=0.34" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
-    { name = "virea-runtime", editable = "../../../../packages/runtime" },
-]
 
 [[package]]
 name = "virea-model-sdk"
@@ -989,24 +904,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "uvicorn", specifier = ">=0.27" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-]
-
-[[package]]
-name = "virea-runtime"
-version = "0.4.0"
-source = { editable = "../../../../packages/runtime" }
-dependencies = [
-    { name = "virea-bootstrap" },
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
-    { name = "virea-bootstrap", editable = "../../../../packages/bootstrap" },
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
 ]
 
 [[package]]

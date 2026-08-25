@@ -3,16 +3,17 @@ type: research-log
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
-summary: 六个已集成模型的 RAM/VRAM 门槛、标称容量、PRISM Windows CUDA 与 WSL2 配额诊断证据审计。
+summary: 六模型历史资源 profile 证据审计，以及它与当前 14 模型集成目录、标称容量、PRISM Windows CUDA 和 WSL2 配额诊断的边界。
 canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
 related:
   - runtime-resource-requirements-audit-2026-08-23.en.md
   - ../models/prism.zh-CN.md
   - ../platforms/wsl2.zh-CN.md
   - ../operations/troubleshooting.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
@@ -35,6 +36,10 @@ Windows 机器误判为无法部署？
 `12eec6e2ec14a158faf7d9ee9f1c14996f002998`。用户报告的观测为 Windows 总 RAM 63.6 GiB、当前可用 32.2 GiB；
 WSL 总 RAM 19.5 GiB、当前可用 13.2 GiB；GPU 总 VRAM 15.9 GiB。这是诊断输入，不是新生成的 VIREA benchmark。
 
+截至 2026-08-26，14 个非测试模型 manifest 都已有 VIREA 集成与 target-acceptance 合同。本审计的实测与
+冻结 profile 只覆盖 2026-08-23 的六模型快照；不能借给后来接入的八个模型充当资源校准、平台 observation
+或真实 checkpoint evidence。
+
 ## 假设与判定标准
 
 假设：Windows 主机可以构建 PRISM component-split CUDA Runtime；当前 WSL 域只是配置受限。成功必须同时满足：
@@ -43,7 +48,7 @@ WSL 总 RAM 19.5 GiB、当前可用 13.2 GiB；GPU 总 VRAM 15.9 GiB。这是诊
 - 明显更小的设备仍被拒绝；
 - PRISM CUDA lock 在 `win-64` 解析成功，manifest 与 registry 平台完全一致；
 - 64 GiB 主机上的 20 GiB WSL 被标成“配置受限”，并排在真正无能力的目标之前；
-- 回归测试冻结六个已集成模型的全部 profile；
+- 回归测试冻结 2026-08-23 六模型已接入快照的全部 profile；
 - 文档区分本地实测、上游建议、未实测保守下限与仅 lock 证据。
 
 失败包括：把 RAM 加到 VRAM、放行低于 profile 超过 512 MiB/2% 的设备、把 WSL 配额写成宿主 RAM，或把
@@ -81,7 +86,8 @@ PRISM CPU 的 96 GiB 没有被随意降低：float32 whole-model CPU 尚无真�
 
 ## Model/Eval Card 与限制
 
-评估对象：六个 `integrated_experimental` 文本生成动作插件的 execution-domain/resource admission。输入包括
+历史评估对象：2026-08-23 快照中六个 `integrated_experimental` 文本生成动作插件的 execution-domain /
+resource admission。当前目录已有 14 个集成模型，但新增八个不在本审计的校准 evidence 范围内。输入包括
 固定 manifest/registry、已记录校准字段、正式上游 README/模型卡、Windows lock 解析，以及合成的
 64/16 与 WSL-20/host-64 contract fixture。输出包括 Runtime/profile 选择、容量状态、配置诊断和精确修复建议。
 本轮没有测模型质量分数、生成延迟或新 checkpoint 推理；真实 Windows PRISM 推理与 5070 Ti 显存峰值仍需验收。

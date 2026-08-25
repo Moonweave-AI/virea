@@ -2,38 +2,24 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: momask-humanml3d
   display_name: MoMask HumanML3D
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/EricGuo5513/momask-codes
     revision: 94a6636c9c463b7a9414c3401a6f1b67e6c51824
-    release: CVPR 2024; models released 2023-12-15
-  tasks:
-    - text_to_motion
-    - text_guided_motion_editing
+    release: CVPR 2024
+  tasks: [text_to_motion]
   adapter_family: humanml3d-motion263-body22
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_motion
     fields:
-      prompt:
-        type: string
-        required: true
-      motion_length_frames:
-        type: integer
-        description: Optional HumanML3D pose count; upstream rounds to a multiple of four.
-  - schema_version: virea.job_request.v1.0.0
-    task: text_guided_motion_editing
-    fields:
-      prompt:
-        type: string
-        required: true
-      source_motion:
-        representation_id: humanml3d.vector263.v1
-        required: true
-      edit_interval:
-        type: normalized_half_open_interval
-        required: true
+      prompt: {type: string, required: true, maximum_length: 8000}
+      motion_length_frames: {type: integer, required: false, minimum: 40, maximum: 196, multiple_of: 4}
+      seconds: {type: number, required: false, minimum: 2.0, maximum: 9.8, multiple_of: 0.2}
+      seed: {type: integer, default: 10107, minimum: 0, maximum: 2147483647}
+      time_steps: {type: integer, default: 18, minimum: 1, maximum: 100}
+      cond_scale: {type: number, default: 4.0, minimum: 0.0, maximum: 20.0}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: humanml3d.vector263.v1
@@ -44,22 +30,66 @@ output:
   root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
   root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: momask-humanml3d-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 6.0}
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 6.0, min_free_ram_gib: 8.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_momask.worker]
+    startup_timeout_seconds: 600
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/momask-humanml3d/runtime-cu128
+    project_package: virea-model-momask-humanml3d-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_graph_contract_and_lock_baseline_real_checkpoint_acceptance_required
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: momask-humanml3d-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 6.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 10.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_momask.worker]
+    startup_timeout_seconds: 900
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/momask-humanml3d/runtime-cpu
+    project_package: virea-model-momask-humanml3d-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pure_pytorch_cpu_contract_and_lock_baseline_real_checkpoint_acceptance_required
 artifacts:
-  - id: momask-pretrained-models-and-evaluators
+  - id: momask-humanml3d-models
     kind: manual
-    url: https://drive.google.com/drive/folders/1sHajltuE2xgHh91H9pFpMAYAkHaX9o57
-    expected_files:
-      - checkpoints/t2m/**
-      - checkpoints/kit/**
+    url: https://drive.google.com/file/d/1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0/view
+    revision: google-drive-file-1vXS7SHJBgWPt59wupQ5UUzhFObrnGkQ0
+    expected_files: [humanml3d_models.zip]
+    expected_total_bytes: 188067025
+  - id: momask-source
+    kind: https
+    url: https://github.com/EricGuo5513/momask-codes/archive/94a6636c9c463b7a9414c3401a6f1b67e6c51824.zip
+    revision: 94a6636c9c463b7a9414c3401a6f1b67e6c51824
+    expected_files: [94a6636c9c463b7a9414c3401a6f1b67e6c51824.zip]
+  - id: openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files: [ViT-B-32.pt]
+    expected_total_bytes: 353976522
 licenses:
   code: MIT
   weights: upstream_does_not_state_a_separate_weight_license
-  dataset_lineage:
-    - HumanML3D
-    - AMASS
-  body_model:
-    - SMPL/SMPL-X are optional rendering dependencies and retain their own licenses
+  dataset_lineage: [HumanML3D, AMASS]
+  body_model: [Optional SMPL/SMPL-X rendering assets retain their own licenses]
   commercial_allowed: null
   redistribution_allowed: null
   requires_acceptance: false
@@ -70,12 +100,39 @@ resources:
   upstream_tested_python: 3.7.13
   upstream_tested_pytorch: 1.7.1
   upstream_alternative_python: "3.10"
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   upstream_inference_entrypoint: gen_t2m.py
-  upstream_gpu: optional_for_web_demo
-  output_export:
-    joints_shape: [T, 22, 3]
-    formats: [npy, bvh, mp4]
+  implementation: plugins/models/momask-humanml3d/runtime/src/virea_momask/worker.py
+  native_feature_dim: 263
+  native_fps: 20.0
+  official_model_archive_bytes: 188067025
+  portability:
+    closure: pure_pytorch_openai_clip_numpy_einops
+    deviation: legacy_environment_replaced_by_current_locked_wheels_graph_and_checkpoint_unchanged
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+  integration_state: integrated_experimental
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: momask-humanml3d
+    task: text_to_motion
+    input: {prompt: "A person walks forward, turns left, and waves with the right hand."}
+    parameters: {motion_length_frames: 80, seed: 10107, time_steps: 18, cond_scale: 4.0, fps: 20.0}
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: humanml3d.vector263.v1
+    skeleton_id: humanml3d.body22.v1
+    min_frames: 80
+    artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+  required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+  timeout_seconds: 3600.0
 notes:
-  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
-  - runnable_upstream means the official repository and checkpoints are usable upstream; no VIREA Worker, isolated lock, real artifact installation, or production end-to-end acceptance has been completed.
-  - The declared 263D representation must be decoded through the HumanML3D recovery algorithm; its 126D child-edge rotation block is not a direct glTF node-local rotation stream.
+  - The Worker executes the released MaskTransformer, ResidualTransformer, and RVQVAE graph from the pinned source commit and checkpoints; it never substitutes synthetic motion.
+  - The native NPY is inverse-normalized finite float32 [T,263]. HumanML3D recovery remains an explicit downstream adapter step; the 263D vector is not mislabeled as local joint rotations.
+  - The Google Drive archive is a manual external-root artifact because upstream provides no immutable HTTPS object digest or separate weight license. Its only accepted root file is humanml3d_models.zip; recursive wildcard acceptance is intentionally forbidden.
+  - integrated_experimental records an implemented locked runtime contract, not completed cross-platform production evidence. Every published installation must still pass the complete production acceptance contract above.

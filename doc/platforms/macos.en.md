@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: English macOS-native execution-domain setup and CPU/MPS capability boundaries.
 canonical: doc/platforms/macos.en.md
@@ -45,3 +45,8 @@ uv run virea
 Apple Silicon MPS, Apple/Intel CPU and CUDA are separate Runtime choices. VIREA selects MPS or CPU only when the Worker
 implements it. A declared macOS CPU Runtime or lock baseline is not a real macOS model-inference/browser-evidence claim.
 Use `model info` and the generated matrix to see exact declarations and blockers.
+
+All 14 catalog models declare `osx-arm64` / `osx-64` CPU Runtime paths. On Intel macOS, every frozen CPU dependency graph
+resolves `torch==2.2.2` with `numpy==1.26.4`, avoiding the unsupported NumPy 2.x ABI path. These declarations and lock
+checks do not replace per-model checkpoint inference and browser acceptance on real macOS hardware. CUDA profiles must
+not appear on macOS, and an MPS Worker is not yet implemented.

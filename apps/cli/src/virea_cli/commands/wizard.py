@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -34,6 +35,46 @@ from . import generate, model, serve, setup
 Input = Callable[[str], str]
 Output = Callable[[str], None]
 Choice = TypeVar("Choice")
+_OMIT = object()
+
+_FILE_FIELD_TYPES = {"audio", "mono_pcm_audio"}
+_STRUCTURED_FIELD_TYPES = {
+    "mono_pcm_audio_stream",
+    "normalized_half_open_interval",
+    "remomask_part_motion_database",
+    "text_segments",
+    "text_stream",
+    "world_space_constraints",
+}
+_CONTENT_FIELD_NAMES = {
+    "action_and_expression_tags",
+    "audio",
+    "audio_chunks",
+    "conditioning_actor_motion",
+    "dialogue_text",
+    "dialogue_turns",
+    "edit_interval",
+    "initial_motion",
+    "prompt",
+    "retrieval_database",
+    "source_motion",
+    "text_timeline",
+    "transcript",
+    "waypoints",
+}
+_TASK_LABELS = {
+    "audio_text_to_avatar_motion": "Audio + text to avatar motion / 音频与文本生成 Avatar 动作",
+    "interaction_reaction_generation": "Interaction reaction generation / 互动反应生成",
+    "music_to_dance": "Music to dance / 音乐生成舞蹈",
+    "retrieval_augmented_text_to_motion": "Retrieval-augmented text to motion / 检索增强文本生成动作",
+    "speech_to_gesture": "Speech to gesture / 语音生成手势",
+    "streaming_dialogue_avatar_motion": "Streaming dialogue avatar motion / 流式对话 Avatar 动作",
+    "streaming_text_to_motion": "Streaming text to motion / 流式文本生成动作",
+    "text_guided_motion_editing": "Text-guided motion editing / 文本引导动作编辑",
+    "text_to_motion": "Text to motion / 文本生成动作",
+    "text_to_two_person_interaction": "Text to two-person interaction / 文本生成双人互动",
+    "waypoint_controlled_motion": "Waypoint-controlled motion / 路点控制动作",
+}
 
 
 class WizardCancelled(Exception):
@@ -288,7 +329,7 @@ def _model_blocker(manifest: Any) -> str | None:
     missing: list[str] = []
     if not manifest.runtime_variants:
         missing.append("Runtime")
-    if manifest.production_acceptance is None:
+    if not manifest.production_acceptance_contracts:
         missing.append("production acceptance / 生产验收")
     detail = ", ".join(missing) or f"support status {status}"
     return f"not VIREA-integrated: {detail} / 尚未完成 VIREA 集成"
@@ -553,19 +594,17 @@ def _install_args(
 def _generate_args(
     manifest: Any,
     target: ExecutionTargetSelection,
-    prompt: str,
-    seconds: float,
+    task: str,
+    request_input: dict[str, Any],
+    request_parameters: dict[str, Any],
     *,
     reporter: Any | None = None,
 ) -> Namespace:
     return Namespace(
         model=manifest.model.id,
-        task="text_to_motion",
-        prompt=prompt,
-        seconds=seconds,
-        fps=20.0,
-        seed=42,
-        denoise_steps=None,
+        task=task,
+        request_input=request_input,
+        request_parameters=request_parameters,
         idempotency_key=None,
         execution_domain=target.execution_domain_id,
         runtime_variant=target.runtime_variant_id,
@@ -577,19 +616,330 @@ def _generate_args(
     )
 
 
-def _seconds(input_fn: Input, output: Output) -> float:
-    while True:
-        value = input_fn("Motion duration in seconds / 动作时长（默认 4）: ").strip()
-        if not value:
-            return 4.0
-        try:
-            seconds = float(value)
-        except ValueError:
-            _write(output, "Enter a positive number / 请输入正数。")
+def _input_schemas(manifest: Any) -> tuple[dict[str, Any], ...]:
+    schemas: list[dict[str, Any]] = []
+    declared_tasks = set(getattr(manifest.model, "tasks", ()))
+    for candidate in getattr(manifest, "inputs", ()):
+        if not isinstance(candidate, dict):
             continue
-        if seconds > 0:
-            return seconds
-        _write(output, "Enter a positive number / 请输入正数。")
+        task = candidate.get("task")
+        fields = candidate.get("fields")
+        if (
+            isinstance(task, str)
+            and task
+            and task in declared_tasks
+            and isinstance(fields, dict)
+        ):
+            schemas.append(candidate)
+    if not schemas:
+        raise RuntimeError(
+            f"{manifest.model.id} declares no usable manifest.inputs schema / "
+            "未声明可用的 manifest.inputs 输入结构"
+        )
+    return tuple(schemas)
+
+
+def _task_label(schema: dict[str, Any]) -> str:
+    task = str(schema["task"])
+    return _TASK_LABELS.get(task, task.replace("_", " "))
+
+
+def _choose_task_schema(
+    manifest: Any,
+    input_fn: Input,
+    output: Output,
+    *,
+    ui: TerminalUI | None = None,
+) -> dict[str, Any]:
+    schemas = _input_schemas(manifest)
+    if len(schemas) == 1:
+        _write(output, f"Task / 任务: {_task_label(schemas[0])}")
+        return schemas[0]
+    return _choice(
+        input_fn,
+        output,
+        title="Choose a generation task / 选择生成任务：",
+        items=schemas,
+        label=_task_label,
+        default=schemas[0],
+        ui=ui,
+    )
+
+
+def _acceptance_request(manifest: Any, task: str) -> Any | None:
+    contracts = getattr(manifest, "production_acceptance_contracts", ())
+    for contract in contracts:
+        request = getattr(contract, "request", None)
+        if request is not None and request.task == task:
+            return request
+    acceptance = getattr(manifest, "production_acceptance", None)
+    request = getattr(acceptance, "request", None)
+    return request if request is not None and request.task == task else None
+
+
+def _duration_seconds_from_request(request: Any | None) -> float | None:
+    if request is None:
+        return None
+    parameters = dict(request.parameters)
+    input_values = dict(request.input)
+    seconds = parameters.get("seconds")
+    if isinstance(seconds, (int, float)) and not isinstance(seconds, bool):
+        return float(seconds)
+    fps = parameters.get("fps")
+    if not isinstance(fps, (int, float)) or isinstance(fps, bool) or fps <= 0:
+        return None
+    for values, name in (
+        (input_values, "motion_length_frames"),
+        (parameters, "motion_length_frames"),
+        (parameters, "num_frames"),
+    ):
+        frames = values.get(name)
+        if isinstance(frames, (int, float)) and not isinstance(frames, bool):
+            return float(frames) / float(fps)
+    return None
+
+
+def _field_default(manifest: Any, task: str, name: str, spec: dict[str, Any]) -> Any:
+    if "default" in spec:
+        return spec["default"]
+    request = _acceptance_request(manifest, task)
+    if request is not None:
+        if name in request.input:
+            return request.input[name]
+        if name in request.parameters:
+            return request.parameters[name]
+        if name == "seconds":
+            seconds = _duration_seconds_from_request(request)
+            if seconds is not None:
+                return seconds
+    return _OMIT
+
+
+def _field_example(name: str, spec: dict[str, Any]) -> str:
+    field_type = str(spec.get("type") or "structured")
+    if field_type == "mono_pcm_audio_stream":
+        return '["D:/media/turn-1.wav","D:/media/turn-2.wav"] (JSON array; forward slashes avoid JSON escaping / JSON 数组；使用正斜杠可避免 JSON 转义)'
+    if field_type in _FILE_FIELD_TYPES:
+        return r"D:\media\speech.wav (without quotes / 不带引号)"
+    if field_type == "text_segments":
+        return '[{"start_seconds":0,"end_seconds":2,"text":"walk forward"}]'
+    if field_type == "world_space_constraints":
+        return '[{"time_seconds":1.0,"position":[0,0,1]}]'
+    if name in {"source_motion", "conditioning_actor_motion", "initial_motion"}:
+        representation = spec.get("representation_id", "model.native.motion.v1")
+        return f'{{"representation_id":"{representation}","locator":"D:/motion.json"}}'
+    if name == "retrieval_database":
+        return r"D:\models\retrieval_database (without quotes / 不带引号)"
+    if field_type in _STRUCTURED_FIELD_TYPES or "representation_id" in spec:
+        return r'D:\inputs\value.json or {"key":"value"} / 本地路径或 JSON'
+    if field_type == "boolean":
+        return "y / n"
+    if field_type in {"number", "integer"}:
+        return str(spec.get("default", spec.get("minimum", "4")))
+    if name == "prompt":
+        return "A person walks forward, turns left, and waves."
+    return "enter a value without shell quotation marks / 直接输入值，不加 shell 引号"
+
+
+def _field_constraints(spec: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if spec.get("required") is True:
+        parts.append("required / 必填")
+    if "minimum" in spec:
+        parts.append(f"min / 最小={spec['minimum']}")
+    if "maximum" in spec:
+        parts.append(f"max / 最大={spec['maximum']}")
+    if "multiple_of" in spec:
+        parts.append(f"step multiple / 倍数={spec['multiple_of']}")
+    if "maximum_length" in spec:
+        parts.append(f"max length / 最大长度={spec['maximum_length']}")
+    if "enum" in spec:
+        parts.append("options / 选项=" + ", ".join(map(str, spec["enum"])))
+    return "; ".join(parts)
+
+
+def _validate_number(value: int | float, name: str, spec: dict[str, Any]) -> str | None:
+    minimum = spec.get("minimum")
+    maximum = spec.get("maximum")
+    exclusive_minimum = spec.get("exclusive_minimum")
+    multiple_of = spec.get("multiple_of")
+    if isinstance(minimum, (int, float)) and value < minimum:
+        return f"{name} must be >= {minimum} / 必须大于等于 {minimum}"
+    if isinstance(maximum, (int, float)) and value > maximum:
+        return f"{name} must be <= {maximum} / 必须小于等于 {maximum}"
+    if isinstance(exclusive_minimum, (int, float)) and value <= exclusive_minimum:
+        return f"{name} must be > {exclusive_minimum} / 必须大于 {exclusive_minimum}"
+    if isinstance(multiple_of, (int, float)) and multiple_of > 0:
+        quotient = float(value) / float(multiple_of)
+        if abs(quotient - round(quotient)) > 1e-7:
+            return f"{name} must be a multiple of {multiple_of} / 必须是 {multiple_of} 的倍数"
+    return None
+
+
+def _local_path(raw: str, *, name: str) -> str:
+    value = raw.strip()
+    if value[:1] in {"'", '"'} or value[-1:] in {"'", '"'}:
+        raise ValueError(
+            f"{name}: paste the path without outer quotes / 粘贴路径时不要包含首尾引号"
+        )
+    path = Path(value).expanduser()
+    if not path.exists():
+        raise ValueError(f"{name}: local path does not exist / 本地路径不存在: {value}")
+    return str(path.resolve())
+
+
+def _structured_value(raw: str, *, name: str) -> Any:
+    stripped = raw.strip()
+    if stripped.startswith(("{", "[")):
+        try:
+            value = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"{name}: invalid JSON at character {exc.pos} / JSON 在第 {exc.pos} 个字符附近无效"
+            ) from exc
+        if not isinstance(value, (dict, list)):
+            raise ValueError(
+                f"{name}: JSON must be an object or array / JSON 必须是对象或数组"
+            )
+        return value
+    return _local_path(stripped, name=name)
+
+
+def _collect_field(
+    name: str,
+    spec: dict[str, Any],
+    default: Any,
+    input_fn: Input,
+    output: Output,
+) -> Any:
+    field_type = str(spec.get("type") or "structured")
+    constraints = _field_constraints(spec)
+    description = spec.get("description")
+    _write(
+        output,
+        f"\n{name} · {field_type}" + (f" · {constraints}" if constraints else ""),
+    )
+    if isinstance(description, str) and description:
+        _write(output, f"  {description}")
+    _write(output, f"  Example / 示例: {_field_example(name, spec)}")
+    default_hint = "" if default is _OMIT else f" [{default}]"
+    required = spec.get("required") is True
+    while True:
+        raw = input_fn(f"{name}{default_hint}: ")
+        if not raw.strip():
+            if default is not _OMIT:
+                return default
+            if not required:
+                return _OMIT
+            _write(output, f"{name} is required / {name} 为必填项。")
+            continue
+        try:
+            if field_type == "boolean":
+                normalized = raw.strip().lower()
+                if normalized in {"y", "yes", "true", "1", "是"}:
+                    return True
+                if normalized in {"n", "no", "false", "0", "否"}:
+                    return False
+                raise ValueError("enter y/n or true/false / 请输入 y/n 或 true/false")
+            if field_type == "integer":
+                value: Any = int(raw.strip())
+                message = _validate_number(value, name, spec)
+                if message:
+                    raise ValueError(message)
+                return value
+            if field_type == "number":
+                value = float(raw.strip())
+                message = _validate_number(value, name, spec)
+                if message:
+                    raise ValueError(message)
+                return value
+            if field_type in _FILE_FIELD_TYPES:
+                return _local_path(raw, name=name)
+            if isinstance(
+                spec.get("string_syntax"), str
+            ) and not raw.lstrip().startswith(("{", "[")):
+                return raw.strip()
+            if field_type in _STRUCTURED_FIELD_TYPES or "representation_id" in spec:
+                return _structured_value(raw, name=name)
+            value = raw.strip()
+            maximum_length = spec.get("maximum_length")
+            if isinstance(maximum_length, int) and len(value) > maximum_length:
+                raise ValueError(
+                    f"maximum length is {maximum_length} / 最大长度为 {maximum_length}"
+                )
+            options = spec.get("enum")
+            if isinstance(options, list) and value not in options:
+                raise ValueError(
+                    "choose one of / 请选择: " + ", ".join(map(str, options))
+                )
+            return value
+        except ValueError as exc:
+            _write(output, f"Invalid value / 输入无效: {exc}")
+
+
+def _field_location(
+    name: str,
+    spec: dict[str, Any],
+    request_input: dict[str, Any],
+    request_parameters: dict[str, Any],
+) -> str:
+    if name in request_input:
+        return "input"
+    if name in request_parameters:
+        return "parameters"
+    field_type = str(spec.get("type") or "structured")
+    if (
+        name in _CONTENT_FIELD_NAMES
+        or field_type in _FILE_FIELD_TYPES
+        or field_type in _STRUCTURED_FIELD_TYPES
+        or "representation_id" in spec
+    ):
+        return "input"
+    return "parameters"
+
+
+def _generation_request(
+    manifest: Any,
+    schema: dict[str, Any],
+    input_fn: Input,
+    output: Output,
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    task = str(schema["task"])
+    acceptance_request = _acceptance_request(manifest, task)
+    request_input = (
+        dict(acceptance_request.input) if acceptance_request is not None else {}
+    )
+    request_parameters = (
+        dict(acceptance_request.parameters) if acceptance_request is not None else {}
+    )
+    fields = dict(schema["fields"])
+    # These manifests expose seconds as the user-facing duration alternative to
+    # motion_length_frames. Asking for both would create an invalid Worker request.
+    hidden_fields = {"motion_length_frames"} if "seconds" in fields else set()
+    for name, raw_spec in fields.items():
+        if name in hidden_fields:
+            request_input.pop(name, None)
+            request_parameters.pop(name, None)
+            continue
+        spec = dict(raw_spec) if isinstance(raw_spec, dict) else {}
+        default = _field_default(manifest, task, name, spec)
+        value = _collect_field(name, spec, default, input_fn, output)
+        previous_location = _field_location(
+            name, spec, request_input, request_parameters
+        )
+        request_input.pop(name, None)
+        request_parameters.pop(name, None)
+        if value is _OMIT:
+            continue
+        if name == "seconds":
+            request_input.pop("motion_length_frames", None)
+            request_parameters.pop("motion_length_frames", None)
+            request_parameters.pop("num_frames", None)
+        destination = (
+            request_input if previous_location == "input" else request_parameters
+        )
+        destination[name] = value
+    return task, request_input, request_parameters
 
 
 def _serve_args(port: int) -> Namespace:
@@ -912,18 +1262,21 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                 "Model is installed. Re-run `uv run virea` whenever you want to generate.",
             )
             return 0
-        while True:
-            prompt = input_fn("Motion description / 动作描述: ").strip()
-            if prompt:
-                break
-            _write(writer, "A non-empty description is required / 动作描述不能为空。")
+        schema = _choose_task_schema(manifest, input_fn, writer, ui=ui)
+        task, request_input, request_parameters = _generation_request(
+            manifest,
+            schema,
+            input_fn,
+            writer,
+        )
         with ui.reporter("Motion generation / 动作生成") as generation_reporter:
             generation_status = generate.run(
                 _generate_args(
                     manifest,
                     target,
-                    prompt,
-                    _seconds(input_fn, writer),
+                    task,
+                    request_input,
+                    request_parameters,
                     reporter=generation_reporter,
                 )
             )

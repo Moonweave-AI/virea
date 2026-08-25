@@ -2,18 +2,14 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: dart-smplx
   display_name: DART BABEL SMPL-X Motion Primitives
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/zkf1997/DART
     revision: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
     release: ICLR 2025 Spotlight
-  tasks:
-    - streaming_text_to_motion
-    - motion_inbetweening
-    - waypoint_controlled_motion
-    - scene_conditioned_motion
+  tasks: [streaming_text_to_motion]
   adapter_family: dart-smplx-primitives
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: streaming_text_to_motion
@@ -21,18 +17,14 @@ inputs:
       text_timeline:
         type: text_segments
         required: true
-      initial_motion:
-        representation_id: dart.smplx.body22.axis_angle.v1
-        required: false
-  - schema_version: virea.job_request.v1.0.0
-    task: waypoint_controlled_motion
-    fields:
-      text_timeline:
-        type: text_segments
-        required: true
-      waypoints:
-        type: world_space_constraints
-        required: true
+        string_syntax: action_1*primitive_count_1,action_2*primitive_count_2
+        object_fields:
+          text: {type: string, required: true}
+          primitive_count: {type: integer, required: true, minimum: 1, maximum: 64}
+      primitive_count: {type: integer, default: 8, minimum: 1, maximum: 64}
+      seed: {type: integer, default: 0, minimum: 0, maximum: 2147483647}
+      guidance_scale: {type: number, default: 5.0, minimum: 0.0, maximum: 20.0}
+      fix_floor: {type: boolean, default: false}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: dart.smplx.body22.axis_angle_primitives.v1
@@ -43,43 +35,137 @@ output:
   root_translation_semantics: absolute_world_smplx_transl_after_primitive_rollout_reconstruction
   root_rotation_semantics: smplx_global_orient_axis_angle_local_to_world_after_primitive_rollout_reconstruction
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: dart-smplx-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 10.0}
+    lockfile: uv.lock
+    min_storage_gib: 14.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 10.0, min_free_ram_gib: 16.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_dart.worker]
+    startup_timeout_seconds: 600
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/dart-smplx/runtime-cu128
+    project_package: virea-model-dart-smplx-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cuda_worker_manual_smplx_and_real_checkpoint_acceptance_required
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: dart-smplx-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 24.0, min_free_swap_gib: 8.0}
+    entrypoint_argv: [python, -m, virea_dart.worker]
+    startup_timeout_seconds: 1200
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/dart-smplx/runtime-cpu
+    project_package: virea-model-dart-smplx-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cpu_worker_manual_smplx_and_real_checkpoint_acceptance_required
 artifacts:
+  - id: dart-source
+    kind: https
+    url: https://github.com/zkf1997/DART/archive/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417.zip
+    revision: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417
+    expected_files:
+      - source/mld/rollout_mld.py
+      - source/model/mld_denoiser.py
+      - source/model/mld_vae.py
+      - source/config_files/config_hydra/motion_primitive/mp_h2_f8_r8.yaml
+    unpack:
+      - path: bb67ae1ed6ce051080468bf15bc6e54a6c3f8417.zip
+        format: zip
+        destination: source
+        strip_components: 1
+        remove_archive: true
   - id: dart-babel-checkpoints-and-runtime-data
     kind: manual
     url: https://drive.google.com/drive/folders/1vJg3GFVPT6kr6cA0HrQGmiAEBE2dkaps
+    revision: google-drive-folder-1vJg3GFVPT6kr6cA0HrQGmiAEBE2dkaps
     expected_files:
-      - mvae/**
-      - mld_denoiser/**
-      - data/**
+      - mld_denoiser/mld_fps_clip_repeat_euler/args.yaml
+      - mld_denoiser/mld_fps_clip_repeat_euler/checkpoint_300000.pt
+      - mvae/mvae_fps_clip/args.yaml
+      - mvae/mvae_fps_clip/checkpoint_200000.pt
+      - data/stand.pkl
+      - data/seq_data_zero_male/mean_std_h2_f8.pkl
+  - id: dart-smplx-lockedhead-20230207
+    kind: manual
+    url: https://download.is.tue.mpg.de/download.php?domain=smplx&sfile=smplx_lockedhead_20230207.zip
+    revision: smplx-lockedhead-20230207-user-supplied
+    expected_files:
+      - models_lockedhead/smplx/SMPLX_MALE.npz
+      - models_lockedhead/smplx/SMPLX_FEMALE.npz
+  - id: dart-openai-clip-vit-b32
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files: [ViT-B-32.pt]
 licenses:
   code: Apache-2.0
   weights: Apache-2.0 per upstream DART code-and-model statement
-  dataset_lineage:
-    - BABEL
-    - AMASS
-  body_model:
-    - SMPL-X license and model download terms apply
+  dataset_lineage: [BABEL, AMASS]
+  body_model: [SMPL-X model license and download terms apply to user-supplied files]
   commercial_allowed: null
   redistribution_allowed: null
   requires_acceptance: true
   source_urls:
     - https://github.com/zkf1997/DART/blob/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417/LICENSE
     - https://github.com/zkf1997/DART/blob/bb67ae1ed6ce051080468bf15bc6e54a6c3f8417/README.md
+    - https://smpl-x.is.tue.mpg.de/modellicense.html
+    - https://github.com/facebookresearch/pytorch3d/blob/main/LICENSE
+    - https://github.com/openai/CLIP/blob/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6/LICENSE
 resources:
   upstream_tested_os: Ubuntu 22.04.4 LTS
   upstream_tested_gpu: NVIDIA RTX 4090
   upstream_tested_memory_gib: 64
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   babel_fps: 30.0
-  humanml3d_alternative_fps: 20.0
   body_type: smplx
-  official_parameter_fields:
-    - gender
-    - betas
-    - transl
-    - global_orient
-    - body_pose
+  implementation: plugins/models/dart-smplx/runtime/src/virea_dart/worker.py
+  motion_primitive_history_frames: 2
+  motion_primitive_future_frames: 8
+  portability:
+    closure: pure_pytorch_rotation_subset_smplx_openai_clip_numpy
+    deviation: compiled_pytorch3d_rotation_conversions_replaced_by_equivalent_bsd_pure_pytorch_subset_and_python38_dataclass_defaults_replaced_by_python311_safe_loading
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: dart-smplx
+    task: streaming_text_to_motion
+    input:
+      text_timeline:
+        - {text: "walk forward", primitive_count: 4}
+        - {text: "turn left", primitive_count: 2}
+    parameters: {seed: 0, guidance_scale: 5.0, fix_floor: false, fps: 30.0}
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: dart.smplx.body22.axis_angle_primitives.v1
+    skeleton_id: smplx.body22.v1
+    min_frames: 50
+    artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+  required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+  timeout_seconds: 7200.0
 notes:
-  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
-  - This plugin deliberately selects the BABEL/SMPL-X 30 FPS path; the separate HML3D/SMPL-H 20 FPS path needs a different manifest and adapter profile.
-  - A synthetic VIREA output-contract adapter exists, but runnable_upstream does not mean runtime integration or support; no isolated Worker, real upstream rollout, or production end-to-end acceptance exists.
+  - The Worker runs the released DART denoiser, motion-primitive VAE, diffusion sampler, SinglePrimitiveDataset stand seed, SMPL-X regression, world reconstruction, and get_blended_feature overlap path; no synthetic substitute is accepted.
+  - It publishes transl, global_orient, body_pose, primitive boundaries, betas, the exact text timeline, and measured boundary-continuity evidence as immutable native artifacts before Motion IR conversion.
+  - Windows and macOS use a four-function pure-PyTorch implementation of the public PyTorch3D BSD rotation conventions because official compiled wheels do not cover those systems. Dedicated round-trip tests freeze the convention.
+  - The Google Drive bundle and SMPL-X models remain user-supplied manual assets. Exact sentinel files are validated; VIREA neither redistributes SMPL-X nor accepts recursive wildcard placeholders.
+  - This manifest integrates DART's released BABEL online/headless text rollout model. In-betweening, waypoint policy control, and scene optimization are application layers with additional request schemas/assets and are not falsely advertised as this Worker's task.
+  - integrated_experimental records a complete install/load/infer/convert contract, while READY still requires the selected device to pass every production acceptance stage above.

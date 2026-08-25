@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-sentiavatar-susu-runtime"
+version = "0.2.0"
+description = "Offline official SentiAvatar SuSu Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy==2.2.6; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "numpy==1.26.4; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "accelerate==1.11.0",
+  "einops==0.8.1",
+  "joblib==1.5.3",
+  "requests==2.32.5",
+  "safetensors==0.6.2",
+  "scikit-learn==1.8.0",
+  "scipy==1.16.3",
+  "soundfile==0.13.1",
+  "tqdm==4.67.1",
+  "torch>=2.2.2,<2.9",
+  "transformers==4.57.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pyyaml>=6,<7"]
+
+[project.scripts]
+virea-model-sentiavatar-susu-worker = "virea_sentiavatar.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

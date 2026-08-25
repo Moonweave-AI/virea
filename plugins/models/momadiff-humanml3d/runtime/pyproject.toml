@@ -32,7 +32,7 @@ dependencies = [
 dev = [
   "pytest>=8,<10",
   "httpx>=0.28,<1",
-  "virea-model-pool>=0.4.0",
+  "pyyaml>=6,<7",
 ]
 
 [project.scripts]
@@ -41,7 +41,6 @@ virea-model-momadiff-humanml3d-worker = "virea_momadiff.worker:main"
 [tool.uv.sources]
 virea-contracts = { path = "../../../../packages/contracts", editable = true }
 virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
-virea-model-pool = { path = "../../../../packages/model_pool", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]

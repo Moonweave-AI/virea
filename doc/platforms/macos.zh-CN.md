@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: macOS native 的外部环境、Apple Silicon MPS/CPU Runtime 和进程生命周期要求。
 canonical: doc/platforms/macos.zh-CN.md
@@ -44,6 +44,7 @@ macOS 没有 Linux `/proc`。Worker 身份、孤儿恢复和进程树终止必�
 时间、可执行文件和完整参数无法同时核实时 fail closed。平台路径完成实现但未取得实机证据时，状态写“待
 macOS 验收”，而不是“macOS 不支持”。
 
-CMDM 与 MoMADiff 当前声明 `osx-arm64` / `osx-64` CPU Runtime；其 lock 尚未在 macOS 实机完成 build/import，
-更没有 checkpoint inference 或 browser evidence。CUDA profiles 不得出现在 macOS 可选策略中，MPS Worker
-也仍未实现。
+目录中的 14 个模型均声明 `osx-arm64` / `osx-64` CPU Runtime 路径。Intel macOS 的每一份冻结 CPU 依赖图
+都会解析到 `torch==2.2.2` 与 `numpy==1.26.4`，避免不受支持的 NumPy 2.x ABI 路径。这些声明与 lock 检查不能
+替代在真实 macOS 硬件上逐模型完成 checkpoint inference 与 browser acceptance。CUDA profiles 不得出现在
+macOS 可选策略中，MPS Worker 也仍未实现。

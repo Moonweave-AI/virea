@@ -55,7 +55,7 @@
         "input": { "type": "object", "default": {} },
         "parameters": { "type": "object", "default": {} },
         "avatar_id": { "type": ["string", "null"] },
-        "idempotency_key": { "type": ["string", "null"] },
+        "idempotency_key": { "type": "null" },
         "execution_target": {
           "oneOf": [
             { "type": "null" },

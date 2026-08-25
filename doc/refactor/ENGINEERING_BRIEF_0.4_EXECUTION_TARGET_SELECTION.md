@@ -166,6 +166,10 @@ detect domains
 
 ## Universal runtime policy
 
+> 范围更新（2026-08-26）：本文在 2026-08-22 最初以六个模型建立执行域基线；
+> 当前目录已扩展到 14 个模型、19 个公开任务。下述早期迁移顺序保留为历史背景，
+> 当前能力事实以生成的 support matrix、模型 manifest 和逐任务 acceptance suite 为准。
+
 每个首批模型最终都必须有 CPU Runtime，覆盖 `win-64`、`linux-64`、`osx-arm64` 与
 可行的 `osx-64`。CPU 是兼容基线，不代表性能承诺。CUDA、MPS、ROCm 作为相同 Worker
 接口的加速 Runtime 单独实现和验证。
@@ -186,7 +190,7 @@ detect domains
 - API/CLI/Web：多 domain 必选、单 domain 兼容、无静默回退、选择器可见。
 - persistence：requested/resolved selection 贯穿 installation、job event、Worker、result。
 - asset reuse：两个 domain deployment 引用同一资产 snapshot，下载只发生一次。
-- runtime：六模型 CPU Worker 的 import/load/infer/unload；各系统真机证据分开记录。
+- runtime：当前 14 模型 CPU Worker 的 import/load/infer/unload；各系统真机证据分开记录。
 - regression：现有取消、租约、进程树、portable evidence 与浏览器测试保持通过。
 
 ## Migration and rollback
@@ -198,7 +202,7 @@ detect domains
 
 ## Release boundary
 
-完成选择器只证明统一编排存在。只有当六个模型都具备目标系统的真实 CPU Runtime 时，
+完成选择器只证明统一编排存在。只有当 14 个模型都具备目标系统的真实 CPU Runtime 时，
 才能宣称“任意模型可在 Windows、Linux、WSL、macOS 运行”；每个平台的性能、加速和
 生产可靠性仍以独立 evidence coverage 表达。
 
@@ -207,8 +211,8 @@ type: engineering-brief
 status: InReview
 owner: VIREA maintainers
 created: 2026-08-22
-updated: 2026-08-22
-last_reviewed: 2026-08-22
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: 统一用户可选 execution domain、模型级共享资产、域内 Runtime deployment 与能力/证据分层的工程合同。
 canonical: doc/refactor/ENGINEERING_BRIEF_0.4_EXECUTION_TARGET_SELECTION.md

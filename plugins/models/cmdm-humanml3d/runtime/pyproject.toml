@@ -29,7 +29,6 @@ dependencies = [
 dev = [
   "pytest>=8,<10",
   "pyyaml>=6,<7",
-  "virea-model-pool>=0.4.0",
 ]
 
 [project.scripts]
@@ -38,7 +37,6 @@ virea-model-cmdm-humanml3d-worker = "virea_cmdm.worker:main"
 [tool.uv.sources]
 virea-contracts = { path = "../../../../packages/contracts", editable = true }
 virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
-virea-model-pool = { path = "../../../../packages/model_pool", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,7 +2,7 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: intermask-interhuman
   display_name: InterMask InterHuman
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/gohar-malik/intermask
     revision: 5100c555de9839b325d0f3d6904669698c5c87f5
@@ -11,26 +11,28 @@ model:
     - text_to_two_person_interaction
     - interaction_reaction_generation
   adapter_family: intermask-interhuman-two-actor
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_two_person_interaction
     fields:
-      prompt:
-        type: string
-        required: true
-      duration_seconds:
-        type: number
-        default: 3.0
+      prompt: {type: string, required: true, maximum_length: 8000}
+      duration_seconds: {type: number, default: 2.0, minimum: 1.0666666666666667, maximum: 4.933333333333334, multiple_of: 0.13333333333333333}
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
+      sampling_steps: {type: integer, default: 20, minimum: 2, maximum: 100}
+      guidance_scale: {type: number, default: 2.0, minimum: 0.0, maximum: 10.0}
   - schema_version: virea.job_request.v1.0.0
     task: interaction_reaction_generation
     fields:
-      prompt:
-        type: string
-        required: true
+      prompt: {type: string, required: true, maximum_length: 8000}
       conditioning_actor_motion:
-        representation_id: interhuman.body22.position_velocity132.v1
+        type: array_or_npy_path
+        representation_id: interhuman.motion262.single_actor.v1
+        shape: [T, 262]
         required: true
+      seed: {type: integer, default: 42, minimum: 0, maximum: 2147483647}
+      sampling_steps: {type: integer, default: 20, minimum: 2, maximum: 100}
+      guidance_scale: {type: number, default: 2.0, minimum: 0.0, maximum: 10.0}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: interhuman.motion262.v1
@@ -41,37 +43,177 @@ output:
   root_translation_semantics: actor1_initial_root_xz_zeroed_and_actor2_rigidly_transformed_into_actor1_canonical_interaction_frame
   root_rotation_semantics: root_rotation_absent_non_root_rotation6d_present_in_native_262D_channel
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: intermask-interhuman-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 8.0}
+    lockfile: uv.lock
+    min_storage_gib: 10.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 8.0, min_free_ram_gib: 12.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_intermask.worker]
+    startup_timeout_seconds: 600
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/intermask-interhuman/runtime-cu128
+    project_package: virea-model-intermask-interhuman-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cuda_worker_real_checkpoint_acceptance_required
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: intermask-interhuman-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 16.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_intermask.worker]
+    startup_timeout_seconds: 900
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/intermask-interhuman/runtime-cpu
+    project_package: virea-model-intermask-interhuman-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cpu_worker_real_checkpoint_acceptance_required
 artifacts:
+  - id: intermask-source
+    kind: https
+    url: https://github.com/gohar-malik/intermask/archive/5100c555de9839b325d0f3d6904669698c5c87f5.zip
+    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
+    expected_files:
+      - source/models/vq/model.py
+      - source/models/mask_transformer/transformer.py
+      - source/data/stats/global_mean.npy
+      - source/data/stats/global_std.npy
+    unpack:
+      - path: 5100c555de9839b325d0f3d6904669698c5c87f5.zip
+        format: zip
+        destination: source
+        strip_components: 1
+        remove_archive: true
   - id: intermask-interhuman-pretrained
     kind: manual
-    repository: https://github.com/gohar-malik/intermask
-    revision: 5100c555de9839b325d0f3d6904669698c5c87f5
-    url: https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/prepare/download_models.py
+    url: https://drive.google.com/drive/folders/1WCFR7Opc5S3cke26cjEhdvSOH_CXL2Ut
+    revision: google-drive-folder-1WCFR7Opc5S3cke26cjEhdvSOH_CXL2Ut
     expected_files:
-      - checkpoints/interhuman/**
+      - interhuman/trans_default/model/best_fid.tar
+      - interhuman/trans_default/opt.txt
+      - interhuman/vq_default/model/best_fid.tar
+      - interhuman/vq_default/opt.txt
+  - id: intermask-openai-clip-vit-l14-336
+    kind: https
+    url: https://openaipublic.azureedge.net/clip/models/3035c92b350959924f9f00213499208652fc7ea050643e8b385c2dac08641f02/ViT-L-14-336px.pt
+    revision: d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+    expected_files: [ViT-L-14-336px.pt]
 licenses:
   code: MIT
   weights: upstream_does_not_state_a_separate_weight_license
-  dataset_lineage:
-    - InterHuman
+  dataset_lineage: [InterHuman]
   body_model:
-    - SMPL-X is required only by the separate Inter-X path and is not part of this InterHuman plugin
+    - The InterHuman inference path produces the released two-actor 262D carrier and does not require SMPL-X assets
   commercial_allowed: null
   redistribution_allowed: null
   requires_acceptance: false
   source_urls:
     - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/LICENSE
     - https://github.com/gohar-malik/intermask/blob/5100c555de9839b325d0f3d6904669698c5c87f5/README.md
+    - https://github.com/openai/CLIP/blob/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6/LICENSE
 resources:
   upstream_tested_python: 3.7.7
   upstream_tested_pytorch: 1.13.1
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   upstream_inference_entrypoint: infer.py
+  implementation: plugins/models/intermask-interhuman/runtime/src/virea_intermask/worker.py
   native_per_actor_feature_dim: 262
   actor_count: 2
   official_export_per_actor_shape: [T, 22, 9]
   official_export_fields: [position_xyz, root_zero_sentinel_then_non_root_rotation_6d_pass_through]
+  portability:
+    closure: pure_pytorch_torch_geometric_openai_clip_numpy_einops
+    deviation: legacy_environment_replaced_by_current_locked_wheels_graph_and_checkpoints_unchanged
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+production_acceptance_suite:
+  schema_version: virea.production_e2e_acceptance_suite.v1.0.0
+  kind: production_e2e_suite
+  contracts:
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: intermask-interhuman
+        task: text_to_two_person_interaction
+        input: {prompt: "Two people approach each other and shake hands.", duration_seconds: 2.0}
+        parameters: {seed: 42, sampling_steps: 20, guidance_scale: 2.0, fps: 30.0}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: interhuman.motion262.v1
+        skeleton_id: interhuman.two_actor_smpl22.v1
+        min_frames: 60
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 3600.0
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: intermask-interhuman
+        task: interaction_reaction_generation
+        input:
+          prompt: "One person responds by stepping back and raising both hands."
+          conditioning_actor_motion:
+            - &intermask_acceptance_actor_row [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+            - *intermask_acceptance_actor_row
+        parameters: {seed: 42, sampling_steps: 20, guidance_scale: 2.0, fps: 30.0}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: interhuman.motion262.v1
+        skeleton_id: interhuman.two_actor_smpl22.v1
+        min_frames: 32
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 3600.0
 notes:
-  - The full upstream Git commit was verified with git ls-remote on 2026-08-21.
-  - The two-actor Motion IR conversion has synthetic contract coverage; runnable_upstream still does not claim a VIREA Worker, artifact installation, isolated runtime, real upstream checkpoint result, or production end-to-end acceptance.
-  - The pinned 262D carrier contains positions, velocities, 21 non-root rotation6d values, and contacts; the 22x9 export prepends an all-zero root rotation sentinel and copies the non-root rotation block. VIREA records that pass-through provenance without claiming runtime BVH recomputation.
+  - The Worker executes the released RVQ-VAE and MaskTransformer graphs from the pinned commit and four official InterHuman checkpoint files; it never substitutes synthetic motion.
+  - Text interaction generation publishes both actors in one finite float32 [2,T,262] native artifact. Reaction generation accepts one finite [T,262] actor carrier and generates the second actor with the upstream generate_reaction path.
+  - The shared-frame transform is published separately and required by the adapter, so the two actors remain in one interaction frame throughout Motion IR conversion and source-skeleton preview.
+  - The checkpoint bundle remains a manual asset because the upstream Google Drive folder has no immutable object digest or separate weight license. Exact files are required; recursive wildcard acceptance is forbidden.
+  - integrated_experimental means the complete runtime and acceptance contract are implemented. A local installation becomes READY only after the selected device executes the real production acceptance stages above.

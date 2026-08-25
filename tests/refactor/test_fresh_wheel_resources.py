@@ -14,6 +14,11 @@ import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RUN_PACKAGING_ACCEPTANCE = os.getenv("VIREA_RUN_FRESH_WHEEL_TEST") == "1"
+PACKAGING_DEPENDENCY_DOWNLOAD_TIMEOUT_SECONDS = float(
+    os.getenv("VIREA_PACKAGING_DOWNLOAD_TIMEOUT_SECONDS", "1800")
+)
+if PACKAGING_DEPENDENCY_DOWNLOAD_TIMEOUT_SECONDS <= 0:
+    raise ValueError("VIREA_PACKAGING_DOWNLOAD_TIMEOUT_SECONDS must be positive")
 WORKSPACE_PROJECTS = (
     PROJECT_ROOT,
     PROJECT_ROOT / "apps" / "api",
@@ -30,47 +35,61 @@ WORKSPACE_PROJECTS = (
     PROJECT_ROOT / "packages" / "vrm",
     PROJECT_ROOT / "packages" / "observability",
 )
-RELEASE_CATALOG_MODEL_IDS = (
-    "acmdm-humanml3d",
-    "cmdm-humanml3d",
-    "flood-diffusion-tiny",
-    "mardm-humanml3d",
-    "momadiff-humanml3d",
-    "prism-tp2m-1-4b",
+RELEASE_DESCRIPTOR = json.loads(
+    (PROJECT_ROOT / "registries/bundles/release-assets.v1.json").read_text(
+        encoding="utf-8"
+    )
+)
+RELEASE_MODELS = tuple(RELEASE_DESCRIPTOR["models"])
+RELEASE_CATALOG_MODEL_IDS = tuple(
+    sorted(str(model["model_id"]) for model in RELEASE_MODELS)
 )
 RELEASE_RUNTIME_MODULES = {
-    "acmdm-humanml3d": "virea_acmdm",
-    "cmdm-humanml3d": "virea_cmdm",
-    "flood-diffusion-tiny": "virea_flood",
-    "mardm-humanml3d": "virea_mardm",
-    "momadiff-humanml3d": "virea_momadiff",
-    "prism-tp2m-1-4b": "virea_prism",
+    str(model["model_id"]): PurePosixPath(
+        next(
+            required
+            for required in model["shared_worker_project"]["required_files"]
+            if required.endswith("/worker.py")
+        )
+    ).parent.name
+    for model in RELEASE_MODELS
 }
-ADDITIONAL_RUNTIME_ASSETS = (
-    "plugins/models/acmdm-humanml3d/runtime-cu128/pyproject.toml",
-    "plugins/models/acmdm-humanml3d/runtime-cu128/uv.lock",
-    "plugins/models/acmdm-humanml3d/runtime-cpu/pyproject.toml",
-    "plugins/models/acmdm-humanml3d/runtime-cpu/uv.lock",
-    "plugins/models/momadiff-humanml3d/runtime-cu128/pyproject.toml",
-    "plugins/models/momadiff-humanml3d/runtime-cu128/uv.lock",
-    "plugins/models/momadiff-humanml3d/runtime-cpu/pyproject.toml",
-    "plugins/models/momadiff-humanml3d/runtime-cpu/uv.lock",
-    "plugins/models/cmdm-humanml3d/runtime-cu128/pyproject.toml",
-    "plugins/models/cmdm-humanml3d/runtime-cu128/uv.lock",
-    "plugins/models/cmdm-humanml3d/runtime-cpu/pyproject.toml",
-    "plugins/models/cmdm-humanml3d/runtime-cpu/uv.lock",
-    "plugins/models/flood-diffusion-tiny/runtime-cu128/pyproject.toml",
-    "plugins/models/flood-diffusion-tiny/runtime-cu128/uv.lock",
-    "plugins/models/flood-diffusion-tiny/runtime-cpu/pyproject.toml",
-    "plugins/models/flood-diffusion-tiny/runtime-cpu/uv.lock",
-    "plugins/models/mardm-humanml3d/runtime-cu128/pyproject.toml",
-    "plugins/models/mardm-humanml3d/runtime-cu128/uv.lock",
-    "plugins/models/mardm-humanml3d/runtime-cpu/pyproject.toml",
-    "plugins/models/mardm-humanml3d/runtime-cpu/uv.lock",
-    "plugins/models/prism-tp2m-1-4b/runtime-cu128/pyproject.toml",
-    "plugins/models/prism-tp2m-1-4b/runtime-cu128/uv.lock",
-    "plugins/models/prism-tp2m-1-4b/runtime-cpu/pyproject.toml",
-    "plugins/models/prism-tp2m-1-4b/runtime-cpu/uv.lock",
+
+
+def _release_runtime_project_roots(
+    payload: dict[str, object],
+) -> tuple[str, ...]:
+    models = payload.get("models")
+    assert isinstance(models, list) and models
+    roots: dict[str, dict[str, object]] = {}
+    for model in models:
+        assert isinstance(model, dict)
+        runtime_projects = (
+            model.get("shared_worker_project"),
+            model.get("runtime_project"),
+            *model.get("additional_runtime_projects", []),
+        )
+        for runtime_project in runtime_projects:
+            assert isinstance(runtime_project, dict)
+            root = runtime_project.get("root")
+            assert isinstance(root, str) and root
+            previous = roots.setdefault(root, runtime_project)
+            assert previous.get("project_package") == runtime_project.get(
+                "project_package"
+            ), f"runtime project {root!r} maps to conflicting packages"
+    return tuple(sorted(roots))
+
+
+RELEASE_RUNTIME_PROJECT_ROOTS = _release_runtime_project_roots(RELEASE_DESCRIPTOR)
+ADDITIONAL_RUNTIME_ASSETS = tuple(
+    asset
+    for model in RELEASE_MODELS
+    for runtime in (
+        model["runtime_project"],
+        *model.get("additional_runtime_projects", []),
+    )
+    for asset in runtime["assets"]
+    if PurePosixPath(asset).name in {"pyproject.toml", "uv.lock"}
 )
 WEB_LICENSE_FILES = (
     "three-LICENSE.txt",
@@ -392,6 +411,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         "packages/model_sdk/setup.cfg",
         "packages/model_sdk/src/virea_model_sdk/resource_measurement.py",
         "packages/model_sdk/src/virea_model_sdk/runtime_identity.py",
+        "packages/model_sdk/src/virea_model_sdk/upstream_runtime.py",
         "packages/model_sdk/src/virea_model_sdk/worker.py",
     ]
     for model_id, module in RELEASE_RUNTIME_MODULES.items():
@@ -429,6 +449,10 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
     )
     assert any(
         name.endswith("/src/virea_model_sdk/runtime_identity.py")
+        for name in model_sdk_sdist_names
+    )
+    assert any(
+        name.endswith("/src/virea_model_sdk/upstream_runtime.py")
         for name in model_sdk_sdist_names
     )
     assert any(name.endswith("/setup.cfg") for name in model_sdk_sdist_names)
@@ -495,6 +519,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         "virea/_bundled/packages/model_sdk/setup.cfg",
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/resource_measurement.py",
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/runtime_identity.py",
+        "virea/_bundled/packages/model_sdk/src/virea_model_sdk/upstream_runtime.py",
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/worker.py",
     ]
     for model_id, module in RELEASE_RUNTIME_MODULES.items():
@@ -533,6 +558,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         model_sdk_names = set(archive.namelist())
     assert "virea_model_sdk/resource_measurement.py" in model_sdk_names
     assert "virea_model_sdk/runtime_identity.py" in model_sdk_names
+    assert "virea_model_sdk/upstream_runtime.py" in model_sdk_names
     assert "virea_model_sdk/fake.py" not in model_sdk_names
     assert "virea_model_sdk/fake_worker.py" not in model_sdk_names
 
@@ -577,7 +603,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
                 *workspace_wheels,
             ],
             cwd=outside_checkout,
-            timeout=600.0,
+                timeout=PACKAGING_DEPENDENCY_DOWNLOAD_TIMEOUT_SECONDS,
             windows_access_violation_retries=2,
         )
 
@@ -812,24 +838,26 @@ print(resources.origin)
         cwd=outside_checkout,
         environment=clean_environment,
     )
-    installed_runtime_project = (
-        Path(runtime_location.stdout.strip())
-        / "plugins"
-        / "models"
-        / "flood-diffusion-tiny"
-        / "runtime"
-    )
-    _run(
-        [
-            uv,
-            "lock",
-            "--check",
-            "--offline",
-            "--project",
-            str(installed_runtime_project),
-        ],
-        cwd=outside_checkout,
-        environment=clean_environment,
+    installed_runtime_root = Path(runtime_location.stdout.strip())
+    runtime_lock_failures: list[str] = []
+    for runtime_project_root in RELEASE_RUNTIME_PROJECT_ROOTS:
+        try:
+            _run(
+                [
+                    uv,
+                    "lock",
+                    "--check",
+                    "--offline",
+                    "--project",
+                    str(installed_runtime_root / runtime_project_root),
+                ],
+                cwd=outside_checkout,
+                environment=clean_environment,
+            )
+        except AssertionError as exc:
+            runtime_lock_failures.append(f"{runtime_project_root}: {exc}")
+    assert not runtime_lock_failures, "runtime lock drift:\n" + "\n".join(
+        runtime_lock_failures
     )
 
     acceptance = r"""
@@ -856,15 +884,9 @@ assert CONTRACTS_RUNTIME_CORE_EPOCH == "virea-runtime-core-20260821.2"
 assert MODEL_SDK_RUNTIME_CORE_EPOCH == CONTRACTS_RUNTIME_CORE_EPOCH
 assert host_memory_snapshot()["system_ram_available_bytes"] > 0
 assert importlib.util.find_spec("vmf") is None
-assert ModelCatalog.load(assets.plugin_root).ids() == (
-    "acmdm-humanml3d",
-    "cmdm-humanml3d",
-    "flood-diffusion-tiny",
-    "mardm-humanml3d",
-    "momadiff-humanml3d",
-    "prism-tp2m-1-4b",
-)
 release_descriptor = json.loads(assets.release_asset_descriptor.read_text(encoding="utf-8"))
+expected_model_ids = tuple(sorted(model["model_id"] for model in release_descriptor["models"]))
+assert ModelCatalog.load(assets.plugin_root).ids() == expected_model_ids
 descriptor_assets_checked = 0
 for model in release_descriptor["models"]:
     assert (assets.root / model["manifest"]).is_file(), model["manifest"]
@@ -907,6 +929,20 @@ assert "card's `LICENSE` target is absent" in cmdm_notice
 assert "explicit release-readiness caveat" in cmdm_notice
 
 runtime_root = runtime_source_root()
+for model in release_descriptor["models"]:
+    runtime_projects = [
+        runtime
+        for runtime in (
+            model.get("shared_worker_project"),
+            model.get("runtime_project"),
+            *model.get("additional_runtime_projects", []),
+        )
+        if runtime is not None
+    ]
+    for runtime in runtime_projects:
+        project_root = runtime_root / runtime["root"]
+        for required in runtime["required_files"]:
+            assert (project_root / required).is_file(), (model["model_id"], required)
 for relative in (
     "plugins/models/acmdm-humanml3d/runtime/src/virea_acmdm/worker.py",
     "plugins/models/acmdm-humanml3d/runtime-cu128/pyproject.toml",
@@ -941,6 +977,7 @@ for relative in (
     "packages/contracts/src/virea_contracts/__init__.py",
     "packages/model_sdk/src/virea_model_sdk/resource_measurement.py",
     "packages/model_sdk/src/virea_model_sdk/runtime_identity.py",
+    "packages/model_sdk/src/virea_model_sdk/upstream_runtime.py",
     "packages/model_sdk/src/virea_model_sdk/worker.py",
 ):
     assert (runtime_root / relative).is_file(), relative

@@ -2,7 +2,7 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: sentiavatar-susu
   display_name: SentiAvatar SuSu
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/SentiAvatar/SentiAvatar
     revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
@@ -11,7 +11,7 @@ model:
     - audio_text_to_avatar_motion
     - streaming_dialogue_avatar_motion
   adapter_family: sentiavatar-susu-mta63
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: audio_text_to_avatar_motion
@@ -20,12 +20,22 @@ inputs:
         type: mono_pcm_audio
         sample_rate_hz: 16000
         required: true
+        accepted_values: [browser_audio_data_uri, server_local_path, artifact_uri]
       dialogue_text:
         type: string
         required: true
+        maximum_length: 8000
       action_and_expression_tags:
         type: string
         required: false
+        default: 动作：说话
+        maximum_length: 8000
+      seed: {type: integer, default: 3407, minimum: 0, maximum: 2147483583}
+      temperature: {type: number, default: 0.2, minimum: 0.05, maximum: 2.0}
+      top_p: {type: number, default: 0.2, minimum: 0.05, maximum: 1.0}
+      generate_steps: {type: integer, default: 6, minimum: 1, maximum: 24}
+      planner_max_new_tokens: {type: integer, default: 1024, minimum: 64, maximum: 1024}
+      generate_face: {type: boolean, default: true}
   - schema_version: virea.job_request.v1.0.0
     task: streaming_dialogue_avatar_motion
     fields:
@@ -33,9 +43,19 @@ inputs:
         type: mono_pcm_audio_stream
         sample_rate_hz: 16000
         required: true
+        minimum_items: 1
+        maximum_items: 64
       dialogue_turns:
         type: text_stream
         required: true
+        minimum_items: 1
+        maximum_items: 64
+      seed: {type: integer, default: 3407, minimum: 0, maximum: 2147483583}
+      temperature: {type: number, default: 0.2, minimum: 0.05, maximum: 2.0}
+      top_p: {type: number, default: 0.2, minimum: 0.05, maximum: 1.0}
+      generate_steps: {type: integer, default: 6, minimum: 1, maximum: 24}
+      planner_max_new_tokens: {type: integer, default: 1024, minimum: 64, maximum: 1024}
+      generate_face: {type: boolean, default: true}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: susu.body25_hands40.cont6d_root_delta.v1
@@ -47,12 +67,103 @@ output:
   root_rotation_semantics: first_body_joint_6d_parent_local_rotation_with_fixed_pelvis_export_correction
   face_representation_ids:
     - arkit.blendshape51.v1
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: sentiavatar-susu-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 8.0}
+    lockfile: uv.lock
+    min_storage_gib: 10.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 8.0, min_free_ram_gib: 12.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_sentiavatar.worker]
+    startup_timeout_seconds: 900
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/sentiavatar-susu/runtime-cu128
+    project_package: virea-model-sentiavatar-susu-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cuda_graph_and_lock_requires_real_checkpoint_acceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: sentiavatar-susu-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 8.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 16.0, min_free_swap_gib: 4.0}
+    entrypoint_argv: [python, -m, virea_sentiavatar.worker]
+    startup_timeout_seconds: 1200
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
+    working_directory: plugins/models/sentiavatar-susu/runtime-cpu
+    project_package: virea-model-sentiavatar-susu-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cpu_graph_and_lock_requires_real_checkpoint_acceptance
 artifacts:
+  - id: sentiavatar-source
+    kind: https
+    url: https://github.com/SentiAvatar/SentiAvatar/archive/71c61b05a0609a41c17aa146c9f4ee7778ebc649.zip
+    revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
+    expected_files:
+      - source/motion_generation/pipeline_infer.py
+      - source/motion_generation/models/audio_motion_model.py
+      - source/motion_generation/models/rvqvae.py
+      - source/motion_generation/face_model_vq.py
+      - source/motion_generation/meta/mta_gen_demo/mean.npy
+      - source/motion_generation/meta/mta_gen_demo/std.npy
+      - source/motion_generation/meta/xiu_joint_quat_vecs/Daiji_A_001_V001.npy
+      - source/examples/demo.wav
+    unpack:
+      - path: 71c61b05a0609a41c17aa146c9f4ee7778ebc649.zip
+        format: zip
+        destination: source
+        strip_components: 1
+        remove_archive: true
   - id: sentiavatar-checkpoints
     kind: huggingface
     repository: Chuhaojin/SentiAvatar
     revision: 242b2031a913dd1b25f43fe1f3e112611864c9cc
+    allow_patterns:
+      - llm/config.json
+      - llm/generation_config.json
+      - llm/model.safetensors
+      - llm/tokenizer.json
+      - llm/tokenizer_config.json
+      - llm/added_tokens.json
+      - llm/special_tokens_map.json
+      - llm/merges.txt
+      - llm/vocab.json
+      - mask_transformer/config.json
+      - mask_transformer/model.safetensors
+      - rvqvae/opt.txt
+      - rvqvae/model/epoch_30.pth
+      - chinese-hubert-base/config.json
+      - chinese-hubert-base/preprocessor_config.json
+      - chinese-hubert-base/pytorch_model.bin
+      - hubert_kmeans/model.mdl
+      - face_vqvae/pytorch_model_face_fad2cl_260116_codesize2048_codelength512.bin
+      - face_vqvae/mat_final.npy
+      - face_vqvae/mat_final_R_I.npy
+    expected_files:
+      - llm/config.json
+      - llm/model.safetensors
+      - llm/tokenizer.json
+      - mask_transformer/config.json
+      - mask_transformer/model.safetensors
+      - rvqvae/opt.txt
+      - rvqvae/model/epoch_30.pth
+      - chinese-hubert-base/config.json
+      - chinese-hubert-base/preprocessor_config.json
+      - chinese-hubert-base/pytorch_model.bin
+      - hubert_kmeans/model.mdl
+      - face_vqvae/pytorch_model_face_fad2cl_260116_codesize2048_codelength512.bin
+      - face_vqvae/mat_final.npy
+      - face_vqvae/mat_final_R_I.npy
 licenses:
   code: SentiPulse Non-Commercial Source License v1.0
   weights: SentiPulse Non-Commercial Source License v1.0
@@ -67,10 +178,11 @@ licenses:
   source_urls:
     - https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/LICENSE
     - https://github.com/SentiAvatar/SentiAvatar/blob/71c61b05a0609a41c17aa146c9f4ee7778ebc649/README.md
+    - https://huggingface.co/Chuhaojin/SentiAvatar/tree/242b2031a913dd1b25f43fe1f3e112611864c9cc
 resources:
-  upstream_python: "3.10"
-  llm_planner_base: Qwen2-0.5B
-  audio_encoder: Chinese HuBERT
+  upstream_tested_python: "3.10"
+  upstream_tested_pytorch: 2.8.0
+  virea_runtime_python: "3.11"
   native_fps: 20.0
   native_fields:
     body_shape: [T, 153]
@@ -80,8 +192,80 @@ resources:
   effective_unique_joints: 63
   generated_stream_joints: 65
   duplicated_stream_joints: [left_wrist, right_wrist]
+  official_checkpoint_selected_bytes: 2481692897
+  upstream_inference_entrypoints:
+    - motion_generation/single_case_infer.py
+    - motion_generation/pipeline_infer.py
+    - motion_generation/susu_face_speech_align.py
+  portability:
+    closure: local_qwen2_transformers_hubert_kmeans_mask_transformer_rvqvae_face_vqvae
+    deviation: external_cuda_only_vllm_transport_replaced_by_local_transformers_generation_over_the_same_pinned_qwen2_checkpoint
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+  integration_state: integrated_experimental
+production_acceptance_suite:
+  schema_version: virea.production_e2e_acceptance_suite.v1.0.0
+  kind: production_e2e_suite
+  contracts:
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: sentiavatar-susu
+        task: audio_text_to_avatar_motion
+        input:
+          audio: artifact://sentiavatar-source/source/examples/demo.wav
+          dialogue_text: 你好，很高兴见到你。
+          action_and_expression_tags: 动作：自然说话并轻轻挥手
+        parameters:
+          seed: 3407
+          temperature: 0.2
+          top_p: 0.2
+          generate_steps: 6
+          planner_max_new_tokens: 1024
+          generate_face: true
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: susu.body25_hands40.cont6d_root_delta.v1
+        skeleton_id: susu.body25_hands40.v1
+        min_frames: 20
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 7200.0
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: sentiavatar-susu
+        task: streaming_dialogue_avatar_motion
+        input:
+          audio_chunks:
+            - artifact://sentiavatar-source/source/examples/demo.wav
+            - artifact://sentiavatar-source/source/examples/demo.wav
+          dialogue_turns:
+            - 你好，很高兴见到你。
+            - 让我们一起验证连续对话动作。
+        parameters:
+          seed: 3407
+          temperature: 0.2
+          top_p: 0.2
+          generate_steps: 6
+          planner_max_new_tokens: 1024
+          generate_face: true
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: susu.body25_hands40.cont6d_root_delta.v1
+        skeleton_id: susu.body25_hands40.v1
+        min_frames: 40
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 7200.0
 notes:
   - The full Git commit and Hugging Face artifact revision were verified with git ls-remote on 2026-08-21.
-  - The apparent 25+20+20=65 stream count becomes the official 63-joint MTA skeleton because each hand stream repeats the corresponding body wrist; the adapter must drop only those two duplicates.
-  - The pinned inference code cumulatively integrates root deltas, adds native offset [0, 0, 102], and swaps Y/Z for BVH export; older local SuSu files that contain absolute roots require a distinct profile and must not be auto-detected by magnitude.
-  - runnable_upstream is not integrated_experimental or supported; there is no VIREA Worker/runtime/adapter production end-to-end acceptance yet.
+  - The Worker loads every model from exact VIREA-managed artifact roots with Hugging Face and Transformers offline modes enabled; it never launches or contacts a residual vLLM service.
+  - The upstream single-case path generates body motion and uses the released Daiji_A_001_V001.npy stream for both hands. VIREA preserves that official behavior, identifies it in generation_metadata, and does not mislabel the hands as newly generated.
+  - Face ARKit51 output is produced by the released Face VQ-VAE and Chinese HuBERT path when generate_face is true. It remains optional in the native adapter contract.
+  - The 25+20+20 stream count becomes the official 63-joint MTA skeleton because each hand stream repeats the corresponding body wrist; the adapter drops only those two duplicates.
+  - integrated_experimental records a complete pinned runtime implementation. READY still requires real local checkpoint acceptance, conversion, retargeting, VRMA export, and browser playback on the selected device.

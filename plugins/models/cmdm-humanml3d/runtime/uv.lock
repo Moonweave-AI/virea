@@ -927,21 +927,6 @@ wheels = [
 ]
 
 [[package]]
-name = "virea-bootstrap"
-version = "0.4.0"
-source = { editable = "../../../../packages/bootstrap" }
-dependencies = [
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
-]
-
-[[package]]
 name = "virea-contracts"
 version = "0.4.0"
 source = { editable = "../../../../packages/contracts" }
@@ -951,17 +936,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "pydantic", specifier = ">=2.0" }]
-
-[[package]]
-name = "virea-core"
-version = "0.4.0"
-source = { editable = "../../../../packages/core" }
-dependencies = [
-    { name = "virea-contracts" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "virea-contracts", editable = "../../../../packages/contracts" }]
 
 [[package]]
 name = "virea-model-cmdm-humanml3d-runtime"
@@ -986,7 +960,6 @@ dependencies = [
 dev = [
     { name = "pytest" },
     { name = "pyyaml" },
-    { name = "virea-model-pool" },
 ]
 
 [package.metadata]
@@ -1004,33 +977,9 @@ requires-dist = [
     { name = "transformers", specifier = ">=4.57,<5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-model-pool", marker = "extra == 'dev'", editable = "../../../../packages/model_pool" },
     { name = "virea-model-sdk", editable = "../../../../packages/model_sdk" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "virea-model-pool"
-version = "0.4.0"
-source = { editable = "../../../../packages/model_pool" }
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-    { name = "virea-runtime" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "huggingface-hub", specifier = ">=0.34" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
-    { name = "virea-runtime", editable = "../../../../packages/runtime" },
-]
 
 [[package]]
 name = "virea-model-sdk"
@@ -1049,24 +998,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "uvicorn", specifier = ">=0.27" },
     { name = "virea-contracts", editable = "../../../../packages/contracts" },
-]
-
-[[package]]
-name = "virea-runtime"
-version = "0.4.0"
-source = { editable = "../../../../packages/runtime" }
-dependencies = [
-    { name = "virea-bootstrap" },
-    { name = "virea-contracts" },
-    { name = "virea-core" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
-    { name = "virea-bootstrap", editable = "../../../../packages/bootstrap" },
-    { name = "virea-contracts", editable = "../../../../packages/contracts" },
-    { name = "virea-core", editable = "../../../../packages/core" },
 ]
 
 [[package]]

@@ -18,7 +18,11 @@ from typing import Any
 from virea_contracts.execution import resolved_execution_target_identity
 from virea_contracts.installation import InstallationState
 from virea_contracts.job import JobRequest, JobState
-from virea_contracts.model import ProductionArtifactKind, ProductionE2EStage
+from virea_contracts.model import (
+    ProductionArtifactKind,
+    ProductionE2EAcceptance,
+    ProductionE2EStage,
+)
 from virea_contracts.result import ModelResult
 from virea_contracts.vrm import VrmMotionResult
 from virea_core.atomic import atomic_write_json
@@ -29,12 +33,18 @@ from virea_core.paths import VireaPaths, safe_component
 from .catalog import ModelCatalog
 from .installation import validate_installation_transition
 from .manifest import ArtifactSource, ModelPluginManifest
-from .sources import ArtifactProgressCallback, fetch_source, validate_source_files
+from .sources import (
+    ArtifactProgressCallback,
+    ArtifactTransferProgress,
+    fetch_source,
+    validate_source_files,
+)
 
 _INTERNAL_ASSET_IDENTITY = ".virea-asset-identity.json"
 _INTERNAL_ASSET_TREE = ".virea-asset-tree.json"
 _INTERNAL_REFERENCE_MANIFEST = "internal-artifact-roots.json"
 _ASSET_QUARANTINE_JOURNAL_PREFIX = "asset-quarantine-"
+_ARTIFACT_CONTENT_BINDING = "complete-tree-sha256-v2"
 
 
 def _now() -> str:
@@ -221,6 +231,83 @@ def _internal_asset_identity(
     }
 
 
+def _expected_artifact_content_identity(
+    root: Path,
+    source: ArtifactSource,
+    *,
+    cancel_event: threading.Event | None = None,
+    progress: ArtifactProgressCallback | None = None,
+) -> dict[str, Any]:
+    """Hash the complete Worker-visible tree and verify manifest sentinels."""
+
+    _raise_if_verification_cancelled(cancel_event)
+    canonical_root = root.resolve(strict=True)
+    if not canonical_root.is_dir():
+        raise OSError("artifact content root is not a directory")
+    for relative in source.expected_files:
+        _raise_if_verification_cancelled(cancel_event)
+        candidate = (canonical_root / relative).resolve(strict=True)
+        try:
+            candidate.relative_to(canonical_root)
+        except ValueError as exc:
+            raise OSError(f"artifact file escapes its root: {relative}") from exc
+        if _is_reparse_point(candidate) or not candidate.is_file():
+            raise OSError(f"artifact file is missing or indirect: {relative}")
+    return _artifact_content_tree(
+        canonical_root,
+        schema_version="virea.artifact_content_identity.v2.0.0",
+        artifact_id=source.id,
+        allow_internal_references=True,
+        cancel_event=cancel_event,
+        progress=progress,
+    )
+
+
+def _installation_artifact_identity(installation_root: Path) -> dict[str, str]:
+    """Digest the immutable manifest and its content-bound artifact references."""
+
+    manifest = json.loads(
+        (installation_root / "manifest.json").read_text(encoding="utf-8")
+    )
+    reference_paths = [
+        path
+        for path in (
+            installation_root / _INTERNAL_REFERENCE_MANIFEST,
+            installation_root / "external-artifact-roots.json",
+        )
+        if path.is_file()
+    ]
+    if len(reference_paths) != 1:
+        raise OSError("installation must have one artifact reference manifest")
+    references = json.loads(reference_paths[0].read_text(encoding="utf-8"))
+    payload = {
+        "manifest": manifest,
+        "artifact_references": references,
+    }
+    return {
+        "schema_version": "virea.installation_artifact_identity.v1.0.0",
+        "sha256": hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest(),
+    }
+
+
+def _acceptance_job_result_pairs(value: Any) -> set[tuple[str, str]]:
+    """Extract immutable acceptance identities from single or suite evidence."""
+
+    if not isinstance(value, dict):
+        return set()
+    children = value.get("task_acceptances")
+    if isinstance(children, list):
+        pairs: set[tuple[str, str]] = set()
+        for child in children:
+            pairs.update(_acceptance_job_result_pairs(child))
+        return pairs
+    job_id = value.get("job_id")
+    result_id = value.get("result_id")
+    if isinstance(job_id, str) and job_id and isinstance(result_id, str) and result_id:
+        return {(job_id, result_id)}
+    return set()
+
+
 def _internal_asset_key(identity: dict[str, Any]) -> str:
     # UUID is only an opaque, stable filesystem locator. Exact JSON equality,
     # not the UUID, is the reuse/verification authority.
@@ -250,6 +337,281 @@ def _raise_if_verification_cancelled(
         raise ModelVerificationCancelled("model verification was cancelled")
 
 
+def _raise_directory_scan_error(error: OSError) -> None:
+    """Keep complete-tree identities fail-closed when a directory cannot be read."""
+
+    raise error
+
+
+def _regular_file_snapshot(attributes: os.stat_result) -> tuple[int, ...]:
+    """Return fields that must stay stable while one artifact file is hashed."""
+
+    return (
+        int(attributes.st_dev),
+        int(attributes.st_ino),
+        int(attributes.st_mode),
+        int(attributes.st_size),
+        int(attributes.st_mtime_ns),
+    )
+
+
+def _regular_file_digest(
+    path: Path,
+    *,
+    cancel_event: threading.Event | None = None,
+) -> tuple[int, str]:
+    """Hash one ordinary file and reject link/path replacement during the read."""
+
+    _raise_if_verification_cancelled(cancel_event)
+    before = path.lstat()
+    if not stat.S_ISREG(before.st_mode):
+        raise OSError(f"file is not an ordinary file: {path}")
+    expected_snapshot = _regular_file_snapshot(before)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    digest = hashlib.sha256()
+    observed_bytes = 0
+    with os.fdopen(descriptor, "rb") as handle:
+        if _regular_file_snapshot(os.fstat(handle.fileno())) != expected_snapshot:
+            raise OSError(f"file changed while hashing: {path}")
+        while chunk := handle.read(1024 * 1024):
+            _raise_if_verification_cancelled(cancel_event)
+            digest.update(chunk)
+            observed_bytes += len(chunk)
+        closed_snapshot = _regular_file_snapshot(os.fstat(handle.fileno()))
+    after_snapshot = _regular_file_snapshot(path.lstat())
+    if (
+        observed_bytes != expected_snapshot[3]
+        or closed_snapshot != expected_snapshot
+        or after_snapshot != expected_snapshot
+    ):
+        raise OSError(f"file changed while hashing: {path}")
+    return observed_bytes, digest.hexdigest()
+
+
+def _is_sha256_digest(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _artifact_content_tree(
+    asset_root: Path,
+    *,
+    schema_version: str,
+    artifact_id: str,
+    excluded_paths: frozenset[str] = frozenset(),
+    allow_internal_references: bool = False,
+    cancel_event: threading.Event | None = None,
+    progress: ArtifactProgressCallback | None = None,
+) -> dict[str, Any]:
+    """Build a complete SHA-256 tree without traversing directory references."""
+
+    _raise_if_verification_cancelled(cancel_event)
+    if not _is_ordinary_directory(asset_root):
+        raise OSError("asset root is missing or is a directory reference")
+    canonical_root = asset_root.resolve(strict=True)
+    def scan_tree() -> tuple[
+        list[tuple[Path, str, tuple[int, ...]]], list[dict[str, str]], int
+    ]:
+        candidates: list[tuple[Path, str, tuple[int, ...]]] = []
+        references: list[dict[str, str]] = []
+        total_bytes = 0
+
+        def register_reference(
+            candidate: Path,
+            relative: str,
+            *,
+            directory: bool,
+        ) -> None:
+            kind = _directory_reference_kind(candidate)
+            if not allow_internal_references or kind not in {
+                "symbolic_link",
+                "junction",
+            }:
+                label = "directory" if directory else "file"
+                raise OSError(f"asset tree contains a {label} reference: {candidate}")
+            target = candidate.resolve(strict=True)
+            if _directory_reference_kind(candidate) != kind:
+                raise OSError(f"asset reference changed while scanning: {relative}")
+            try:
+                target_relative = target.relative_to(canonical_root).as_posix()
+            except ValueError as exc:
+                raise OSError(f"asset reference escapes its root: {relative}") from exc
+            if directory and not target.is_dir():
+                raise OSError(
+                    f"asset directory reference target is invalid: {relative}"
+                )
+            if not directory and not target.is_file():
+                raise OSError(f"asset file reference target is invalid: {relative}")
+            references.append(
+                {
+                    "path": relative,
+                    "kind": kind,
+                    "target": target_relative,
+                }
+            )
+
+        for directory, names, filenames in os.walk(
+            asset_root,
+            topdown=True,
+            onerror=_raise_directory_scan_error,
+            followlinks=False,
+        ):
+            _raise_if_verification_cancelled(cancel_event)
+            directory_path = Path(directory)
+            if not _is_ordinary_directory(directory_path):
+                raise OSError(
+                    f"asset directory changed while scanning: {directory_path}"
+                )
+            try:
+                directory_path.resolve(strict=True).relative_to(canonical_root)
+            except ValueError as exc:
+                raise OSError(
+                    f"asset directory escapes its root: {directory_path}"
+                ) from exc
+            for name in tuple(names):
+                candidate = directory_path / name
+                relative = candidate.relative_to(asset_root).as_posix()
+                if _is_reparse_point(candidate):
+                    register_reference(candidate, relative, directory=True)
+                    names.remove(name)
+                    continue
+                try:
+                    attributes = candidate.lstat()
+                except OSError as exc:
+                    raise OSError(
+                        f"asset directory is unavailable while scanning: {relative}"
+                    ) from exc
+                if not stat.S_ISDIR(attributes.st_mode):
+                    raise OSError(
+                        f"asset tree contains a non-directory entry: {candidate}"
+                    )
+            for name in filenames:
+                _raise_if_verification_cancelled(cancel_event)
+                candidate = directory_path / name
+                relative = candidate.relative_to(asset_root).as_posix()
+                if relative in excluded_paths:
+                    continue
+                if _is_reparse_point(candidate):
+                    register_reference(candidate, relative, directory=False)
+                    continue
+                try:
+                    attributes = candidate.lstat()
+                except OSError as exc:
+                    raise OSError(
+                        f"asset file is unavailable while scanning: {relative}"
+                    ) from exc
+                if not stat.S_ISREG(attributes.st_mode):
+                    raise OSError(f"asset tree contains a non-file entry: {candidate}")
+                snapshot = _regular_file_snapshot(attributes)
+                candidates.append((candidate, relative, snapshot))
+                total_bytes += attributes.st_size
+
+        candidates.sort(key=lambda item: item[1])
+        references.sort(key=lambda item: item["path"])
+        return candidates, references, total_bytes
+
+    candidates, references, total_bytes = scan_tree()
+
+    entries: list[dict[str, Any]] = []
+    completed_bytes = 0
+    started_at = time.monotonic()
+    last_progress_at = 0.0
+
+    def emit_progress(*, done: bool) -> None:
+        nonlocal last_progress_at
+        if progress is None:
+            return
+        now = time.monotonic()
+        if not done and now - last_progress_at < 0.1:
+            return
+        elapsed = max(0.0, now - started_at)
+        progress(
+            ArtifactTransferProgress(
+                artifact_id=artifact_id,
+                completed_bytes=completed_bytes,
+                total_bytes=total_bytes,
+                bytes_per_second=(
+                    completed_bytes / elapsed
+                    if completed_bytes > 0 and elapsed > 0
+                    else None
+                ),
+                phase="integrity",
+                done=done,
+            )
+        )
+        last_progress_at = now
+
+    emit_progress(done=False)
+    for candidate, relative, expected_snapshot in candidates:
+        _raise_if_verification_cancelled(cancel_event)
+        digest = hashlib.sha256()
+        observed_bytes = 0
+        try:
+            before_open = candidate.lstat()
+        except OSError as exc:
+            raise OSError(f"asset file changed while hashing: {relative}") from exc
+        if (
+            not stat.S_ISREG(before_open.st_mode)
+            or _regular_file_snapshot(before_open) != expected_snapshot
+        ):
+            raise OSError(f"asset file changed while hashing: {relative}")
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(candidate, flags)
+        with os.fdopen(descriptor, "rb") as handle:
+            opened_snapshot = _regular_file_snapshot(os.fstat(handle.fileno()))
+            if opened_snapshot != expected_snapshot:
+                raise OSError(f"asset file changed while hashing: {relative}")
+            while chunk := handle.read(1024 * 1024):
+                _raise_if_verification_cancelled(cancel_event)
+                digest.update(chunk)
+                observed_bytes += len(chunk)
+                completed_bytes += len(chunk)
+                emit_progress(done=False)
+            closed_snapshot = _regular_file_snapshot(os.fstat(handle.fileno()))
+        try:
+            after_close = _regular_file_snapshot(candidate.lstat())
+        except OSError as exc:
+            raise OSError(f"asset file changed while hashing: {relative}") from exc
+        if (
+            observed_bytes != expected_snapshot[3]
+            or closed_snapshot != expected_snapshot
+            or after_close != expected_snapshot
+        ):
+            raise OSError(f"asset file changed while hashing: {relative}")
+        entries.append(
+            {
+                "path": relative,
+                "bytes": observed_bytes,
+                "sha256": digest.hexdigest(),
+            }
+        )
+    final_candidates, final_references, final_total_bytes = scan_tree()
+    initial_inventory = [
+        (relative, snapshot) for _path, relative, snapshot in candidates
+    ]
+    final_inventory = [
+        (relative, snapshot) for _path, relative, snapshot in final_candidates
+    ]
+    if (
+        final_inventory != initial_inventory
+        or final_references != references
+        or final_total_bytes != total_bytes
+    ):
+        raise OSError("asset tree changed while hashing")
+    emit_progress(done=True)
+    tree = {
+        "schema_version": schema_version,
+        "files": entries,
+    }
+    if allow_internal_references:
+        tree["references"] = references
+    return tree
+
+
 def _internal_asset_tree(
     asset_root: Path,
     *,
@@ -257,45 +619,13 @@ def _internal_asset_tree(
 ) -> dict[str, Any]:
     """Build the local integrity tree without following directory references."""
 
-    _raise_if_verification_cancelled(cancel_event)
-    if not _is_ordinary_directory(asset_root):
-        raise OSError("asset root is missing or is a directory reference")
-    entries: list[dict[str, Any]] = []
-    for directory, names, filenames in os.walk(
-        asset_root, topdown=True, followlinks=False
-    ):
-        _raise_if_verification_cancelled(cancel_event)
-        directory_path = Path(directory)
-        for name in tuple(names):
-            candidate = directory_path / name
-            if _is_reparse_point(candidate):
-                raise OSError(f"asset tree contains a directory reference: {candidate}")
-        for name in filenames:
-            _raise_if_verification_cancelled(cancel_event)
-            candidate = directory_path / name
-            relative = candidate.relative_to(asset_root).as_posix()
-            if relative == _INTERNAL_ASSET_TREE:
-                continue
-            if _is_reparse_point(candidate) or not candidate.is_file():
-                raise OSError(f"asset tree contains a file reference: {candidate}")
-            digest = hashlib.sha256()
-            byte_length = 0
-            with candidate.open("rb") as handle:
-                while chunk := handle.read(1024 * 1024):
-                    _raise_if_verification_cancelled(cancel_event)
-                    digest.update(chunk)
-                    byte_length += len(chunk)
-            entries.append(
-                {
-                    "path": relative,
-                    "bytes": byte_length,
-                    "sha256": digest.hexdigest(),
-                }
-            )
-    return {
-        "schema_version": "virea.internal_asset_tree.v1.0.0",
-        "files": sorted(entries, key=lambda entry: entry["path"]),
-    }
+    return _artifact_content_tree(
+        asset_root,
+        schema_version="virea.internal_asset_tree.v1.0.0",
+        artifact_id="internal-asset",
+        excluded_paths=frozenset({_INTERNAL_ASSET_TREE}),
+        cancel_event=cancel_event,
+    )
 
 
 def _internal_asset_tree_difference(
@@ -442,6 +772,7 @@ class ModelPool:
         self.store.create_installation_transaction(
             installation_id=installation_id,
             state=state.value,
+            integrity_policy=_ARTIFACT_CONTENT_BINDING,
             payload={
                 "schema_version": "virea.installation_transaction.v1.0.0",
                 "model_id": model_id,
@@ -454,6 +785,7 @@ class ModelPool:
                 },
                 "execution_target": execution_target,
                 "artifact_source_ids": [source.id for source in manifest.artifacts],
+                "artifact_content_binding": _ARTIFACT_CONTENT_BINDING,
                 "license_acceptance": {
                     "required": manifest.licenses.requires_acceptance,
                     "explicitly_accepted": bool(accepted_license),
@@ -527,6 +859,7 @@ class ModelPool:
                     revisions=external_artifact_revisions or {},
                     execution_domain=external_execution_domain,
                     domain_paths=external_domain_paths or {},
+                    progress=progress,
                 )
                 atomic_write_json(
                     staging / "external-artifact-roots.json",
@@ -617,11 +950,17 @@ class ModelPool:
                     f"internal artifact reference did not resolve for {source.id}"
                 )
             identity = _internal_asset_identity(manifest, source)
+            content_tree = json.loads(
+                (asset_root / _INTERNAL_ASSET_TREE).read_text(encoding="utf-8")
+            )
             references.append(
                 {
                     "id": source.id,
                     "asset_locator": self.paths.relative_locator(asset_root),
                     "identity": identity,
+                    "content_tree_sha256": hashlib.sha256(
+                        _canonical_json(content_tree).encode("utf-8")
+                    ).hexdigest(),
                     "reference_kind": reference_kind,
                 }
             )
@@ -851,6 +1190,7 @@ class ModelPool:
         revisions: dict[str, str],
         execution_domain: str | None,
         domain_paths: dict[str, str],
+        progress: ArtifactProgressCallback | None,
     ) -> dict[str, Any]:
         expected_ids = {source.id for source in manifest.artifacts}
         if set(roots) != expected_ids:
@@ -937,6 +1277,11 @@ class ModelPool:
                     "manifest_revision": expected_revision,
                     "user_confirmed_revision": supplied_revision,
                     "expected_files": list(source.expected_files),
+                    "content_identity": _expected_artifact_content_identity(
+                        root,
+                        source,
+                        progress=progress,
+                    ),
                     "reference_kind": reference_kind,
                 }
             )
@@ -1070,12 +1415,95 @@ class ModelPool:
             diagnostics=outcome.diagnostics,
         )
 
+    def acceptance_artifact_identity(self, outcome: InstallOutcome) -> dict[str, str]:
+        """Return the staged/snapshot identity bound into acceptance Job events."""
+
+        if not outcome.locator:
+            raise ValueError("installation has no artifact locator")
+        installation_root = self.paths.resolve_locator(outcome.locator).resolve(
+            strict=True
+        )
+        if not installation_root.is_dir():
+            raise ValueError("installation artifact root is not a directory")
+        return _installation_artifact_identity(installation_root)
+
+    def verify_staged_artifacts(
+        self,
+        outcome: InstallOutcome,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Path]:
+        """Revalidate one content-bound staging tree immediately before a Worker."""
+
+        _raise_if_verification_cancelled(cancel_event)
+        if outcome.state is not InstallationState.BUILDING_RUNTIME:
+            raise ValueError("staged artifact verification requires BUILDING_RUNTIME")
+        transaction = self.store.installation_transaction(outcome.installation_id)
+        if transaction is None:
+            raise ValueError("installation transaction is missing")
+        if transaction["state"] != InstallationState.BUILDING_RUNTIME.value:
+            raise ValueError("installation transaction is not BUILDING_RUNTIME")
+        if transaction.get("integrity_policy") != _ARTIFACT_CONTENT_BINDING:
+            raise ValueError("trusted installation integrity policy differs")
+        payload = json.loads(transaction["payload_json"])
+        if payload.get("artifact_content_binding") != _ARTIFACT_CONTENT_BINDING:
+            raise ValueError("installation artifact content-binding marker differs")
+        if payload.get("model_id") != outcome.model_id:
+            raise ValueError("installation model identity differs")
+        if not outcome.locator or payload.get("locator") != outcome.locator:
+            raise ValueError("installation staging locator differs")
+        expected_root = self.paths.temporary / (
+            f"install-{safe_component(outcome.installation_id)}"
+        )
+        expected_locator = self.paths.relative_locator(expected_root)
+        if outcome.locator != expected_locator or not _is_ordinary_directory(
+            expected_root
+        ):
+            raise OSError("installation staging root is missing or differs")
+        installation_root = expected_root.resolve(strict=True)
+        manifest = self.catalog.get(outcome.model_id)
+        manifest_path = installation_root / "manifest.json"
+        if json.loads(manifest_path.read_text(encoding="utf-8")) != manifest.model_dump(
+            mode="json"
+        ):
+            raise OSError("installation manifest snapshot differs")
+        failures = [
+            *self._external_artifact_reference_failures(
+                installation_root,
+                manifest,
+                require_content_identity=True,
+                cancel_event=cancel_event,
+            ),
+            *self._internal_artifact_reference_failures(
+                installation_root,
+                manifest,
+                require_content_identity=True,
+                cancel_event=cancel_event,
+            ),
+        ]
+        if failures:
+            raise OSError("staged artifact verification failed: " + "; ".join(failures))
+        _installation_artifact_identity(installation_root)
+        roots = {
+            source.id: (
+                installation_root
+                / "artifacts"
+                / safe_component(source.id, name="artifact_id")
+            ).resolve(strict=True)
+            for source in manifest.artifacts
+        }
+        if any(not root.is_dir() for root in roots.values()):
+            raise OSError("verified staged artifact root is missing")
+        return roots
+
     def _acceptance_failures(
         self,
         outcome: InstallOutcome,
         acceptance: dict[str, Any],
         *,
         cancel_event: threading.Event | None = None,
+        _contract: ProductionE2EAcceptance | None = None,
+        _verify_installation_artifacts: bool = True,
     ) -> list[str]:
         """Recheck persisted production evidence before a READY publication.
 
@@ -1088,9 +1516,18 @@ class ModelPool:
         _raise_if_verification_cancelled(cancel_event)
         failures: list[str] = []
         manifest = self.catalog.get(outcome.model_id)
-        contract = manifest.production_acceptance
-        if contract is None:
+        contracts = manifest.production_acceptance_contracts
+        if not contracts:
             return ["manifest has no production_acceptance contract"]
+        if _contract is None and manifest.production_acceptance_suite is not None:
+            return self._acceptance_suite_failures(
+                outcome,
+                acceptance,
+                cancel_event=cancel_event,
+            )
+        contract = _contract or contracts[0]
+        if contract not in contracts:
+            return ["acceptance contract is not declared by manifest"]
         contract_payload = contract.model_dump(mode="json")
         request_payload = contract.request.model_dump(mode="json")
         expected_payload = contract.expected.model_dump(mode="json")
@@ -1129,6 +1566,43 @@ class ModelPool:
         transaction_payload = (
             json.loads(transaction["payload_json"]) if transaction is not None else {}
         )
+        trusted_integrity_policy = (
+            transaction.get("integrity_policy") if transaction is not None else None
+        )
+        acceptance_binding_required = (
+            acceptance.get("installation_id") is not None
+            or transaction_payload.get("artifact_content_binding") is not None
+            or trusted_integrity_policy is not None
+            or (
+                transaction is not None
+                and transaction["state"] == InstallationState.BUILDING_RUNTIME.value
+            )
+        )
+        if transaction_payload.get("artifact_content_binding") is not None:
+            check(
+                transaction_payload.get("artifact_content_binding")
+                == _ARTIFACT_CONTENT_BINDING,
+                "installation artifact content-binding version differs",
+            )
+        if trusted_integrity_policy is not None:
+            check(
+                trusted_integrity_policy == _ARTIFACT_CONTENT_BINDING,
+                "trusted installation integrity-policy version differs",
+            )
+            check(
+                transaction_payload.get("artifact_content_binding")
+                == trusted_integrity_policy,
+                "installation artifact content-binding marker is missing or differs",
+            )
+        if acceptance_binding_required:
+            check(
+                acceptance.get("installation_id") == outcome.installation_id,
+                "acceptance installation identity differs",
+            )
+            check(
+                isinstance(acceptance.get("artifact_identity"), dict),
+                "acceptance artifact identity is missing",
+            )
         execution_target = acceptance.get("execution_target")
         persisted_execution_target = transaction_payload.get("execution_target")
         target_bound = isinstance(persisted_execution_target, dict)
@@ -1195,42 +1669,55 @@ class ModelPool:
                         == manifest.model_dump(mode="json"),
                         "installation manifest snapshot differs",
                     )
-                failures.extend(
-                    self._external_artifact_reference_failures(
-                        installation_root,
-                        manifest,
-                    )
-                )
-                failures.extend(
-                    self._internal_artifact_reference_failures(
-                        installation_root,
-                        manifest,
-                        cancel_event=cancel_event,
-                    )
-                )
-                for source in manifest.artifacts:
-                    _raise_if_verification_cancelled(cancel_event)
-                    source_root = (
-                        installation_root
-                        / "artifacts"
-                        / safe_component(source.id, name="artifact_id")
-                    ).resolve(strict=False)
+                if acceptance_binding_required:
                     check(
-                        source_root.is_dir(), f"artifact root is missing: {source.id}"
+                        acceptance.get("artifact_identity")
+                        == _installation_artifact_identity(installation_root),
+                        "acceptance artifact identity differs from installation",
                     )
-                    for relative in source.expected_files:
-                        candidate = (source_root / relative).resolve(strict=False)
-                        try:
-                            candidate.relative_to(source_root)
-                        except ValueError:
-                            failures.append(
-                                f"declared artifact escapes its root: {source.id}/{relative}"
-                            )
-                            continue
-                        check(
-                            candidate.is_file(),
-                            f"declared artifact is missing: {source.id}/{relative}",
+                if _verify_installation_artifacts:
+                    failures.extend(
+                        self._external_artifact_reference_failures(
+                            installation_root,
+                            manifest,
+                            require_content_identity=acceptance_binding_required,
+                            cancel_event=cancel_event,
                         )
+                    )
+                    failures.extend(
+                        self._internal_artifact_reference_failures(
+                            installation_root,
+                            manifest,
+                            require_content_identity=acceptance_binding_required,
+                            cancel_event=cancel_event,
+                        )
+                    )
+                    for source in manifest.artifacts:
+                        _raise_if_verification_cancelled(cancel_event)
+                        source_root = (
+                            installation_root
+                            / "artifacts"
+                            / safe_component(source.id, name="artifact_id")
+                        ).resolve(strict=False)
+                        check(
+                            source_root.is_dir(),
+                            f"artifact root is missing: {source.id}",
+                        )
+                        for relative in source.expected_files:
+                            candidate = (source_root / relative).resolve(strict=False)
+                            try:
+                                candidate.relative_to(source_root)
+                            except ValueError:
+                                failures.append(
+                                    "declared artifact escapes its root: "
+                                    f"{source.id}/{relative}"
+                                )
+                                continue
+                            check(
+                                candidate.is_file(),
+                                "declared artifact is missing: "
+                                f"{source.id}/{relative}",
+                            )
             except (
                 FileNotFoundError,
                 OSError,
@@ -1246,6 +1733,22 @@ class ModelPool:
         if not isinstance(job_id, str) or not job_id:
             failures.append("acceptance job id is missing")
             return failures
+        if acceptance_binding_required and isinstance(result_id, str) and result_id:
+            for other_transaction in self.store.installation_transactions():
+                if other_transaction["id"] == outcome.installation_id:
+                    continue
+                try:
+                    other_payload = json.loads(other_transaction["payload_json"])
+                except (TypeError, json.JSONDecodeError):
+                    continue
+                if (job_id, result_id) in _acceptance_job_result_pairs(
+                    other_payload.get("acceptance")
+                ):
+                    failures.append(
+                        "acceptance job/result is already bound to installation "
+                        f"{other_transaction['id']}"
+                    )
+                    break
         job = self.store.get_job(job_id)
         if job is None:
             failures.append("acceptance job does not exist")
@@ -1312,17 +1815,28 @@ class ModelPool:
             for event in self.store.job_events(job_id)
             if event["event_type"] == "job.runtime_selected"
         ]
-        if target_bound:
+        if target_bound or acceptance_binding_required:
             check(
                 len(selection_events) == 1,
                 "acceptance runtime selection is not unique",
             )
-        if (
-            target_bound
-            and len(selection_events) == 1
-            and isinstance(execution_target, dict)
-        ):
-            selected = json.loads(selection_events[0]["payload_json"])
+        selected = (
+            json.loads(selection_events[0]["payload_json"])
+            if len(selection_events) == 1
+            else {}
+        )
+        if acceptance_binding_required and selected:
+            check(
+                selected.get("acceptance_installation_id")
+                == outcome.installation_id,
+                "acceptance job is not bound to this installation",
+            )
+            check(
+                selected.get("acceptance_artifact_identity")
+                == acceptance.get("artifact_identity"),
+                "acceptance job artifact identity differs from installation",
+            )
+        if target_bound and selected and isinstance(execution_target, dict):
             expected_target = resolved_execution_target_identity(
                 execution_target.get("resolved")
             )
@@ -1398,6 +1912,25 @@ class ModelPool:
                             artifact_path.stat().st_size == row["byte_length"],
                             f"indexed artifact length differs: {row['name']}",
                         )
+                    persisted_sha256 = row.get("sha256")
+                    if acceptance_binding_required:
+                        check(
+                            _is_sha256_digest(persisted_sha256),
+                            f"indexed artifact SHA-256 is missing: {row['name']}",
+                        )
+                    if _is_sha256_digest(persisted_sha256):
+                        observed_bytes, observed_sha256 = _regular_file_digest(
+                            artifact_path,
+                            cancel_event=cancel_event,
+                        )
+                        check(
+                            row["byte_length"] == observed_bytes,
+                            f"indexed artifact length differs: {row['name']}",
+                        )
+                        check(
+                            persisted_sha256 == observed_sha256,
+                            f"indexed artifact SHA-256 differs: {row['name']}",
+                        )
                 if "native" in index_names and payload.tracks.get("native"):
                     actual_artifacts.add(ProductionArtifactKind.NATIVE_MOTION.value)
                 if {
@@ -1443,10 +1976,157 @@ class ModelPool:
             )
         return failures
 
+    def _acceptance_suite_failures(
+        self,
+        outcome: InstallOutcome,
+        acceptance: dict[str, Any],
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> list[str]:
+        """Bind every suite member to its own immutable job/result evidence."""
+
+        _raise_if_verification_cancelled(cancel_event)
+        failures: list[str] = []
+        manifest = self.catalog.get(outcome.model_id)
+        suite = manifest.production_acceptance_suite
+        contracts = manifest.production_acceptance_contracts
+        if suite is None or not contracts:
+            return ["manifest has no production_acceptance_suite contract"]
+
+        def check(condition: bool, message: str) -> None:
+            if not condition:
+                failures.append(message)
+
+        expected_tasks = [contract.request.task for contract in contracts]
+        transaction = self.store.installation_transaction(outcome.installation_id)
+        transaction_payload = (
+            json.loads(transaction["payload_json"]) if transaction is not None else {}
+        )
+        trusted_integrity_policy = (
+            transaction.get("integrity_policy") if transaction is not None else None
+        )
+        suite_binding_required = (
+            acceptance.get("installation_id") is not None
+            or transaction_payload.get("artifact_content_binding") is not None
+            or trusted_integrity_policy is not None
+            or (
+                transaction is not None
+                and transaction["state"] == InstallationState.BUILDING_RUNTIME.value
+            )
+        )
+        if transaction_payload.get("artifact_content_binding") is not None:
+            check(
+                transaction_payload.get("artifact_content_binding")
+                == _ARTIFACT_CONTENT_BINDING,
+                "installation artifact content-binding version differs",
+            )
+        if trusted_integrity_policy is not None:
+            check(
+                trusted_integrity_policy == _ARTIFACT_CONTENT_BINDING,
+                "trusted installation integrity-policy version differs",
+            )
+            check(
+                transaction_payload.get("artifact_content_binding")
+                == trusted_integrity_policy,
+                "installation artifact content-binding marker is missing or differs",
+            )
+        if suite_binding_required:
+            check(
+                acceptance.get("installation_id") == outcome.installation_id,
+                "acceptance suite installation identity differs",
+            )
+            try:
+                expected_artifact_identity = self.acceptance_artifact_identity(outcome)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                failures.append(
+                    "acceptance suite artifact identity is unavailable: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            else:
+                check(
+                    acceptance.get("artifact_identity")
+                    == expected_artifact_identity,
+                    "acceptance suite artifact identity differs",
+                )
+        check(
+            acceptance.get("schema_version")
+            == "virea.installation_acceptance_suite_evidence.v1.0.0",
+            "acceptance suite evidence schema differs",
+        )
+        check(
+            acceptance.get("kind") == "installation_real_e2e_suite",
+            "acceptance suite evidence kind differs",
+        )
+        check(acceptance.get("model_id") == outcome.model_id, "suite model differs")
+        check(
+            acceptance.get("contract") == suite.model_dump(mode="json"),
+            "acceptance suite contract differs",
+        )
+        check(acceptance.get("tasks") == expected_tasks, "suite tasks differ")
+        check(
+            acceptance.get("installation_acceptance_succeeded") is True,
+            "installation acceptance suite did not succeed",
+        )
+        check(
+            acceptance.get("production_e2e_succeeded") is False,
+            "headless installation suite must not claim complete production E2E",
+        )
+        check(
+            acceptance.get("web_playback")
+            == {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
+            "suite browser playback must remain separate release evidence",
+        )
+        check(
+            acceptance.get("outstanding_required_stages")
+            == [ProductionE2EStage.WEB_PLAYBACK.value],
+            "suite outstanding release stages differ",
+        )
+        check(not acceptance.get("task_failures"), "suite reports task failures")
+        task_acceptances = acceptance.get("task_acceptances")
+        if not isinstance(task_acceptances, list):
+            return [*failures, "suite task acceptance evidence is missing"]
+        if len(task_acceptances) != len(contracts):
+            failures.append("suite task acceptance count differs")
+            return failures
+        seen_job_ids: set[str] = set()
+        seen_result_ids: set[str] = set()
+        for index, (contract, task_acceptance) in enumerate(
+            zip(contracts, task_acceptances, strict=True)
+        ):
+            task = contract.request.task
+            if not isinstance(task_acceptance, dict):
+                failures.append(f"task {task}: acceptance evidence is invalid")
+                continue
+            child_failures = self._acceptance_failures(
+                outcome,
+                task_acceptance,
+                cancel_event=cancel_event,
+                _contract=contract,
+                _verify_installation_artifacts=index == 0,
+            )
+            failures.extend(f"task {task}: {failure}" for failure in child_failures)
+            job_id = task_acceptance.get("job_id")
+            if isinstance(job_id, str) and job_id:
+                if job_id in seen_job_ids:
+                    failures.append(f"task {task}: acceptance job is reused")
+                seen_job_ids.add(job_id)
+            result_id = task_acceptance.get("result_id")
+            if isinstance(result_id, str) and result_id:
+                if result_id in seen_result_ids:
+                    failures.append(f"task {task}: acceptance result is reused")
+                seen_result_ids.add(result_id)
+        return failures
+
     @staticmethod
     def _external_artifact_reference_failures(
         installation_root: Path,
         manifest: ModelPluginManifest,
+        *,
+        require_content_identity: bool = False,
+        cancel_event: threading.Event | None = None,
     ) -> list[str]:
         failures: list[str] = []
         reference_path = installation_root / "external-artifact-roots.json"
@@ -1543,6 +2223,29 @@ class ModelPool:
                 failures.append(
                     f"external artifact directory target is unavailable: {source.id}"
                 )
+                continue
+            persisted_content_identity = entry.get("content_identity")
+            if persisted_content_identity is None and require_content_identity:
+                failures.append(
+                    f"external artifact content identity is missing: {source.id}"
+                )
+            elif persisted_content_identity is not None:
+                try:
+                    observed_content_identity = _expected_artifact_content_identity(
+                        link.resolve(strict=True),
+                        source,
+                        cancel_event=cancel_event,
+                    )
+                except (OSError, RuntimeError) as exc:
+                    failures.append(
+                        f"external artifact content identity is unavailable: "
+                        f"{source.id}: {type(exc).__name__}: {exc}"
+                    )
+                else:
+                    if persisted_content_identity != observed_content_identity:
+                        failures.append(
+                            f"external artifact content differs: {source.id}"
+                        )
         return failures
 
     def _internal_artifact_reference_failures(
@@ -1550,6 +2253,7 @@ class ModelPool:
         installation_root: Path,
         manifest: ModelPluginManifest,
         *,
+        require_content_identity: bool = False,
         cancel_event: threading.Event | None = None,
     ) -> list[str]:
         _raise_if_verification_cancelled(cancel_event)
@@ -1641,6 +2345,31 @@ class ModelPool:
                 f"internal artifact {source.id}: {message}"
                 for message in asset_failures
             )
+            persisted_tree_digest = entry.get("content_tree_sha256")
+            if persisted_tree_digest is None and require_content_identity:
+                failures.append(
+                    f"internal artifact content identity is missing: {source.id}"
+                )
+            elif persisted_tree_digest is not None:
+                try:
+                    content_tree = json.loads(
+                        (expected_asset / _INTERNAL_ASSET_TREE).read_text(
+                            encoding="utf-8"
+                        )
+                    )
+                    observed_tree_digest = hashlib.sha256(
+                        _canonical_json(content_tree).encode("utf-8")
+                    ).hexdigest()
+                except (OSError, json.JSONDecodeError) as exc:
+                    failures.append(
+                        f"internal artifact content identity is invalid: "
+                        f"{source.id}: {type(exc).__name__}: {exc}"
+                    )
+                else:
+                    if persisted_tree_digest != observed_tree_digest:
+                        failures.append(
+                            f"internal artifact content identity differs: {source.id}"
+                        )
             link = artifact_links[source.id]
             reference_kind = _directory_reference_kind(link)
             if reference_kind not in {"symbolic_link", "junction"}:

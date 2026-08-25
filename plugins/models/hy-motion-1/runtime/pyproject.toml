@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-hy-motion-1-runtime"
+version = "0.2.0"
+description = "Offline upstream HY-Motion 1.0 Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy>=1.26,<2",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "torchdiffeq==0.2.5",
+  "accelerate>=1.0,<2",
+  "diffusers>=0.31,<0.40",
+  "transformers==4.53.3",
+  "einops>=0.8,<1",
+  "safetensors>=0.5,<1",
+  "scipy>=1.10,<2",
+  "transforms3d>=0.4,<1",
+  "PyYAML>=6,<7",
+  "omegaconf>=2.3,<3",
+  "openai>=1.78,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+virea-model-hy-motion-1-worker = "virea_hy_motion.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

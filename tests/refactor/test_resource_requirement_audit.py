@@ -18,6 +18,14 @@ AUDITED_REQUIREMENTS = {
         "cmdm-humanml3d-cu128": ("cuda_full", 8.0, 6.0),
         "cmdm-humanml3d-cpu": ("cpu", 12.0, None),
     },
+    "dart-smplx": {
+        "dart-smplx-cu128": ("cuda_full", 16.0, 10.0),
+        "dart-smplx-cpu": ("cpu", 24.0, None),
+    },
+    "discord-humanml3d": {
+        "discord-humanml3d-cu128": ("cuda_full", 10.0, 8.0),
+        "discord-humanml3d-cpu": ("cpu", 14.0, None),
+    },
     "flood-diffusion-tiny": {
         "flood-diffusion-tiny-cu128": ("cuda_full", 16.0, 16.0),
         "flood-diffusion-tiny-cpu": ("cpu", 16.0, None),
@@ -26,9 +34,25 @@ AUDITED_REQUIREMENTS = {
         "mardm-humanml3d-cu128": ("cuda_full", 16.0, 12.0),
         "mardm-humanml3d-cpu": ("cpu", 24.0, None),
     },
+    "hy-motion-1": {
+        "hy-motion-1-cu128": ("cuda_full", 24.0, 26.0),
+        "hy-motion-1-cpu": ("cpu", 40.0, None),
+    },
+    "intermask-interhuman": {
+        "intermask-interhuman-cu128": ("cuda_full", 12.0, 8.0),
+        "intermask-interhuman-cpu": ("cpu", 16.0, None),
+    },
     "momadiff-humanml3d": {
         "momadiff-humanml3d-cu128": ("cuda_full", 8.0, 6.0),
         "momadiff-humanml3d-cpu": ("cpu", 12.0, None),
+    },
+    "momask-humanml3d": {
+        "momask-humanml3d-cu128": ("cuda_full", 8.0, 6.0),
+        "momask-humanml3d-cpu": ("cpu", 10.0, None),
+    },
+    "motioncraft-smplx": {
+        "motioncraft-smplx-cu128": ("cuda_full", 24.0, 12.0),
+        "motioncraft-smplx-cpu": ("cpu", 24.0, None),
     },
     "prism-tp2m-1-4b": {
         "prism-tp2m-1-4b-cu128-component-split": (
@@ -37,6 +61,14 @@ AUDITED_REQUIREMENTS = {
             12.0,
         ),
         "prism-tp2m-1-4b-cpu": ("cpu", 96.0, None),
+    },
+    "remomask-humanml3d": {
+        "remomask-humanml3d-cu128": ("cuda_full", 12.0, 12.0),
+        "remomask-humanml3d-cpu": ("cpu", 16.0, None),
+    },
+    "sentiavatar-susu": {
+        "sentiavatar-susu-cu128": ("cuda_full", 12.0, 8.0),
+        "sentiavatar-susu-cpu": ("cpu", 16.0, None),
     },
 }
 

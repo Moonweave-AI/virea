@@ -3,8 +3,8 @@ type: research-log
 status: Active
 owner: VIREA maintainers
 created: 2026-08-25
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: Primary-source research behind responsive job submission, durable live progress, interactive WebGL viewers, and semantic CLI/Web presentation.
 canonical: doc/research/responsive-studio-cli-design-2026-08-25.en.md
@@ -12,6 +12,7 @@ related:
   - responsive-studio-cli-design-2026-08-25.zh-CN.md
   - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
   - ../getting-started/browser-playback.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -51,9 +52,11 @@ revision stream both refreshed Job state; every revision also reloaded all model
 detaching both canvases. Each viewer scheduled RAF while inactive, lacked camera controls, and the source viewer overwrote
 camera position every frame.
 
-The catalog has 14 non-test manifests. Six contain a VIREA Runtime and production acceptance contract; eight only state
-that the upstream project is runnable. A truthful interface must expose all records while disabling an operation whose
-Worker, Runtime, task-input contract, artifact installation, adapter, and production acceptance do not exist.
+At the 2026-08-25 observation snapshot, the catalog had 14 non-test manifests. Six contained a VIREA Runtime and
+production-acceptance contract; eight only stated that the upstream project was runnable. A truthful interface therefore
+had to expose every record while disabling an operation whose Worker, Runtime, task-input contract, artifact installation,
+adapter, and target acceptance did not exist. This snapshot was superseded on 2026-08-26: all 14 now have those integration
+contracts and are `integrated_experimental`, while current real-checkpoint acceptance remains separate evidence.
 
 ## Decisions and rejected alternatives
 
@@ -68,8 +71,10 @@ single-flight Worker admission gate, but is removed from the HTTP critical path 
 Lifecycle boundaries yield deterministic progress; no ETA or inferred model percentage is shown.
 
 Rejected alternatives include faster polling, disabling request timeouts without idempotency, treating cached metadata as
-full verification, exposing the eight upstream-only records as runnable, and adding OrbitControls while continuing to
-overwrite the camera each frame. These approaches preserve duplicate work or misrepresent system truth.
+full verification, exposing the eight records that were upstream-only on 2026-08-25 as VIREA-runnable before integration,
+and adding OrbitControls while continuing to overwrite the camera each frame. Their 2026-08-26 integration changes the
+capability fact, but does not turn target-acceptance contracts into real-checkpoint evidence. The rejected approaches
+preserve duplicate work or misrepresent system truth.
 
 ## Validation criteria and limits
 

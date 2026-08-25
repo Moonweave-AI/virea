@@ -3,13 +3,14 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: VIREA CLI 的完整中文参考，逐项说明命令、位置参数、选项、副作用和安全示例。
 canonical: doc/reference/cli.zh-CN.md
 related:
   - cli.en.md
+  - status-semantics.zh-CN.md
   - ../getting-started.zh-CN.md
   - ../../README.zh-CN.md
   - ../../apps/cli/src/virea_cli/main.py
@@ -46,7 +47,7 @@ uv run virea
 |---|---|
 | 数据根 | 显示当前 `VIREA_HOME`，可复用，也可明确改到另一块数据盘。 |
 | 设备与状态 | 真实检测当前设备/执行域，并展示上次模型、环境、READY 数量和最近任务。 |
-| 模型 | 分组表格显示全部 14 个非测试目录项。六个 VIREA 已接入模型显示持久 `READY`（执行前复验）、可安装或需处理；八个 upstream-only 项显示缺少 Runtime/Worker/E2E 的原因，且不能进入部署。 |
+| 模型 | 分组表格显示全部 14 个非测试 `integrated_experimental` 目录项。每个模型都会显示持久 `READY`（执行前复验）、可安装或需处理状态，以及人工资产、许可、资源和当前 evidence 条件。target-acceptance 合同使模型具备部署入口，但不代表当前真实 checkpoint 已通过。 |
 | 执行环境 | 显示总/可用 RAM 与总 VRAM，再分别选择系统执行域、已实现 Runtime 和资源 profile；历史选择只是默认值，不会静默强制。 |
 | 部署 | 匹配的持久 READY 快照默认复用且不重新下载；启动 Worker 前会完整复验字节。不同执行环境会建立独立部署并保留旧快照。 |
 | 生成 | 依次显示提交、模型推理和结果制品收集；成功时只显示 job/result ID 摘要。 |
@@ -218,8 +219,10 @@ uv run virea model install flood-diffusion-tiny --execution-domain windows-nativ
 uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 ```
 
-`install` 可能获取或引用资产、构建隔离 Runtime、运行定义的验收请求并发布 READY 安装。`repair` 在最新安装不健康时
-规划新事务；两个命令都不会 fallback 到另一个执行域。
+`install` 可能获取或引用资产、构建隔离 Runtime、运行声明的验收合同或套件并发布 READY 安装。对于多任务模型，
+它会按照 manifest 任务顺序，为每个声明任务执行一个不可变合同。每个任务都必须产生自己独立的 Job/result evidence
+并通过；只通过主任务不能让包含失败或未执行任务的套件成为 READY。`repair` 在最新安装不健康时规划新事务；两个
+命令都不会 fallback 到另一个执行域。
 
 | 选项 | 含义 |
 |---|---|
@@ -231,13 +234,22 @@ uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 | `--resource-profile PROFILE` | 可选精确资源策略覆盖；必须属于所选 Runtime。 |
 | `--artifact-root ID=PATH` | 不复制地复用一个明确外部资产目录；`ID` 必须是 manifest artifact ID。 |
 | `--artifact-revision ID=REVISION` | 对该外部资产 ID 的 manifest 固定 revision 做确认；与 `--artifact-root` 配合使用。 |
-| `--validation-prompt TEXT` | 覆盖本地事务的 manifest 验收 prompt。 |
-| `--validation-seconds NUMBER` | 覆盖验收请求时长（秒）。 |
-| `--validation-seed INTEGER` | 在模型支持时覆盖确定性验收 seed。 |
-| `--validation-timeout SECONDS` | 覆盖验收超时（秒）。 |
+| `--validation-prompt TEXT` | 兼容性断言：提供时必须等于不可变 manifest 验收 prompt；它不会改写合同。 |
+| `--validation-seconds NUMBER` | 对不可变验收 `parameters.seconds` 的兼容性断言；不同值会被拒绝。 |
+| `--validation-seed INTEGER` | 对不可变确定性验收 seed 的兼容性断言；不同值会被拒绝。 |
+| `--validation-timeout SECONDS` | 对不可变验收 timeout 的兼容性断言；不同值会被拒绝。 |
 | `--virea-home PATH` | 读取并修改的状态根目录。 |
 
-外部资产覆盖只适用于你有权使用、且能持续保留的资产。VIREA 会记录其身份并校验声明文件；不要指向即将被清理的缓存。
+对于验收套件，四个标量 `--validation-*` 选项只有在所给值与每个任务合同的对应值完全一致时才会被接受。若各任务
+使用不同值或没有该值，请省略对应选项。这些参数不能选择单个任务、跳过其他任务或修改套件。
+
+外部资产覆盖只适用于你有权使用、且能持续保留的资产。`--artifact-revision` 只记录你对 manifest 固定 revision
+的确认，并不是内容证明。install/repair 期间，VIREA 会先要求全部 `expected_files` 哨兵存在，再完整读取该外部
+制品根目录下的每个普通文件，记录相对路径、字节长度与 SHA-256，并把完整内容树绑定到安装的
+`artifact_identity`。不要让 `--artifact-root` 指向即将被清理的缓存，也不要在 READY 安装背后增加、删除或修改文件。
+
+内部符号链接或 Windows junction 只有在解析后仍指向同一制品根目录内的文件或目录时才允许。断裂链接、外部目标
+与未知 reparse point 会 fail closed；不要用它们从设备其他位置拼装模型根目录。
 
 ## `model verify`、`remove` 与垃圾回收
 
@@ -266,6 +278,21 @@ uv run virea model gc --apply --older-than-hours 168
 | `model gc --apply` | 执行满足条件的清理；不要对未经审核的宽泛 home 路径使用。 |
 | `--older-than-hours HOURS` | 不再引用数据的最小年龄阈值；省略时使用策略默认值。 |
 | `--virea-home PATH` | 要检查或修改的状态根。 |
+
+`model verify` 会重新计算 expected-file 内容哈希，并检查验收 evidence 是否仍指向精确的 `installation_id` 与
+`artifact_identity`；它绝不会改写旧 evidence。若你有意替换或修改人工外部权重，请停止使用旧安装，先运行只读
+复验，再创建新事务：
+
+```bash
+# 证明 MODEL 原有 READY/evidence 绑定已不能证明变更后的字节；把 MODEL 换成精确 manifest ID。
+uv run virea model verify MODEL
+
+# 重新哈希 expected-files 的完整内容并重跑每个任务验收；DOMAIN、ARTIFACT_ID、PATH、REVISION 均替换为 doctor/model info 给出的值。
+uv run virea model repair MODEL --execution-domain DOMAIN --artifact-root ARTIFACT_ID=PATH --artifact-revision ARTIFACT_ID=REVISION --apply
+```
+
+新事务必须通过完整验收套件，并产生重新绑定的 `installation_id` 与 `artifact_identity`，才能成为 READY。如果恢复
+的是之前验收过的精确字节，则完整复验可以确认原有内容身份。
 
 ## `generate`
 

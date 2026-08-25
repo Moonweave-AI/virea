@@ -3,13 +3,14 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples.
 canonical: doc/reference/cli.en.md
 related:
   - cli.zh-CN.md
+  - status-semantics.en.md
   - ../getting-started.en.md
   - ../../README.md
   - ../../apps/cli/src/virea_cli/main.py
@@ -49,7 +50,7 @@ The seven stages expose these facts:
 |---|---|
 | Data root | Shows the active `VIREA_HOME`; reuse it or explicitly move to another data volume. |
 | Device and state | Detects the current device/domains and shows the last model/target, READY count, and recent jobs. |
-| Model | Shows all 14 non-test catalog records in a grouped table. Six VIREA-integrated models show persisted `READY` (with execution-time re-verification), installable, or needs-attention state; eight upstream-only records show their missing Runtime/Worker/E2E reason and cannot enter deployment. |
+| Model | Shows all 14 non-test `integrated_experimental` catalog records in a grouped table. Each model shows persisted `READY` (with execution-time re-verification), installable, or needs-attention state, plus manual-asset, license, resource and current-evidence conditions. A target-acceptance contract makes a model deployable; it does not claim a current real-checkpoint pass. |
 | Execution target | Shows total/available RAM and total VRAM, then separately chooses the OS domain, an implemented Runtime, and a resource profile; history is a visible default, never a silent override. |
 | Deployment | Reuses a matching persisted READY snapshot by default without downloading again; full byte integrity is rechecked before Worker start. Another target gets an independent deployment while the old snapshot remains. |
 | Generation | Shows submission, model inference, and result-artifact collection; success is a compact job/result ID summary. |
@@ -227,9 +228,11 @@ uv run virea model install flood-diffusion-tiny --execution-domain windows-nativ
 uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 ```
 
-`install` may fetch or reference assets, build an isolated Runtime, run its acceptance request and publish a READY
-installation. `repair` plans a new transaction when the latest installation is unhealthy; neither command falls back to a
-different domain.
+`install` may fetch or reference assets, build an isolated Runtime, run the declared acceptance contract or suite, and
+publish a READY installation. For a multi-task model, it runs one immutable contract per declared task, in manifest task
+order. Every task must produce its own Job/result evidence and pass; one passing primary task cannot make a failed or
+unexecuted suite READY. `repair` plans a new transaction when the latest installation is unhealthy; neither command falls
+back to a different domain.
 
 | Option | Meaning |
 |---|---|
@@ -241,14 +244,26 @@ different domain.
 | `--resource-profile PROFILE` | Optional exact resource profile override; it must belong to the selected Runtime. |
 | `--artifact-root ID=PATH` | Reuse one explicit external artifact directory without copying it. `ID` must be the manifest artifact ID. |
 | `--artifact-revision ID=REVISION` | Attest the manifest-pinned revision for that external artifact ID; use it together with `--artifact-root`. |
-| `--validation-prompt TEXT` | Override the manifest acceptance prompt for this local transaction. |
-| `--validation-seconds NUMBER` | Override requested acceptance duration in seconds. |
-| `--validation-seed INTEGER` | Override the deterministic acceptance seed when the model supports one. |
-| `--validation-timeout SECONDS` | Override acceptance timeout in seconds. |
+| `--validation-prompt TEXT` | Compatibility assertion: when supplied, it must equal the immutable manifest acceptance prompt; it does not rewrite the contract. |
+| `--validation-seconds NUMBER` | Compatibility assertion for the immutable acceptance `parameters.seconds`; a differing value is rejected. |
+| `--validation-seed INTEGER` | Compatibility assertion for the immutable deterministic acceptance seed; a differing value is rejected. |
+| `--validation-timeout SECONDS` | Compatibility assertion for the immutable acceptance timeout; a differing value is rejected. |
 | `--virea-home PATH` | State root to read and modify. |
 
-Use external artifact overrides only for assets you are authorized to use and can keep available. VIREA records their
-identity and validates their declared files; do not point them at a cache you plan to delete.
+For an acceptance suite, the four scalar `--validation-*` options are accepted only when the supplied value exactly
+matches the corresponding value for every task contract. If task contracts use different or absent values, omit the
+option. These flags do not select one task, skip other tasks, or mutate the suite.
+
+Use external artifact overrides only for assets you are authorized to use and can keep available. `--artifact-revision`
+records your confirmation of the manifest-pinned revision; it is not content proof. During install/repair, VIREA first
+requires every `expected_files` sentinel, then fully reads every regular file under that external artifact root and
+records its relative path, byte length, and SHA-256. The complete tree is bound into the installation's
+`artifact_identity`. Do not point `--artifact-root` at a cache you plan to delete, and do not add, remove, or modify files
+behind a READY installation.
+
+An internal symbolic link or Windows junction is accepted only when it resolves to a file or directory inside that same
+artifact root. Broken links, external targets and unknown reparse points fail closed; do not use them to compose a model
+root from files elsewhere on the machine.
 
 ## `model verify`, `remove`, and garbage collection
 
@@ -277,6 +292,22 @@ uv run virea model gc --apply --older-than-hours 168
 | `model gc --apply` | Applies eligible cleanup; do not combine it with an unreviewed broad home path. |
 | `--older-than-hours HOURS` | Age threshold for unreferenced data. Omit it to use the policy default. |
 | `--virea-home PATH` | State root to inspect or modify. |
+
+`model verify` recomputes expected-file content hashes and checks that acceptance evidence still names the exact
+`installation_id` and `artifact_identity`; it never rewrites old evidence. If you intentionally replace or modify manual
+external weights, stop using the old installation, run the read-only verification, then create a new transaction:
+
+```bash
+# Show that MODEL's previous READY/evidence binding no longer proves the changed bytes; replace MODEL with the exact manifest ID.
+uv run virea model verify MODEL
+
+# Re-hash the complete expected-file contents and rerun every task acceptance. Replace DOMAIN, ARTIFACT_ID, PATH, and REVISION with values from doctor/model info.
+uv run virea model repair MODEL --execution-domain DOMAIN --artifact-root ARTIFACT_ID=PATH --artifact-revision ARTIFACT_ID=REVISION --apply
+```
+
+The new transaction must pass the complete acceptance suite and produce a newly bound `installation_id` and
+`artifact_identity` before it can become READY. Restoring the exact previously accepted bytes instead allows full
+verification to confirm the existing content identity.
 
 ## `generate`
 

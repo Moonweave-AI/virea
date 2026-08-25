@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: English entry point for selecting VIREA model manifests, execution-domain Runtimes, resource profiles, and evidence boundaries.
 canonical: doc/models/README.en.md
@@ -13,6 +13,8 @@ related:
   - support-matrix.generated.md
   - ../getting-started.en.md
   - ../reference/cli.en.md
+  - ../reference/status-semantics.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
 supersedes: []
 superseded_by: []
 ---
@@ -24,11 +26,12 @@ superseded_by: []
 Start with the [generated model support matrix](support-matrix.generated.md). It is rendered from model manifests and
 Runtime registries, rather than copied by hand into a README.
 
-The current non-test catalog contains 14 records. Six (`acmdm-humanml3d`, `cmdm-humanml3d`,
-`flood-diffusion-tiny`, `mardm-humanml3d`, `momadiff-humanml3d`, and `prism-tp2m-1-4b`) have a VIREA Runtime and
-production acceptance contract. Eight are upstream-runnable research records without a VIREA Worker/Runtime, task-input
-contract, artifact installation, adapter path, or production E2E. Web and the interactive CLI show all 14, but label and
-disable those eight before deployment; catalog visibility is not execution support.
+The current non-test catalog contains 14 records. Every record now has a VIREA Worker, isolated CPU/CUDA Runtime
+declaration, task-input contract, artifact acquisition boundary, adapter path and model-specific target-acceptance
+contract, so all 14 are `integrated_experimental`. This is an integration-capability statement, not proof that a current
+real checkpoint passed acceptance on every declared platform. Web and the interactive CLI expose installation state,
+manual-asset/license conditions, resource limits and current evidence separately; catalog visibility is still not a
+`supported` or cross-platform validation claim.
 
 Catalog installation status has two deliberately separate scopes. The compatible `/api/v1/models` default is
 `verification_scope=full_integrity`, so its existing `installation.ready=true` continues to mean that the selected READY
@@ -37,6 +40,14 @@ reconciliation; in that response, `installation.ready=true` means the persisted 
 manifest metadata and `integrity_verified=false` makes the cheaper boundary explicit. VIREA performs full byte-integrity
 verification at the explicit verify or execution boundary before starting a Worker. The Web and CLI therefore label the
 metadata state **Persisted READY · reverify on execution**, not “freshly verified.”
+
+For a multi-task model, target acceptance is a suite with one immutable contract per declared task; install/repair must
+run every task, not only a primary task. The resulting evidence is bound to the exact `installation_id` and content-based
+`artifact_identity`. VIREA verifies every manifest `expected_files` entry as a required sentinel, then SHA-256 hashes
+every regular file in a manually supplied external artifact root. Adding, removing, or changing any file requires full
+verification plus a new install/repair acceptance transaction. See
+[status semantics](../reference/status-semantics.en.md#acceptance-suites-and-content-binding) and the
+[installation CLI reference](../reference/cli.en.md#model-install-and-model-repair) for the precise boundary.
 
 ## Choose in this order
 

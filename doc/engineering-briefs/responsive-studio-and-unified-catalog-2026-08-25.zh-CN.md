@@ -3,8 +3,8 @@ type: engineering-brief
 status: Implemented
 owner: VIREA maintainers
 created: 2026-08-25
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: 即时生成反馈、持久 Job 事件流、稳定交互式 Viewer 与单一可信模型能力目录的跨层设计。
 canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
@@ -13,6 +13,7 @@ related:
   - ../research/responsive-studio-cli-design-2026-08-25.zh-CN.md
   - ../getting-started/browser-playback.zh-CN.md
   - ../reference/cli.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
 supersedes: []
 superseded_by: []
 ---
@@ -27,9 +28,11 @@ superseded_by: []
 保持两个 WebGL Viewer 的 DOM 身份稳定，并让 API 目录成为浏览器与交互式 CLI 的唯一能力事实源。现有
 `uv run virea` 入口、JobRequest v1、持久数据根、结果制品和显式完整性校验命令保持兼容。
 
-当前目录有 14 个真实模型记录：6 个具备 VIREA Runtime 与 production acceptance，8 个只是记录了“上游可
-运行”的项目。界面必须完整展示 14 个，但不能把后 8 个称为已安装或已支持。它们分别需要 Worker、隔离
-Runtime、任务输入 Schema、制品、Adapter 与真实 E2E；这属于后续模型集成，而不是打开一个前端开关。
+在本 Brief 的 2026-08-25 快照中，目录有 14 个真实模型记录：6 个具备 VIREA Runtime 与 production-
+acceptance 合同，8 个只记录了“上游可运行”项目；因此界面必须展示全部 14 个，但不能把后 8 个称为已安装
+或已支持。该能力快照已由 2026-08-26 的集成取代：14 个模型现在都有 Worker、隔离 Runtime、任务输入
+Schema、制品边界、Adapter 和 target-acceptance 合同，状态均为 `integrated_experimental`。当前状态仍不
+声明真实 checkpoint 已通过或模型已达 `supported`；这些是独立 evidence 与发行门禁。
 
 ## 问题、目标与非目标
 
@@ -48,8 +51,9 @@ SHA-256 安装扫描。Job 创建后，750 ms 轮询和全局状态流同时拉�
 6. Web/CLI 对全部目录模型分别展示已收录、已集成、当前域可部署和 READY。
 7. TTY 使用紧凑语义化 Rich 界面，同时保留 plain、重定向、`NO_COLOR` 与测试输出。
 
-非目标包括：把 8 个无 Runtime 记录宣称为可生成；虚构百分比、ETA、质量或跨平台证据；替换 JobRequest、
-manifest、SQLite 或制品格式；复制其他产品的品牌、资产或像素布局。
+非目标包括：在 2026-08-25 快照中把 8 个无 Runtime 记录宣称为可生成；在它们于 2026-08-26 接入后，仅凭
+合同宣称当前真实 checkpoint 已验收；虚构百分比、ETA、质量或跨平台 evidence；替换 JobRequest、manifest、
+SQLite 或制品格式；复制其他产品的品牌、资产或像素布局。
 
 ## 领域模型、状态与不变量
 

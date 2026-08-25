@@ -2,35 +2,33 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: remomask-humanml3d
   display_name: ReMoMask HumanML3D
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/AIGeeksGroup/ReMoMask
     revision: 630eda1f825bcc2ffb613a7270e1f5b6ac8baea2
     release: ECCV 2026; arXiv v1 2025-08-04
-  tasks:
-    - text_to_motion
-    - retrieval_augmented_text_to_motion
+  tasks: [text_to_motion, retrieval_augmented_text_to_motion]
   adapter_family: humanml3d-motion263-body22
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_motion
     fields:
-      prompt:
-        type: string
-        required: true
-      motion_length_frames:
-        type: integer
-        required: false
+      prompt: {type: string, required: true, maximum_length: 8000}
+      motion_length_frames: {type: integer, required: false, minimum: 40, maximum: 196, multiple_of: 4}
+      seconds: {type: number, required: false, minimum: 2.0, maximum: 9.8, multiple_of: 0.2}
+      seed: {type: integer, default: 10107, minimum: 0, maximum: 2147483647}
+      time_steps: {type: integer, default: 18, minimum: 1, maximum: 100}
+      retrieval_top_k: {type: integer, default: 1, minimum: 1, maximum: 10}
   - schema_version: virea.job_request.v1.0.0
     task: retrieval_augmented_text_to_motion
     fields:
-      prompt:
-        type: string
-        required: true
-      retrieval_database:
-        type: remomask_part_motion_database
-        required: true
+      prompt: {type: string, required: true, maximum_length: 8000}
+      motion_length_frames: {type: integer, required: false, minimum: 40, maximum: 196, multiple_of: 4}
+      seconds: {type: number, required: false, minimum: 2.0, maximum: 9.8, multiple_of: 0.2}
+      seed: {type: integer, default: 10107, minimum: 0, maximum: 2147483647}
+      time_steps: {type: integer, default: 18, minimum: 1, maximum: 100}
+      retrieval_top_k: {type: integer, default: 1, minimum: 1, maximum: 10}
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: humanml3d.vector263.v1
@@ -41,40 +39,159 @@ output:
   root_translation_semantics: relative_root_facing_xz_velocity_integrated_from_origin_with_absolute_y_height
   root_rotation_semantics: yaw_integrated_from_relative_angular_velocity_with_initial_identity
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: remomask-humanml3d-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: nvidia, abi: cu128, min_vram_gib: 12.0}
+    lockfile: uv.lock
+    min_storage_gib: 12.0
+    resource_profiles:
+      - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 12.0, min_free_ram_gib: 12.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_remomask.worker]
+    startup_timeout_seconds: 900
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/remomask-humanml3d/runtime-cu128
+    project_package: virea-model-remomask-humanml3d-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_release_configuration_checkpoint_graph_and_lock_baseline_real_checkpoint_acceptance_required
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: remomask-humanml3d-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator: {kind: cpu, abi: null, min_vram_gib: null}
+    lockfile: uv.lock
+    min_storage_gib: 10.0
+    resource_profiles:
+      - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 16.0, min_free_swap_gib: 0.0}
+    entrypoint_argv: [python, -m, virea_remomask.worker]
+    startup_timeout_seconds: 1200
+    environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE]
+    working_directory: plugins/models/remomask-humanml3d/runtime-cpu
+    project_package: virea-model-remomask-humanml3d-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pure_pytorch_cpu_contract_and_lock_baseline_real_checkpoint_acceptance_required
 artifacts:
   - id: remomask-models-database-and-clip
     kind: huggingface
     repository: AIGeeksGroup/ReMoMask
     revision: e4b8dd8479e70cbe16015024e0ccbe55d923a7ab
+    expected_total_bytes: 4194651198
+    allow_patterns:
+      - logs/humanml3d/pretrain_vq/opt.txt
+      - logs/humanml3d/pretrain_vq/model/net_best_fid.tar
+      - logs/humanml3d/pretrain_vq/meta/mean.npy
+      - logs/humanml3d/pretrain_vq/meta/std.npy
+      - logs/humanml3d/pretrain_mtrans/opt.txt
+      - logs/humanml3d/pretrain_mtrans/model/net_best_fid.tar
+      - logs/humanml3d/pretrain_rtrans/opt.txt
+      - logs/humanml3d/pretrain_rtrans/model/net_best_fid.tar
+      - checkpoints/humanml3d/length_estimator/model/finest.tar
+      - Part_TMR/checkpoints/exp_for_mtrans/HumanML3D/.hydra/config.yaml
+      - Part_TMR/checkpoints/exp_for_mtrans/HumanML3D/best_model.pt
+      - ViT-B-32.pt
+      - database/motion_ids.npy
+      - database/all_captions.npy
+      - database/encoded_motions.npy
+      - database/encoded_texts.npy
+    expected_files:
+      - logs/humanml3d/pretrain_vq/opt.txt
+      - logs/humanml3d/pretrain_vq/model/net_best_fid.tar
+      - logs/humanml3d/pretrain_vq/meta/mean.npy
+      - logs/humanml3d/pretrain_vq/meta/std.npy
+      - logs/humanml3d/pretrain_mtrans/opt.txt
+      - logs/humanml3d/pretrain_mtrans/model/net_best_fid.tar
+      - logs/humanml3d/pretrain_rtrans/opt.txt
+      - logs/humanml3d/pretrain_rtrans/model/net_best_fid.tar
+      - checkpoints/humanml3d/length_estimator/model/finest.tar
+      - Part_TMR/checkpoints/exp_for_mtrans/HumanML3D/.hydra/config.yaml
+      - Part_TMR/checkpoints/exp_for_mtrans/HumanML3D/best_model.pt
+      - ViT-B-32.pt
+      - database/motion_ids.npy
+      - database/all_captions.npy
+      - database/encoded_motions.npy
+      - database/encoded_texts.npy
+  - id: remomask-source
+    kind: https
+    url: https://github.com/AIGeeksGroup/ReMoMask/archive/630eda1f825bcc2ffb613a7270e1f5b6ac8baea2.zip
+    revision: 630eda1f825bcc2ffb613a7270e1f5b6ac8baea2
+    expected_files: [630eda1f825bcc2ffb613a7270e1f5b6ac8baea2.zip]
 licenses:
   code: CC-BY-NC-SA-4.0
-  weights: CC-BY-NC-SA-4.0 per repository-level project license; verify each artifact before redistribution
-  dataset_lineage:
-    - HumanML3D
-    - KIT-ML
-    - SnapMoGen
-  body_model:
-    - Optional SMPL/SMPL-X rendering dependencies retain their own licenses
+  weights: repository-level CC-BY-NC-SA-4.0; downstream bundled assets retain their own terms
+  dataset_lineage: [HumanML3D, KIT-ML, SnapMoGen]
+  body_model: [Optional SMPL/SMPL-X rendering dependencies retain their own licenses]
   commercial_allowed: false
   redistribution_allowed: true
   requires_acceptance: false
   source_urls:
+    - https://github.com/AIGeeksGroup/ReMoMask/blob/630eda1f825bcc2ffb613a7270e1f5b6ac8baea2/LICENSE
     - https://github.com/AIGeeksGroup/ReMoMask/blob/630eda1f825bcc2ffb613a7270e1f5b6ac8baea2/README.md
-    - https://creativecommons.org/licenses/by-nc-sa/4.0/
+    - https://github.com/openai/CLIP/blob/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6/LICENSE
 resources:
-  upstream_python: "3.10"
-  upstream_pytorch: 2.1.0
-  upstream_cuda: "11.8"
+  upstream_tested_python: 3.10
+  upstream_tested_pytorch: 2.1.0
+  upstream_tested_cuda: "11.8"
   upstream_tested_gpus: [NVIDIA A800, NVIDIA H20]
+  virea_runtime_python: "3.11"
+  virea_runtime_pytorch: 2.11.0
   upstream_inference_entrypoint: demo.py
-  retrieval_components:
-    - Part_TMR
-    - retrieval_database
-    - ViT-B-32.pt
+  implementation: plugins/models/remomask-humanml3d/runtime/src/virea_remomask/worker.py
   native_feature_dim: 263
   native_fps: 20.0
+  selected_official_hf_files: 16
+  selected_official_hf_bytes: 4194651198
+  portability:
+    closure: pure_pytorch_openai_clip_retrieval_and_part_level_mask_transformers
+    deviation: released_CLIP_checkpoint_closure_used_instead_of_incompatible_later_AutoModel_constructor_legacy_environment_replaced
+    cuda_platforms: [win-64, linux-64]
+    cpu_platforms: [win-64, linux-64, osx-arm64, osx-64]
+  integration_state: integrated_experimental
+production_acceptance_suite:
+  schema_version: virea.production_e2e_acceptance_suite.v1.0.0
+  kind: production_e2e_suite
+  contracts:
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: remomask-humanml3d
+        task: text_to_motion
+        input: {prompt: "A person walks forward, turns left, and waves with the right hand."}
+        parameters: {motion_length_frames: 80, seed: 10107, time_steps: 18, retrieval_top_k: 1, fps: 20.0}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: humanml3d.vector263.v1
+        skeleton_id: humanml3d.body22.v1
+        min_frames: 80
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 5400.0
+    - schema_version: virea.production_e2e_acceptance.v1.0.0
+      kind: production_e2e
+      request:
+        schema_version: virea.job_request.v1.0.0
+        model_id: remomask-humanml3d
+        task: retrieval_augmented_text_to_motion
+        input: {prompt: "A person walks forward, turns left, and waves with the right hand."}
+        parameters: {motion_length_frames: 80, seed: 10107, time_steps: 18, retrieval_top_k: 1, fps: 20.0}
+        avatar_id: null
+        idempotency_key: null
+      expected:
+        representation_id: humanml3d.vector263.v1
+        skeleton_id: humanml3d.body22.v1
+        min_frames: 80
+        artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+      required_stages: [environment_detection, artifact_installation, runtime_build, model_load, inference, native_artifact_validation, motion_ir_conversion, retarget_validation, vrma_export, web_playback]
+      timeout_seconds: 5400.0
 notes:
-  - The full upstream Git commit and Hugging Face artifact revision were verified with git ls-remote on 2026-08-21.
-  - The Hugging Face repository is a multi-component bundle containing generator checkpoints, retrieval checkpoints, database, evaluators, and CLIP weights; downstream component licenses still need per-file review.
-  - The shared HumanML3D synthetic output-contract adapter exists, but runnable_upstream is not integrated_experimental or supported; no VIREA Worker, isolated runtime, real upstream checkpoint result, or production end-to-end acceptance exists.
+  - The Worker executes the released RVQVAE, four part-level mask/residual transformers, BiMoCo CLIP query encoder/projection, and pinned upstream retrieval database. It never substitutes synthetic motion.
+  - The native NPY is inverse-normalized finite float32 [T,263]. HumanML3D recovery remains an explicit downstream adapter step; the 263D vector is not mislabeled as local joint rotations.
+  - The fixed HF config declares ViT-B-32.pt with 512-dimensional text input while its fixed best_model.pt contains text_encoder.clip_model.* state. The repository's later AutoModel constructor is incompatible with this release; the runtime follows the immutable config and checkpoint graph exactly and records the compatibility extraction above.
+  - integrated_experimental records an implemented locked runtime contract, not completed cross-platform production evidence. Every published installation must still pass the complete production acceptance contract above.

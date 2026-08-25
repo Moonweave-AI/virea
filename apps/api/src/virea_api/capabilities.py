@@ -4,16 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from virea_compat import real_adapter_families
 from virea_contracts import ModelSupportStatus
 
-REAL_ADAPTER_FAMILIES = frozenset(
-    {
-        "humanml3d-motion263-body22",
-        "joint-positions-body22",
-        "mardm-ric67-body22",
-        "prism-smplh-body22-axis-angle69",
-    }
-)
+REAL_ADAPTER_FAMILIES = real_adapter_families()
 
 _UPSTREAM_RUNNABLE_STATUSES = frozenset(
     {
@@ -30,7 +24,7 @@ def model_capability(manifest: Any) -> dict[str, Any]:
     upstream_runnable = manifest.model.status in _UPSTREAM_RUNNABLE_STATUSES
     adapter_integrated = manifest.model.adapter_family in REAL_ADAPTER_FAMILIES
     runtime_integrated = bool(manifest.runtime_variants)
-    acceptance_declared = manifest.production_acceptance is not None
+    acceptance_declared = bool(manifest.production_acceptance_contracts)
     virea_integrated = (
         upstream_runnable
         and adapter_integrated

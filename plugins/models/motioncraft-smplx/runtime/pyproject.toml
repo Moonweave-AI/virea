@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virea-model-motioncraft-smplx-runtime"
+version = "0.2.0"
+description = "Offline official MotionCraft multimodal SMPL-X Worker for VIREA"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Moonweave AI" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "numpy>=1.26,<2",
+  "pydantic>=2.8,<3",
+  "virea-contracts>=0.4.0",
+  "virea-model-sdk>=0.4.0",
+  "torch>=2.2.2,<2.12",
+  "torchvision>=0.17.2,<0.27",
+  "mmcv==1.7.2",
+  "yapf<0.40.2",
+  "clip @ git+https://github.com/openai/CLIP.git@d05afc436d78f1c48dc0dbf8e5980a9d471f35f6",
+  "einops>=0.8,<1",
+  "ftfy>=6.2,<7",
+  "regex>=2024.9.11",
+  "transformers>=4.35,<5",
+  "librosa>=0.10.2,<0.12",
+  "soundfile>=0.12,<1",
+  "scipy>=1.12,<2",
+  "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+virea-model-motioncraft-smplx-worker = "virea_motioncraft.worker:main"
+
+[tool.uv.sources]
+virea-contracts = { path = "../../../../packages/contracts", editable = true }
+virea-model-sdk = { path = "../../../../packages/model_sdk", editable = true }
+
+[tool.uv.extra-build-dependencies]
+mmcv = ["setuptools<81"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

@@ -2,7 +2,7 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: hy-motion-1
   display_name: Tencent HY-Motion 1.0
-  plugin_version: 0.1.0
+  plugin_version: 0.2.0
   upstream:
     repository: https://github.com/Tencent-Hunyuan/HY-Motion-1.0
     revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
@@ -10,7 +10,7 @@ model:
   tasks:
     - text_to_motion
   adapter_family: hy-motion-body22
-  status: runnable_upstream
+  status: integrated_experimental
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: text_to_motion
@@ -26,9 +26,6 @@ inputs:
       seed:
         type: integer
         required: false
-      prompt_rewrite:
-        type: boolean
-        default: false
 output:
   envelope: virea.model_result.v1.0.0
   representation_id: hy_motion.body22.rot6d_translation.v1
@@ -39,16 +36,132 @@ output:
   root_translation_semantics: absolute_world_translation_smoothed_and_shifted_vertically_to_ground_the_decoded_mesh
   root_rotation_semantics: root_6d_rotation_local_to_world_smoothed_by_upstream_slerp_path
   face_representation_ids: []
-runtime_variants: []
+runtime_variants:
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: hy-motion-1-cu128
+    backend: uv-native
+    platforms: [win-64, linux-64]
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: nvidia
+      abi: cu128
+      min_vram_gib: 26.0
+    lockfile: uv.lock
+    min_storage_gib: 52.0
+    resource_profiles:
+      - id: cuda-full
+        strategy: cuda_full
+        min_free_vram_gib: 26.0
+        min_free_ram_gib: 24.0
+        min_free_swap_gib: 0.0
+    entrypoint_argv: [python, -m, virea_hy_motion.worker]
+    startup_timeout_seconds: 1800
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - VIREA_RUNTIME_ID
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+      - TOKENIZERS_PARALLELISM
+    working_directory: plugins/models/hy-motion-1/runtime-cu128
+    project_package: virea-model-hy-motion-1-cu128-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_worker_build_and_contract_requires_local_real_checkpoint_acceptance
+  - schema_version: virea.runtime_spec.v1.0.0
+    id: hy-motion-1-cpu
+    backend: uv-native
+    platforms: [win-64, linux-64, osx-arm64, osx-64]
+    python: ">=3.11,<3.12"
+    accelerator:
+      kind: cpu
+      abi: null
+      min_vram_gib: null
+    lockfile: uv.lock
+    min_storage_gib: 48.0
+    resource_profiles:
+      - id: whole-model-cpu
+        strategy: cpu
+        min_free_vram_gib: null
+        min_free_ram_gib: 40.0
+        min_free_swap_gib: 16.0
+    entrypoint_argv: [python, -m, virea_hy_motion.worker]
+    startup_timeout_seconds: 1800
+    environment_allowlist:
+      - VIREA_ARTIFACT_ROOTS_JSON
+      - VIREA_RESOURCE_PROFILE
+      - VIREA_MEMORY_STRATEGY
+      - VIREA_RUNTIME_ID
+      - HF_HOME
+      - HF_HUB_OFFLINE
+      - TRANSFORMERS_OFFLINE
+      - TOKENIZERS_PARALLELISM
+    working_directory: plugins/models/hy-motion-1/runtime-cpu
+    project_package: virea-model-hy-motion-1-cpu-runtime
+    project_version: 0.2.0
+    runtime_core_epoch: virea-runtime-core-20260821.2
+    availability: pinned_official_cpu_fallback_build_and_contract_requires_local_real_checkpoint_acceptance
 artifacts:
+  - id: hy-motion-source
+    kind: https
+    url: https://github.com/Tencent-Hunyuan/HY-Motion-1.0/archive/4e426f5a1021cbcf7f375458c37b840ee7225229.zip
+    revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+    expected_files:
+      - source/hymotion/utils/t2m_runtime.py
+      - source/hymotion/pipeline/motion_diffusion.py
+      - source/stats/Mean.npy
+      - source/stats/Std.npy
+      - source/scripts/gradio/static/assets/dump_wooden/v_template.bin
+    unpack:
+      - path: 4e426f5a1021cbcf7f375458c37b840ee7225229.zip
+        format: zip
+        destination: source
+        strip_components: 1
+        remove_archive: true
   - id: hy-motion-1-standard
     kind: huggingface
     repository: tencent/HY-Motion-1.0
     revision: 620dd559f8d964aac2f82f1204fe6a35ad8ad14d
     allow_patterns:
-      - HY-Motion-1.0/**
-      - config.json
+      - HY-Motion-1.0/config.yml
+      - HY-Motion-1.0/latest.ckpt
       - LICENSE.txt
+    expected_files:
+      - HY-Motion-1.0/config.yml
+      - HY-Motion-1.0/latest.ckpt
+  - id: hy-motion-qwen3-8b
+    kind: huggingface
+    repository: Qwen/Qwen3-8B
+    revision: b968826d9c46dd6066d109eabc6255188de91218
+    allow_patterns:
+      - "*.json"
+      - "*.safetensors"
+      - LICENSE
+      - merges.txt
+      - vocab.json
+    expected_files:
+      - config.json
+      - model.safetensors.index.json
+      - tokenizer.json
+  - id: hy-motion-clip-vit-large-patch14
+    kind: huggingface
+    repository: openai/clip-vit-large-patch14
+    revision: 32bd64288804d66eefd0ccbe215aa642df71cc41
+    allow_patterns:
+      - config.json
+      - model.safetensors
+      - preprocessor_config.json
+      - special_tokens_map.json
+      - tokenizer_config.json
+      - tokenizer.json
+      - merges.txt
+      - vocab.json
+    expected_files:
+      - config.json
+      - model.safetensors
+      - tokenizer.json
 resources:
   model_parameters: 1.0B
   minimum_vram_gib: 26
@@ -61,6 +174,13 @@ resources:
   internal_motion_tensor_shape: [B, T, 201]
   public_decoded_rotation_shape: [B, T, 22, 6]
   output_mesh_fps: 30.0
+  portable_cpu_fallback_minimum_total_ram_gib: 40
+  portable_cpu_fallback_minimum_free_swap_gib: 16
+  complete_offline_artifact_closure:
+    - pinned HY-Motion source and wooden-body assets
+    - pinned Standard checkpoint
+    - pinned Qwen3-8B text encoder
+    - pinned CLIP ViT-L/14 text encoder
 licenses:
   code: Tencent HY-Motion 1.0 Community License Agreement
   weights: Tencent HY-Motion 1.0 Community License Agreement
@@ -76,8 +196,44 @@ licenses:
     - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/License.txt
     - https://huggingface.co/tencent/HY-Motion-1.0/blob/620dd559f8d964aac2f82f1204fe6a35ad8ad14d/LICENSE.txt
     - https://github.com/Tencent-Hunyuan/HY-Motion-1.0/blob/4e426f5a1021cbcf7f375458c37b840ee7225229/README.md
+    - https://huggingface.co/Qwen/Qwen3-8B/tree/b968826d9c46dd6066d109eabc6255188de91218
+    - https://huggingface.co/openai/clip-vit-large-patch14/tree/32bd64288804d66eefd0ccbe215aa642df71cc41
+production_acceptance:
+  schema_version: virea.production_e2e_acceptance.v1.0.0
+  kind: production_e2e
+  request:
+    schema_version: virea.job_request.v1.0.0
+    model_id: hy-motion-1
+    task: text_to_motion
+    input:
+      prompt: A person walks forward, turns, and waves with the right hand.
+      duration_seconds: 2.0
+    parameters:
+      seed: 42
+      guidance_scale: 5.0
+    avatar_id: null
+    idempotency_key: null
+  expected:
+    representation_id: hy_motion.body22.rot6d_translation.v1
+    skeleton_id: hy_motion.wooden_body22.v1
+    min_frames: 30
+    artifacts: [native_motion, motion_ir, retargeted_motion, vrma]
+  required_stages:
+    - environment_detection
+    - artifact_installation
+    - runtime_build
+    - model_load
+    - inference
+    - native_artifact_validation
+    - motion_ir_conversion
+    - retarget_validation
+    - vrma_export
+    - web_playback
+  timeout_seconds: 7200.0
 notes:
+  - "The optional upstream prompt-engineering service is not exposed as a VIREA input: its separate quantized prompter artifact is not part of the pinned offline closure. Prompts are passed unchanged to the official motion pipeline."
   - The full Git commit and Hugging Face artifact revision were verified with git ls-remote on 2026-08-21.
   - The custom license has territory, acceptable-use, downstream-notice, and large-service conditions; null commercial/redistribution facts intentionally require legal review instead of guessing.
   - At the pinned public decoder, the model tensor is 201D but body output consumes translation 0:3, root rotation 3:9, and 21 body rotations 9:135; features 135:201 are not consumed by _decode_o6dp and must remain opaque.
-  - A synthetic VIREA output-contract adapter exists, but runnable_upstream is not a support claim; no VIREA Worker, isolated runtime build, real checkpoint result, or production end-to-end acceptance evidence exists.
+  - VIREA now installs the complete pinned offline source/checkpoint/Qwen/CLIP closure and executes the official MotionFlowMatching.generate path in an isolated Worker; READY is still granted only after real local acceptance succeeds on the selected device.
+  - Native Windows and Linux can select CUDA when total VRAM satisfies the official 26 GiB floor; Windows, Linux, WSL, Intel macOS, and Apple Silicon can select the CPU fallback when host memory admission succeeds.

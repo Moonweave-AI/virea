@@ -673,13 +673,9 @@ def test_production_http_hides_and_rejects_test_only_models(
         assert dart["capability"] == {
             "cataloged": True,
             "upstream_runnable": True,
-            "virea_integrated": False,
-            "installable": False,
-            "reasons": [
-                "VIREA_ADAPTER_NOT_INTEGRATED",
-                "VIREA_RUNTIME_NOT_INTEGRATED",
-                "VIREA_ACCEPTANCE_NOT_DECLARED",
-            ],
+            "virea_integrated": True,
+            "installable": True,
+            "reasons": [],
         }
         assert client.get("/api/v1/models/fake-motion-v1").status_code == 404
 
@@ -731,10 +727,12 @@ def test_production_http_hides_and_rejects_test_only_models(
             },
         )
         assert upstream_response.status_code == 202
-        upstream_job = upstream_response.json()
+        upstream_job = _wait_for_terminal_job(
+            client,
+            upstream_response.json()["id"],
+        )
         assert upstream_job["state"] == "REJECTED"
-        assert upstream_job["error_code"] == "MODEL_NOT_INTEGRATED"
-        assert "VIREA_ADAPTER_NOT_INTEGRATED" in upstream_job["error_message"]
+        assert upstream_job["error_code"] == "EXECUTION_DOMAIN_SELECTION_REQUIRED"
 
 
 def test_models_v1_default_preserves_full_integrity_readiness_semantics(
@@ -804,8 +802,7 @@ def test_api_and_cli_share_the_same_integrated_catalog_boundary() -> None:
 
     assert len(manifests) == 14
     assert api_integrated == cli_integrated
-    assert len(api_integrated) == 6
-    assert len(manifests) - len(api_integrated) == 8
+    assert api_integrated == {manifest.model.id for manifest in manifests}
 
     integrated = next(
         manifest for manifest in manifests if manifest.model.id in api_integrated
@@ -914,7 +911,7 @@ def test_api_refuses_test_model_install(tmp_path) -> None:
         assert app.state.control_plane.store.installation_transactions() == []
 
 
-def test_api_refuses_apply_for_catalog_only_model_without_creating_installation(
+def test_api_requires_explicit_execution_domain_before_installation(
     tmp_path,
 ) -> None:
     app = create_app(
@@ -928,10 +925,10 @@ def test_api_refuses_apply_for_catalog_only_model_without_creating_installation(
             json={"model_id": "hy-motion-1", "apply": True},
         )
         assert response.status_code == 409, response.text
-        assert response.json()["detail"] == (
-            "model is cataloged but has no integrated VIREA runtime and "
-            "real end-to-end acceptance runner"
-        )
+        detail = response.json()["detail"]
+        assert detail["code"] == "EXECUTION_DOMAIN_SELECTION_REQUIRED"
+        assert detail["execution_options"]
+        assert all(option["implemented"] for option in detail["execution_options"])
         assert app.state.control_plane.store.installation_transactions() == []
 
 
