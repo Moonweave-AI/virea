@@ -2,7 +2,13 @@ name: VIREA refactor CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+
+concurrency:
+  group: refactor-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
