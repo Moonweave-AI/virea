@@ -149,6 +149,14 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
   let generationSubmitCount = 0;
   let submittedGeneration = null;
   let includeResponsiveJob = false;
+  let observeGenerationSubmit;
+  const generationSubmitStarted = new Promise((resolveStarted) => {
+    observeGenerationSubmit = resolveStarted;
+  });
+  let releaseGenerationSubmit;
+  const generationSubmitRelease = new Promise((resolveRelease) => {
+    releaseGenerationSubmit = resolveRelease;
+  });
   const backendSockets = new Set();
   const backend = createHttpServer((request, response) => {
     const path = new URL(request.url, "http://127.0.0.1").pathname;
@@ -271,17 +279,18 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     }
     if (path === "/api/v1/jobs" && request.method === "POST") {
       generationSubmitCount += 1;
+      observeGenerationSubmit();
       let body = "";
       request.on("data", (chunk) => { body += String(chunk); });
       request.on("end", () => {
         submittedGeneration = JSON.parse(body);
-        setTimeout(() => respondJson(response, {
+        void generationSubmitRelease.then(() => respondJson(response, {
           id: "job-responsive",
           model_id: "flood-diffusion-tiny",
           task: "text_to_motion",
           state: "QUEUED",
           idempotency_key: submittedGeneration.idempotency_key,
-        }, 202), 750);
+        }, 202));
       });
       return;
     }
@@ -505,17 +514,22 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       await page.locator("#vrm-canvas").getAttribute("data-render-loop"),
       "running",
     );
-    const clickStartedAt = Date.now();
     await page.locator("#generate").click();
+    await generationSubmitStarted;
     const immediateStatus = await page.locator("[data-generation-label]").textContent();
     assert.match(immediateStatus ?? "", /核验|提交/);
-    assert.ok(Date.now() - clickStartedAt < 500, "Generate must paint feedback before the delayed POST returns");
+    assert.equal(
+      generationSubmitCount,
+      1,
+      "Generate feedback must be visible while the deliberately held POST is still unresolved",
+    );
     assert.equal(await page.locator("#generate").isDisabled(), true);
     assert.equal(
       await page.locator("#vrm-canvas").getAttribute("data-render-loop"),
       "stopped",
       "GPU rendering pauses while a generation owns the workbench",
     );
+    releaseGenerationSubmit();
     await page.locator(".error").waitFor({ state: "visible", timeout: 3_000 });
     assert.equal(
       await page.locator("#vrm-canvas").getAttribute("data-render-loop"),
@@ -669,6 +683,11 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
   let generationPostCount = 0;
   let durableJobCount = 0;
   let persistedJob = null;
+  let blockNextStateResponse = false;
+  let armBlockedStateAfterExecutionOptions = false;
+  let observeBlockedStateRequest = () => {};
+  let releaseBlockedStateResponse = () => {};
+  let blockedStateResponse = Promise.resolve();
   const backendSockets = new Set();
   const backend = createHttpServer((request, response) => {
     const path = new URL(request.url, "http://127.0.0.1").pathname;
@@ -692,7 +711,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
         respondJson(response, {
           schema_version: "virea.state_revision.v1.0.0",
           observed_at: new Date().toISOString(),
-          events_url: "",
+          events_url: "/api/v1/state/events",
           virea_home: plan?.home ?? authoritativeHome,
           revision: {
             jobs: persistedJob ? "1:job-authority" : "0:",
@@ -703,7 +722,11 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
           },
         });
       };
-      if (plan?.delayMs) setTimeout(sendState, plan.delayMs);
+      if (blockNextStateResponse) {
+        blockNextStateResponse = false;
+        observeBlockedStateRequest();
+        void blockedStateResponse.then(sendState);
+      } else if (plan?.delayMs) setTimeout(sendState, plan.delayMs);
       else sendState();
       return;
     }
@@ -728,6 +751,10 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     }
     if (path === "/api/v1/models/flood-diffusion-tiny/execution-options") {
       executionOptionsRequestCount += 1;
+      if (armBlockedStateAfterExecutionOptions) {
+        armBlockedStateAfterExecutionOptions = false;
+        blockNextStateResponse = true;
+      }
       if (switchHomeAfterOptions) {
         authoritativeHome = switchHomeAfterOptions;
         switchHomeAfterOptions = "";
@@ -824,6 +851,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
   let vite = null;
   let browser = null;
   let browserContext = null;
+  let stateSocketRoute = null;
   try {
     await new Promise((resolveListen) => backend.listen({
       host: "127.0.0.1",
@@ -853,6 +881,9 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     browserContext = await browser.newContext({ viewport: { width: 1_280, height: 900 } });
     const page = await browserContext.newPage();
     page.setDefaultTimeout(3_000);
+    await page.routeWebSocket(/\/api\/v1\/state\/events$/, (socket) => {
+      stateSocketRoute = socket;
+    });
     await page.routeWebSocket(/\/api\/v1\/jobs\/[^/]+\/events$/, (socket) => socket.close());
     await page.goto(`http://127.0.0.1:${webAddress.port}/app/`, {
       waitUntil: "domcontentloaded",
@@ -976,8 +1007,51 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
     await page.waitForFunction(() => !document.querySelector("#generate")?.disabled);
+    for (let attempt = 0; attempt < 100 && !stateSocketRoute; attempt += 1) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
+    assert.ok(stateSocketRoute, "the state-stream fixture must be connected before submission");
 
+    const blockedStateRequest = new Promise((resolveBlocked) => {
+      observeBlockedStateRequest = resolveBlocked;
+    });
+    blockedStateResponse = new Promise((resolveRelease) => {
+      releaseBlockedStateResponse = resolveRelease;
+    });
+    armBlockedStateAfterExecutionOptions = true;
+    await page.evaluate(() => {
+      const nativeFetch = window.fetch.bind(window);
+      window.__vireaStateFetchCountDuringSubmit = 0;
+      window.fetch = (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (new URL(url, window.location.href).pathname === "/api/v1/state") {
+          window.__vireaStateFetchCountDuringSubmit += 1;
+        }
+        return nativeFetch(input, init);
+      };
+    });
     await generate.click();
+    await blockedStateRequest;
+    stateSocketRoute.send(JSON.stringify({
+      schema_version: "virea.state_revision.v1.0.0",
+      observed_at: new Date().toISOString(),
+      events_url: "/api/v1/state/events",
+      virea_home: homeC,
+      revision: {
+        jobs: "0:",
+        results: "0:",
+        installations: "1:ready",
+        models: "1:catalog",
+        workers: "0::",
+      },
+    }));
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    assert.equal(
+      await page.evaluate(() => window.__vireaStateFetchCountDuringSubmit),
+      1,
+      "background polling must not supersede the explicit pre-submission authority barrier",
+    );
+    releaseBlockedStateResponse();
     await page.waitForFunction(() => {
       const message = document.querySelector(".error")?.textContent ?? "";
       return Boolean(message) && !message.includes("已应用最新状态");

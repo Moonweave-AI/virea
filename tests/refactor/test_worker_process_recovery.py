@@ -15,7 +15,7 @@ from virea_contracts.job import JobRequest
 from virea_contracts.runtime_identity import RUNTIME_CORE_EPOCH
 from virea_core.db import StateStore
 from virea_core.paths import VireaPaths
-from virea_runtime.process_identity import inspect_process
+from virea_runtime.process_identity import ProcessIdentity, inspect_process
 from virea_runtime.supervisor import WorkerStartError, WorkerSupervisor
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -107,6 +107,383 @@ def test_verified_real_subprocess_is_persisted_recovered_and_reaped(tmp_path) ->
         first.stop(handle)
 
 
+def test_start_persists_post_readiness_identity_after_spawn_exec_transition(
+    tmp_path, monkeypatch
+) -> None:
+    captured: dict[str, tuple[str, ...]] = {}
+    identity_reads = 0
+
+    class FakeProcess:
+        pid = 424242
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    def fake_popen(argv, **_kwargs):
+        captured["argv"] = tuple(argv)
+        return FakeProcess()
+
+    def fake_identity(pid: int) -> ProcessIdentity:
+        nonlocal identity_reads
+        identity_reads += 1
+        final_argv = captured["argv"]
+        if identity_reads == 1:
+            transitional_argv = ("posix-spawn-helper", *final_argv[1:])
+            return ProcessIdentity(
+                pid=pid,
+                creation_token="stable-process-birth",
+                executable="posix-spawn-helper",
+                argv=transitional_argv,
+            )
+        return ProcessIdentity(
+            pid=pid,
+            creation_token="stable-process-birth",
+            executable=final_argv[0],
+            argv=final_argv,
+        )
+
+    monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(supervisor_module, "inspect_process", fake_identity)
+    monkeypatch.setattr(supervisor_module.WorkerClient, "ready", lambda _self: True)
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    supervisor = WorkerSupervisor(paths, store=store)
+
+    handle = supervisor.start(
+        model_id="spawn-transition-model",
+        runtime_id="spawn-transition-runtime",
+        job_id="spawn-transition-job",
+        entrypoint_argv=_identity_entrypoint(),
+        job_root=paths.job_directory("spawn-transition-job"),
+    )
+    try:
+        row = store.worker_instance(handle.instance_id)
+        assert row is not None
+        diagnostics = json.loads(row["diagnostics_json"])
+        assert row["state"] == "RUNNING"
+        assert diagnostics["recovery_verifiable"] is True
+        assert diagnostics["process_identity"]["executable"] == captured["argv"][0]
+        assert diagnostics["process_identity"]["argv"] == list(captured["argv"])
+        assert identity_reads == 2
+    finally:
+        handle.close_streams()
+
+
+def test_failed_start_retains_unterminated_process_for_shutdown_retry(
+    tmp_path, monkeypatch
+) -> None:
+    class FakeProcess:
+        pid = 424242
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    process = FakeProcess()
+    monkeypatch.setattr(
+        supervisor_module.subprocess, "Popen", lambda _argv, **_kwargs: process
+    )
+    monkeypatch.setattr(supervisor_module, "inspect_process", lambda _pid: None)
+    monkeypatch.setattr(
+        supervisor_module,
+        "_terminate_spawned_process",
+        lambda _process, *, timeout: False,
+    )
+    supervisor = WorkerSupervisor(VireaPaths(tmp_path / "virea-home"))
+
+    with pytest.raises(WorkerStartError) as failure:
+        supervisor.start(
+            model_id="failed-start-model",
+            runtime_id="failed-start-runtime",
+            job_id="failed-start-job",
+            entrypoint_argv=_identity_entrypoint(),
+        )
+
+    assert failure.value.process_termination_proven is False
+    retained = supervisor.handles()
+    assert len(retained) == 1
+    row = supervisor.store.worker_instance(retained[0].instance_id)
+    assert row is not None
+    assert row["state"] == "RECOVERY_BLOCKED"
+
+    process.returncode = 1
+    supervisor.stop_all(timeout=0.1)
+    assert supervisor.handles() == ()
+    retained[0].close_streams()
+
+
+def test_failed_start_uses_observed_exit_when_termination_reports_false(
+    tmp_path, monkeypatch
+) -> None:
+    class FakeProcess:
+        pid = 424242
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    process = FakeProcess()
+    monkeypatch.setattr(
+        supervisor_module.subprocess, "Popen", lambda _argv, **_kwargs: process
+    )
+    monkeypatch.setattr(supervisor_module, "inspect_process", lambda _pid: None)
+
+    def conservative_termination(_process, *, timeout):
+        assert timeout == 5.0
+        process.returncode = 1
+        return False
+
+    monkeypatch.setattr(
+        supervisor_module,
+        "_terminate_spawned_process",
+        conservative_termination,
+    )
+    supervisor = WorkerSupervisor(VireaPaths(tmp_path / "virea-home"))
+
+    with pytest.raises(WorkerStartError) as failure:
+        supervisor.start(
+            model_id="concurrent-exit-model",
+            runtime_id="concurrent-exit-runtime",
+            job_id="concurrent-exit-job",
+            entrypoint_argv=_identity_entrypoint(),
+        )
+
+    assert failure.value.process_termination_proven is True
+    assert supervisor.handles() == ()
+    row = supervisor.store.worker_instances()[0]
+    assert row["state"] == "FAILED"
+
+
+@pytest.mark.parametrize(
+    "failing_update_number",
+    (1, 2),
+    ids=("provisional-identity", "ready-identity"),
+)
+@pytest.mark.parametrize("termination_succeeds", (True, False))
+def test_state_store_failure_never_gates_spawned_process_cleanup(
+    tmp_path, monkeypatch, failing_update_number, termination_succeeds
+) -> None:
+    captured: dict[str, tuple[str, ...]] = {}
+    update_count = 0
+    termination_count = 0
+
+    class FakeProcess:
+        pid = 424242
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    process = FakeProcess()
+
+    def fake_popen(argv, **_kwargs):
+        captured["argv"] = tuple(argv)
+        return process
+
+    def fake_identity(pid: int) -> ProcessIdentity:
+        argv = captured["argv"]
+        return ProcessIdentity(
+            pid=pid,
+            creation_token="persistent-store-failure-birth",
+            executable=argv[0],
+            argv=argv,
+        )
+
+    def fake_termination(_process, *, timeout):
+        nonlocal termination_count
+        termination_count += 1
+        assert timeout == 5.0
+        if termination_succeeds:
+            process.returncode = 1
+        return termination_succeeds
+
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    real_update = store.update_worker_instance
+
+    def persist_until_failure(instance_id, **changes):
+        nonlocal update_count
+        update_count += 1
+        if update_count >= failing_update_number:
+            raise OSError("simulated persistent StateStore write failure")
+        return real_update(instance_id, **changes)
+
+    monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(supervisor_module, "inspect_process", fake_identity)
+    monkeypatch.setattr(supervisor_module.WorkerClient, "ready", lambda _self: True)
+    monkeypatch.setattr(
+        supervisor_module, "_terminate_spawned_process", fake_termination
+    )
+    monkeypatch.setattr(store, "update_worker_instance", persist_until_failure)
+    supervisor = WorkerSupervisor(paths, store=store)
+
+    with pytest.raises(WorkerStartError) as failure:
+        supervisor.start(
+            model_id="store-failure-model",
+            runtime_id="store-failure-runtime",
+            job_id="store-failure-job",
+            entrypoint_argv=_identity_entrypoint(),
+        )
+
+    assert failure.value.process_termination_proven is termination_succeeds
+    assert termination_count == 1
+    assert update_count > failing_update_number
+    if termination_succeeds:
+        assert process.poll() == 1
+        assert supervisor.handles() == ()
+    else:
+        retained = supervisor.handles()
+        assert len(retained) == 1
+        assert retained[0].process is process
+        process.returncode = 1
+        retained[0].close_streams()
+
+
+def test_stopping_state_write_failure_cannot_block_process_termination(
+    tmp_path, monkeypatch
+) -> None:
+    captured: dict[str, tuple[str, ...]] = {}
+
+    class FakeProcess:
+        pid = 424242
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    process = FakeProcess()
+
+    def fake_popen(argv, **_kwargs):
+        captured["argv"] = tuple(argv)
+        return process
+
+    def fake_identity(pid: int) -> ProcessIdentity:
+        argv = captured["argv"]
+        return ProcessIdentity(
+            pid=pid,
+            creation_token="stop-store-failure-birth",
+            executable=argv[0],
+            argv=argv,
+        )
+
+    def fake_termination(_process, *, timeout):
+        assert timeout == 5.0
+        process.returncode = 0
+        return True
+
+    monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(supervisor_module, "inspect_process", fake_identity)
+    monkeypatch.setattr(supervisor_module.WorkerClient, "ready", lambda _self: True)
+    monkeypatch.setattr(
+        supervisor_module, "_terminate_spawned_process", fake_termination
+    )
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    supervisor = WorkerSupervisor(paths, store=store)
+    handle = supervisor.start(
+        model_id="stop-store-failure-model",
+        runtime_id="stop-store-failure-runtime",
+        job_id="stop-store-failure-job",
+        entrypoint_argv=_identity_entrypoint(),
+    )
+    real_update = store.update_worker_instance
+
+    def fail_only_stopping(instance_id, **changes):
+        if changes.get("state") == "STOPPING":
+            raise OSError("simulated STOPPING state write failure")
+        return real_update(instance_id, **changes)
+
+    monkeypatch.setattr(store, "update_worker_instance", fail_only_stopping)
+
+    supervisor.stop(handle, timeout=5.0)
+
+    assert process.poll() == 0
+    assert supervisor.handles() == ()
+    row = store.worker_instance(handle.instance_id)
+    assert row is not None
+    assert row["state"] == "STOPPED"
+
+
+def test_stop_all_reaps_later_workers_after_first_terminal_write_failure(
+    tmp_path, monkeypatch
+) -> None:
+    captured: dict[int, tuple[str, ...]] = {}
+    processes: list[object] = []
+
+    class FakeProcess:
+        def __init__(self, pid):
+            self.pid = pid
+            self.returncode = None
+
+        def poll(self):
+            return self.returncode
+
+    def fake_popen(argv, **_kwargs):
+        process = FakeProcess(424242 + len(processes))
+        processes.append(process)
+        captured[process.pid] = tuple(argv)
+        return process
+
+    def fake_identity(pid: int) -> ProcessIdentity:
+        argv = captured[pid]
+        return ProcessIdentity(
+            pid=pid,
+            creation_token=f"stop-all-birth-{pid}",
+            executable=argv[0],
+            argv=argv,
+        )
+
+    terminated: list[int] = []
+
+    def fake_termination(process, *, timeout):
+        assert timeout == 5.0
+        terminated.append(process.pid)
+        process.returncode = 0
+        return True
+
+    monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(supervisor_module, "inspect_process", fake_identity)
+    monkeypatch.setattr(supervisor_module.WorkerClient, "ready", lambda _self: True)
+    monkeypatch.setattr(
+        supervisor_module, "_terminate_spawned_process", fake_termination
+    )
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    supervisor = WorkerSupervisor(paths, store=store)
+    first = supervisor.start(
+        model_id="stop-all-model-1",
+        runtime_id="stop-all-runtime",
+        job_id="stop-all-job-1",
+        entrypoint_argv=_identity_entrypoint(),
+    )
+    second = supervisor.start(
+        model_id="stop-all-model-2",
+        runtime_id="stop-all-runtime",
+        job_id="stop-all-job-2",
+        entrypoint_argv=_identity_entrypoint(),
+    )
+    real_update = store.update_worker_instance
+
+    def fail_first_terminal_write(instance_id, **changes):
+        if instance_id == first.instance_id and changes.get("state") == "STOPPED":
+            raise OSError("simulated first terminal write failure")
+        return real_update(instance_id, **changes)
+
+    monkeypatch.setattr(store, "update_worker_instance", fail_first_terminal_write)
+
+    with pytest.raises(RuntimeError, match=first.instance_id):
+        supervisor.stop_all(timeout=5.0)
+
+    assert terminated == [first.process.pid, second.process.pid]
+    assert first.process.poll() == 0
+    assert second.process.poll() == 0
+    assert supervisor.handles() == ()
+    second_row = store.worker_instance(second.instance_id)
+    assert second_row is not None
+    assert second_row["state"] == "STOPPED"
+
+
 def test_pid_identity_mismatch_blocks_recovery_without_killing_process(
     tmp_path,
 ) -> None:
@@ -169,6 +546,56 @@ def test_pid_identity_mismatch_blocks_recovery_without_killing_process(
     finally:
         process.terminate()
         process.wait(timeout=10.0)
+
+
+@pytest.mark.parametrize("process_present", (False, True))
+def test_incomplete_start_identity_recovers_only_after_process_exit(
+    tmp_path, monkeypatch, process_present
+) -> None:
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    instance_id = "incomplete-start-identity"
+    store.create_worker_instance(
+        instance_id=instance_id,
+        pid=424242,
+        state="STARTING",
+        started_at="2026-08-25T00:00:00+00:00",
+        diagnostics={
+            "schema_version": "virea.worker_process_identity.v1",
+            "process_identity": None,
+            "required_tokens": {},
+        },
+    )
+    observed = (
+        ProcessIdentity(
+            pid=424242,
+            creation_token="possibly-reused-live-process",
+            executable=sys.executable,
+            argv=(sys.executable, "-c", "pass"),
+        )
+        if process_present
+        else None
+    )
+    monkeypatch.setattr(supervisor_module, "inspect_process", lambda _pid: observed)
+    monkeypatch.setattr(
+        supervisor_module,
+        "_terminate_verified_orphan",
+        lambda *_args, **_kwargs: pytest.fail(
+            "an incompletely identified live PID must never be terminated"
+        ),
+    )
+
+    supervisor = WorkerSupervisor(paths, store=store)
+    report = supervisor.recover_orphans(timeout=0.1)
+
+    if process_present:
+        assert report["recovered"] == []
+        assert [row["id"] for row in report["blocked"]] == [instance_id]
+        assert report["blocked"][0]["state"] == "RECOVERY_BLOCKED"
+    else:
+        assert report["blocked"] == []
+        assert [row["id"] for row in report["recovered"]] == [instance_id]
+        assert report["recovered"][0]["state"] == "RECOVERED"
 
 
 def test_normal_real_subprocess_stop_is_persisted_as_terminal(tmp_path) -> None:

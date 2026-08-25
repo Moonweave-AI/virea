@@ -156,6 +156,8 @@ let stateAuthorityReconciliationHome = "";
 let stateAuthorityReconciliationEpoch = 0;
 let stateAuthorityLastSuccessfulEpoch = 0;
 let stateAuthorityLastFailureEpoch = 0;
+let preSubmissionAuthorityCheckInFlight = false;
+let deferredPreSubmissionStateRevision: StateRevision | null = null;
 
 function escapeHtml(value: unknown): string {
   return String(value)
@@ -1256,6 +1258,7 @@ async function generate(): Promise<void> {
   state.notice = "";
   state.generationPhase = "validating";
   state.generationMessage = "核验所选系统、Runtime 与资源配置 / Checking execution target";
+  preSubmissionAuthorityCheckInFlight = true;
   renderLiveRegions();
   try {
     if (!isVireaIntegratedModel(manifest)) {
@@ -1303,23 +1306,36 @@ async function generate(): Promise<void> {
       );
     }
     const observedVireaHome = authorityObservation.payload?.virea_home.trim() ?? "";
+    const deferredVireaHome =
+      typeof deferredPreSubmissionStateRevision?.virea_home === "string"
+        ? deferredPreSubmissionStateRevision.virea_home.trim()
+        : "";
     if (
       !authorityObservation.current
       || authorityObservation.epoch !== stateAuthorityRequestEpoch
       || !hasFreshVireaHomeAuthority()
       || observedVireaHome !== authoritativeVireaHome
+      || (
+        deferredPreSubmissionStateRevision !== null
+        && deferredVireaHome !== authoritativeVireaHome
+      )
       || state.vireaHome.trim() !== authoritativeVireaHome
     ) {
       throw new Error(
-        `持久数据根已从 ${authoritativeVireaHome} 变更为 ${observedVireaHome || "未知"}；已应用最新状态，请确认后重试`,
+        `持久数据根已从 ${authoritativeVireaHome} 变更为 ${deferredVireaHome || observedVireaHome || "未知"}；已应用最新状态，请确认后重试`,
       );
     }
-    let job = await submitGeneration(
+    const durableSubmission = submitGeneration(
       manifest,
       draft,
       target,
       attempt.idempotencyKey,
     );
+    // Keep focus/online/interval polling behind the authority barrier until
+    // fetch() has synchronously opened the durable POST. Long-running Job
+    // tracking must not suppress ordinary state synchronization.
+    releasePreSubmissionAuthorityBarrier();
+    let job = await durableSubmission;
     if (pendingSubmissionAttempt?.idempotencyKey === attempt.idempotencyKey) {
       persistPendingSubmissionAttempt(null);
     }
@@ -1353,6 +1369,7 @@ async function generate(): Promise<void> {
     state.error = errorMessage(error);
     state.generationEvidence = JSON.stringify({ error: state.error }, null, 2);
   } finally {
+    releasePreSubmissionAuthorityBarrier();
     state.generationPhase = "idle";
     state.generationMessage = "";
     render();
@@ -1752,16 +1769,23 @@ function connectStateStream(): void {
   });
   socket.addEventListener("message", (event) => {
     try {
-      const payload = JSON.parse(String(event.data)) as StateRevision;
-      const key = revisionKey(payload);
-      const authorityEpoch = ++stateAuthorityRequestEpoch;
-      stateAuthorityLastSuccessfulEpoch = authorityEpoch;
-      applyStateRevision(payload, authorityEpoch);
-      if (key !== stateRevisionKey || stateAuthorityReconciliationHome) {
-        void synchronizeRevision(payload, authorityEpoch);
-      } else {
-        updateSyncBadge();
+      const parsed = JSON.parse(String(event.data)) as unknown;
+      if (
+        !parsed
+        || typeof parsed !== "object"
+        || typeof (parsed as { virea_home?: unknown }).virea_home !== "string"
+      ) {
+        throw new Error("invalid VIREA state-stream payload");
       }
+      const payload = parsed as StateRevision;
+      if (preSubmissionAuthorityCheckInFlight) {
+        // Preserve the newest push without superseding the exact pre-POST GET.
+        // generate() compares its root synchronously before opening the POST,
+        // then flushes this revision as soon as that boundary is crossed.
+        deferredPreSubmissionStateRevision = payload;
+        return;
+      }
+      applyStateStreamRevision(payload);
     } catch {
       socket.close();
     }
@@ -1776,7 +1800,38 @@ function connectStateStream(): void {
   socket.addEventListener("error", () => socket.close());
 }
 
+function applyStateStreamRevision(payload: StateRevision): void {
+  const key = revisionKey(payload);
+  const authorityEpoch = ++stateAuthorityRequestEpoch;
+  stateAuthorityLastSuccessfulEpoch = authorityEpoch;
+  applyStateRevision(payload, authorityEpoch);
+  if (key !== stateRevisionKey || stateAuthorityReconciliationHome) {
+    void synchronizeRevision(payload, authorityEpoch);
+  } else {
+    updateSyncBadge();
+  }
+}
+
+function releasePreSubmissionAuthorityBarrier(): void {
+  preSubmissionAuthorityCheckInFlight = false;
+  const deferred = deferredPreSubmissionStateRevision;
+  deferredPreSubmissionStateRevision = null;
+  if (deferred) {
+    try {
+      applyStateStreamRevision(deferred);
+    } catch {
+      stateSocket?.close();
+    }
+  }
+}
+
 async function pollStateRevision(): Promise<void> {
+  // The pre-submission read is a safety barrier: it binds this exact Job POST
+  // to the VIREA_HOME the user reviewed. A focus/online/interval poll starting
+  // behind it would otherwise advance the shared authority epoch and turn a
+  // valid click into a false "root changed" rejection. The explicit read is
+  // bounded to five seconds; resume ordinary polling as soon as it settles.
+  if (preSubmissionAuthorityCheckInFlight) return;
   try {
     const observation = await requestAuthoritativeStateRevision();
     if (!observation.current || !observation.payload) return;
