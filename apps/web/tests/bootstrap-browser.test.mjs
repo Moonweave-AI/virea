@@ -141,6 +141,10 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
   let executionOptionsRequestCount = 0;
   let executionOptionsMode = "valid";
   let modelCatalogRequestCount = 0;
+  let resolveBootstrapModelReconciliation;
+  const bootstrapModelReconciliation = new Promise((resolveReconciliation) => {
+    resolveBootstrapModelReconciliation = resolveReconciliation;
+  });
   let fakeJobRequestCount = 0;
   let generationSubmitCount = 0;
   let submittedGeneration = null;
@@ -254,7 +258,15 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     }
     if (path === "/api/v1/models") {
       modelCatalogRequestCount += 1;
-      respondJson(response, [modelManifest()]);
+      if (modelCatalogRequestCount === 2) {
+        resolveBootstrapModelReconciliation();
+        // This is deliberately slower than the former global 100 ms timer
+        // monkeypatch. Ordinary API deadlines must retain their production
+        // value while only the explicit 180 s /system diagnostic is sped up.
+        setTimeout(() => respondJson(response, [modelManifest()]), 150);
+      } else {
+        respondJson(response, [modelManifest()]);
+      }
       return;
     }
     if (path === "/api/v1/jobs" && request.method === "POST") {
@@ -436,7 +448,11 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     await page.addInitScript(() => {
       const nativeSetTimeout = window.setTimeout.bind(window);
       window.setTimeout = (handler, timeout = 0, ...args) => (
-        nativeSetTimeout(handler, Math.min(Number(timeout), 100), ...args)
+        nativeSetTimeout(
+          handler,
+          Number(timeout) >= 180_000 ? 100 : Number(timeout),
+          ...args,
+        )
       );
     });
     page.on("console", (message) => {
@@ -462,9 +478,13 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     await environment.selectOption("wsl:Ubuntu-24.04");
     await page.locator('button[data-view="playground"]').click();
     await page.locator("#model-id").waitFor({ state: "visible", timeout: 3_000 });
-    for (let attempt = 0; attempt < 30 && modelCatalogRequestCount < 2; attempt += 1) {
-      await new Promise((resolveWait) => setTimeout(resolveWait, 25));
-    }
+    await Promise.all([
+      bootstrapModelReconciliation,
+      page.waitForFunction(() => (
+        !document.querySelector("#generate")?.disabled
+        && !document.querySelector("#data-root-indicator")?.textContent?.includes("待确认")
+      )),
+    ]);
     assert.ok(
       modelCatalogRequestCount >= 2,
       "bootstrap must reconcile collections after its independently fetched revision checkpoint",

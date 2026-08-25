@@ -360,6 +360,21 @@ def _make_internal_asset_read_only(asset_root: Path) -> None:
         pass
 
 
+def _make_internal_asset_root_movable(asset_root: Path) -> None:
+    """Grant the owner permission needed to rename a hardened POSIX directory.
+
+    Stable assets are intentionally stored with a read/execute-only root.  On
+    POSIX, moving that directory to quarantine also updates its ``..`` entry,
+    which requires owner write permission on the directory itself.  Windows
+    does not use these mode bits, but applying the owner bits is harmless.
+    """
+
+    if not _is_ordinary_directory(asset_root):
+        raise OSError("refusing to make a non-ordinary asset root movable")
+    current_mode = stat.S_IMODE(asset_root.lstat().st_mode)
+    asset_root.chmod(current_mode | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+
 @dataclass(frozen=True, slots=True)
 class InstallOutcome:
     installation_id: str
@@ -761,10 +776,14 @@ class ModelPool:
             },
         )
         try:
+            _make_internal_asset_root_movable(asset_root)
             os.replace(asset_root, destination)
         except Exception:
+            if _is_ordinary_directory(asset_root):
+                _make_internal_asset_read_only(asset_root)
             journal.unlink(missing_ok=True)
             raise
+        _make_internal_asset_read_only(destination)
         try:
             _create_directory_reference(asset_root, destination)
         except Exception:

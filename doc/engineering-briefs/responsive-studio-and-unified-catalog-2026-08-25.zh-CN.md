@@ -119,9 +119,11 @@ QA-L4 需要覆盖：幂等 Job 创建、metadata/full 校验分离、快速 `20
 
 2026-08-25 收集的实施证据：
 
-- Python 全仓测试：`697 passed, 34 skipped`。
-- Web 单元/浏览器/Viewer 测试：`67 passed`；Vite production build 成功。
+- Windows Python 全仓测试：`699 passed, 34 skipped`。
+- Linux/WSL CI 契约范围：`497 passed, 17 skipped`。
+- Web 单元/浏览器/Viewer 测试：`68 passed`；Vite production build 成功。
 - Ruff lint 与全仓格式检查通过。
+- GitHub Actions 工作流已通过 `actionlint`；运行环境和数据目录均位于源码 checkout 之外。
 - 生成文档漂移检查及中英双语文档检查通过（共 `141` 个 Markdown 文件）。
 
 本次没有数据库或制品迁移。回滚只需恢复上一版前端 bundle 与控制面；已有 Job 和幂等键仍是有效 v1 记录。

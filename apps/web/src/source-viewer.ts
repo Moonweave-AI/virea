@@ -445,7 +445,13 @@ export class SourceSkeletonViewer {
       return;
     }
     this.timer.update(timestamp);
-    const delta = Math.min(this.timer.getDelta(), 0.1);
+    const measuredDelta = this.timer.getDelta();
+    // A RAF timestamp can precede a Timer.reset() performed later in the same
+    // browser frame. Never let that small negative delta produce frame -1 and
+    // write undefined joint values into GPU buffers.
+    const delta = Number.isFinite(measuredDelta)
+      ? Math.max(0, Math.min(measuredDelta, 0.1))
+      : 0;
     let frame = Number(this.canvas.dataset.sourceFrame ?? "0");
     if (this.preview) {
       this.playheadSeconds += delta;

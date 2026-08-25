@@ -601,7 +601,10 @@ export class RealVrmViewer {
       return;
     }
     this.timer.update(timestamp);
-    const delta = Math.min(this.timer.getDelta(), 0.1);
+    const measuredDelta = this.timer.getDelta();
+    const delta = Number.isFinite(measuredDelta)
+      ? Math.max(0, Math.min(measuredDelta, 0.1))
+      : 0;
     this.mixer?.update(delta);
     this.vrm?.update(delta);
     this.followAvatarHips(delta);

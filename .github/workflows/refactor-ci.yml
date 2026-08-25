@@ -11,8 +11,8 @@ jobs:
   documentation:
     runs-on: ubuntu-latest
     env:
-      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.ci/virea-docs-venv
-      VIREA_HOME: ${{ github.workspace }}/.ci/virea-docs-home
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/../.virea-ci/docs-venv
+      VIREA_HOME: ${{ github.workspace }}/../.virea-ci/docs-home
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -33,8 +33,8 @@ jobs:
   python-contracts:
     runs-on: ubuntu-latest
     env:
-      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.ci/virea-contracts-venv
-      VIREA_HOME: ${{ github.workspace }}/.ci/virea-contracts-home
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/../.virea-ci/contracts-venv
+      VIREA_HOME: ${{ github.workspace }}/../.virea-ci/contracts-home
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -71,8 +71,8 @@ jobs:
   python-310-compatibility:
     runs-on: ubuntu-latest
     env:
-      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.ci/virea-py310-venv
-      VIREA_HOME: ${{ github.workspace }}/.ci/virea-py310-home
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/../.virea-ci/py310-venv
+      VIREA_HOME: ${{ github.workspace }}/../.virea-ci/py310-home
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -96,8 +96,8 @@ jobs:
   windows-runtime-lifecycle:
     runs-on: windows-latest
     env:
-      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.ci/virea-windows-venv
-      VIREA_HOME: ${{ github.workspace }}/.ci/virea-windows-home
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/../.virea-ci/windows-venv
+      VIREA_HOME: ${{ github.workspace }}/../.virea-ci/windows-home
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -127,8 +127,8 @@ jobs:
     name: CPU execution domains (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
-      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.ci/virea-domain-venv
-      VIREA_HOME: ${{ github.workspace }}/.ci/virea-domain-home
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/../.virea-ci/domain-venv
+      VIREA_HOME: ${{ github.workspace }}/../.virea-ci/domain-home
     strategy:
       fail-fast: false
       matrix:

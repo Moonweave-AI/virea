@@ -10,8 +10,12 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
+
 import pytest
-import tomllib
 import yaml
 from virea_contracts.runtime import RuntimeSpec
 from virea_runtime import BuildPlan, RuntimeBuildError

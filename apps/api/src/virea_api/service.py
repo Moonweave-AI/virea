@@ -102,6 +102,7 @@ DEFAULT_INFERENCE_TIMEOUT_SECONDS = 1800.0
 MAX_INFERENCE_TIMEOUT_SECONDS = 7200.0
 WORKER_CONTROL_TIMEOUT_SECONDS = 30.0
 CANCEL_JOIN_TIMEOUT_SECONDS = 15.0
+CANCEL_WORKER_STOP_TIMEOUT_SECONDS = 5.0
 SOURCE_SKELETON_PREVIEW_SCHEMA = "virea.source_skeleton_preview.v1.0.0"
 
 
@@ -3003,7 +3004,13 @@ class ControlPlane:
         if handle is not None:
             self.supervisor.stop(
                 handle,
-                timeout=max(0.1, min(10.0, deadline - time.monotonic())),
+                timeout=max(
+                    0.1,
+                    min(
+                        CANCEL_WORKER_STOP_TIMEOUT_SECONDS,
+                        deadline - time.monotonic(),
+                    ),
+                ),
                 terminal_state="STOPPED",
             )
             if handle.running:
