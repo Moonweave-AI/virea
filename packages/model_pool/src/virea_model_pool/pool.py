@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
 import shutil
 import stat
 import subprocess
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -237,21 +239,39 @@ def _internal_asset_locator_name_is_valid(name: str, asset_key: str) -> bool:
     )
 
 
-def _internal_asset_tree(asset_root: Path) -> dict[str, Any]:
+class ModelVerificationCancelled(RuntimeError):
+    """A caller cancelled full installation verification."""
+
+
+def _raise_if_verification_cancelled(
+    cancel_event: threading.Event | None,
+) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise ModelVerificationCancelled("model verification was cancelled")
+
+
+def _internal_asset_tree(
+    asset_root: Path,
+    *,
+    cancel_event: threading.Event | None = None,
+) -> dict[str, Any]:
     """Build the local integrity tree without following directory references."""
 
+    _raise_if_verification_cancelled(cancel_event)
     if not _is_ordinary_directory(asset_root):
         raise OSError("asset root is missing or is a directory reference")
     entries: list[dict[str, Any]] = []
     for directory, names, filenames in os.walk(
         asset_root, topdown=True, followlinks=False
     ):
+        _raise_if_verification_cancelled(cancel_event)
         directory_path = Path(directory)
         for name in tuple(names):
             candidate = directory_path / name
             if _is_reparse_point(candidate):
                 raise OSError(f"asset tree contains a directory reference: {candidate}")
         for name in filenames:
+            _raise_if_verification_cancelled(cancel_event)
             candidate = directory_path / name
             relative = candidate.relative_to(asset_root).as_posix()
             if relative == _INTERNAL_ASSET_TREE:
@@ -262,6 +282,7 @@ def _internal_asset_tree(asset_root: Path) -> dict[str, Any]:
             byte_length = 0
             with candidate.open("rb") as handle:
                 while chunk := handle.read(1024 * 1024):
+                    _raise_if_verification_cancelled(cancel_event)
                     digest.update(chunk)
                     byte_length += len(chunk)
             entries.append(
@@ -348,6 +369,13 @@ class InstallOutcome:
     diagnostics: tuple[str, ...] = ()
 
 
+@dataclass(slots=True)
+class _VerificationFlight:
+    done: threading.Event
+    result: dict[str, Any] | None = None
+    error: BaseException | None = None
+
+
 class ModelPool:
     """Transactional artifact staging and model catalog state.
 
@@ -363,6 +391,8 @@ class ModelPool:
         self.store = store
         self.catalog = catalog
         self.paths.ensure_layout()
+        self._verification_guard = threading.Lock()
+        self._verification_flights: dict[str, _VerificationFlight] = {}
 
     def sync_catalog(self) -> None:
         for manifest in self.catalog.manifests():
@@ -747,7 +777,9 @@ class ModelPool:
         *,
         identity: dict[str, Any],
         source: ArtifactSource,
+        cancel_event: threading.Event | None = None,
     ) -> list[str]:
+        _raise_if_verification_cancelled(cancel_event)
         failures: list[str] = []
         if not _is_ordinary_directory(asset_root):
             return ["asset root is missing or is a directory reference"]
@@ -761,7 +793,10 @@ class ModelPool:
         tree_path = asset_root / _INTERNAL_ASSET_TREE
         try:
             persisted_tree = json.loads(tree_path.read_text(encoding="utf-8"))
-            observed_tree = _internal_asset_tree(asset_root)
+            observed_tree = _internal_asset_tree(
+                asset_root,
+                cancel_event=cancel_event,
+            )
         except (OSError, json.JSONDecodeError) as exc:
             failures.append(
                 f"asset integrity tree is invalid: {type(exc).__name__}: {exc}"
@@ -772,13 +807,18 @@ class ModelPool:
                     _internal_asset_tree_difference(persisted_tree, observed_tree)
                 )
         try:
-            files = [
-                path
-                for path in asset_root.rglob("*")
-                if path.is_file()
-                and path.name not in {_INTERNAL_ASSET_IDENTITY, _INTERNAL_ASSET_TREE}
-            ]
+            files: list[Path] = []
+            for path in asset_root.rglob("*"):
+                _raise_if_verification_cancelled(cancel_event)
+                if path.is_file() and path.name not in {
+                    _INTERNAL_ASSET_IDENTITY,
+                    _INTERNAL_ASSET_TREE,
+                }:
+                    files.append(path)
+            _raise_if_verification_cancelled(cancel_event)
             validate_source_files(source, asset_root, files)
+        except ModelVerificationCancelled:
+            raise
         except Exception as exc:
             failures.append(f"asset files are invalid: {type(exc).__name__}: {exc}")
         return failures
@@ -1015,6 +1055,8 @@ class ModelPool:
         self,
         outcome: InstallOutcome,
         acceptance: dict[str, Any],
+        *,
+        cancel_event: threading.Event | None = None,
     ) -> list[str]:
         """Recheck persisted production evidence before a READY publication.
 
@@ -1024,6 +1066,7 @@ class ModelPool:
         staging directory is atomically published.
         """
 
+        _raise_if_verification_cancelled(cancel_event)
         failures: list[str] = []
         manifest = self.catalog.get(outcome.model_id)
         contract = manifest.production_acceptance
@@ -1143,9 +1186,11 @@ class ModelPool:
                     self._internal_artifact_reference_failures(
                         installation_root,
                         manifest,
+                        cancel_event=cancel_event,
                     )
                 )
                 for source in manifest.artifacts:
+                    _raise_if_verification_cancelled(cancel_event)
                     source_root = (
                         installation_root
                         / "artifacts"
@@ -1485,7 +1530,10 @@ class ModelPool:
         self,
         installation_root: Path,
         manifest: ModelPluginManifest,
+        *,
+        cancel_event: threading.Event | None = None,
     ) -> list[str]:
+        _raise_if_verification_cancelled(cancel_event)
         failures: list[str] = []
         reference_path = installation_root / _INTERNAL_REFERENCE_MANIFEST
         artifact_links = {
@@ -1541,6 +1589,7 @@ class ModelPool:
             failures.append("model asset store is missing or is a directory reference")
             return failures
         for source in manifest.artifacts:
+            _raise_if_verification_cancelled(cancel_event)
             entry = by_id[source.id]
             identity = _internal_asset_identity(manifest, source)
             if entry.get("identity") != identity:
@@ -1567,6 +1616,7 @@ class ModelPool:
                 expected_asset,
                 identity=identity,
                 source=source,
+                cancel_event=cancel_event,
             )
             failures.extend(
                 f"internal artifact {source.id}: {message}"
@@ -1753,13 +1803,172 @@ class ModelPool:
                 matches.append({**row, "payload": payload})
         return matches
 
+    @staticmethod
+    def _ready_candidate_metadata_failures(
+        candidate: dict[str, Any],
+        manifest: ModelPluginManifest,
+    ) -> list[str]:
+        """Validate only persisted READY identity, without touching asset files."""
+
+        failures: list[str] = []
+        payload = candidate.get("payload")
+        if not isinstance(payload, dict):
+            return ["installation transaction payload is invalid"]
+
+        def check(condition: bool, message: str) -> None:
+            if not condition:
+                failures.append(message)
+
+        check(
+            candidate.get("state") == InstallationState.READY.value,
+            "installation transaction is not READY",
+        )
+        check(
+            payload.get("schema_version") == "virea.installation_transaction.v1.0.0",
+            "installation transaction schema differs",
+        )
+        check(payload.get("model_id") == manifest.model.id, "model id differs")
+        check(
+            payload.get("plugin_version") == manifest.model.plugin_version,
+            "plugin version differs",
+        )
+        check(
+            payload.get("upstream_revision") == manifest.model.upstream.revision,
+            "upstream revision differs",
+        )
+        check(
+            payload.get("runtime_ids")
+            == [runtime.id for runtime in manifest.runtime_variants],
+            "runtime ids differ",
+        )
+        check(
+            payload.get("runtime_core_epochs")
+            == {
+                runtime.id: runtime.runtime_core_epoch
+                for runtime in manifest.runtime_variants
+            },
+            "runtime core epochs differ",
+        )
+        check(
+            payload.get("artifact_source_ids")
+            == [source.id for source in manifest.artifacts],
+            "artifact source ids differ",
+        )
+        check(
+            isinstance(payload.get("locator"), str) and bool(payload.get("locator")),
+            "installation locator is missing",
+        )
+        check(
+            isinstance(payload.get("acceptance"), dict),
+            "persisted production acceptance evidence is missing",
+        )
+        return failures
+
+    def installation_summary(self, model_id: str) -> dict[str, Any]:
+        """Return a cheap persisted installation summary for catalog rendering.
+
+        This deliberately does not read model snapshots or hash model assets.
+        Call ``verify_latest`` at an explicit verification or execution boundary
+        before trusting a READY installation.
+
+        ``ready`` therefore describes the persisted transaction state and current
+        manifest identity only.  ``verification_scope`` and
+        ``integrity_verified`` make that boundary machine-readable so clients do
+        not present this inexpensive catalog query as a fresh byte-integrity
+        verification.
+        """
+
+        installations = self.installations_for_model(model_id)
+        if not installations:
+            return {
+                "model_id": model_id,
+                "installed": False,
+                "ready": False,
+                "state": None,
+                "locator": None,
+                "installation_id": None,
+                "latest_attempt": None,
+                "verification_scope": "metadata",
+                "integrity_verified": False,
+                "diagnostics": ["no installation transaction exists"],
+            }
+
+        latest = installations[-1]
+        latest_payload = latest["payload"]
+        latest_attempt = {
+            "installation_id": latest["id"],
+            "state": latest["state"],
+            "locator": latest_payload.get("locator"),
+            "diagnostics": list(latest_payload.get("diagnostics", ())),
+        }
+        try:
+            manifest = self.catalog.get(model_id)
+        except KeyError:
+            manifest = None
+
+        metadata_failures: dict[str, list[str]] = {}
+        usable: dict[str, Any] | None = None
+        if manifest is not None:
+            for candidate in reversed(installations):
+                if candidate["state"] != InstallationState.READY.value:
+                    continue
+                failures = self._ready_candidate_metadata_failures(candidate, manifest)
+                if not failures:
+                    usable = candidate
+                    break
+                metadata_failures[candidate["id"]] = failures
+
+        if usable is not None:
+            payload = usable["payload"]
+            diagnostics = list(payload.get("diagnostics", ()))
+            diagnostics.append(
+                "catalog status is metadata-only; full asset integrity is verified before execution"
+            )
+            return {
+                "model_id": model_id,
+                "installation_id": usable["id"],
+                "state": InstallationState.READY.value,
+                "locator": payload.get("locator"),
+                "installed": True,
+                "ready": True,
+                "latest_attempt": latest_attempt,
+                "verification_scope": "metadata",
+                "integrity_verified": False,
+                "diagnostics": diagnostics,
+            }
+
+        diagnostics = list(latest_payload.get("diagnostics", ()))
+        if manifest is None:
+            diagnostics.append("current model manifest is missing from the catalog")
+        for installation_id, failures in metadata_failures.items():
+            diagnostics.append(
+                f"READY installation {installation_id} metadata differs: "
+                + "; ".join(failures)
+            )
+        diagnostics.append(f"latest installation state is {latest['state']}")
+        return {
+            "model_id": model_id,
+            "installation_id": latest["id"],
+            "state": latest["state"],
+            "locator": latest_payload.get("locator"),
+            "installed": False,
+            "ready": False,
+            "latest_attempt": latest_attempt,
+            "verification_scope": "metadata",
+            "integrity_verified": False,
+            "diagnostics": diagnostics,
+        }
+
     def _ready_candidate_failures(
         self,
         candidate: dict[str, Any],
         manifest: ModelPluginManifest,
+        *,
+        cancel_event: threading.Event | None = None,
     ) -> list[str]:
         """Revalidate persisted READY state against the current catalog and evidence."""
 
+        _raise_if_verification_cancelled(cancel_event)
         failures: list[str] = []
         payload = candidate.get("payload")
         if not isinstance(payload, dict):
@@ -1857,7 +2066,15 @@ class ModelPool:
             diagnostics=tuple(str(item) for item in payload.get("diagnostics", ())),
         )
         try:
-            failures.extend(self._acceptance_failures(outcome, acceptance))
+            failures.extend(
+                self._acceptance_failures(
+                    outcome,
+                    acceptance,
+                    cancel_event=cancel_event,
+                )
+            )
+        except ModelVerificationCancelled:
+            raise
         except Exception as exc:
             failures.append(
                 "persisted production acceptance evidence is invalid: "
@@ -1865,7 +2082,67 @@ class ModelPool:
             )
         return failures
 
-    def verify_latest(self, model_id: str) -> dict[str, Any]:
+    def verify_latest(
+        self,
+        model_id: str,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Fully verify one model, sharing only concurrent identical work.
+
+        A completed result is not retained as a long-lived cache: a later call
+        rechecks disk bytes. Callers that overlap the same model join one flight,
+        while a cancelled leader releases the flight so a non-cancelled waiter
+        can retry without concurrent duplicate hashing.
+        """
+
+        while True:
+            _raise_if_verification_cancelled(cancel_event)
+            with self._verification_guard:
+                flight = self._verification_flights.get(model_id)
+                leader = flight is None
+                if flight is None:
+                    flight = _VerificationFlight(done=threading.Event())
+                    self._verification_flights[model_id] = flight
+            if leader:
+                try:
+                    result = self._verify_latest_once(
+                        model_id,
+                        cancel_event=cancel_event,
+                    )
+                except BaseException as exc:
+                    with self._verification_guard:
+                        flight.error = exc
+                        if self._verification_flights.get(model_id) is flight:
+                            self._verification_flights.pop(model_id, None)
+                        flight.done.set()
+                    raise
+                with self._verification_guard:
+                    flight.result = copy.deepcopy(result)
+                    if self._verification_flights.get(model_id) is flight:
+                        self._verification_flights.pop(model_id, None)
+                    flight.done.set()
+                return result
+
+            while not flight.done.wait(0.05):
+                _raise_if_verification_cancelled(cancel_event)
+            _raise_if_verification_cancelled(cancel_event)
+            if isinstance(flight.error, ModelVerificationCancelled):
+                # The leader was cancelled. A still-interested waiter starts a
+                # fresh flight instead of inheriting another Job's cancellation.
+                continue
+            if flight.error is not None:
+                raise flight.error
+            assert flight.result is not None
+            return copy.deepcopy(flight.result)
+
+    def _verify_latest_once(
+        self,
+        model_id: str,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        _raise_if_verification_cancelled(cancel_event)
         installations = self.installations_for_model(model_id)
         if not installations:
             return {
@@ -1940,9 +2217,14 @@ class ModelPool:
             manifest_failure = "current model manifest is missing from the catalog"
         if manifest is not None:
             for candidate in reversed(installations):
+                _raise_if_verification_cancelled(cancel_event)
                 if candidate["state"] != InstallationState.READY.value:
                     continue
-                candidate_failures = self._ready_candidate_failures(candidate, manifest)
+                candidate_failures = self._ready_candidate_failures(
+                    candidate,
+                    manifest,
+                    cancel_event=cancel_event,
+                )
                 if not candidate_failures:
                     usable = candidate
                     break

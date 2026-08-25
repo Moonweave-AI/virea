@@ -114,7 +114,8 @@ concurrently against the same checkout.
 uv run virea
 ```
 
-The wizard shows the persisted data root, last model/target, each model's re-verified deployment state, and recent jobs.
+The wizard shows the persisted data root, last model/target, each model's persisted READY metadata, and recent jobs.
+Model bytes are fully reverified before execution.
 Press Enter to reuse a saved choice. A matching READY deployment is reused without another download; only a different
 target needs an independent installation. Install and generation use real stage progress plus compact summaries instead
 of dumping raw JSON. The wizard never silently chooses another operating system, accelerator, model, Runtime, profile,

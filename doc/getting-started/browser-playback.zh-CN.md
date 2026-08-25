@@ -3,8 +3,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: 启动 Web、加载真实 VRM 与生成 VRMA，并验证可见播放和浏览器错误。
 canonical: doc/getting-started/browser-playback.zh-CN.md
@@ -34,9 +34,15 @@ VRM/VRMA”并排播放，不需要在生成页、源骨架页和最终结果页
 `vrm_retarget_applied: false`。若左侧已经错误，应检查模型输出或解码；若左侧正确而右侧错误，应检查骨骼重定向或导出。
 
 Web 与 `uv run virea` 使用同一个持久数据根和 SQLite 状态。CLI 完成模型部署、验收或生成后，页面会通过本地
-状态流自动更新；连接状态显示“实时同步”，无法建立 WebSocket 时会自动每 4 秒核对一次。无需手动刷新，也无需
-重新下载已经 READY 的模型。加载用户本地 `.vrm` 后，Web 会显示模型、原生 skeleton/representation、目标
+状态流自动更新；活动生成使用该 Job 自己的有序 WebSocket，只有断线才降级为 1.5 秒 Job 轮询，4 秒全局 revision
+检查只作为低频恢复路径。Job-only 变化不会重新读取模型目录。无需手动刷新，也无需重新下载持久 READY 模型。
+目录会用 `verification_scope=metadata` 明示这是低成本元数据对账；启动 Worker 前仍会完整复验模型制品字节。
+加载用户本地 `.vrm` 后，Web 会显示模型、原生 skeleton/representation、目标
 skeleton/representation、帧数和时长；“同步重播”会让两个阶段重新从第 0 帧开始，便于逐段对照。
+
+两个面板都有独立 Orbit 相机：拖动旋转、右键拖动平移、滚轮或双指缩放；双击画布或点击“重置 A/B 视角”恢复
+编排视角。root 位移会同时平移 camera 和 target，不会覆盖用户选择的角度、缩放和平移。页面隐藏、离开工作台或
+GPU 正在生成时 Viewer loop 会停止，恢复后不需要重新导入 Avatar。
 
 顶部 `VIREA_HOME` 标签显示当前服务实际读取的完整数据根；它必须等于 CLI 使用的 home。若标签显示系统临时目录或另一块
 盘，页面中的“未部署”只代表那个错误 home，不代表原模型被删除：停止服务，从已经持久配置正确数据根的新终端重新执行

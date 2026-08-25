@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: English task-oriented VIREA documentation hub, paired with the Chinese hub and anchored at a clean git clone.
 canonical: doc/README.en.md
@@ -87,6 +87,7 @@ third-party wording. This hub gives an English purpose statement; use the Chines
 | Production release boundary and current Go/No-Go facts | [Release acceptance](refactor/RELEASE_ACCEPTANCE_0.4.0.md) |
 | Dataset/legacy pipeline handling | [Pipeline guide](pipeline.zh-CN.md) |
 | Upstream model and integration research | [Model catalog](model-catalog/first-wave-2026-08-20.zh-CN.md) and [research records](research/) |
+| Responsive Web/CLI architecture and primary-source evidence | [Engineering Brief](engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md) and [research log](research/responsive-studio-cli-design-2026-08-25.en.md) |
 
 When promoting a specialist record into an active user workflow, create a paired `.en.md` and `.zh-CN.md` page first,
 then add it to the bilingual contract in `scripts/check_docs.py`.

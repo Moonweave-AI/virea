@@ -27,6 +27,7 @@ from virea_contracts.execution import ExecutionTargetSelection
 from virea_contracts.job import JobRequest
 from virea_core.db import StateStore
 from virea_core.paths import VireaPaths
+from virea_model_pool import ModelVerificationCancelled
 from virea_runtime.process_identity import inspect_process
 from virea_runtime.supervisor import WorkerStartError
 
@@ -135,6 +136,172 @@ def _join_job_thread(control: ControlPlane, job_id: str) -> None:
         return
     thread.join(15.0)
     assert not thread.is_alive()
+
+
+def _wait_for_job_state(
+    control: ControlPlane,
+    job_id: str,
+    expected: str,
+    *,
+    timeout: float = 15.0,
+) -> dict:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        row = control.store.get_job(job_id)
+        assert row is not None
+        if row["state"] == expected:
+            return row
+        if row["state"] in {
+            "SUCCEEDED",
+            "CANCELLED",
+            "FAILED",
+            "TIMED_OUT",
+            "REJECTED",
+        }:
+            pytest.fail(f"job {job_id} reached {row['state']} before {expected}: {row}")
+        time.sleep(0.02)
+    pytest.fail(f"job {job_id} did not reach {expected} within {timeout:g}s")
+
+
+def test_submit_returns_before_full_installation_verification(
+    tmp_path: Path, monkeypatch
+) -> None:
+    control = ControlPlane(
+        paths=VireaPaths(tmp_path / "home"),
+        plugin_root=_real_adapter_plugin_root(tmp_path),
+        allow_test_models=True,
+    )
+    verification_started = threading.Event()
+    release_verification = threading.Event()
+    calls = 0
+
+    def slow_failed_verification(model_id: str, *, cancel_event=None) -> dict:
+        nonlocal calls
+        calls += 1
+        assert model_id == "fake-motion-v1"
+        assert cancel_event is not None
+        verification_started.set()
+        assert release_verification.wait(5.0)
+        return {
+            "model_id": model_id,
+            "ready": False,
+            "diagnostics": ["fixture has no verified installation"],
+        }
+
+    monkeypatch.setattr(control.model_pool, "verify_latest", slow_failed_verification)
+    try:
+        request = JobRequest(
+            model_id="fake-motion-v1",
+            task="text_to_motion",
+            input={"prompt": "return the durable queue identity immediately"},
+            idempotency_key="fast-submit-1",
+            execution_target=_execution_target(control),
+        )
+        started = time.monotonic()
+        job = control._submit(request, inference_timeout=120.0)
+        elapsed = time.monotonic() - started
+
+        assert elapsed < 0.5
+        assert job["state"] == "QUEUED"
+        assert verification_started.wait(2.0)
+        assert control._submit(request, inference_timeout=120.0)["id"] == job["id"]
+        with control._lock:
+            assert tuple(control._threads) == (job["id"],)
+
+        release_verification.set()
+        terminal = control.wait(job["id"], timeout=5.0)
+        assert terminal["state"] == "REJECTED"
+        assert terminal["error_code"] == "MODEL_NOT_READY"
+        assert calls == 1
+    finally:
+        release_verification.set()
+        control.close()
+
+
+def test_cancel_interrupts_full_verification_before_runtime_or_worker_start(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    control = ControlPlane(
+        paths=VireaPaths(tmp_path / "home"),
+        plugin_root=_real_adapter_plugin_root(tmp_path),
+        allow_test_models=True,
+    )
+    verification_started = threading.Event()
+    runtime_started = threading.Event()
+
+    def cancellable_verification(model_id: str, *, cancel_event=None) -> dict:
+        assert model_id == "fake-motion-v1"
+        assert cancel_event is not None
+        verification_started.set()
+        assert cancel_event.wait(5.0)
+        raise ModelVerificationCancelled("fixture observed cancellation")
+
+    def forbidden_runtime(**_kwargs):
+        runtime_started.set()
+        raise AssertionError("cancelled verification must not prepare a Runtime")
+
+    monkeypatch.setattr(control.model_pool, "verify_latest", cancellable_verification)
+    monkeypatch.setattr(control, "_prepare_runtime_for_worker", forbidden_runtime)
+    try:
+        job = control._submit(
+            JobRequest(
+                model_id="fake-motion-v1",
+                task="text_to_motion",
+                input={"prompt": "cancel while verifying"},
+                idempotency_key="cancel-verification-1",
+                execution_target=_execution_target(control),
+            ),
+            inference_timeout=120.0,
+        )
+        assert verification_started.wait(2.0)
+
+        cancelled = control.cancel(job["id"])
+        terminal = control.wait(job["id"], timeout=5.0)
+
+        assert cancelled["state"] in {"CANCELLING", "CANCELLED"}
+        assert terminal["state"] == "CANCELLED"
+        assert runtime_started.is_set() is False
+        with control._lock:
+            assert job["id"] not in control._threads
+            assert job["id"] not in control._cancel_events
+    finally:
+        control.close()
+
+
+def test_invalid_execution_target_is_rejected_before_installation_hashing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    control = ControlPlane(
+        paths=VireaPaths(tmp_path / "home"),
+        plugin_root=_real_adapter_plugin_root(tmp_path),
+        allow_test_models=True,
+    )
+
+    def forbidden_verification(_model_id: str) -> dict:
+        raise AssertionError("invalid target must fail before hashing model assets")
+
+    monkeypatch.setattr(control.model_pool, "verify_latest", forbidden_verification)
+    try:
+        job = control._submit(
+            JobRequest(
+                model_id="fake-motion-v1",
+                task="text_to_motion",
+                input={"prompt": "invalid execution target"},
+                execution_target=ExecutionTargetSelection(
+                    execution_domain_id="missing-domain"
+                ),
+            )
+        )
+        terminal = control.wait(job["id"], timeout=5.0)
+        _join_job_thread(control, job["id"])
+
+        assert terminal["state"] == "REJECTED"
+        assert terminal["error_code"] == "EXECUTION_DOMAIN_UNAVAILABLE"
+        events = control.store.job_events(job["id"])
+        assert events[-1]["event_type"] == "job.execution_target_rejected"
+    finally:
+        control.close()
 
 
 def test_state_store_multi_lock_acquire_is_all_or_none_and_owner_exact(
@@ -588,9 +755,8 @@ def test_two_real_adapter_jobs_serialize_on_ram_and_waiter_cancels(
             inference_timeout=120.0,
         )
         second_child = paths.job_directory(second["id"]) / "inference-child.pid"
-        time.sleep(0.3)
+        _wait_for_job_state(control, second["id"], "ADMITTED")
         assert not second_child.exists()
-        assert control.store.get_job(second["id"])["state"] == "ADMITTED"
         assert control.cancel(second["id"])["state"] == "CANCELLED"
         assert not second_child.exists()
         assert control.cancel(first["id"])["state"] == "CANCELLED"

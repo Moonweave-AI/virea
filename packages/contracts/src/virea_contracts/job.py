@@ -46,5 +46,5 @@ class JobRequest(ContractModel):
     input: dict[str, Any] = Field(default_factory=dict)
     parameters: dict[str, Any] = Field(default_factory=dict)
     avatar_id: str | None = None
-    idempotency_key: str | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
     execution_target: ExecutionTargetSelection | None = None

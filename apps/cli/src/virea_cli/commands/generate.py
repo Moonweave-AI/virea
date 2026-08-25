@@ -90,8 +90,7 @@ def run(args) -> int:
                 {
                     "error": "EXECUTION_DOMAIN_REQUIRED_FOR_OVERRIDE",
                     "message": (
-                        "--runtime and --resource-profile require "
-                        "--execution-domain"
+                        "--runtime and --resource-profile require --execution-domain"
                     ),
                 }
             )

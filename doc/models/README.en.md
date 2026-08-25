@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: English entry point for selecting VIREA model manifests, execution-domain Runtimes, resource profiles, and evidence boundaries.
 canonical: doc/models/README.en.md
@@ -23,6 +23,20 @@ superseded_by: []
 
 Start with the [generated model support matrix](support-matrix.generated.md). It is rendered from model manifests and
 Runtime registries, rather than copied by hand into a README.
+
+The current non-test catalog contains 14 records. Six (`acmdm-humanml3d`, `cmdm-humanml3d`,
+`flood-diffusion-tiny`, `mardm-humanml3d`, `momadiff-humanml3d`, and `prism-tp2m-1-4b`) have a VIREA Runtime and
+production acceptance contract. Eight are upstream-runnable research records without a VIREA Worker/Runtime, task-input
+contract, artifact installation, adapter path, or production E2E. Web and the interactive CLI show all 14, but label and
+disable those eight before deployment; catalog visibility is not execution support.
+
+Catalog installation status has two deliberately separate scopes. The compatible `/api/v1/models` default is
+`verification_scope=full_integrity`, so its existing `installation.ready=true` continues to mean that the selected READY
+snapshot passed a current byte-integrity scan. The Web explicitly requests `?verification_scope=metadata` for frequent
+reconciliation; in that response, `installation.ready=true` means the persisted READY transaction still matches current
+manifest metadata and `integrity_verified=false` makes the cheaper boundary explicit. VIREA performs full byte-integrity
+verification at the explicit verify or execution boundary before starting a Worker. The Web and CLI therefore label the
+metadata state **Persisted READY · reverify on execution**, not “freshly verified.”
 
 ## Choose in this order
 

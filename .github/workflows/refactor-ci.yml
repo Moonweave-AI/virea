@@ -146,6 +146,7 @@ jobs:
           uv run python -m pytest
           tests/refactor/test_execution_domains.py
           tests/refactor/test_bootstrap_detection_readiness.py
+          tests/test_interactive_wizard.py
           -q
       - if: runner.os == 'macOS'
         run: >-

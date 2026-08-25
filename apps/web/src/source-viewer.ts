@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import type { SourceSkeletonActor, SourceSkeletonPreview } from "./contracts";
 
@@ -17,6 +18,12 @@ type ActorRender = {
 };
 
 const ACTOR_COLORS = [0x9dff43, 0x69a7ff, 0xffb34f, 0xff70a6];
+const TELEMETRY_INTERVAL_MS = 250;
+
+function disposeMaterial(material: THREE.Material | THREE.Material[]): void {
+  if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+  else material.dispose();
+}
 
 export function validateSourceSkeletonPreview(
   preview: SourceSkeletonPreview,
@@ -67,17 +74,32 @@ export class SourceSkeletonViewer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.01, 500);
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly controls: OrbitControls;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
-  private readonly target = new THREE.Vector3();
+  private readonly grid = new THREE.GridHelper(10, 20, 0x416244, 0x1d2b22);
   private readonly root = new THREE.Vector3();
+  private readonly rootAnchor = new THREE.Vector3();
   private readonly relativeCenter = new THREE.Vector3(0, 0.9, 0);
+  /** Canonical target for root follow; OrbitControls.target may additionally include user pan. */
+  private readonly framedTarget = new THREE.Vector3();
+  private readonly followTarget = new THREE.Vector3();
+  private readonly followTranslation = new THREE.Vector3();
   private actorRenders: ActorRender[] = [];
   private preview: SourceSkeletonPreview | null = null;
+  private contentStatus: SourceViewerStatus = {
+    kind: "idle",
+    message: "生成完成后显示重定向前骨架",
+  };
   private playheadSeconds = 0;
+  private currentFrame = -1;
   private framingRadius = 1.2;
-  private frameHandle = 0;
+  private framingDistance = 3.2;
+  private hasCameraFraming = false;
+  private frameHandle: number | null = null;
+  private lastTelemetryAt = Number.NEGATIVE_INFINITY;
   private active = true;
+  private contextLost = false;
   private disposed = false;
 
   public constructor(
@@ -88,17 +110,34 @@ export class SourceSkeletonViewer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene.background = new THREE.Color(0x0c1110);
-    this.scene.add(new THREE.GridHelper(10, 20, 0x416244, 0x1d2b22));
+    this.scene.add(this.grid);
     this.camera.position.set(2.2, 1.6, 3.2);
     this.camera.lookAt(0, 0.9, 0);
+    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls.target.set(0, 0.9, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.enablePan = true;
+    this.controls.enableRotate = true;
+    this.controls.enableZoom = true;
+    this.controls.screenSpacePanning = true;
+    this.controls.update();
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(canvas);
     this.canvas.dataset.sourceViewer = "virea.source_skeleton_viewer.v1.0.0";
     this.canvas.dataset.viewerState = "idle";
     this.canvas.dataset.sourceFrame = "0";
+    this.canvas.dataset.cameraControls = "orbit-rotate-zoom-pan-double-click-reset";
+    this.canvas.dataset.webglContextLost = "false";
+    this.canvas.dataset.webglContextRecovery = "ready";
+    this.canvas.dataset.renderLoop = "stopped";
+    this.canvas.addEventListener("dblclick", this.handleResetGesture);
+    this.canvas.addEventListener("webglcontextlost", this.markWebglContextLost);
+    this.canvas.addEventListener("webglcontextrestored", this.markWebglContextRestored);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.timer.connect(document);
     this.resize();
-    this.frameHandle = requestAnimationFrame(this.tick);
+    this.syncRenderLoop();
   }
 
   public load(value: SourceSkeletonPreview): void {
@@ -106,6 +145,9 @@ export class SourceSkeletonViewer {
     this.clearActors();
     this.preview = preview;
     this.playheadSeconds = 0;
+    this.currentFrame = -1;
+    this.canvas.dataset.sourceFrame = "0";
+    this.hasCameraFraming = false;
     this.actorRenders = preview.actors.map((actor, index) => {
       const color = ACTOR_COLORS[index % ACTOR_COLORS.length]!;
       const linePositions = new Float32Array(actor.edges.length * 2 * 3);
@@ -126,9 +168,8 @@ export class SourceSkeletonViewer {
       return { source: actor, lines, points, linePositions, pointPositions };
     });
     this.computeFraming();
-    this.updateFrame(0);
-    this.canvas.dataset.viewerState = "playing";
-    this.onStatus({
+    this.updateFrame(0, true);
+    this.publishStatus({
       kind: "playing",
       message: `正在播放模型原生骨架 · ${preview.skeleton_id}`,
       duration: preview.duration_seconds,
@@ -139,32 +180,67 @@ export class SourceSkeletonViewer {
     if (!this.preview) throw new Error("还没有可播放的重定向前骨架");
     this.playheadSeconds = 0;
     this.updateFrame(0);
+    this.currentFrame = 0;
+    this.canvas.dataset.sourceFrame = "0";
   }
 
   public clear(message = "生成完成后显示重定向前骨架"): void {
     this.preview = null;
     this.playheadSeconds = 0;
+    this.currentFrame = -1;
+    this.hasCameraFraming = false;
     this.clearActors();
-    this.canvas.dataset.viewerState = "idle";
     this.canvas.dataset.sourceFrame = "0";
-    this.onStatus({ kind: "idle", message });
+    this.resetView();
+    this.publishStatus({ kind: "idle", message });
   }
 
   public setActive(active: boolean): void {
     if (this.disposed) return;
     this.active = active;
+    this.controls.enabled = active && !this.contextLost;
     if (active) this.resize();
+    this.syncRenderLoop();
+  }
+
+  /** Restore authored framing around the skeleton's current root position. */
+  public resetView(): void {
+    if (this.disposed) return;
+    if (this.hasCameraFraming) {
+      this.updateCameraFraming(false);
+      this.controls.target.copy(this.followTarget);
+      this.camera.position.set(
+        this.followTarget.x + this.framingDistance * 0.65,
+        this.followTarget.y + this.framingDistance * 0.2,
+        this.followTarget.z + this.framingDistance,
+      );
+    } else {
+      this.controls.target.set(0, 0.9, 0);
+      this.camera.position.set(2.2, 1.6, 3.2);
+    }
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    const resetCount = Number(this.canvas.dataset.cameraResetCount ?? "0") + 1;
+    this.canvas.dataset.cameraResetCount = String(resetCount);
   }
 
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.active = false;
-    cancelAnimationFrame(this.frameHandle);
+    this.stopRenderLoop();
     this.timer.dispose();
     this.resizeObserver.disconnect();
     this.clearActors();
+    this.controls.dispose();
+    this.grid.geometry.dispose();
+    disposeMaterial(this.grid.material);
+    this.renderer.renderLists.dispose();
     this.renderer.dispose();
+    this.canvas.removeEventListener("dblclick", this.handleResetGesture);
+    this.canvas.removeEventListener("webglcontextlost", this.markWebglContextLost);
+    this.canvas.removeEventListener("webglcontextrestored", this.markWebglContextRestored);
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
   }
 
   private clearActors(): void {
@@ -172,16 +248,20 @@ export class SourceSkeletonViewer {
       this.scene.remove(actor.lines, actor.points);
       actor.lines.geometry.dispose();
       actor.points.geometry.dispose();
-      (actor.lines.material as THREE.Material).dispose();
-      (actor.points.material as THREE.Material).dispose();
+      disposeMaterial(actor.lines.material);
+      disposeMaterial(actor.points.material);
     }
     this.actorRenders = [];
   }
 
   private computeFraming(): void {
     if (!this.preview) return;
-    const minimum = new THREE.Vector3(Infinity, Infinity, Infinity);
-    const maximum = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
     for (const actor of this.preview.actors) {
       const jointCount = actor.joint_names.length;
       for (let frame = 0; frame < this.preview.frame_count; frame += 1) {
@@ -191,25 +271,26 @@ export class SourceSkeletonViewer {
         const rootZ = actor.positions_xyz[frameOffset + 2] ?? 0;
         for (let joint = 0; joint < jointCount; joint += 1) {
           const offset = frameOffset + joint * 3;
-          minimum.min(new THREE.Vector3(
-            (actor.positions_xyz[offset] ?? 0) - rootX,
-            (actor.positions_xyz[offset + 1] ?? 0) - rootY,
-            (actor.positions_xyz[offset + 2] ?? 0) - rootZ,
-          ));
-          maximum.max(new THREE.Vector3(
-            (actor.positions_xyz[offset] ?? 0) - rootX,
-            (actor.positions_xyz[offset + 1] ?? 0) - rootY,
-            (actor.positions_xyz[offset + 2] ?? 0) - rootZ,
-          ));
+          const x = (actor.positions_xyz[offset] ?? 0) - rootX;
+          const y = (actor.positions_xyz[offset + 1] ?? 0) - rootY;
+          const z = (actor.positions_xyz[offset + 2] ?? 0) - rootZ;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          minZ = Math.min(minZ, z);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+          maxZ = Math.max(maxZ, z);
         }
       }
     }
-    const size = maximum.clone().sub(minimum);
-    this.relativeCenter.copy(minimum).add(maximum).multiplyScalar(0.5);
-    this.framingRadius = Math.max(size.x, size.y, size.z, 0.5) * 0.75;
+    const sizeX = maxX - minX;
+    const sizeY = maxY - minY;
+    const sizeZ = maxZ - minZ;
+    this.relativeCenter.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+    this.framingRadius = Math.max(sizeX, sizeY, sizeZ, 0.5) * 0.75;
   }
 
-  private updateFrame(frame: number): void {
+  private updateFrame(frame: number, initializeCamera = false): void {
     if (!this.preview) return;
     this.actorRenders.forEach((render) => {
       const jointCount = render.source.joint_names.length;
@@ -234,41 +315,146 @@ export class SourceSkeletonViewer {
     const primary = this.actorRenders[0];
     if (primary) {
       this.root.fromArray(primary.pointPositions, 0);
-      this.target.copy(this.root).add(this.relativeCenter);
-      const aspect = Math.max(this.canvas.clientWidth, 1) / Math.max(this.canvas.clientHeight, 1);
-      const verticalDistance = this.framingRadius / Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
-      const distance = Math.max(verticalDistance, verticalDistance / Math.max(aspect, 0.55)) * 1.25;
-      this.camera.position.set(
-        this.target.x + distance * 0.65,
-        this.target.y + distance * 0.2,
-        this.target.z + distance,
-      );
-      this.camera.near = Math.max(0.01, distance / 100);
-      this.camera.far = Math.max(100, distance * 20);
-      this.camera.lookAt(this.target);
-      this.camera.updateProjectionMatrix();
+      if (initializeCamera || !this.hasCameraFraming) {
+        this.rootAnchor.copy(this.root);
+        this.framedTarget.copy(this.root).add(this.relativeCenter);
+        this.followTarget.copy(this.framedTarget);
+        this.hasCameraFraming = true;
+        this.updateCameraFraming(true);
+      } else {
+        const desiredX = this.framedTarget.x + this.root.x - this.rootAnchor.x;
+        const desiredZ = this.framedTarget.z + this.root.z - this.rootAnchor.z;
+        this.followTranslation.set(
+          desiredX - this.followTarget.x,
+          0,
+          desiredZ - this.followTarget.z,
+        );
+        this.followTarget.add(this.followTranslation);
+        // Preserve the user's orbit, zoom, and pan by applying only the root delta.
+        this.camera.position.add(this.followTranslation);
+        this.controls.target.add(this.followTranslation);
+      }
     }
-    this.canvas.dataset.sourceFrame = String(frame);
+    this.currentFrame = frame;
+  }
+
+  private updateCameraFraming(resetCamera: boolean): void {
+    if (!this.hasCameraFraming) return;
+    const aspect = Math.max(this.canvas.clientWidth, 1) / Math.max(this.canvas.clientHeight, 1);
+    const verticalDistance = this.framingRadius / Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    this.framingDistance = Math.max(verticalDistance, verticalDistance / Math.max(aspect, 0.55)) * 1.25;
+    this.camera.near = Math.max(0.01, this.framingDistance / 100);
+    this.camera.far = Math.max(100, this.framingDistance * 20);
+    this.controls.minDistance = Math.max(this.framingDistance * 0.12, 0.05);
+    this.controls.maxDistance = Math.max(this.framingDistance * 12, this.controls.minDistance + 1);
+    this.camera.updateProjectionMatrix();
+    if (resetCamera) this.resetView();
   }
 
   private resize(): void {
+    if (this.disposed) return;
     const width = Math.max(this.canvas.clientWidth, 1);
     const height = Math.max(this.canvas.clientHeight, 1);
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
+    if (this.hasCameraFraming) this.updateCameraFraming(false);
+    else this.camera.updateProjectionMatrix();
+  }
+
+  private publishStatus(status: SourceViewerStatus): void {
+    this.contentStatus = status;
+    if (!this.contextLost) this.emitStatus(status);
+  }
+
+  private emitStatus(status: SourceViewerStatus): void {
+    this.canvas.dataset.viewerState = status.kind;
+    this.canvas.dataset.viewerMessage = status.message;
+    if (status.duration == null) delete this.canvas.dataset.viewerDurationSeconds;
+    else this.canvas.dataset.viewerDurationSeconds = String(status.duration);
+    this.onStatus(status);
+  }
+
+  private handleResetGesture = (): void => {
+    this.resetView();
+  };
+
+  private handleVisibilityChange = (): void => {
+    this.syncRenderLoop();
+  };
+
+  private markWebglContextLost = (event: Event): void => {
+    event.preventDefault();
+    if (this.disposed || this.contextLost) return;
+    this.contextLost = true;
+    this.canvas.dataset.webglContextLost = "true";
+    this.canvas.dataset.webglContextRecovery = "lost";
+    this.controls.enabled = false;
+    this.syncRenderLoop();
+    this.emitStatus({ kind: "error", message: "WebGL 上下文已丢失；正在等待浏览器恢复源骨架预览" });
+  };
+
+  private markWebglContextRestored = (): void => {
+    if (this.disposed) return;
+    this.contextLost = false;
+    this.canvas.dataset.webglContextLost = "false";
+    this.canvas.dataset.webglContextRecovery = "restored";
+    this.canvas.dataset.webglContextRestoredAt = new Date().toISOString();
+    this.renderer.resetState();
+    this.controls.enabled = this.active;
+    this.resize();
+    this.emitStatus(this.contentStatus);
+    this.syncRenderLoop();
+  };
+
+  private updateTelemetry(timestamp: DOMHighResTimeStamp, frame: number): void {
+    if (timestamp - this.lastTelemetryAt < TELEMETRY_INTERVAL_MS) return;
+    this.lastTelemetryAt = timestamp;
+    this.canvas.dataset.sourceFrame = String(frame);
+    this.canvas.dataset.renderCalls = String(this.renderer.info.render.calls);
+    this.canvas.dataset.renderTriangles = String(this.renderer.info.render.triangles);
+    this.canvas.dataset.renderGeometries = String(this.renderer.info.memory.geometries);
+    this.canvas.dataset.renderTextures = String(this.renderer.info.memory.textures);
+  }
+
+  private shouldRender(): boolean {
+    return !this.disposed && this.active && !this.contextLost && !document.hidden;
+  }
+
+  private syncRenderLoop(): void {
+    if (this.shouldRender()) this.startRenderLoop();
+    else this.stopRenderLoop();
+  }
+
+  private startRenderLoop(): void {
+    if (this.frameHandle != null || !this.shouldRender()) return;
+    this.timer.reset();
+    this.canvas.dataset.renderLoop = "running";
+    this.frameHandle = requestAnimationFrame(this.tick);
+  }
+
+  private stopRenderLoop(): void {
+    if (this.frameHandle != null) cancelAnimationFrame(this.frameHandle);
+    this.frameHandle = null;
+    this.canvas.dataset.renderLoop = "stopped";
   }
 
   private tick = (timestamp: DOMHighResTimeStamp): void => {
-    if (this.disposed) return;
+    this.frameHandle = null;
+    if (!this.shouldRender()) {
+      this.syncRenderLoop();
+      return;
+    }
     this.timer.update(timestamp);
     const delta = Math.min(this.timer.getDelta(), 0.1);
-    if (this.active && this.preview) {
+    let frame = Number(this.canvas.dataset.sourceFrame ?? "0");
+    if (this.preview) {
       this.playheadSeconds += delta;
-      const frame = Math.floor(this.playheadSeconds * this.preview.fps) % this.preview.frame_count;
-      this.updateFrame(frame);
+      frame = Math.floor(this.playheadSeconds * this.preview.fps) % this.preview.frame_count;
+      if (frame !== this.currentFrame) this.updateFrame(frame);
     }
-    if (this.active) this.renderer.render(this.scene, this.camera);
-    this.frameHandle = requestAnimationFrame(this.tick);
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+    this.updateTelemetry(timestamp, frame);
+    if (this.shouldRender()) this.frameHandle = requestAnimationFrame(this.tick);
   };
 }

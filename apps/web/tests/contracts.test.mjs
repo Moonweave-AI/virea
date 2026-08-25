@@ -13,11 +13,13 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   const sourceViewer = fs.readFileSync(path.join(root, "src", "source-viewer.ts"), "utf8");
   assert.match(http, /`\/api\/v1\$\{path\}`/);
   assert.match(api, /createInstallPayload\(manifest, executionTarget\)/);
-  assert.match(api, /createGenerationPayload\(manifest, prompt, seconds, seed, executionTarget\)/);
+  assert.match(api, /createGenerationPayload\(manifest, prompt, seconds, seed, executionTarget, idempotencyKey\)/);
   assert.match(api, /"\/execution-domains"/);
   assert.match(api, /\/execution-options/);
   assert.match(api, /"\/state"/);
   assert.match(api, /stateEventsUrl/);
+  assert.match(api, /jobEventsUrl/);
+  assert.match(api, /\/models\?verification_scope=metadata/);
   assert.match(main, /type View = "playground" \| "catalog" \| "overview"/);
   assert.doesNotMatch(main, /type View = .*"viewer"/);
   assert.doesNotMatch(main, /type View = .*"jobs"/);
@@ -32,6 +34,13 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(main, /api\.models\(\)/);
   assert.match(main, /api\.jobs\(\)/);
   assert.match(main, /new WebSocket\(stateEventsUrl\(\)\)/);
+  assert.match(main, /new WebSocket\(jobEventsUrl\(initial\.id\)\)/);
+  assert.match(main, /await nextPaint\(\)/);
+  assert.match(main, /virea\.pending-generation\.v1/);
+  assert.match(main, /window\.localStorage\.setItem/);
+  assert.doesNotMatch(main, /installationStates/);
+  assert.doesNotMatch(main, /setTimeout\(resolve, 750\)/);
+  assert.match(main, /changedRevisionKeys/);
   assert.match(main, /visibilitychange/);
   assert.match(main, /window\.setInterval\(\(\) => void pollStateRevision\(\)/);
   assert.match(main, /executionDomainSelector\(\)/);
@@ -45,6 +54,8 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   const bootstrap = main.slice(main.indexOf("async function bootstrap"), main.indexOf("void bootstrap"));
   assert.match(bootstrap, /api\.health\(\)/);
   assert.doesNotMatch(bootstrap, /api\.system\(\)/);
+  assert.match(bootstrap, /lastRevision = null/);
+  assert.match(bootstrap, /stateRevisionKey = ""/);
   assert.match(http, /new AbortController\(\)/);
   assert.match(http, /cache:\s*"no-store"/);
   assert.match(http, /finally\s*\{/);
@@ -52,6 +63,10 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(contracts, /runtime_core_epoch: string \| null/);
   assert.match(contracts, /execution_domain_id\?: string \| null/);
   assert.match(contracts, /execution_target\?:/);
+  assert.match(contracts, /virea_integrated: boolean/);
+  assert.match(contracts, /verification_scope\?: "metadata" \| "full_integrity"/);
+  assert.match(contracts, /integrity_verified\?: boolean/);
+  assert.match(main, /capabilityReason/);
   assert.match(contracts, /virea_home: string/);
   assert.match(main, /productionCatalogJobs\(state\.jobs, state\.models\)/);
   assert.match(main, /data-source-empty="true"/);

@@ -36,7 +36,7 @@ from virea_contracts.model import ModelIdentity
 from virea_contracts.result import ModelResult, NativeMotionDescriptor, ValidSegment
 from virea_contracts.runtime import AcceleratorSpec, RuntimeBackend, RuntimeSpec
 from virea_contracts.vrm import VrmMotionResult
-from virea_core.db import StateStore
+from virea_core.db import IdempotencyConflict, StateStore
 from virea_core.jobs import InvalidJobTransition, next_job_states
 from virea_core.paths import VireaPaths, safe_component
 from virea_model_pool import pool as model_pool_module
@@ -50,7 +50,9 @@ from virea_model_pool.manifest import ArtifactSource, ModelPluginManifest
 from virea_model_pool.pool import (
     InstallOutcome,
     ModelPool,
+    ModelVerificationCancelled,
     _create_directory_reference,
+    _internal_asset_tree,
     _remove_directory_reference,
 )
 from virea_model_pool.sources import ArtifactFetchError, fetch_source
@@ -404,6 +406,52 @@ def test_runtime_home_inside_source_checkout_is_rejected(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="must be outside"):
         VireaPaths(checkout / "runtime-data").ensure_layout()
+
+
+def test_create_job_once_has_one_atomic_winner_for_concurrent_retries(tmp_path) -> None:
+    store = StateStore(VireaPaths(tmp_path / "virea-home"))
+    request = JobRequest(
+        model_id="example-model",
+        task="text_to_motion",
+        input={"text": "same logical request"},
+        idempotency_key="browser-request-1",
+    )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        outcomes = list(
+            executor.map(
+                lambda index: store.create_job_once(request, job_id=f"job-{index}"),
+                range(8),
+            )
+        )
+
+    rows = [row for row, _ in outcomes]
+    assert len({row["id"] for row in rows}) == 1
+    assert sum(created for _, created in outcomes) == 1
+    assert len(store.list_jobs()) == 1
+    assert len(store.job_events(rows[0]["id"])) == 1
+
+
+def test_create_job_once_rejects_reusing_a_key_for_a_different_request(
+    tmp_path,
+) -> None:
+    store = StateStore(VireaPaths(tmp_path / "virea-home"))
+    original = JobRequest(
+        model_id="example-model",
+        task="text_to_motion",
+        input={"text": "walk"},
+        idempotency_key="browser-request-1",
+    )
+    store.create_job_once(original, job_id="original-job")
+
+    with pytest.raises(IdempotencyConflict, match="different JobRequest"):
+        store.create_job_once(
+            original.model_copy(update={"input": {"text": "jump"}}),
+            job_id="must-not-exist",
+        )
+
+    assert [row["id"] for row in store.list_jobs()] == ["original-job"]
+    assert len(store.job_events("original-job")) == 1
 
 
 def test_sqlite_wal_job_events_append_only_results_immutable_and_states(
@@ -1143,6 +1191,12 @@ def test_model_pool_stages_local_artifact_then_publishes_ready_snapshot(
     assert [event["sequence"] for event in ready_payload["events"]] == list(
         range(len(ready_payload["events"]))
     )
+    summary = pool.installation_summary("local-model")
+    assert summary["ready"] is True
+    assert summary["verification_scope"] == "metadata"
+    assert summary["integrity_verified"] is False
+    assert any("metadata-only" in item for item in summary["diagnostics"])
+
     verified = pool.verify_latest("local-model")
     assert verified["ready"] is True
     assert verified["locator"] == ready.locator
@@ -1421,6 +1475,60 @@ def test_asset_tree_difference_identifies_generated_bytecode_path() -> None:
     assert 'added=["prism/__pycache__/__init__.cpython-311.pyc"]' in difference
     assert "missing=[]" in difference
     assert "changed=[]" in difference
+
+
+def test_internal_asset_hash_checks_cancellation_between_chunks(tmp_path: Path) -> None:
+    asset = tmp_path / "asset"
+    asset.mkdir()
+    (asset / "weights.bin").write_bytes(b"x" * (8 * 1024 * 1024))
+
+    class CancelAfterSeveralChecks:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def is_set(self) -> bool:
+            self.calls += 1
+            return self.calls >= 5
+
+    cancel = CancelAfterSeveralChecks()
+    with pytest.raises(ModelVerificationCancelled):
+        _internal_asset_tree(asset, cancel_event=cancel)  # type: ignore[arg-type]
+    assert cancel.calls >= 5
+
+
+def test_full_verification_is_single_flight_only_while_calls_overlap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = ModelPluginManifest.model_validate(_manifest_payload("single-flight"))
+    paths = VireaPaths(tmp_path / "home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    started = threading.Event()
+    release = threading.Event()
+    calls = 0
+
+    def verify_once(model_id: str, *, cancel_event=None) -> dict:
+        nonlocal calls
+        calls += 1
+        assert model_id == "single-flight"
+        started.set()
+        assert release.wait(5.0)
+        return {"model_id": model_id, "ready": False, "diagnostics": ["fixture"]}
+
+    monkeypatch.setattr(pool, "_verify_latest_once", verify_once)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(pool.verify_latest, manifest.model.id)
+        assert started.wait(2.0)
+        second = executor.submit(pool.verify_latest, manifest.model.id)
+        time.sleep(0.1)
+        release.set()
+        assert first.result(timeout=5.0) == second.result(timeout=5.0)
+
+    assert calls == 1
+    # A later explicit boundary is deliberately not served from a stale cache.
+    release.set()
+    pool.verify_latest(manifest.model.id)
+    assert calls == 2
 
 
 def test_concurrent_corrupt_asset_repair_fetches_once(

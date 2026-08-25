@@ -844,7 +844,7 @@ def test_shared_ready_assets_lazy_build_runtime_in_each_selected_domain(
     control.paths = paths
     control.catalog = SimpleNamespace(get=lambda _model_id: manifest)
     control.model_pool = SimpleNamespace(
-        verify_latest=lambda _model_id: {
+        verify_latest=lambda _model_id, *, cancel_event=None: {
             "ready": True,
             "locator": paths.relative_locator(snapshot),
         },

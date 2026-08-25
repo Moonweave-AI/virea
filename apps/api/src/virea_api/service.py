@@ -58,7 +58,12 @@ from virea_core.atomic import atomic_write_json
 from virea_core.db import StateStore
 from virea_core.ids import new_ulid
 from virea_core.paths import VireaPaths, safe_component
-from virea_model_pool import InstallOutcome, ModelCatalog, ModelPool
+from virea_model_pool import (
+    InstallOutcome,
+    ModelCatalog,
+    ModelPool,
+    ModelVerificationCancelled,
+)
 from virea_motion_ir import (
     CANONICAL211_PROFILE,
     CANONICAL211_SCHEMA,
@@ -85,6 +90,7 @@ from virea_vrm import export_vrma
 from virea.motion.skeleton import FK_BONES, FK_EDGES, forward_kinematics_from_sequence
 from virea.motion.snapshot import SourceSnapshot
 
+from .capabilities import REAL_ADAPTER_FAMILIES, model_capability
 from .coordination import (
     ControlPlaneOwnership,
     ResourceLease,
@@ -96,14 +102,6 @@ DEFAULT_INFERENCE_TIMEOUT_SECONDS = 1800.0
 MAX_INFERENCE_TIMEOUT_SECONDS = 7200.0
 WORKER_CONTROL_TIMEOUT_SECONDS = 30.0
 CANCEL_JOIN_TIMEOUT_SECONDS = 15.0
-REAL_ADAPTER_FAMILIES = frozenset(
-    {
-        "humanml3d-motion263-body22",
-        "joint-positions-body22",
-        "mardm-ric67-body22",
-        "prism-smplh-body22-axis-angle69",
-    }
-)
 SOURCE_SKELETON_PREVIEW_SCHEMA = "virea.source_skeleton_preview.v1.0.0"
 
 
@@ -237,6 +235,10 @@ class _JobCancelled(RuntimeError):
     pass
 
 
+class _ModelInstallationNotReady(RuntimeError):
+    pass
+
+
 class ExecutionTargetResolutionError(ValueError):
     """A requested domain/runtime/profile cannot be resolved without fallback."""
 
@@ -275,6 +277,13 @@ class _PreparedRuntime:
     selected_accelerator: AcceleratorSelection | None
     runtime_candidates: tuple[dict[str, Any], ...]
     resource_lease: ResourceLease | None
+
+
+@dataclass(frozen=True, slots=True)
+class _VerifiedInstallation:
+    installation_id: str
+    locator: str
+    artifact_roots: dict[str, Path]
 
 
 class ControlPlane:
@@ -459,14 +468,18 @@ class ControlPlane:
             elif native_path.suffix.lower() == ".json":
                 native = json.loads(native_path.read_text(encoding="utf-8"))
             else:
-                raise ValueError("legacy native artifact format is unsupported") from None
+                raise ValueError(
+                    "legacy native artifact format is unsupported"
+                ) from None
         adapted = self._adapt_native_output(
             adapter_family=manifest.model.adapter_family,
             native=native,
             model_result=model_result,
         )
         if adapted.source_snapshot is None:
-            raise ValueError("legacy model adapter cannot reconstruct a source skeleton")
+            raise ValueError(
+                "legacy model adapter cannot reconstruct a source skeleton"
+            )
         return _source_skeleton_preview_payload(
             adapted.source_snapshot,
             result_id=result.result_id,
@@ -485,9 +498,9 @@ class ControlPlane:
         inference_timeout = validate_inference_timeout(inference_timeout)
         if self._closing.is_set():
             raise RuntimeError("control plane is closing")
-        row = self.store.create_job(request)
+        row, created = self.store.create_job_once(request)
         job_id = row["id"]
-        if row["state"] != JobState.QUEUED.value:
+        if not created:
             return row
         try:
             manifest = self.catalog.get(request.model_id)
@@ -507,6 +520,22 @@ class ControlPlane:
                 JobState.REJECTED,
                 error_code="TEST_MODEL_DISABLED",
                 error_message="test-only model Workers are disabled in the production control plane",
+            )
+        test_fixture_override = bool(self.allow_test_models and manifest.test_only)
+        capability = model_capability(manifest)
+        if (
+            manifest.model.adapter_family != "fake-root-translation"
+            and not test_fixture_override
+            and not capability["virea_integrated"]
+        ):
+            return self.store.transition_job(
+                job_id,
+                JobState.REJECTED,
+                error_code="MODEL_NOT_INTEGRATED",
+                error_message=(
+                    f"{manifest.model.id} has no complete VIREA product path: "
+                    + ", ".join(capability["reasons"])
+                ),
             )
         if manifest.model.adapter_family != "fake-root-translation" and (
             self.supervisor.admission_blocked or self.resource_recovery_blocked
@@ -553,37 +582,9 @@ class ControlPlane:
                     f"{manifest.model.id} does not declare a runnable runtime"
                 ),
             )
-        try:
-            self._select_runtime_variant(
-                manifest,
-                execution_target=request.execution_target,
-            )
-        except ExecutionTargetResolutionError as exc:
-            return self.store.transition_job(
-                job_id,
-                JobState.REJECTED,
-                event_type="job.execution_target_rejected",
-                payload=exc.as_detail(),
-                error_code=exc.code,
-                error_message=str(exc),
-            )
-        if (
-            manifest.model.adapter_family != "fake-root-translation"
-            and not allow_unready_model
-            and not self.model_pool.verify_latest(request.model_id)["ready"]
-        ):
-            return self.store.transition_job(
-                job_id,
-                JobState.REJECTED,
-                error_code="MODEL_NOT_READY",
-                error_message=(
-                    f"{request.model_id} has no READY installation; run "
-                    f"'virea model install {request.model_id} --apply' first"
-                ),
-            )
         thread = threading.Thread(
             target=runner,
-            args=(job_id, request),
+            args=(job_id, request, allow_unready_model),
             name=f"virea-job-{job_id}",
             daemon=True,
         )
@@ -606,9 +607,16 @@ class ControlPlane:
             thread.start()
         return self.store.get_job(job_id) or row
 
-    def _run_model_job(self, job_id: str, request: JobRequest) -> None:
+    def _run_model_job(
+        self,
+        job_id: str,
+        request: JobRequest,
+        allow_unready_model: bool = False,
+    ) -> None:
         handle: WorkerHandle | None = None
         resource_lease: ResourceLease | None = None
+        verified_artifact_roots: dict[str, Path] | None = None
+        initial_admission: tuple[Any, ...] | None = None
         worker_termination_uncertain = False
         result_dir: Path | None = None
         result_published = False
@@ -622,16 +630,42 @@ class ControlPlane:
             if current["state"] == JobState.CANCELLING.value:
                 self.store.transition_job(job_id, JobState.CANCELLED)
                 return
+            manifest = self.catalog.get(request.model_id)
+            if manifest.model.adapter_family != "fake-root-translation":
+                # Resolve the requested OS/Runtime/profile before reading a
+                # multi-gigabyte snapshot. The resulting immutable selection is
+                # handed to runtime preparation, avoiding a duplicate initial
+                # machine probe while retaining the final post-lease recheck.
+                initial_admission = self._select_worker_admission(
+                    manifest,
+                    execution_target=request.execution_target,
+                    cancel_event=cancel_event,
+                )
+                with self._lock:
+                    staged_roots = self._model_root_overrides.get(job_id)
+                if allow_unready_model:
+                    if staged_roots is None:
+                        raise _ModelInstallationNotReady(
+                            "unready-model execution requires explicit staged artifact roots"
+                        )
+                    verified_artifact_roots = dict(staged_roots)
+                else:
+                    verified = self._verify_installed_model(
+                        request.model_id,
+                        cancel_event=cancel_event,
+                    )
+                    verified_artifact_roots = dict(verified.artifact_roots)
+            self._raise_if_cancelled(job_id)
             self.store.transition_job(job_id, JobState.ADMITTED)
             self._raise_if_cancelled(job_id)
             job_root = self.paths.job_directory(job_id)
             job_root.mkdir(parents=True, exist_ok=True)
-            manifest = self.catalog.get(request.model_id)
             prepared = self._prepare_runtime_for_worker(
                 job_id=job_id,
                 manifest=manifest,
                 execution_target=request.execution_target,
                 cancel_event=cancel_event,
+                initial_admission=initial_admission,
             )
             runtime = prepared.runtime
             execution_domain = prepared.execution_domain
@@ -706,6 +740,7 @@ class ControlPlane:
                 job_id=job_id,
                 model_id=request.model_id,
                 adapter_family=manifest.model.adapter_family,
+                artifact_roots=verified_artifact_roots,
             )
             worker_environment.update(
                 {
@@ -916,9 +951,7 @@ class ControlPlane:
                 for actor in retarget.actors
             )
             model_result_locator = self.paths.relative_locator(model_result_path)
-            source_skeleton_locator = self.paths.relative_locator(
-                source_skeleton_path
-            )
+            source_skeleton_locator = self.paths.relative_locator(source_skeleton_path)
             motion_ir_locator = self.paths.relative_locator(motion_descriptor)
             canonical_locator = self.paths.relative_locator(canonical_path)
             native_locator = self.paths.relative_locator(native_result_path)
@@ -1071,12 +1104,42 @@ class ControlPlane:
             )
             result_published = True
         except ExecutionTargetResolutionError as exc:
-            self._finish_failure(job_id, exc.code, str(exc))
+            current = self.store.get_job(job_id)
+            if current is not None and current["state"] == JobState.QUEUED.value:
+                try:
+                    self.store.transition_job(
+                        job_id,
+                        JobState.REJECTED,
+                        event_type="job.execution_target_rejected",
+                        payload=exc.as_detail(),
+                        error_code=exc.code,
+                        error_message=str(exc)[:2000],
+                    )
+                except Exception:
+                    self._finish_failure(job_id, exc.code, str(exc))
+            else:
+                self._finish_failure(job_id, exc.code, str(exc))
+        except _ModelInstallationNotReady as exc:
+            current = self.store.get_job(job_id)
+            if current is not None and current["state"] == JobState.QUEUED.value:
+                try:
+                    self.store.transition_job(
+                        job_id,
+                        JobState.REJECTED,
+                        event_type="job.model_not_ready",
+                        error_code="MODEL_NOT_READY",
+                        error_message=str(exc)[:2000],
+                    )
+                except Exception:
+                    # Cancellation or shutdown can win after the state read.
+                    self._finish_failure(job_id, "MODEL_NOT_READY", str(exc))
+            else:
+                self._finish_failure(job_id, "MODEL_NOT_READY", str(exc))
         except WorkerProtocolError as exc:
             payload = exc.payload if isinstance(exc.payload, dict) else {}
             code = str(payload.get("code", "WORKER_PROTOCOL_ERROR"))
             self._finish_failure(job_id, code, str(payload.get("message", exc)))
-        except (ResourceLeaseCancelled, _JobCancelled):
+        except (ResourceLeaseCancelled, ModelVerificationCancelled, _JobCancelled):
             self._finish_failure(job_id, "CANCELLED", "job cancellation requested")
         except Exception as exc:
             self._finish_failure(job_id, type(exc).__name__.upper(), str(exc))
@@ -1184,13 +1247,15 @@ class ControlPlane:
         job_id: str,
         model_id: str,
         adapter_family: str,
+        artifact_roots: dict[str, Path] | None = None,
     ) -> dict[str, str]:
         if adapter_family == "fake-root-translation":
             return {}
-        with self._lock:
-            artifact_roots = self._model_root_overrides.get(job_id)
         if artifact_roots is None:
-            artifact_roots = self._installed_artifact_roots(model_id)
+            with self._lock:
+                artifact_roots = self._model_root_overrides.get(job_id)
+            if artifact_roots is None:
+                artifact_roots = self._installed_artifact_roots(model_id)
         resolved_roots: dict[str, str] = {}
         for artifact_id, artifact_root in sorted(artifact_roots.items()):
             resolved = artifact_root.resolve(strict=True)
@@ -1236,16 +1301,40 @@ class ControlPlane:
             environment["VFR_ATTENTION_BACKEND"] = attention_backend
         return environment
 
-    def _installed_artifact_roots(self, model_id: str) -> dict[str, Path]:
-        report = self.model_pool.verify_latest(model_id)
+    def _verify_installed_model(
+        self,
+        model_id: str,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> _VerifiedInstallation:
+        report = self.model_pool.verify_latest(
+            model_id,
+            cancel_event=cancel_event,
+        )
         if not report.get("ready"):
-            raise RuntimeError(f"model has no READY installation: {model_id}")
+            diagnostics = "; ".join(str(item) for item in report.get("diagnostics", ()))
+            detail = f": {diagnostics}" if diagnostics else ""
+            raise _ModelInstallationNotReady(
+                f"model has no fully verified READY installation: {model_id}{detail}"
+            )
         locator = report.get("locator")
         if not isinstance(locator, str) or not locator:
-            raise RuntimeError(f"READY installation has no locator: {model_id}")
+            raise _ModelInstallationNotReady(
+                f"verified READY installation has no locator: {model_id}"
+            )
         manifest = self.catalog.get(model_id)
         installation_root = self.paths.resolve_locator(locator)
-        return {
+        installation_id = report.get("installation_id")
+        if not isinstance(installation_id, str) or not installation_id:
+            # Older verification providers exposed the verified snapshot only by
+            # locator.  The resolved snapshot name is the same immutable identity,
+            # so retain that compatibility without weakening asset verification.
+            installation_id = installation_root.name
+        if not installation_id:
+            raise _ModelInstallationNotReady(
+                f"verified READY installation has no identity: {model_id}"
+            )
+        artifact_roots = {
             source.id: (
                 installation_root
                 / "artifacts"
@@ -1253,6 +1342,16 @@ class ControlPlane:
             ).resolve(strict=True)
             for source in manifest.artifacts
         }
+        return _VerifiedInstallation(
+            installation_id=installation_id,
+            locator=locator,
+            artifact_roots=artifact_roots,
+        )
+
+    def _installed_artifact_roots(self, model_id: str) -> dict[str, Path]:
+        """Explicitly verify a READY installation and return its bound roots."""
+
+        return dict(self._verify_installed_model(model_id).artifact_roots)
 
     def run_real_acceptance(
         self,
@@ -2134,8 +2233,9 @@ class ControlPlane:
         manifest,
         execution_target: ExecutionTargetSelection | None,
         cancel_event: threading.Event,
+        initial_admission: tuple[Any, ...] | None = None,
     ) -> _PreparedRuntime:
-        admission = self._select_worker_admission(
+        admission = initial_admission or self._select_worker_admission(
             manifest,
             execution_target=execution_target,
             cancel_event=cancel_event,

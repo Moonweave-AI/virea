@@ -3,8 +3,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 30
 summary: Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples.
 canonical: doc/reference/cli.en.md
@@ -38,8 +38,9 @@ uv run virea
 ```
 
 This is the normal human-facing command, and it does not restart from zero. The wizard restores the last model,
-execution domain, Runtime, and resource profile from `VIREA_HOME/config/wizard-preferences.json`; it re-verifies
-deployments and recent jobs from durable state. A restored item is marked `[saved / 已保存]`: press Enter to reuse it,
+execution domain, Runtime, and resource profile from `VIREA_HOME/config/wizard-preferences.json`; it restores persisted
+deployment metadata and recent jobs from durable state, then performs full byte verification at the execution boundary.
+A restored item is marked `[saved / 已保存]`: press Enter to reuse it,
 enter another number to replace it explicitly, or enter `q` to leave safely.
 
 The seven stages expose these facts:
@@ -48,14 +49,18 @@ The seven stages expose these facts:
 |---|---|
 | Data root | Shows the active `VIREA_HOME`; reuse it or explicitly move to another data volume. |
 | Device and state | Detects the current device/domains and shows the last model/target, READY count, and recent jobs. |
-| Model | Labels every model `not installed`, `needs attention`, or re-verified `READY · deployed`. |
+| Model | Shows all 14 non-test catalog records in a grouped table. Six VIREA-integrated models show persisted `READY` (with execution-time re-verification), installable, or needs-attention state; eight upstream-only records show their missing Runtime/Worker/E2E reason and cannot enter deployment. |
 | Execution target | Shows total/available RAM and total VRAM, then separately chooses the OS domain, an implemented Runtime, and a resource profile; history is a visible default, never a silent override. |
-| Deployment | Reuses a matching READY snapshot by default without downloading again; another target gets an independent deployment while the old snapshot remains. |
+| Deployment | Reuses a matching persisted READY snapshot by default without downloading again; full byte integrity is rechecked before Worker start. Another target gets an independent deployment while the old snapshot remains. |
 | Generation | Shows submission, model inference, and result-artifact collection; success is a compact job/result ID summary. |
 | Browser | Optionally starts the local source-skeleton and final-VRM workbench. |
 
 The deployment gate compares each profile with total RAM/VRAM capacity. Available RAM/VRAM are live observations, not
 the hardware's capability; platform-mismatched Runtimes are described as unavailable but cannot be selected by number.
+
+The header keeps one compact seven-step rail and a restored-session summary, so the active stage, saved target, persisted READY
+count, and recent state remain visible without repeating complete panels. Status always uses text and a symbol; color is
+supplementary. Known transfer totals use real byte completion, while unknown totals remain indeterminate.
 
 The progress bar advances only at completed operation boundaries. During a Hugging Face/Xet transfer, dependency-owned
 `Downloading bytes`, `Reconstructing`, and `Fetching files` bars are suppressed. Download and reconstruction byte/rate

@@ -45,7 +45,10 @@ export const api = {
     request<ExecutionDomainCandidates>("/execution-domains", {}, { timeoutMs: 60_000 }),
   setupPlan: () => request<Record<string, unknown>>("/setup/plan", { method: "POST" }),
   setupApply: () => request<Record<string, unknown>>("/setup/apply", { method: "POST" }),
-  models: () => request<ModelManifest[]>("/models"),
+  // The Studio reconciles this collection frequently, so it explicitly asks
+  // for persisted readiness. The default v1 endpoint retains full verification
+  // for existing API clients, and execution always re-verifies model bytes.
+  models: () => request<ModelManifest[]>("/models?verification_scope=metadata"),
   executionOptions: (modelId: string) =>
     request<ModelExecutionOptions>(`/models/${encodeURIComponent(modelId)}/execution-options`, {}, { timeoutMs: 60_000 }),
   install: (manifest: ModelManifest, executionTarget: ExecutionTargetSelection) =>
@@ -61,10 +64,11 @@ export const api = {
     seconds: number,
     seed: number,
     executionTarget: ExecutionTargetSelection,
+    idempotencyKey: string,
   ) =>
     request<JobRecord>("/jobs", {
       method: "POST",
-      body: JSON.stringify(createGenerationPayload(manifest, prompt, seconds, seed, executionTarget)),
+      body: JSON.stringify(createGenerationPayload(manifest, prompt, seconds, seed, executionTarget, idempotencyKey)),
     }),
   result: (jobId: string) => request<VrmMotionResult>(`/jobs/${encodeURIComponent(jobId)}/result`),
   sourceSkeleton: (resultId: string) =>
@@ -84,6 +88,12 @@ export const api = {
 
 export function stateEventsUrl(): string {
   const url = new URL("/api/v1/state/events", window.location.origin);
+  url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return url.href;
+}
+
+export function jobEventsUrl(jobId: string): string {
+  const url = new URL(`/api/v1/jobs/${encodeURIComponent(jobId)}/events`, window.location.origin);
   url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return url.href;
 }

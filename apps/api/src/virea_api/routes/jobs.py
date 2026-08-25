@@ -13,6 +13,7 @@ from fastapi import (
 )
 from virea_contracts.job import JobRequest
 from virea_contracts.vrm import VrmMotionResult
+from virea_core import IdempotencyConflict
 
 from ..dependencies import control_plane
 from ..service import (
@@ -35,7 +36,17 @@ def create_job(
     ),
     control: ControlPlane = Depends(control_plane),
 ) -> dict:
-    return control.submit(request, inference_timeout=timeout_seconds)
+    try:
+        return control.submit(request, inference_timeout=timeout_seconds)
+    except IdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_KEY_CONFLICT",
+                "idempotency_key": exc.key,
+                "message": str(exc),
+            },
+        ) from exc
 
 
 @router.get("")
@@ -102,6 +113,11 @@ async def job_events(websocket: WebSocket, job_id: str) -> None:
             }:
                 await websocket.close(code=1000)
                 return
-            await asyncio.sleep(0.1)
+            try:
+                message = await asyncio.wait_for(websocket.receive(), timeout=0.75)
+                if message.get("type") == "websocket.disconnect":
+                    return
+            except asyncio.TimeoutError:
+                continue
     except WebSocketDisconnect:
         return

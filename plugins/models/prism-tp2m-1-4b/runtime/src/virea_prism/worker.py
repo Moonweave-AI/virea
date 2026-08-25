@@ -111,9 +111,7 @@ class PrismTP2MPlugin:
             resources={
                 "accelerator": "cpu" if is_cpu else "nvidia",
                 "min_vram_gib": None if is_cpu else 12.0,
-                "min_ram_gib": (
-                    CPU_MIN_FREE_RAM_GIB if is_cpu else MIN_TOTAL_RAM_GIB
-                ),
+                "min_ram_gib": (CPU_MIN_FREE_RAM_GIB if is_cpu else MIN_TOTAL_RAM_GIB),
                 "min_available_ram_before_load_gib": (
                     CPU_MIN_FREE_RAM_GIB if is_cpu else MIN_FREE_RAM_GIB
                 ),

@@ -3,8 +3,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-25
+last_reviewed: 2026-08-25
 review_cycle_days: 14
 summary: 模型选择、状态语义、原生骨骼/表示和逐模型文档入口。
 canonical: doc/models/README.zh-CN.md
@@ -24,6 +24,20 @@ superseded_by: []
 
 从 [自动生成支持矩阵](support-matrix.generated.md) 选择模型。矩阵同时显示模型状态、任务、原生骨骼、原生
 表示、Runtime 与资源策略；不要仅按显示名称选择环境或解释结果。
+
+当前非测试目录共 14 条记录。`acmdm-humanml3d`、`cmdm-humanml3d`、`flood-diffusion-tiny`、
+`mardm-humanml3d`、`momadiff-humanml3d` 与 `prism-tp2m-1-4b` 六个模型已有 VIREA Runtime 和 production
+acceptance；另外八个只是“上游可运行”的研究登记，仍缺少 VIREA Worker/Runtime、任务输入合同、制品安装、
+adapter 路径和 production E2E。Web 与交互式 CLI 都显示全部 14 个，但会在部署前标出并禁用这八个；进入目录
+不等于已经支持执行。
+
+目录安装状态刻意区分两个 scope。兼容的 `/api/v1/models` 默认使用
+`verification_scope=full_integrity`，因此原有 `installation.ready=true` 继续表示选中的 READY 快照已通过
+本次字节完整性扫描。Web 为高频对账显式请求 `?verification_scope=metadata`；此时
+`installation.ready=true` 只表示持久 READY transaction 仍与当前 manifest 元数据匹配，
+`integrity_verified=false` 会明确暴露这一低成本边界。VIREA 会在显式 verify 或实际执行边界、启动 Worker
+之前完成字节级完整复验。因此 Web 与 CLI 将 metadata 状态标为“持久 READY · 执行前复验”，不会误称为
+“本次已经完整验证”。
 
 ## 选择顺序
 

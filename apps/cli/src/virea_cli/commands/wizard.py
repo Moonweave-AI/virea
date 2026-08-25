@@ -10,13 +10,19 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, TypeVar
 
+from virea_api.capabilities import model_capability
 from virea_api.service import ControlPlane, ExecutionTargetResolutionError
 from virea_contracts.execution import ExecutionTargetSelection
 from virea_core.paths import VireaPaths
 from virea_model_pool import ModelCatalog
 
 from ..common import plugin_root, runtime_source_root
-from ..presentation import TerminalUI, target_label
+from ..presentation import (
+    SelectionRow,
+    TerminalUI,
+    compact_diagnostic,
+    target_label,
+)
 from ..wizard_state import (
     installed_target,
     load_preferences,
@@ -31,6 +37,22 @@ Choice = TypeVar("Choice")
 
 class WizardCancelled(Exception):
     """Raised when the user intentionally leaves an interactive step."""
+
+
+def _safe_input(prompt: str = "") -> str:
+    """Prompt safely when a legacy Windows stream cannot encode Chinese."""
+
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        safe_prompt = prompt.encode(
+            encoding,
+            errors="backslashreplace",
+        ).decode(encoding)
+    except LookupError:
+        safe_prompt = prompt.encode("ascii", errors="backslashreplace").decode("ascii")
+    sys.stdout.write(safe_prompt)
+    sys.stdout.flush()
+    return input()
 
 
 def _write(output: Output, message: str = "") -> None:
@@ -58,19 +80,53 @@ def _choice(
     items: Sequence[Choice],
     label: Callable[[Choice], str],
     default: Choice | None = None,
+    disabled_reason: Callable[[Choice], str | None] | None = None,
+    selection_row: (
+        Callable[[Choice, int, bool, str | None], SelectionRow] | None
+    ) = None,
+    ui: TerminalUI | None = None,
 ) -> Choice:
     if not items:
         raise RuntimeError("the interactive wizard has no selectable options")
-    _write(output)
-    _write(output, title)
     default_index: int | None = None
+    disabled_by_index: dict[int, str] = {}
+    display_rows: list[SelectionRow] = []
     for index, item in enumerate(items, start=1):
-        is_default = default is not None and item == default
+        reason = disabled_reason(item) if disabled_reason is not None else None
+        if reason:
+            disabled_by_index[index] = reason
+        is_default = default is not None and item == default and reason is None
         if is_default:
             default_index = index
-        marker = ">" if is_default else " "
-        restored = "  [saved / 已保存]" if is_default else ""
-        _write(output, f" {marker} {index}. {label(item)}{restored}")
+        if selection_row is not None:
+            display_rows.append(selection_row(item, index, is_default, reason))
+    rendered_table = bool(
+        ui is not None and display_rows and ui.selection_table(title, display_rows)
+    )
+    if not rendered_table:
+        _write(output)
+        _write(output, title)
+        current_group: str | None = None
+        for index, item in enumerate(items, start=1):
+            reason = disabled_by_index.get(index)
+            is_default = default_index == index
+            if selection_row is not None:
+                row = display_rows[index - 1]
+                if row.group != current_group:
+                    _write(output, f"  {row.group}")
+                    current_group = row.group
+            marker = ">" if is_default else " "
+            restored = "  [saved / 已保存]" if is_default else ""
+            unavailable = f"  [unavailable / 不可用: {reason}]" if reason else ""
+            _write(
+                output,
+                f" {marker} {index}. {label(item)}{restored}{unavailable}",
+            )
+    if len(disabled_by_index) == len(items):
+        raise RuntimeError(
+            "the interactive wizard has no currently actionable choices / "
+            "当前没有可继续执行的选项"
+        )
     while True:
         default_hint = (
             f", Enter={default_index} / 回车={default_index}"
@@ -78,8 +134,7 @@ def _choice(
             else ""
         )
         answer = input_fn(
-            "Choose a number / 输入序号 "
-            f"(q to quit / q 退出{default_hint}): "
+            f"Choose a number / 输入序号 (q to quit / q 退出{default_hint}): "
         ).strip()
         if not answer and default_index is not None:
             return items[default_index - 1]
@@ -91,6 +146,14 @@ def _choice(
             _write(output, "Enter one of the displayed numbers / 请输入列表中的序号。")
             continue
         if 1 <= index <= len(items):
+            reason = disabled_by_index.get(index)
+            if reason:
+                _write(
+                    output,
+                    "This catalog entry cannot enter deployment yet / "
+                    f"此目录项暂不能进入部署: {reason}",
+                )
+                continue
             return items[index - 1]
         _write(output, "Enter one of the displayed numbers / 请输入列表中的序号。")
 
@@ -207,6 +270,95 @@ def _model_manifests() -> list[Any]:
         for manifest in ModelCatalog.load(plugin_root()).manifests()
         if manifest.model.adapter_family != "fake-root-translation"
     ]
+
+
+def _model_status_value(manifest: Any) -> str:
+    status = manifest.model.status
+    return str(getattr(status, "value", status))
+
+
+def _is_virea_integrated(manifest: Any) -> bool:
+    """Return whether the manifest declares an actionable VIREA product path."""
+
+    return bool(model_capability(manifest)["virea_integrated"])
+
+
+def _model_blocker(manifest: Any) -> str | None:
+    if _is_virea_integrated(manifest):
+        return None
+    status = _model_status_value(manifest)
+    if status == "runnable_upstream":
+        return (
+            "upstream runnable, but no VIREA Runtime and production acceptance / "
+            "上游可运行，但尚无 VIREA Runtime 与生产验收"
+        )
+    missing: list[str] = []
+    if not manifest.runtime_variants:
+        missing.append("Runtime")
+    if manifest.production_acceptance is None:
+        missing.append("production acceptance / 生产验收")
+    detail = ", ".join(missing) or f"support status {status}"
+    return f"not VIREA-integrated: {detail} / 尚未完成 VIREA 集成"
+
+
+def _model_group(manifest: Any, report: dict[str, Any]) -> str:
+    if report.get("ready") and _is_virea_integrated(manifest):
+        return "Persisted READY · reverify on run / 持久 READY · 执行前复验"
+    if _is_virea_integrated(manifest):
+        return "VIREA-integrated · installable / 已集成 · 可部署"
+    return "Catalog · upstream only / 目录 · 仅上游"
+
+
+def _model_sort_key(manifest: Any, report: dict[str, Any]) -> tuple[int, str]:
+    if report.get("ready") and _is_virea_integrated(manifest):
+        rank = 0
+    elif _is_virea_integrated(manifest):
+        rank = 1
+    else:
+        rank = 2
+    return rank, manifest.model.display_name.casefold()
+
+
+def _model_selection_row(
+    manifest: Any,
+    report: dict[str, Any],
+    index: int,
+    saved: bool,
+    reason: str | None,
+) -> SelectionRow:
+    if report.get("ready") and _is_virea_integrated(manifest):
+        state = "Persisted READY / 持久 READY"
+        state_kind = "ready"
+        availability = (
+            "Metadata matched; full byte verification runs before Worker / "
+            "元数据匹配；Worker 前完整复验字节"
+        )
+    elif _is_virea_integrated(manifest):
+        state = "VIREA integrated / 已集成"
+        state_kind = "available"
+        availability = "Runtime + acceptance available / Runtime 与验收可用"
+    else:
+        state = "Upstream only / 仅上游"
+        state_kind = "warning"
+        availability = reason
+    return SelectionRow(
+        index=index,
+        title=manifest.model.display_name,
+        identifier=manifest.model.id,
+        state=state,
+        state_kind=state_kind,
+        details=", ".join(manifest.model.tasks),
+        group=_model_group(manifest, report),
+        enabled=reason is None,
+        reason=availability,
+        saved=saved,
+    )
+
+
+def _model_capability_label(manifest: Any) -> str:
+    if _is_virea_integrated(manifest):
+        return "VIREA-integrated / 已集成"
+    return "upstream-only / 仅上游"
 
 
 def _gib_label(value: Any) -> str:
@@ -460,7 +612,14 @@ def _serve_args(port: int) -> Namespace:
 
 def _deployment_label(report: dict[str, Any]) -> str:
     if report.get("ready"):
-        return "READY · deployed / 已部署"
+        if report.get("verification_scope") == "metadata":
+            return "Persisted READY · reverify on run / 持久 READY · 执行前复验"
+        if (
+            report.get("verification_scope") == "full_integrity"
+            and report.get("integrity_verified") is True
+        ):
+            return "READY · integrity verified / READY · 已完整复验"
+        return "READY · verification scope undeclared / READY · 校验范围未声明"
     state = report.get("state")
     if report.get("installed"):
         return f"{state or 'FOUND'} · needs attention / 需处理"
@@ -481,6 +640,14 @@ def _deployment_rows(
         rows.append(("Bound target / 已绑定环境", target_label(target)))
     if report.get("locator"):
         rows.append(("Snapshot / 快照", report["locator"]))
+    if report.get("ready") and report.get("verification_scope") == "metadata":
+        rows.append(
+            (
+                "Catalog check / 目录校验",
+                "metadata only; full byte verification before Worker / "
+                "仅元数据；Worker 前完整复验字节",
+            )
+        )
     latest = report.get("latest_attempt")
     if isinstance(latest, dict) and latest.get("state") != report.get("state"):
         rows.append(
@@ -498,9 +665,9 @@ def _deployment_rows(
         if error_code:
             rows.append(("Last error / 上次错误", error_code))
         if error_message:
-            rows.append(("Cause / 原因", error_message))
+            rows.append(("Cause / 原因", compact_diagnostic(error_message)))
         elif publication_failure:
-            rows.append(("Cause / 原因", publication_failure))
+            rows.append(("Cause / 原因", compact_diagnostic(publication_failure)))
         if isinstance(failed_stages, list) and failed_stages:
             rows.append(
                 ("Failed stages / 失败阶段", ", ".join(map(str, failed_stages)))
@@ -518,7 +685,7 @@ def _deployment_rows(
 def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
     """Run the no-argument, user-confirmed interactive VIREA workflow."""
 
-    input_fn = input if input_fn is None else input_fn
+    input_fn = _safe_input if input_fn is None else input_fn
     ui = TerminalUI(output)
     writer = ui.write
     try:
@@ -543,13 +710,11 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
             "Device and state / 设备与状态",
             "Refresh real machine facts and restore durable VIREA history.",
         )
-        setup_reporter = ui.reporter("Setup / 初始化")
-        if (
-            setup.run(
+        with ui.reporter("Setup / 初始化") as setup_reporter:
+            setup_status = setup.run(
                 Namespace(virea_home=None, interactive_reporter=setup_reporter)
             )
-            != 0
-        ):
+        if setup_status != 0:
             return 2
 
         control = ControlPlane(
@@ -565,17 +730,25 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                     f"已忽略损坏的向导选择: {preference_warning}"
                 )
             manifests = _model_manifests()
+            # The chooser presents persisted deployment identity and must not
+            # hash multi-gigabyte snapshots on every `uv run virea`. Explicit
+            # verify and Worker admission still perform full byte verification.
             reports = {
-                item.model.id: control.model_pool.verify_latest(item.model.id)
+                item.model.id: control.model_pool.installation_summary(item.model.id)
                 for item in manifests
             }
+            manifests.sort(
+                key=lambda item: _model_sort_key(item, reports[item.model.id])
+            )
             recent_jobs = control.store.list_jobs(limit=3)
             ui.history(
                 home=str(paths.root),
                 selected_model=preferences.model_id,
                 selected_target=target_label(preferences.execution_target),
                 ready_count=sum(
-                    bool(report.get("ready")) for report in reports.values()
+                    bool(reports[item.model.id].get("ready"))
+                    for item in manifests
+                    if _is_virea_integrated(item)
                 ),
                 recent_jobs=recent_jobs,
             )
@@ -584,13 +757,14 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                 3,
                 7,
                 "Model / 模型",
-                "Catalog status and verified local deployment are shown together.",
+                "Catalog capability and persisted deployment are shown together.",
             )
             default_manifest = next(
                 (
                     item
                     for item in manifests
                     if item.model.id == preferences.model_id
+                    and _is_virea_integrated(item)
                 ),
                 None,
             )
@@ -601,10 +775,20 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                 items=manifests,
                 label=lambda item: (
                     f"{item.model.display_name} ({item.model.id}) · "
+                    f"{_model_capability_label(item)} · "
                     f"{_deployment_label(reports[item.model.id])} · "
                     f"tasks={','.join(item.model.tasks)}"
                 ),
                 default=default_manifest,
+                disabled_reason=_model_blocker,
+                selection_row=lambda item, index, saved, reason: _model_selection_row(
+                    item,
+                    reports[item.model.id],
+                    index,
+                    saved,
+                    reason,
+                ),
+                ui=ui,
             )
             report = reports[manifest.model.id]
             bound_target = installed_target(control.model_pool, report)
@@ -644,7 +828,7 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
             5,
             7,
             "Deployment / 部署",
-            "Reuse a verified snapshot or show each real install boundary.",
+            "Reuse persisted state while keeping byte verification at execution.",
         )
         ui.key_values(
             "Installation plan / 安装计划",
@@ -660,8 +844,9 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
         install_required = True
         if reuse_ready:
             ui.success(
-                "A verified READY installation already matches this target / "
-                "已有与该环境匹配且验证通过的 READY 部署"
+                "A persisted READY installation matches this target; its bytes "
+                "are fully reverified before Worker start / "
+                "已有与该环境匹配的持久 READY 部署；启动 Worker 前会完整复验字节"
             )
             install_required = not _confirm(
                 input_fn,
@@ -701,9 +886,8 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                     "Installation was not started. Re-run `uv run virea` when ready.",
                 )
                 return 0
-            install_reporter = ui.reporter("Model installation / 模型安装")
-            if (
-                model.run(
+            with ui.reporter("Model installation / 模型安装") as install_reporter:
+                install_status = model.run(
                     _install_args(
                         manifest,
                         target,
@@ -711,8 +895,7 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                         reporter=install_reporter,
                     )
                 )
-                != 0
-            ):
+            if install_status != 0:
                 _write(
                     writer,
                     "Installation did not become READY; generation was not started.",
@@ -741,9 +924,8 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
             if prompt:
                 break
             _write(writer, "A non-empty description is required / 动作描述不能为空。")
-        generation_reporter = ui.reporter("Motion generation / 动作生成")
-        if (
-            generate.run(
+        with ui.reporter("Motion generation / 动作生成") as generation_reporter:
+            generation_status = generate.run(
                 _generate_args(
                     manifest,
                     target,
@@ -752,8 +934,7 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
                     reporter=generation_reporter,
                 )
             )
-            != 0
-        ):
+        if generation_status != 0:
             _write(
                 writer,
                 "Generation did not succeed; the browser server was not started.",
@@ -791,5 +972,8 @@ def run(*, input_fn: Input | None = None, output: Output | None = None) -> int:
         )
         return 130
     except (OSError, RuntimeError) as exc:
-        _write(writer, f"Wizard stopped before an unconfirmed action: {exc}")
+        _write(
+            writer,
+            f"Wizard stopped before an unconfirmed action: {compact_diagnostic(exc)}",
+        )
         return 2

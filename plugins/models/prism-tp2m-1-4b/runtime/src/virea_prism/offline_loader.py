@@ -137,8 +137,7 @@ def _materialize_component_state(
         checkpoint_format = metadata.get("format")
         if checkpoint_format not in (None, "pt"):
             raise RuntimeError(
-                f"PRISM {label} checkpoint format is not PyTorch: "
-                f"{checkpoint_format}"
+                f"PRISM {label} checkpoint format is not PyTorch: {checkpoint_format}"
             )
         for index, name in enumerate(names, start=1):
             source = handle.get_tensor(name)
@@ -166,6 +165,8 @@ def _materialize_component_state(
                     file=sys.stderr,
                     flush=True,
                 )
+
+
 def _materialize_runtime_buffers(
     model: Any,
     checkpoint_names: tuple[str, ...],
@@ -242,9 +243,7 @@ def _load_diffusers_component(
         torch.cuda.synchronize(target)
     component_tensors = tuple(model.named_parameters()) + tuple(model.named_buffers())
     remaining_meta = sorted(
-        name
-        for name, tensor in component_tensors
-        if tensor.device.type == "meta"
+        name for name, tensor in component_tensors if tensor.device.type == "meta"
     )
     if remaining_meta:
         raise RuntimeError(
@@ -256,8 +255,7 @@ def _load_diffusers_component(
         for name, tensor in component_tensors
         if tensor.device.type != target.type
         or (
-            target.index is not None
-            and tensor.device.index not in (None, target.index)
+            target.index is not None and tensor.device.index not in (None, target.index)
         )
     )
     wrong_dtypes = sorted(
