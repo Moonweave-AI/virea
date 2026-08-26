@@ -874,6 +874,8 @@ def test_runtime_import_probe_uses_valid_python_literals_and_core_epochs(
     assert "contracts_runtime_core_epoch" in probe
     assert "model_sdk_runtime_core_epoch" in probe
     assert "runtime_source_identity" in probe
+    assert "installed_source_identities" in probe
+    assert "distribution_source_identities" in probe
     assert ".virea-runtime-source.json" in probe
 
 

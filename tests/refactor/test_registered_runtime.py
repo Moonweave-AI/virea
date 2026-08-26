@@ -253,8 +253,10 @@ def test_runtime_source_identity_tracks_content_without_versions_or_timestamps(
     os.utime(source, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
     after = runtime_source_identity(spec, source_root=runtime)
 
-    assert before["schema_version"] == "virea.runtime_source_identity.v1"
+    assert before["schema_version"] == "virea.runtime_source_identity.v2"
     assert before["local_packages"] == ["virea-source-identity-runtime"]
+    assert set(before["installed_packages"]) == {"virea-source-identity-runtime"}
+    assert before["installed_packages"] != after["installed_packages"]
     assert before["sha256"] != after["sha256"]
 
 
@@ -277,6 +279,12 @@ def test_every_registered_uv_runtime_has_a_complete_source_identity() -> None:
         assert {"virea-contracts", "virea-model-sdk"}.issubset(
             identity["local_packages"]
         )
+        assert set(identity["installed_packages"]) == set(identity["local_packages"])
+        assert all(
+            installed_identity["file_count"] >= 0
+            and len(installed_identity["sha256"]) == 64
+            for installed_identity in identity["installed_packages"].values()
+        )
         assert len(identity["sha256"]) == 64
         checked.append(spec.id)
     assert len(checked) >= 28
@@ -298,6 +306,15 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         project_name="virea-contracts",
         import_name="virea_contracts",
         body='CONTRACT_MARKER = "old-contract"\n',
+    )
+    shutil.copyfile(
+        REPO_ROOT
+        / "packages"
+        / "contracts"
+        / "src"
+        / "virea_contracts"
+        / "source_identity.py",
+        contracts / "src" / "virea_contracts" / "source_identity.py",
     )
     _write_local_package(
         sdk,
@@ -396,7 +413,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         cache: Path,
         offline: bool,
         refresh_local_core: bool,
-    ) -> dict[str, str]:
+    ) -> dict[str, object]:
         if offline and refresh_local_core:
             monkeypatch.setenv("UV_OFFLINE", "1")
         else:
@@ -454,13 +471,17 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
                 "-I",
                 "-c",
                 "import json,virea_contracts,virea_model_sdk,virea_shared_worker; "
+                "from virea_contracts.source_identity import "
+                "distribution_source_identities; "
                 "print(json.dumps({'contracts_marker': "
                 "virea_contracts.CONTRACT_MARKER, "
                 "'contracts_file': virea_contracts.__file__, "
                 "'sdk_marker': virea_model_sdk.CACHE_MARKER, "
                 "'sdk_file': virea_model_sdk.__file__, "
                 "'worker_marker': virea_shared_worker.WORKER_MARKER, "
-                "'worker_file': virea_shared_worker.__file__}, sort_keys=True))",
+                "'worker_file': virea_shared_worker.__file__, "
+                "'installed_source_identities': distribution_source_identities("
+                f"{sorted(local_packages)!r})}}, sort_keys=True))",
             ),
             check=True,
             capture_output=True,
@@ -469,7 +490,16 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
             errors="replace",
             timeout=30.0,
         )
-        return json.loads(completed.stdout.splitlines()[-1])
+        observed = json.loads(completed.stdout.splitlines()[-1])
+        if refresh_local_core:
+            assert (
+                observed["installed_source_identities"] == marker["installed_packages"]
+            )
+        else:
+            assert (
+                observed["installed_source_identities"] != marker["installed_packages"]
+            )
+        return observed
 
     online_before_target = tmp_path / "runtime-online-before"
     online_before = build_and_probe(

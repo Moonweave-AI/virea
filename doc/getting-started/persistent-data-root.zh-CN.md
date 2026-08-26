@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: 一次选择并持久化 VIREA 数据根目录，避免将模型和环境写入系统盘。
 canonical: doc/getting-started/persistent-data-root.zh-CN.md
@@ -180,6 +180,8 @@ Set-Location -LiteralPath 'X:\VIREA-DATA\virea'
 # 只列出未提交改动，不修改文件。输出为空才适合直接更新；若有改动，先自行提交或保存。
 git status --short
 
+# 更新前先在正在运行 VIREA/Web 的终端按 Ctrl+C；已运行的 Python 进程无法自行替换已导入的旧代码。
+
 # 只接受 origin/main 的 fast-forward 更新；不会合并本地分叉，也不会读取或删除 VIREA_HOME 中的模型。
 # origin 是默认远端名，main 是要更新的主分支，--ff-only 禁止自动生成 merge commit。
 git pull --ff-only origin main
@@ -215,6 +217,7 @@ cd '/mnt/virea-data/virea'
 
 # 只读检查工作树，然后仅 fast-forward 更新 main。
 git status --short
+# 先用 Ctrl+C 停止正在运行的 VIREA/Web；重启后的进程才会导入更新代码。
 git pull --ff-only origin main
 
 # 同步锁定的 Python 与 Node 环境，并重建当前 Web。
@@ -234,12 +237,16 @@ uv run virea
 
 `model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision、
 `runtime_core_epoch` 或 Runtime 源码内容，它可能返回 `installed: true` 但 `ready: false`：模型文件仍在，但新代码会拒绝运行
-过期的隔离环境。首次使用本机制前安装的 Runtime 因没有源码身份，会在下一次使用时自动重建一次。身份覆盖 lockfile 与
-传递性的本地包闭包（模型包装包、共享 Worker、Model SDK、contracts），所以即使版本号和文件修改时间都没变，Worker
-源码修正也能被识别，不再依赖人工提升版本/epoch。先运行不带 `--apply` 的
+过期的隔离环境。V2 源码身份会同时比较仓库源码闭包，以及每个隔离 Runtime 中实际安装的 distribution 文件字节；因此，
+即使旧构建误写了当前 marker，同版本的过期 wheel 也无法继续复用。该机制统一适用于 Windows/Linux/macOS 原生环境、WSL，
+以及所有 CPU/CUDA Runtime 变体。携带旧 V1 marker 的 Runtime 会在首次使用时自动重建一次。身份覆盖 lockfile 与传递性的
+本地包闭包（模型包装包、共享 Worker、Model SDK、contracts），所以即使版本号和文件修改时间都没变，Worker 源码修正
+也能被识别，不再依赖人工提升版本/epoch。先运行不带 `--apply` 的
 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` 查看计划；确认后才追加 `--apply`。`DOMAIN` 是
 `windows-native`、`linux-native`、`macos-native` 或实际 `wsl:发行版` ID。重建过期 Python Runtime 不会重新下载通过校验的
-checkpoint；只有新 manifest 明确要求不同 artifact revision，或文件缺失/损坏时，才需要下载对应内容。
+checkpoint；只有新 manifest 明确要求不同 artifact revision，或文件缺失/损坏时，才需要下载对应内容。如果已经打开的
+Web 页面报告 `ModelResult coordinate_system does not match the manifest`，先用 `Ctrl+C` 停止旧服务，完整执行上面的更新命令，
+再运行 `uv run virea`；不要删除 model store 或 checkpoint。
 
 ## 迁移到另一块盘
 

@@ -11,11 +11,12 @@ except ModuleNotFoundError:  # Python 3.10 uses the declared backport.
     import tomli as tomllib
 
 from virea_contracts.runtime import RuntimeSpec
+from virea_contracts.source_identity import content_tree_identity
 
 from .backends.base import RuntimeBuildError, resolve_runtime_source
 
 RUNTIME_SOURCE_IDENTITY_FILENAME = ".virea-runtime-source.json"
-RUNTIME_SOURCE_IDENTITY_SCHEMA = "virea.runtime_source_identity.v1"
+RUNTIME_SOURCE_IDENTITY_SCHEMA = "virea.runtime_source_identity.v2"
 
 _PROJECT_METADATA_FILES = (
     "pyproject.toml",
@@ -168,6 +169,34 @@ def _project_identity_files(
     return tuple(sorted(files.items()))
 
 
+def _installed_project_identity(project_root: Path) -> dict[str, Any]:
+    pyproject = _read_project(project_root)
+    entries: list[tuple[str, bytes]] = []
+    for source_root in _declared_source_roots(project_root, pyproject):
+        for candidate in source_root.rglob("*"):
+            relative = candidate.relative_to(source_root)
+            if any(
+                part in _IGNORED_SOURCE_PARTS
+                or part.endswith((".egg-info", ".dist-info"))
+                for part in relative.parts
+            ):
+                continue
+            if candidate.is_symlink():
+                raise RuntimeBuildError(
+                    "local Runtime installed source identity does not follow symlinks: "
+                    f"{candidate}"
+                )
+            if candidate.is_file() and candidate.suffix not in {".pyc", ".pyo"}:
+                try:
+                    content = candidate.read_bytes()
+                except OSError as exc:
+                    raise RuntimeBuildError(
+                        f"cannot read Runtime installed source identity input: {candidate}"
+                    ) from exc
+                entries.append((relative.as_posix(), content))
+    return content_tree_identity(entries)
+
+
 def _digest_entries(entries: tuple[tuple[str, Path], ...]) -> str:
     digest = hashlib.sha256()
     for logical_path, path in entries:
@@ -210,6 +239,10 @@ def runtime_source_identity(
                 )
             entries[logical_path] = candidate
     ordered_entries = tuple(sorted(entries.items()))
+    installed_packages = {
+        project_name: _installed_project_identity(project_root)
+        for project_name, project_root in projects
+    }
     return {
         "schema_version": RUNTIME_SOURCE_IDENTITY_SCHEMA,
         "runtime_id": spec.id,
@@ -219,6 +252,7 @@ def runtime_source_identity(
         "sha256": _digest_entries(ordered_entries),
         "file_count": len(ordered_entries),
         "local_packages": [name for name, _root in projects],
+        "installed_packages": installed_packages,
     }
 
 

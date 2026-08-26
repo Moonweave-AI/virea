@@ -604,14 +604,18 @@ def test_built_runtime_rejects_missing_or_stale_source_identity_as_rebuildable(
 
 def test_built_runtime_accepts_exact_source_identity() -> None:
     expected = {
-        "schema_version": "virea.runtime_source_identity.v1",
+        "schema_version": "virea.runtime_source_identity.v2",
         "runtime_id": "fixture-cu128",
         "sha256": "current",
         "file_count": 4,
         "local_packages": ["fixture-runtime"],
+        "installed_packages": {
+            "fixture-runtime": {"sha256": "installed", "file_count": 2}
+        },
     }
     probe = _built_probe()
     probe["runtime_source_identity"] = expected
+    probe["installed_source_identities"] = expected["installed_packages"]
 
     outcome = resolve_built_runtime(
         _runtime(),
@@ -621,6 +625,36 @@ def test_built_runtime_accepts_exact_source_identity() -> None:
 
     assert outcome.status == "ready"
     assert outcome.runtime_rebuild_required is False
+
+
+def test_built_runtime_rejects_installed_code_drift_with_a_current_marker() -> None:
+    expected = {
+        "schema_version": "virea.runtime_source_identity.v2",
+        "runtime_id": "fixture-cu128",
+        "sha256": "current",
+        "file_count": 4,
+        "local_packages": ["fixture-runtime"],
+        "installed_packages": {
+            "fixture-runtime": {"sha256": "current-wheel", "file_count": 2}
+        },
+    }
+    probe = _built_probe()
+    probe["runtime_source_identity"] = expected
+    probe["installed_source_identities"] = {
+        "fixture-runtime": {"sha256": "stale-wheel", "file_count": 2}
+    }
+
+    outcome = resolve_built_runtime(
+        _runtime(),
+        probe,
+        expected_runtime_source_identity=expected,
+    )
+
+    assert outcome.status == "not-ready"
+    assert outcome.runtime_rebuild_required is True
+    assert outcome.reasons == (
+        "isolated runtime installed source identity mismatch: fixture-runtime",
+    )
 
 
 def test_built_runtime_rejects_unsupported_compute_capability() -> None:

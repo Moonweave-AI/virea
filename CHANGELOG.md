@@ -3,8 +3,8 @@ type: release-notes
 status: Active
 owner: VIREA maintainers
 created: 2026-08-20
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: VIREA 的版本级用户可见变更、兼容边界与发布状态。
 canonical: CHANGELOG.md
@@ -23,7 +23,7 @@ superseded_by: []
 - Added versioned Python and JSON contracts for jobs, models, runtimes, Worker messages, results, skeletons, representations, and Motion IR v2.
 - Preserved canonical211 v3 and the existing Viewer/Preview compatibility surface.
 - Added transactional VIREA_HOME state, cancellable runtime build planning, model installation history, restart recovery, recoverable removal, and bounded control-plane shutdown that cancels active work and joins job threads.
-- Added content-addressed invalidation for isolated model Runtimes. Every uv-native build records the lockfile plus transitive local source closure (model wrapper, shared Worker, Model SDK, and contracts); reuse now rejects missing or stale identities and automatically rebuilds the environment without deleting or re-downloading verified model artifacts, including across native Windows/Linux/macOS and WSL execution domains.
+- Added content-addressed invalidation for isolated model Runtimes. Every uv-native build records the lockfile plus transitive local source closure (model wrapper, shared Worker, Model SDK, and contracts), then independently hashes the distribution files actually installed in the isolated interpreter. Reuse rejects a missing identity, a stale source marker, or a same-version stale wheel and automatically rebuilds the environment without deleting or re-downloading verified model artifacts, including all CPU/CUDA variants across native Windows/Linux/macOS and WSL execution domains.
 - Catalog-only real-model install apply now returns HTTP 409 before staging and leaves no installation transaction; registry visibility cannot create a false READY state.
 - Retained a deterministic test-only model fixture for Worker, `ModelResult`, Motion IR, retargeting, canonical `VrmMotionResult`, NPZ/VRMA and API contracts; it is not a production starter or evidence for real-model quality.
 - Promoted six bounded real-model paths—FloodDiffusionTiny, MoMADiff, MARDM, ACMDM, CMDM, and PRISM—to `integrated_experimental`. The production registry contains six fresh `passed` doctor→install→real inference→Motion IR→VRMA→browser chains: the first five are Windows-native RTX 5090 Laptop GPU runs and PRISM is a `wsl:Ubuntu-24.04` component-split run. Real-model `supported` remains 0; these proofs do not establish native-Linux/macOS support, other hardware, public GA, model-quality equivalence, or universal redistribution rights.

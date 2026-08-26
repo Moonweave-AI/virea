@@ -1199,6 +1199,30 @@ def resolve_built_runtime(
                 f"rebuild runtime {spec.id} from the current locked source closure"
             )
             runtime_rebuild_required = True
+        expected_installed = expected_runtime_source_identity.get("installed_packages")
+        observed_installed = python_probe.get("installed_source_identities")
+        if (
+            isinstance(expected_installed, dict)
+            and observed_installed != expected_installed
+        ):
+            observed_packages = (
+                observed_installed if isinstance(observed_installed, dict) else {}
+            )
+            mismatched_packages = sorted(
+                package_name
+                for package_name in set(expected_installed) | set(observed_packages)
+                if observed_packages.get(package_name)
+                != expected_installed.get(package_name)
+            )
+            hard.append(
+                "isolated runtime installed source identity mismatch: "
+                + ", ".join(mismatched_packages)
+            )
+            remediation.append(
+                f"rebuild runtime {spec.id}; its installed wheels do not match "
+                "the current locked source closure"
+            )
+            runtime_rebuild_required = True
 
     profiles = _resource_profiles(spec)
     profile = next(

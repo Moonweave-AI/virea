@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: Choose, enter, and persist a VIREA data root without putting models or environments in the system drive.
 canonical: doc/getting-started/persistent-data-root.en.md
@@ -186,6 +186,8 @@ Set-Location -LiteralPath 'X:\VIREA-DATA\virea'
 # List local changes without modifying them. Continue directly only when the output is empty; otherwise save or commit them first.
 git status --short
 
+# Stop the currently running VIREA/Web terminal with Ctrl+C before updating. A running Python process cannot replace its own imported code.
+
 # Accept only a fast-forward from origin/main. origin is the remote, main is the branch, and --ff-only forbids an automatic merge commit.
 # This command updates the clone and never reads or deletes models under VIREA_HOME.
 git pull --ff-only origin main
@@ -221,6 +223,7 @@ cd '/mnt/virea-data/virea'
 
 # Inspect the worktree, then fast-forward main only.
 git status --short
+# Stop the currently running VIREA/Web process with Ctrl+C; the restarted process will import the updated code.
 git pull --ff-only origin main
 
 # Synchronize locked Python and Node environments, then rebuild the current Web app.
@@ -240,14 +243,18 @@ uv run virea
 
 When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, `runtime_core_epoch`, or
 Runtime source-content change can instead produce `installed: true` with `ready: false`: the model files still exist, but
-the new code correctly refuses to run an outdated isolated environment. A Runtime installed before source identities were
-introduced is rebuilt once on first use. The identity covers the lockfile and transitive local package closure (the model
-wrapper, shared Worker, Model SDK, and contracts), so a same-version Worker fix is detected without relying on timestamps
-or a manual version bump. Preview
+the new code correctly refuses to run an outdated isolated environment. V2 source identity compares both the repository
+source closure and the bytes actually installed in every isolated-runtime distribution. It therefore catches a stale
+same-version wheel even if an earlier build wrote a current marker, and it applies to every CPU/CUDA variant in native
+Windows/Linux/macOS and WSL. A Runtime carrying the older V1 marker is rebuilt once on first use. The identity covers the
+lockfile and transitive local package closure (the model wrapper, shared Worker, Model SDK, and contracts), so a
+same-version Worker fix is detected without relying on timestamps or a manual version bump. Preview
 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` without `--apply`; append `--apply` only after reviewing the
 plan. `DOMAIN` is `windows-native`, `linux-native`, `macos-native`, or the exact `wsl:distribution` ID. Repair reuses verified
 artifacts; rebuilding a stale Python Runtime does not re-download a valid checkpoint. Only a newly required artifact
-revision or a missing/corrupt file requires the corresponding download.
+revision or a missing/corrupt file requires the corresponding download. If an already-open Web page reported
+`ModelResult coordinate_system does not match the manifest`, stop its old server with `Ctrl+C`, complete the update commands
+above, and restart with `uv run virea`; do not delete the model store or checkpoints.
 
 ## Moving to another volume
 
