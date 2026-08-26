@@ -79,6 +79,7 @@ runtime_variants:
     entrypoint_argv:
       - python
       - -m
+      - virea_model_sdk.worker_entrypoint
       - virea_mardm.worker
     startup_timeout_seconds: 900
     environment_allowlist:
@@ -91,7 +92,7 @@ runtime_variants:
     working_directory: plugins/models/mardm-humanml3d/runtime-cu128
     project_package: virea-model-mardm-humanml3d-cu128-runtime
     project_version: 0.2.3
-    runtime_core_epoch: virea-runtime-core-20260821.2
+    runtime_core_epoch: virea-runtime-core-20260826.1
     availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_2_2_evidence_requires_reacceptance
   - schema_version: virea.runtime_spec.v1.0.0
     id: mardm-humanml3d-cpu
@@ -117,6 +118,7 @@ runtime_variants:
     entrypoint_argv:
       - python
       - -m
+      - virea_model_sdk.worker_entrypoint
       - virea_mardm.worker
     startup_timeout_seconds: 1200
     environment_allowlist:
@@ -129,7 +131,7 @@ runtime_variants:
     working_directory: plugins/models/mardm-humanml3d/runtime-cpu
     project_package: virea-model-mardm-humanml3d-cpu-runtime
     project_version: 0.2.3
-    runtime_core_epoch: virea-runtime-core-20260821.2
+    runtime_core_epoch: virea-runtime-core-20260826.1
     availability: cpu_contract_and_lock_baseline_only_real_inference_unverified
 artifacts:
   - id: mardm-sit-xl

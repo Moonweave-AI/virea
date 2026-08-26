@@ -5,6 +5,6 @@ be advanced whenever a same-release change to ``virea-contracts`` or
 ``virea-model-sdk`` changes the control-plane/Worker compatibility boundary.
 """
 
-RUNTIME_CORE_EPOCH = "virea-runtime-core-20260821.2"
+RUNTIME_CORE_EPOCH = "virea-runtime-core-20260826.1"
 
 __all__ = ["RUNTIME_CORE_EPOCH"]

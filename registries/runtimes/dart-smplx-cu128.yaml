@@ -8,11 +8,11 @@ lockfile: uv.lock
 min_storage_gib: 14.0
 resource_profiles:
   - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 10.0, min_free_ram_gib: 16.0, min_free_swap_gib: 0.0}
-entrypoint_argv: [python, -m, virea_dart.worker]
+entrypoint_argv: [python, -m, virea_model_sdk.worker_entrypoint, virea_dart.worker]
 startup_timeout_seconds: 600
 environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
 working_directory: plugins/models/dart-smplx/runtime-cu128
 project_package: virea-model-dart-smplx-cu128-runtime
 project_version: 0.2.0
-runtime_core_epoch: virea-runtime-core-20260821.2
+runtime_core_epoch: virea-runtime-core-20260826.1
 availability: pinned_official_cuda_worker_manual_smplx_and_real_checkpoint_acceptance_required

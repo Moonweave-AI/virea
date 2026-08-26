@@ -455,6 +455,10 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         name.endswith("/src/virea_model_sdk/upstream_runtime.py")
         for name in model_sdk_sdist_names
     )
+    assert any(
+        name.endswith("/src/virea_model_sdk/worker_entrypoint.py")
+        for name in model_sdk_sdist_names
+    )
     assert any(name.endswith("/setup.cfg") for name in model_sdk_sdist_names)
     assert not any(
         fragment in name.lower()
@@ -521,6 +525,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/runtime_identity.py",
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/upstream_runtime.py",
         "virea/_bundled/packages/model_sdk/src/virea_model_sdk/worker.py",
+        "virea/_bundled/packages/model_sdk/src/virea_model_sdk/worker_entrypoint.py",
     ]
     for model_id, module in RELEASE_RUNTIME_MODULES.items():
         required_wheel_suffixes.extend(
@@ -559,6 +564,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
     assert "virea_model_sdk/resource_measurement.py" in model_sdk_names
     assert "virea_model_sdk/runtime_identity.py" in model_sdk_names
     assert "virea_model_sdk/upstream_runtime.py" in model_sdk_names
+    assert "virea_model_sdk/worker_entrypoint.py" in model_sdk_names
     assert "virea_model_sdk/fake.py" not in model_sdk_names
     assert "virea_model_sdk/fake_worker.py" not in model_sdk_names
 
@@ -603,7 +609,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
                 *workspace_wheels,
             ],
             cwd=outside_checkout,
-                timeout=PACKAGING_DEPENDENCY_DOWNLOAD_TIMEOUT_SECONDS,
+            timeout=PACKAGING_DEPENDENCY_DOWNLOAD_TIMEOUT_SECONDS,
             windows_access_violation_retries=2,
         )
 
@@ -880,7 +886,7 @@ from virea_model_sdk import (
 assets = discover_resources()
 assert assets.origin == "installed-wheel"
 assert RuntimeResourceStage.__name__ == "RuntimeResourceStage"
-assert CONTRACTS_RUNTIME_CORE_EPOCH == "virea-runtime-core-20260821.2"
+assert CONTRACTS_RUNTIME_CORE_EPOCH == "virea-runtime-core-20260826.1"
 assert MODEL_SDK_RUNTIME_CORE_EPOCH == CONTRACTS_RUNTIME_CORE_EPOCH
 assert host_memory_snapshot()["system_ram_available_bytes"] > 0
 assert importlib.util.find_spec("vmf") is None

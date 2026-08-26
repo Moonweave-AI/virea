@@ -65,7 +65,9 @@ def _integrated_manifests() -> tuple[Any, ...]:
     return manifests
 
 
-def _worker_metadata_literals(model_id: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _worker_metadata_keywords(
+    model_id: str,
+) -> tuple[Path, dict[str, ast.expr]]:
     worker_paths = tuple(
         sorted((PLUGIN_ROOT / model_id / "runtime" / "src").glob("*/worker.py"))
     )
@@ -86,9 +88,13 @@ def _worker_metadata_literals(model_id: str) -> tuple[tuple[str, ...], tuple[str
         )
     )
     assert len(calls) == 1, f"{worker_path} must declare exactly one WorkerMetadata"
-    keywords = {
+    return worker_path, {
         keyword.arg: keyword.value for keyword in calls[0].keywords if keyword.arg
     }
+
+
+def _worker_metadata_literals(model_id: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    worker_path, keywords = _worker_metadata_keywords(model_id)
     assert "model_id" in keywords, f"{worker_path} WorkerMetadata has no model_id"
     assert "tasks" in keywords, f"{worker_path} WorkerMetadata has no tasks"
     assert "input_schemas" in keywords, (
@@ -101,6 +107,59 @@ def _worker_metadata_literals(model_id: str) -> tuple[tuple[str, ...], tuple[str
         isinstance(schema, str) for schema in input_schemas
     )
     return tasks, input_schemas
+
+
+def _worker_resource_literals(model_id: str) -> tuple[Path, dict[str, ast.expr]]:
+    worker_path, keywords = _worker_metadata_keywords(model_id)
+    resources = keywords.get("resources")
+    assert isinstance(resources, ast.Dict), (
+        f"{worker_path} WorkerMetadata resources must be an explicit mapping"
+    )
+    return worker_path, {
+        key.value: value
+        for key, value in zip(resources.keys, resources.values, strict=True)
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+
+
+def _static_string_collection(worker_path: Path, expression: ast.expr) -> list[str]:
+    assignments: dict[str, ast.expr] = {}
+    if isinstance(expression, ast.Call):
+        assert (
+            isinstance(expression.func, ast.Name)
+            and expression.func.id == "list"
+            and len(expression.args) == 1
+            and isinstance(expression.args[0], ast.Name)
+        ), f"{worker_path} strategy declaration is not statically resolvable"
+        backend_path = worker_path.with_name("backend.py")
+        backend = ast.parse(
+            backend_path.read_text(encoding="utf-8"), filename=str(backend_path)
+        )
+        assignments = {
+            target.id: node.value
+            for node in backend.body
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            for target in (
+                node.targets if isinstance(node, ast.Assign) else [node.target]
+            )
+            if isinstance(target, ast.Name)
+        }
+        expression = expression.args[0]
+
+    def resolve(node: ast.expr) -> Any:
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return [resolve(item) for item in node.elts]
+        if isinstance(node, ast.Name) and node.id in assignments:
+            return resolve(assignments[node.id])
+        raise AssertionError(
+            f"{worker_path} strategy declaration is not statically resolvable"
+        )
+
+    value = resolve(expression)
+    assert isinstance(value, (list, tuple))
+    return list(value)
 
 
 def test_integrated_catalog_matches_release_registries_and_adapters() -> None:
@@ -177,18 +236,55 @@ def test_integrated_tasks_have_manifest_schema_and_worker_metadata() -> None:
         }, model_id
 
 
+def test_every_integrated_worker_declares_runtime_memory_strategy_attestation() -> None:
+    required_keys = {"memory_strategies", "active_memory_strategy"}
+    for manifest in _integrated_manifests():
+        worker_path, resources = _worker_resource_literals(manifest.model.id)
+        assert required_keys <= resources.keys(), (
+            f"{manifest.model.id} Worker metadata is missing strategy attestation "
+            f"keys: {sorted(required_keys - resources.keys())}"
+        )
+        declared = _static_string_collection(
+            worker_path, resources["memory_strategies"]
+        )
+        assert isinstance(declared, list) and all(
+            isinstance(strategy, str) and strategy for strategy in declared
+        ), f"{worker_path} memory_strategies must be an explicit string list"
+        profile_strategies = {
+            profile.strategy.value
+            for runtime in manifest.runtime_variants
+            for profile in runtime.resource_profiles
+        }
+        assert set(declared) == profile_strategies, (
+            f"{manifest.model.id} Worker strategies {sorted(declared)} differ from "
+            f"manifest profile strategies {sorted(profile_strategies)}"
+        )
+        active = resources["active_memory_strategy"]
+        assert not isinstance(active, ast.Constant), (
+            f"{worker_path} active strategy must be selected at runtime"
+        )
+
+
+def test_every_integrated_runtime_uses_the_shared_failure_reporting_entrypoint() -> (
+    None
+):
+    prefix = ("python", "-m", "virea_model_sdk.worker_entrypoint")
+    for manifest in _integrated_manifests():
+        for runtime in manifest.runtime_variants:
+            assert runtime.entrypoint_argv[:3] == prefix, runtime.id
+            assert len(runtime.entrypoint_argv) == 4, runtime.id
+            assert runtime.entrypoint_argv[3].endswith(".worker"), runtime.id
+
+
 def test_intel_macos_cpu_locks_keep_legacy_torch_on_numpy_1_26() -> None:
     intel_marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'"
     declared_pin = (
-        "numpy==1.26.4; sys_platform == 'darwin' "
-        "and platform_machine == 'x86_64'"
+        "numpy==1.26.4; sys_platform == 'darwin' and platform_machine == 'x86_64'"
     )
     for manifest in _integrated_manifests():
         model_root = PLUGIN_ROOT / manifest.model.id
         cpu_project = tomllib.loads(
-            (model_root / "runtime-cpu" / "pyproject.toml").read_text(
-                encoding="utf-8"
-            )
+            (model_root / "runtime-cpu" / "pyproject.toml").read_text(encoding="utf-8")
         )
         shared_project = tomllib.loads(
             (model_root / "runtime" / "pyproject.toml").read_text(encoding="utf-8")

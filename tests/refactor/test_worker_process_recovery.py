@@ -8,15 +8,22 @@ import sys
 from pathlib import Path
 
 import pytest
+import virea_model_sdk.worker_entrypoint as worker_entrypoint_module
 import virea_runtime.process_identity as process_identity
 import virea_runtime.supervisor as supervisor_module
 from virea_api.service import ControlPlane
 from virea_contracts.job import JobRequest
 from virea_contracts.runtime_identity import RUNTIME_CORE_EPOCH
+from virea_contracts.worker import WorkerStartupFailure
 from virea_core.db import StateStore
 from virea_core.paths import VireaPaths
 from virea_runtime.process_identity import ProcessIdentity, inspect_process
-from virea_runtime.supervisor import WorkerStartError, WorkerSupervisor
+from virea_runtime.supervisor import (
+    WorkerProtocolError,
+    WorkerReportedStartError,
+    WorkerStartError,
+    WorkerSupervisor,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_SOURCES = (
@@ -26,6 +33,8 @@ PACKAGE_SOURCES = (
     REPO_ROOT / "packages" / "model_sdk" / "src",
 )
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "models"
+FAILING_WORKER = Path(__file__).with_name("_failing_loopback_worker.py").resolve()
+FAILING_IMPORT_WORKER_MODULE = "virea_model_sdk.missing_worker_fixture"
 
 
 def _identity_entrypoint() -> tuple[str, ...]:
@@ -253,6 +262,70 @@ def test_failed_start_uses_observed_exit_when_termination_reports_false(
     assert supervisor.handles() == ()
     row = supervisor.store.worker_instances()[0]
     assert row["state"] == "FAILED"
+
+
+def test_fast_exit_preserves_reported_failure_when_identity_capture_loses_race(
+    tmp_path, monkeypatch
+) -> None:
+    model_id = "fast-failure-model"
+    runtime_id = "fast-failure-runtime"
+    job_id = "fast-failure-job"
+
+    class FakeProcess:
+        pid = 424242
+        returncode = 3
+
+        def poll(self):
+            return self.returncode
+
+    def fake_popen(argv, **kwargs):
+        arguments = tuple(argv)
+        instance_id = arguments[arguments.index("--instance-id") + 1]
+        failure_root = Path(kwargs["env"]["VIREA_WORKER_STARTUP_FAILURE_ROOT"])
+        record = WorkerStartupFailure(
+            instance_id=instance_id,
+            job_id=job_id,
+            model_id=model_id,
+            runtime_id=runtime_id,
+            code="FAST_WORKER_FAILURE",
+            message="structured failure won the startup race",
+            retryable=True,
+        )
+        (failure_root / f"{instance_id}.startup-failure.json").write_text(
+            record.model_dump_json(),
+            encoding="utf-8",
+        )
+        return FakeProcess()
+
+    monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(supervisor_module, "inspect_process", lambda _pid: None)
+    monkeypatch.setattr(
+        supervisor_module,
+        "_terminate_spawned_process",
+        lambda _process, *, timeout: True,
+    )
+    supervisor = WorkerSupervisor(VireaPaths(tmp_path / "virea-home"))
+
+    with pytest.raises(WorkerReportedStartError) as failure:
+        supervisor.start(
+            model_id=model_id,
+            runtime_id=runtime_id,
+            job_id=job_id,
+            entrypoint_argv=_identity_entrypoint(),
+        )
+
+    assert failure.value.process_termination_proven is True
+    assert failure.value.payload == {
+        "code": "FAST_WORKER_FAILURE",
+        "message": "structured failure won the startup race",
+        "retryable": True,
+    }
+    assert supervisor.handles() == ()
+    row = supervisor.store.worker_instances()[0]
+    diagnostics = json.loads(row["diagnostics_json"])
+    assert row["state"] == "FAILED"
+    assert diagnostics["failure"] == "process identity capture failed"
+    assert diagnostics["worker_error"] == failure.value.payload
 
 
 @pytest.mark.parametrize(
@@ -697,6 +770,173 @@ def test_start_failure_includes_bounded_stdout_and_stderr_tails(tmp_path) -> Non
     rows = supervisor.store.worker_instances()
     assert len(rows) == 1
     assert rows[0]["state"] == "FAILED"
+
+
+def test_sdk_worker_failure_survives_supervisor_startup_boundary(tmp_path) -> None:
+    paths = VireaPaths(tmp_path / "virea-home")
+    supervisor = WorkerSupervisor(paths)
+    pythonpath = os.pathsep.join(str(path.resolve()) for path in PACKAGE_SOURCES)
+
+    with pytest.raises(WorkerProtocolError) as failure:
+        supervisor.start(
+            model_id="startup-failure-model",
+            runtime_id="startup-failure-runtime",
+            job_id="startup-failure-job",
+            entrypoint_argv=(
+                sys.executable,
+                str(FAILING_WORKER),
+                "--host",
+                "{host}",
+                "--port",
+                "{port}",
+                "--job-root",
+                "{job_root}",
+                "--model-id",
+                "{model_id}",
+                "--instance-id",
+                "{instance_id}",
+                "--job-id",
+                "{job_id}",
+                "--runtime-id",
+                "{runtime_id}",
+            ),
+            job_root=paths.job_directory("startup-failure-job"),
+            environment={
+                "PYTHONPATH": pythonpath,
+                "VIREA_RUNTIME_CORE_EPOCH": RUNTIME_CORE_EPOCH,
+            },
+            readiness_timeout=15.0,
+        )
+
+    assert isinstance(failure.value, WorkerReportedStartError)
+    assert isinstance(failure.value, WorkerStartError)
+    assert failure.value.process_termination_proven is True
+    assert failure.value.payload == {
+        "code": "STARTUP_FIXTURE_FAILED",
+        "message": "structured startup failure fixture",
+        "retryable": True,
+    }
+    row = supervisor.store.worker_instances()[0]
+    diagnostics = json.loads(row["diagnostics_json"])
+    assert row["state"] == "FAILED"
+    assert diagnostics["worker_error"] == failure.value.payload
+    sidecar = paths.logs / "workers" / (f"{row['id']}.startup-failure.json")
+    record = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert record["schema_version"] == "virea.worker_startup_failure.v1.0.0"
+    assert record["instance_id"] == row["id"]
+    assert record["job_id"] == "startup-failure-job"
+
+
+def test_worker_module_import_failure_survives_shared_entrypoint_boundary(
+    tmp_path,
+) -> None:
+    paths = VireaPaths(tmp_path / "virea-home-import-failure")
+    supervisor = WorkerSupervisor(paths)
+    pythonpath = os.pathsep.join(
+        (
+            str(Path(__file__).resolve().parent),
+            *(str(path.resolve()) for path in PACKAGE_SOURCES),
+        )
+    )
+
+    with pytest.raises(WorkerReportedStartError) as failure:
+        supervisor.start(
+            model_id="import-failure-model",
+            runtime_id="import-failure-runtime",
+            job_id="import-failure-job",
+            entrypoint_argv=(
+                sys.executable,
+                "-m",
+                "virea_model_sdk.worker_entrypoint",
+                FAILING_IMPORT_WORKER_MODULE,
+                "--host",
+                "{host}",
+                "--port",
+                "{port}",
+                "--job-root",
+                "{job_root}",
+                "--model-id",
+                "{model_id}",
+                "--instance-id",
+                "{instance_id}",
+                "--job-id",
+                "{job_id}",
+                "--runtime-id",
+                "{runtime_id}",
+            ),
+            job_root=paths.job_directory("import-failure-job"),
+            environment={
+                "PYTHONPATH": pythonpath,
+                "VIREA_RUNTIME_CORE_EPOCH": RUNTIME_CORE_EPOCH,
+            },
+            readiness_timeout=15.0,
+        )
+
+    assert failure.value.payload == {
+        "code": "WORKER_STARTUP_ERROR",
+        "message": (
+            "ModuleNotFoundError: No module named "
+            "'virea_model_sdk.missing_worker_fixture'"
+        ),
+        "retryable": False,
+    }
+
+
+def test_worker_entrypoint_reporting_failure_never_replaces_import_failure(
+    monkeypatch,
+) -> None:
+    def fail_to_report(_exc: Exception) -> None:
+        raise OSError("startup sidecar root is unavailable")
+
+    monkeypatch.setattr(
+        worker_entrypoint_module,
+        "_publish_startup_failure",
+        fail_to_report,
+    )
+
+    with pytest.raises(ModuleNotFoundError) as failure:
+        worker_entrypoint_module.run_worker_module(
+            FAILING_IMPORT_WORKER_MODULE,
+            (),
+        )
+
+    assert failure.value.name == FAILING_IMPORT_WORKER_MODULE
+
+
+def test_startup_failure_sidecar_is_bound_to_exact_worker_identity(tmp_path) -> None:
+    sidecar = tmp_path / "worker.startup-failure.json"
+    record = WorkerStartupFailure(
+        instance_id="01M0STARTUPFAILUREFIXTURE",
+        job_id="job-a",
+        model_id="model-a",
+        runtime_id="runtime-a",
+        code="MODEL_LOAD_FAILED",
+        message="checkpoint contract mismatch",
+        retryable=False,
+    )
+    sidecar.write_text(record.model_dump_json(), encoding="utf-8")
+
+    assert supervisor_module._read_worker_startup_failure(
+        sidecar,
+        instance_id=record.instance_id,
+        job_id=record.job_id,
+        model_id=record.model_id,
+        runtime_id=record.runtime_id,
+    ) == {
+        "code": "MODEL_LOAD_FAILED",
+        "message": "checkpoint contract mismatch",
+        "retryable": False,
+    }
+    assert (
+        supervisor_module._read_worker_startup_failure(
+            sidecar,
+            instance_id=record.instance_id,
+            job_id="different-job",
+            model_id=record.model_id,
+            runtime_id=record.runtime_id,
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("return_code", (-1073741819, 3221225477))

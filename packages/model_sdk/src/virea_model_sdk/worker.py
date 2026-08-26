@@ -6,23 +6,83 @@ import json
 import os
 import shutil
 import subprocess
+from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Event, Lock
 from typing import Any
+from uuid import uuid4
 
 import uvicorn
 import virea_contracts.runtime_identity as contracts_runtime_identity
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from virea_contracts.accelerator import canonical_nvidia_uuid, nvidia_uuid_equal
-from virea_contracts.worker import WorkerError, WorkerInferRequest
+from virea_contracts.worker import WorkerError, WorkerInferRequest, WorkerStartupFailure
 
 from . import runtime_identity as model_sdk_runtime_identity
 from .plugin import ModelPlugin, WorkerContext, WorkerFailure
 
 CONTRACTS_RUNTIME_CORE_EPOCH = contracts_runtime_identity.RUNTIME_CORE_EPOCH
 MODEL_SDK_RUNTIME_CORE_EPOCH = model_sdk_runtime_identity.RUNTIME_CORE_EPOCH
+_WORKER_STARTUP_FAILURE_SUFFIX = ".startup-failure.json"
+
+
+def _publish_startup_failure(exc: Exception) -> None:
+    """Atomically publish a bounded startup error for the owning Supervisor."""
+
+    root_value = os.getenv("VIREA_WORKER_STARTUP_FAILURE_ROOT")
+    instance_id = os.getenv("VIREA_WORKER_INSTANCE_ID", "")
+    if not root_value or not instance_id.isalnum():
+        return
+    if isinstance(exc, WorkerFailure):
+        code = exc.code
+        message = str(exc)
+        retryable = exc.retryable
+    else:
+        code = "WORKER_STARTUP_ERROR"
+        message = f"{type(exc).__name__}: {exc}"
+        retryable = False
+    identity = {
+        "instance_id": instance_id,
+        "job_id": os.getenv("VIREA_WORKER_JOB_ID", ""),
+        "model_id": os.getenv("VIREA_WORKER_MODEL_ID", ""),
+        "runtime_id": os.getenv("VIREA_RUNTIME_ID", ""),
+    }
+    bounded_message = message[:8192].strip() or "Worker startup failed"
+    try:
+        payload = WorkerStartupFailure(
+            **identity,
+            code=code,
+            message=bounded_message,
+            retryable=bool(retryable),
+        )
+    except ValueError:
+        payload = WorkerStartupFailure(
+            **identity,
+            code="WORKER_STARTUP_ERROR",
+            message=bounded_message,
+            retryable=False,
+        )
+    root = Path(root_value)
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / f"{instance_id}{_WORKER_STARTUP_FAILURE_SUFFIX}"
+    # The first model-specific record is the primary cause.  A surrounding
+    # entrypoint wrapper may observe the later uvicorn/SystemExit boundary and
+    # must not replace that more precise failure with a generic one.
+    if os.path.lexists(destination):
+        return
+    temporary = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{uuid4().hex}.tmp"
+    )
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            handle.write(payload.model_dump_json())
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _runtime_core_identity() -> dict[str, str]:
@@ -305,6 +365,56 @@ async def _invoke(function: Any, *args: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
 
 
+def _attest_selected_memory_strategy(plugin: ModelPlugin) -> None:
+    """Reject an invalid Worker strategy contract before loading model weights."""
+
+    raw_selected = os.getenv("VIREA_MEMORY_STRATEGY")
+    if raw_selected is None:
+        # Direct SDK consumers may run a development Worker without Supervisor
+        # selection. Production launches always provide this variable.
+        return
+    selected = raw_selected.strip()
+    if not selected:
+        raise WorkerFailure(
+            "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "VIREA_MEMORY_STRATEGY must identify a non-empty selected strategy",
+        )
+
+    resources = plugin.metadata().resources
+    declared_value = resources.get("memory_strategies")
+    if not isinstance(declared_value, Sequence) or isinstance(
+        declared_value, (str, bytes, bytearray)
+    ):
+        raise WorkerFailure(
+            "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "Worker metadata resources.memory_strategies must be a sequence",
+        )
+    declared = tuple(
+        value.strip()
+        for value in declared_value
+        if isinstance(value, str) and value.strip()
+    )
+    if len(declared) != len(declared_value) or not declared:
+        raise WorkerFailure(
+            "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "Worker metadata resources.memory_strategies contains invalid values",
+        )
+    if selected not in declared:
+        raise WorkerFailure(
+            "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "Worker does not declare the selected memory strategy: "
+            f"selected={selected}, declared={list(declared)}",
+        )
+
+    active = resources.get("active_memory_strategy")
+    if active != selected:
+        raise WorkerFailure(
+            "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "Worker does not attest the selected memory strategy before load: "
+            f"selected={selected}, active={active}",
+        )
+
+
 def create_worker_app(plugin: ModelPlugin, *, job_root: str | Path) -> FastAPI:
     """Create a loopback-only worker application.
 
@@ -329,6 +439,7 @@ def create_worker_app(plugin: ModelPlugin, *, job_root: str | Path) -> FastAPI:
         load_started = False
         try:
             state["runtime_core_identity"] = _runtime_core_identity()
+            await asyncio.to_thread(_attest_selected_memory_strategy, plugin)
             state["accelerator_attestation"] = await asyncio.to_thread(
                 _attest_selected_accelerator, selected_accelerator
             )
@@ -337,6 +448,12 @@ def create_worker_app(plugin: ModelPlugin, *, job_root: str | Path) -> FastAPI:
             state["ready"] = True
         except Exception as exc:
             state["error"] = f"{type(exc).__name__}: {exc}"
+            try:
+                await asyncio.to_thread(_publish_startup_failure, exc)
+            except Exception:
+                # Reporting is best-effort and must never replace the model's
+                # primary startup failure or delay process teardown.
+                pass
             if load_started:
                 try:
                     await _invoke(plugin.unload)

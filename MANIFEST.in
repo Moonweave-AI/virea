@@ -30,6 +30,7 @@ include packages/model_sdk/src/virea_model_sdk/resource_measurement.py
 include packages/model_sdk/src/virea_model_sdk/runtime_identity.py
 include packages/model_sdk/src/virea_model_sdk/upstream_runtime.py
 include packages/model_sdk/src/virea_model_sdk/worker.py
+include packages/model_sdk/src/virea_model_sdk/worker_entrypoint.py
 include plugins/models/flood-diffusion-tiny/runtime/LICENSE
 include plugins/models/flood-diffusion-tiny/runtime/README.md
 include plugins/models/flood-diffusion-tiny/runtime/THIRD_PARTY_NOTICES.md

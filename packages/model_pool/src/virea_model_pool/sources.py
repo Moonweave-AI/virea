@@ -317,6 +317,40 @@ def _extract_archive(destination: Path, spec: ArchiveExtractionSpec) -> None:
         archive.unlink()
 
 
+_HUGGINGFACE_TRANSPORT_METADATA_DIRECTORIES = frozenset({".cache/huggingface"})
+
+
+def source_transport_metadata_directories(
+    source: ArtifactSource,
+) -> frozenset[str]:
+    """Return downloader-owned directories that must never enter an asset."""
+
+    return (
+        _HUGGINGFACE_TRANSPORT_METADATA_DIRECTORIES
+        if source.kind == "huggingface"
+        else frozenset()
+    )
+
+
+def _inside_directory(relative: str, directory: str) -> bool:
+    return relative == directory or relative.startswith(f"{directory}/")
+
+
+def source_payload_files(source: ArtifactSource, destination: Path) -> list[Path]:
+    """Enumerate model payload while retaining resumable transport metadata."""
+
+    excluded = source_transport_metadata_directories(source)
+    return sorted(
+        path
+        for path in destination.rglob("*")
+        if path.is_file()
+        and not any(
+            _inside_directory(path.relative_to(destination).as_posix(), directory)
+            for directory in excluded
+        )
+    )
+
+
 def fetch_source(
     source: ArtifactSource,
     destination: Path,
@@ -369,9 +403,11 @@ def fetch_source(
             raise ArtifactFetchError(
                 "install virea-model-pool[huggingface] to fetch Hugging Face artifacts"
             ) from exc
-        # The custom tqdm class is the primary integration.  The stderr filter
-        # is a narrow compatibility boundary for Hub/Xet versions that create
-        # an internal reconstruction/file bar without honoring `tqdm_class`.
+        # Hugging Face writes resumable private transfer metadata below
+        # ``local_dir/.cache/huggingface``. Keep it after transfer as well: the
+        # model pool removes it only after VIREA's recovery metadata is durable.
+        # This closes the crash window between a completed snapshot and atomic
+        # publication without copying model-scale files a second time.
         with redirect_stderr(_DependencyProgressStream(sys.stderr)):
             snapshot_download(
                 repo_id=source.repository or "",
@@ -385,7 +421,7 @@ def fetch_source(
         raise ArtifactFetchError(f"unsupported source kind: {source.kind}")
     for extraction in source.unpack:
         _extract_archive(destination, extraction)
-    files = sorted(path for path in destination.rglob("*") if path.is_file())
+    files = source_payload_files(source, destination)
     validate_source_files(source, destination, files)
     return files
 

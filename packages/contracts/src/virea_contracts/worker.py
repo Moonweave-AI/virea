@@ -52,3 +52,18 @@ class WorkerError(ContractModel):
     message: str
     retryable: bool = False
     details: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkerStartupFailure(ContractModel):
+    """Identity-bound error record for failures before Worker HTTP readiness."""
+
+    schema_version: Literal["virea.worker_startup_failure.v1.0.0"] = (
+        "virea.worker_startup_failure.v1.0.0"
+    )
+    instance_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9]+$")
+    job_id: str = Field(max_length=256)
+    model_id: str = Field(min_length=1, max_length=256)
+    runtime_id: str = Field(min_length=1, max_length=256)
+    code: str = Field(min_length=1, max_length=128, pattern=r"^[A-Z][A-Z0-9_]*$")
+    message: str = Field(min_length=1, max_length=8192)
+    retryable: bool = False

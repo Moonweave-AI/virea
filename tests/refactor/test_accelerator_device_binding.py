@@ -526,6 +526,27 @@ def test_worker_rejects_missing_or_mismatched_expected_runtime_core_before_load(
     assert plugin.unload_calls == 0
 
 
+def test_worker_rejects_incomplete_memory_strategy_metadata_before_load(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("VIREA_MEMORY_STRATEGY", "cuda_full")
+    plugin = _Plugin()
+    app = create_worker_app(plugin, job_root=tmp_path / "jobs")
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "does not attest the selected memory strategy before load: "
+            "selected=cuda_full, active=None"
+        ),
+    ):
+        with TestClient(app):
+            pass
+
+    assert plugin.load_calls == 0
+    assert plugin.unload_calls == 0
+
+
 def test_worker_rejects_mismatched_installed_core_components_before_load(
     tmp_path, monkeypatch
 ) -> None:

@@ -114,6 +114,40 @@ cd virea
 Linux, WSL2, and macOS print the same six visible stages. A first run reports `Added hook:`; later runs report
 `Hook already present:`, confirming that the startup file is not appended repeatedly.
 
+### Selecting a WSL execution domain from Windows
+
+The Windows control plane never treats a Windows Runtime or dependency cache as a Linux environment. Configure every
+`wsl:<distribution>` once inside that exact distribution before selecting it from Windows. Because `wsl.exe --exec` does
+not load an interactive shell profile, VIREA strictly parses the generated `environment.sh` as data and never executes
+its contents. A missing, damaged, relative, or mixed-root configuration makes that WSL domain
+`configuration-required`; it does not fall back to `~/.local/share/virea` or a Windows cache path.
+
+```powershell
+# Enter the exact distribution reported by doctor. The value after -d is a distribution name, not a generic “WSL”.
+wsl.exe -d Ubuntu-24.04
+```
+
+```bash
+# Run the remaining commands inside that WSL shell. Replace this example with the existing clone visible to the distribution.
+cd '/mnt/e/moonweave-ai/VIREA_LOCAL/virea'
+
+# Give this WSL domain its own sub-root so Linux and Windows virtual environments never share one home; quotes are not part of the path.
+wsl_data_root='/mnt/e/moonweave-ai/VIREA_LOCAL/domains/Ubuntu-24.04'
+
+# Persist this distribution's VIREA_HOME, UV_CACHE_DIR, and HF_HOME. --data-root receives the root above, not a home/ child.
+./scripts/configure-virea.sh --data-root "$wsl_data_root"
+
+# Activate it in this WSL shell now; the installed hook loads it automatically in later compatible shells.
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+
+# Return to Windows, then rerun uv run virea or doctor so the new execution-domain report reads this configuration.
+exit
+```
+
+The control plane still reuses each OS-neutral model checkpoint. Only the isolated WSL Runtime and dependency caches use
+the distribution-specific sub-root, so a source update or Runtime repair does not require deleting, copying, or
+downloading verified model files again.
+
 ## After the first configuration
 
 Open a new terminal, enter the clone, and run normal commands without repeating a root path:

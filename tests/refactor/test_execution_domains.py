@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import threading
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import virea_api.service as service_module
+import virea_runtime.supervisor as supervisor_module
 from virea_api.service import (
     ControlPlane,
     ExecutionTargetResolutionError,
@@ -37,7 +39,11 @@ from virea_contracts.runtime import (
 from virea_core.db import StateStore
 from virea_core.paths import VireaPaths
 from virea_runtime.backends.uv_native import UvNativeBackend
-from virea_runtime.execution import managed_domain_path, map_host_path_to_domain
+from virea_runtime.execution import (
+    managed_domain_environment,
+    managed_domain_path,
+    map_host_path_to_domain,
+)
 from virea_runtime.process_identity import ProcessIdentity
 from virea_runtime.supervisor import WorkerSupervisor
 
@@ -83,7 +89,20 @@ def _domain(
     virea_home = (
         r"C:\Users\test\AppData\Local\VIREA"
         if kind is ExecutionDomainKind.WINDOWS_NATIVE
-        else "/home/test/.local/share/virea"
+        else (
+            "/home/test/virea-data/home"
+            if is_wsl and not host
+            else "/home/test/.local/share/virea"
+        )
+    )
+    managed_tools = (
+        {
+            "managed_data_root_status": "configured",
+            "managed_uv_cache_dir": "/home/test/virea-data/uv-cache",
+            "managed_hf_home": "/home/test/virea-data/home/cache/huggingface",
+        }
+        if is_wsl and not host
+        else {}
     )
     return ExecutionDomainReport(
         id=execution_domain_id(kind, distribution=distribution),
@@ -118,6 +137,7 @@ def _domain(
             "uv": "uv 0.10" if uv_path else None,
             "uv_path": uv_path,
             "python_path": python_path,
+            **managed_tools,
         },
     )
 
@@ -242,6 +262,48 @@ def test_windows_host_uv_never_satisfies_a_wsl_build() -> None:
     )
     assert any(
         "inside WSL distribution Ubuntu-24.04" in item for item in outcome.remediation
+    )
+
+
+def test_host_routed_wsl_requires_its_persisted_data_root_configuration() -> None:
+    windows = _domain(
+        ExecutionDomainKind.WINDOWS_NATIVE,
+        "win-64",
+        host=True,
+        uv_path=r"C:\tools\uv.exe",
+    )
+    configured = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
+    )
+    unconfigured = configured.model_copy(
+        update={
+            "tools": {
+                name: value
+                for name, value in configured.tools.items()
+                if not name.startswith("managed_")
+            },
+            "warnings": ("WSL persistent data-root configuration was not found",),
+        }
+    )
+
+    outcome = resolve_runtime(
+        _runtime("linux-64"),
+        _report(windows, unconfigured),
+        execution_domain=unconfigured.id,
+    )
+
+    assert outcome.status == "not-ready"
+    assert outcome.build_required is False
+    assert any("configuration-required" in reason for reason in outcome.reasons)
+    assert any(
+        "inside WSL distribution Ubuntu-24.04" in action
+        and "configure-virea.sh --data-root PATH" in action
+        and "rerun uv run virea doctor" in action
+        for action in outcome.remediation
     )
 
 
@@ -931,9 +993,9 @@ def test_wsl_uv_plan_uses_distribution_tools_and_local_virea_home(tmp_path) -> N
         execution_domain=wsl,
     )
 
-    assert plan.target == "/home/test/.local/share/virea/tmp/runtime-prefix"
+    assert plan.target == "/home/test/virea-data/home/tmp/runtime-prefix"
     assert plan.python_executable == (
-        "/home/test/.local/share/virea/tmp/runtime-prefix/bin/python"
+        "/home/test/virea-data/home/tmp/runtime-prefix/bin/python"
     )
     assert all(command[:3] == wsl.launcher_argv for command in plan.commands)
     assert all("--exec" in command for command in plan.commands)
@@ -985,14 +1047,39 @@ def test_wsl_runtime_preflight_checks_git_inside_selected_distribution(
     assert captured["environment"]["PYTHONUTF8"] == "1"
 
 
-def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
+def _write_runtime_with_local_core_dependencies(tmp_path) -> Path:
     project = tmp_path / "runtime-project"
     project.mkdir()
+    model_sdk = tmp_path / "model-sdk"
+    model_sdk.mkdir()
+    contracts = tmp_path / "contracts"
+    contracts.mkdir()
     (project / "uv.lock").write_text("version = 1\n", encoding="utf-8")
     (project / "pyproject.toml").write_text(
-        "[project]\nname = 'fixture-runtime'\nversion = '1.2.3'\n",
+        "[project]\n"
+        "name = 'fixture-runtime'\n"
+        "version = '1.2.3'\n"
+        "[tool.uv.sources]\n"
+        "virea-model-sdk = { path = '../model-sdk' }\n",
         encoding="utf-8",
     )
+    (model_sdk / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'virea-model-sdk'\n"
+        "version = '1.2.3'\n"
+        "[tool.uv.sources]\n"
+        "virea-contracts = { path = '../contracts' }\n",
+        encoding="utf-8",
+    )
+    (contracts / "pyproject.toml").write_text(
+        "[project]\nname = 'virea-contracts'\nversion = '1.2.3'\n",
+        encoding="utf-8",
+    )
+    return project
+
+
+def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
+    project = _write_runtime_with_local_core_dependencies(tmp_path)
     wsl = _domain(
         ExecutionDomainKind.WSL,
         "linux-64",
@@ -1024,26 +1111,177 @@ def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
     assert "--exec" in sync
     assert "--locked" in sync
     assert "--no-editable" in sync
-    assert sync.count("--refresh-package") == 2
-    first_refresh = sync.index("--refresh-package")
-    assert sync[first_refresh : first_refresh + 4] == (
-        "--refresh-package",
+    refreshed = {
+        sync[index + 1]
+        for index, argument in enumerate(sync[:-1])
+        if argument == "--refresh-package"
+    }
+    assert refreshed == {
+        "fixture-runtime",
         "virea-contracts",
-        "--refresh-package",
         "virea-model-sdk",
+    }
+
+
+def test_wsl_uv_plan_uses_only_the_domain_persistent_environment(
+    tmp_path, monkeypatch
+) -> None:
+    project = _write_runtime_with_local_core_dependencies(tmp_path)
+    monkeypatch.setenv("UV_CACHE_DIR", r"E:\VIREA-DATA\uv-cache")
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
     )
+    wsl = wsl.model_copy(
+        update={
+            "virea_home": "/srv/virea-data/home",
+            "tools": {
+                **wsl.tools,
+                "managed_uv_cache_dir": "/srv/virea-data/uv-cache",
+                "managed_hf_home": ("/srv/virea-data/home/cache/huggingface"),
+            },
+        }
+    )
+    backend = UvNativeBackend(
+        source_root=project,
+        domain_path_mapper=lambda _domain, _path: "/mnt/d/project/runtime",
+    )
+    runtime = _runtime("linux-64", working_directory=".").model_copy(
+        update={
+            "lockfile": "uv.lock",
+            "project_package": "fixture-runtime",
+            "project_version": "1.2.3",
+        }
+    )
+
+    plan = backend.plan(
+        runtime,
+        tmp_path / "runtime-prefix",
+        execution_domain=wsl,
+    )
+
+    for command in plan.commands:
+        assert "VIREA_HOME=/srv/virea-data/home" in command
+        assert "UV_CACHE_DIR=/srv/virea-data/uv-cache" in command
+        assert "HF_HOME=/srv/virea-data/home/cache/huggingface" in command
+        assert not any(r"E:\VIREA-DATA" in argument for argument in command)
+
+
+def test_wsl_domain_rejects_partial_or_divergent_managed_cache_layout() -> None:
+    base = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+    )
+    for tools in (
+        {"managed_uv_cache_dir": "/home/test/uv-cache"},
+        {
+            "managed_uv_cache_dir": "/srv/separate/uv-cache",
+            "managed_hf_home": "/home/test/.local/share/virea/cache/huggingface",
+        },
+        {
+            "managed_uv_cache_dir": "/home/test/.local/share/uv-cache",
+            "managed_hf_home": "/srv/separate/huggingface",
+        },
+    ):
+        domain = base.model_copy(update={"tools": {**base.tools, **tools}})
+        with pytest.raises(ValueError, match="managed"):
+            managed_domain_environment(domain)
+
+
+def test_worker_domain_environment_overrides_host_cache_without_mapping(
+    monkeypatch,
+) -> None:
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+    )
+    wsl = wsl.model_copy(
+        update={
+            "virea_home": "/data/virea/home",
+            "tools": {
+                **wsl.tools,
+                "managed_uv_cache_dir": "/data/virea/uv-cache",
+                "managed_hf_home": "/data/virea/home/cache/huggingface",
+            },
+        }
+    )
+    observed: list[str] = []
+
+    def fake_map(_domain, value):
+        observed.append(str(value))
+        return "/mnt/e/virea-home/logs/workers"
+
+    monkeypatch.setattr(supervisor_module, "map_host_path_to_domain", fake_map)
+
+    mapped = supervisor_module._map_worker_environment_for_domain(
+        wsl,
+        {
+            "HF_HOME": r"E:\VIREA-DATA\home\cache\huggingface",
+            "VIREA_WORKER_STARTUP_FAILURE_ROOT": r"E:\VIREA-DATA\home\logs\workers",
+        },
+    )
+
+    assert mapped["HF_HOME"] == "/data/virea/home/cache/huggingface"
+    assert mapped["VIREA_WORKER_STARTUP_FAILURE_ROOT"] == (
+        "/mnt/e/virea-home/logs/workers"
+    )
+    assert observed == [r"E:\VIREA-DATA\home\logs\workers"]
+
+
+def test_unconfigured_wsl_domain_drops_host_cache_instead_of_mapping(
+    monkeypatch,
+) -> None:
+    configured = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+    )
+    wsl = configured.model_copy(
+        update={
+            "tools": {
+                name: value
+                for name, value in configured.tools.items()
+                if not name.startswith("managed_")
+            }
+        }
+    )
+    observed: list[str] = []
+
+    def fake_map(_domain, value):
+        observed.append(str(value))
+        return "/mnt/e/virea-home/logs/workers"
+
+    monkeypatch.setattr(supervisor_module, "map_host_path_to_domain", fake_map)
+
+    mapped = supervisor_module._map_worker_environment_for_domain(
+        wsl,
+        {
+            "HF_HOME": r"E:\VIREA-DATA\home\cache\huggingface",
+            "UV_CACHE_DIR": r"E:\VIREA-DATA\uv-cache",
+            "VIREA_WORKER_STARTUP_FAILURE_ROOT": r"E:\VIREA-DATA\home\logs\workers",
+        },
+    )
+
+    assert "HF_HOME" not in mapped
+    assert "UV_CACHE_DIR" not in mapped
+    assert mapped["VIREA_WORKER_STARTUP_FAILURE_ROOT"] == (
+        "/mnt/e/virea-home/logs/workers"
+    )
+    assert observed == [r"E:\VIREA-DATA\home\logs\workers"]
 
 
 def test_wsl_uv_lock_offline_plan_cleans_core_cache_before_locked_sync(
     tmp_path, monkeypatch
 ) -> None:
-    project = tmp_path / "runtime-project"
-    project.mkdir()
-    (project / "uv.lock").write_text("version = 1\n", encoding="utf-8")
-    (project / "pyproject.toml").write_text(
-        "[project]\nname = 'fixture-runtime'\nversion = '1.2.3'\n",
-        encoding="utf-8",
-    )
+    project = _write_runtime_with_local_core_dependencies(tmp_path)
     monkeypatch.setenv("UV_OFFLINE", "1")
     wsl = _domain(
         ExecutionDomainKind.WSL,
@@ -1074,7 +1312,14 @@ def test_wsl_uv_lock_offline_plan_cleans_core_cache_before_locked_sync(
     assert all(command[:3] == wsl.launcher_argv for command in plan.commands)
     clean = plan.commands[1]
     sync = plan.commands[2]
-    assert ("cache", "clean", "virea-contracts", "virea-model-sdk") == clean[-4:]
+    assert clean[-6:] == (
+        "/home/test/.local/bin/uv",
+        "cache",
+        "clean",
+        "fixture-runtime",
+        "virea-contracts",
+        "virea-model-sdk",
+    )
     assert "--locked" in sync
     assert "--refresh-package" not in sync
     assert "UV_OFFLINE=1" in sync
@@ -1142,6 +1387,39 @@ def test_windows_drive_path_uses_wslpath_without_backslash_loss(monkeypatch) -> 
 
     assert mapped == "/mnt/d/project/jobs/job-1"
     assert captured["argv"][-1] == "D:/project/jobs/job-1"
+
+
+def test_worker_startup_failure_root_is_mapped_into_selected_wsl(
+    monkeypatch,
+) -> None:
+    wsl = _domain(
+        ExecutionDomainKind.WSL,
+        "linux-64",
+        host=False,
+        distribution="Ubuntu-24.04",
+        uv_path="/home/test/.local/bin/uv",
+    )
+    observed: list[str] = []
+
+    def fake_map(_domain, value):
+        observed.append(str(value))
+        return "/mnt/e/virea-home/logs/workers"
+
+    monkeypatch.setattr(supervisor_module, "map_host_path_to_domain", fake_map)
+
+    mapped = supervisor_module._map_worker_environment_for_domain(
+        wsl,
+        {
+            "VIREA_WORKER_STARTUP_FAILURE_ROOT": (r"E:\virea-home\logs\workers"),
+            "VIREA_WORKER_INSTANCE_ID": "01M0STARTUPFAILUREFIXTURE",
+        },
+    )
+
+    assert observed == [r"E:\virea-home\logs\workers"]
+    assert mapped["VIREA_WORKER_STARTUP_FAILURE_ROOT"] == (
+        "/mnt/e/virea-home/logs/workers"
+    )
+    assert mapped["VIREA_WORKER_INSTANCE_ID"] == "01M0STARTUPFAILUREFIXTURE"
 
 
 def test_worker_request_maps_host_file_fields_into_selected_wsl(monkeypatch) -> None:
@@ -1271,6 +1549,15 @@ def test_worker_supervisor_persists_the_wsl_execution_domain(
         distribution="Ubuntu-24.04",
         uv_path="/home/test/.local/bin/uv",
     )
+    wsl = wsl.model_copy(
+        update={
+            "tools": {
+                name: value
+                for name, value in wsl.tools.items()
+                if not name.startswith("managed_")
+            }
+        }
+    )
     captured: dict[str, tuple[str, ...]] = {}
 
     class FakeProcess:
@@ -1296,6 +1583,8 @@ def test_worker_supervisor_persists_the_wsl_execution_domain(
     monkeypatch.setattr(supervisor_module.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(supervisor_module, "inspect_process", fake_identity)
     monkeypatch.setattr(supervisor_module.WorkerClient, "ready", lambda _self: True)
+    monkeypatch.setenv("HF_HOME", r"E:\VIREA-DATA\home\cache\huggingface")
+    monkeypatch.setenv("UV_CACHE_DIR", r"E:\VIREA-DATA\uv-cache")
     monkeypatch.setattr(
         supervisor_module,
         "map_host_path_to_domain",
@@ -1328,6 +1617,7 @@ def test_worker_supervisor_persists_the_wsl_execution_domain(
             "--runtime-id",
             "{runtime_id}",
         ),
+        environment_allowlist=("HF_HOME", "UV_CACHE_DIR"),
         execution_domain=wsl,
     )
     try:
@@ -1336,6 +1626,11 @@ def test_worker_supervisor_persists_the_wsl_execution_domain(
             "/home/test/.local/share/virea/runtimes/runtime-1/bin/python"
             in captured["argv"]
         )
+        assert not any(argument.startswith("HF_HOME=") for argument in captured["argv"])
+        assert not any(
+            argument.startswith("UV_CACHE_DIR=") for argument in captured["argv"]
+        )
+        assert not any(r"E:\VIREA-DATA" in argument for argument in captured["argv"])
         row = store.worker_instance(handle.instance_id)
         assert row is not None
         diagnostics = json.loads(row["diagnostics_json"])

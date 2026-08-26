@@ -11,6 +11,7 @@ from .supervisor import (
     WorkerClient,
     WorkerHandle,
     WorkerProtocolError,
+    WorkerReportedStartError,
     WorkerStartError,
     WorkerSupervisor,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "WorkerClient",
     "WorkerHandle",
     "WorkerProtocolError",
+    "WorkerReportedStartError",
     "WorkerStartError",
     "WorkerSupervisor",
     "domain_python_path",

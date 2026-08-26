@@ -87,6 +87,7 @@ class InterMaskPlugin:
                 "min_vram_gib": None if strategy == "cpu" else 8.0,
                 "min_ram_gib": 16.0 if strategy == "cpu" else 12.0,
                 "memory_strategies": ["cpu", "cuda_full"],
+                "active_memory_strategy": strategy,
                 **self._backend.device_facts,
             },
         )

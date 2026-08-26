@@ -54,13 +54,13 @@ runtime_variants:
     min_storage_gib: 10.0
     resource_profiles:
       - {id: cuda-full, strategy: cuda_full, min_free_vram_gib: 8.0, min_free_ram_gib: 12.0, min_free_swap_gib: 0.0}
-    entrypoint_argv: [python, -m, virea_intermask.worker]
+    entrypoint_argv: [python, -m, virea_model_sdk.worker_entrypoint, virea_intermask.worker]
     startup_timeout_seconds: 600
     environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
     working_directory: plugins/models/intermask-interhuman/runtime-cu128
     project_package: virea-model-intermask-interhuman-cu128-runtime
     project_version: 0.2.0
-    runtime_core_epoch: virea-runtime-core-20260821.2
+    runtime_core_epoch: virea-runtime-core-20260826.1
     availability: pinned_official_cuda_worker_real_checkpoint_acceptance_required
   - schema_version: virea.runtime_spec.v1.0.0
     id: intermask-interhuman-cpu
@@ -72,13 +72,13 @@ runtime_variants:
     min_storage_gib: 8.0
     resource_profiles:
       - {id: whole-model-cpu, strategy: cpu, min_free_vram_gib: null, min_free_ram_gib: 16.0, min_free_swap_gib: 0.0}
-    entrypoint_argv: [python, -m, virea_intermask.worker]
+    entrypoint_argv: [python, -m, virea_model_sdk.worker_entrypoint, virea_intermask.worker]
     startup_timeout_seconds: 900
     environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
     working_directory: plugins/models/intermask-interhuman/runtime-cpu
     project_package: virea-model-intermask-interhuman-cpu-runtime
     project_version: 0.2.0
-    runtime_core_epoch: virea-runtime-core-20260821.2
+    runtime_core_epoch: virea-runtime-core-20260826.1
     availability: pinned_official_cpu_worker_real_checkpoint_acceptance_required
 artifacts:
   - id: intermask-source

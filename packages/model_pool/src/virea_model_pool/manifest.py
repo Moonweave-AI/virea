@@ -174,9 +174,7 @@ class ModelPluginManifest(ContractModel):
                 raise ValueError(
                     "test-only models cannot declare production acceptance"
                 )
-        if production_status and (
-            not self.runtime_variants or not contracts
-        ):
+        if production_status and (not self.runtime_variants or not contracts):
             raise ValueError(
                 "integrated models require a runtime and production E2E acceptance"
             )
@@ -194,7 +192,10 @@ class ModelPluginManifest(ContractModel):
                     "project_version, and runtime_core_epoch: "
                     + ", ".join(unversioned_runtimes)
                 )
-            if tuple(contract.request.task for contract in contracts) != self.model.tasks:
+            if (
+                tuple(contract.request.task for contract in contracts)
+                != self.model.tasks
+            ):
                 raise ValueError(
                     "integrated models must declare exactly one production acceptance "
                     "contract for every task, in task order"

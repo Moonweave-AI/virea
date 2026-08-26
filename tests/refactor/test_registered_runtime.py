@@ -69,18 +69,17 @@ def test_registered_acmdm_runtime_plans_an_isolated_environment(tmp_path) -> Non
     )
     assert "--locked" in plan.commands[0]
     assert "--no-editable" in plan.commands[0]
-    assert plan.commands[0].count("--refresh-package") == 2
-    assert (
-        "--refresh-package",
+    refresh_packages = {
+        plan.commands[0][index + 1]
+        for index, argument in enumerate(plan.commands[0][:-1])
+        if argument == "--refresh-package"
+    }
+    assert refresh_packages == {
         "virea-contracts",
-        "--refresh-package",
+        "virea-model-acmdm-humanml3d-cu128-runtime",
+        "virea-model-acmdm-humanml3d-runtime",
         "virea-model-sdk",
-    ) == plan.commands[0][
-        plan.commands[0].index("--refresh-package") : plan.commands[0].index(
-            "--refresh-package"
-        )
-        + 4
-    ]
+    }
 
     index = yaml.safe_load(
         (REPO_ROOT / "registries" / "index.yaml").read_text(encoding="utf-8")
@@ -225,6 +224,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         pytest.skip("uv is required for the local-cache runtime regression")
     contracts = tmp_path / "contracts"
     sdk = tmp_path / "model-sdk"
+    shared = tmp_path / "shared-worker"
     runtime = tmp_path / "runtime"
     _write_local_package(
         contracts,
@@ -239,6 +239,34 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         body='CACHE_MARKER = "old-source"\n',
     )
     _write_local_package(
+        shared,
+        project_name="virea-shared-worker",
+        import_name="virea_shared_worker",
+        body='WORKER_MARKER = "old-worker"\n',
+    )
+    shared_project = (shared / "pyproject.toml").read_text(encoding="utf-8")
+    shared_project = shared_project.replace(
+        'requires-python = ">=3.11"',
+        "\n".join(
+            (
+                'requires-python = ">=3.11"',
+                "dependencies = [",
+                '  "virea-contracts==0.4.0",',
+                '  "virea-model-sdk==0.4.0",',
+                "]",
+            )
+        ),
+    )
+    shared_project += "\n".join(
+        (
+            "[tool.uv.sources]",
+            'virea-contracts = { path = "../contracts", editable = true }',
+            'virea-model-sdk = { path = "../model-sdk", editable = true }',
+            "",
+        )
+    )
+    (shared / "pyproject.toml").write_text(shared_project, encoding="utf-8")
+    _write_local_package(
         runtime,
         project_name="virea-test-cache-runtime",
         import_name="virea_test_cache_runtime",
@@ -252,8 +280,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
             (
                 'requires-python = ">=3.11"',
                 "dependencies = [",
-                '  "virea-contracts==0.4.0",',
-                '  "virea-model-sdk==0.4.0",',
+                '  "virea-shared-worker==0.4.0",',
                 "]",
             )
         ),
@@ -261,8 +288,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
     runtime_project += "\n".join(
         (
             "[tool.uv.sources]",
-            'virea-contracts = { path = "../contracts", editable = true }',
-            'virea-model-sdk = { path = "../model-sdk", editable = true }',
+            'virea-shared-worker = { path = "../shared-worker", editable = false }',
             "",
         )
     )
@@ -310,21 +336,31 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
             monkeypatch.delenv("UV_OFFLINE", raising=False)
         plan = backend.plan(spec, target)
         if not refresh_local_core:
-            command = plan.commands[0]
-            refresh_index = command.index("--refresh-package")
+            command = list(plan.commands[0])
+            while "--refresh-package" in command:
+                refresh_index = command.index("--refresh-package")
+                del command[refresh_index : refresh_index + 2]
             plan = replace(
                 plan,
-                commands=(command[:refresh_index] + command[refresh_index + 4 :],),
+                commands=(tuple(command),),
             )
+        local_packages = {
+            "virea-contracts",
+            "virea-model-sdk",
+            "virea-shared-worker",
+            "virea-test-cache-runtime",
+        }
         if offline and refresh_local_core:
             assert plan.commands[0][1:3] == ("cache", "clean")
-            assert plan.commands[0][-2:] == (
-                "virea-contracts",
-                "virea-model-sdk",
-            )
+            assert set(plan.commands[0][3:]) == local_packages
             assert "--refresh-package" not in plan.commands[-1]
         elif refresh_local_core:
-            assert plan.commands[-1].count("--refresh-package") == 2
+            refreshed = {
+                plan.commands[-1][index + 1]
+                for index, argument in enumerate(plan.commands[-1][:-1])
+                if argument == "--refresh-package"
+            }
+            assert refreshed == local_packages
         else:
             assert "--locked" in plan.commands[-1]
         environment = {**plan.environment, "UV_CACHE_DIR": str(cache)}
@@ -337,12 +373,14 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
                 str(python),
                 "-I",
                 "-c",
-                "import json,virea_contracts,virea_model_sdk; "
+                "import json,virea_contracts,virea_model_sdk,virea_shared_worker; "
                 "print(json.dumps({'contracts_marker': "
                 "virea_contracts.CONTRACT_MARKER, "
                 "'contracts_file': virea_contracts.__file__, "
                 "'sdk_marker': virea_model_sdk.CACHE_MARKER, "
-                "'sdk_file': virea_model_sdk.__file__}, sort_keys=True))",
+                "'sdk_file': virea_model_sdk.__file__, "
+                "'worker_marker': virea_shared_worker.WORKER_MARKER, "
+                "'worker_file': virea_shared_worker.__file__}, sort_keys=True))",
             ),
             check=True,
             capture_output=True,
@@ -373,17 +411,22 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
     ):
         assert observed["contracts_marker"] == "old-contract"
         assert observed["sdk_marker"] == "old-source"
+        assert observed["worker_marker"] == "old-worker"
         assert Path(observed["contracts_file"]).is_relative_to(target)
         assert Path(observed["sdk_file"]).is_relative_to(target)
+        assert Path(observed["worker_file"]).is_relative_to(target)
 
     contracts_source = contracts / "src" / "virea_contracts" / "__init__.py"
     sdk_source = sdk / "src" / "virea_model_sdk" / "__init__.py"
+    worker_source = shared / "src" / "virea_shared_worker" / "__init__.py"
     original_times = {
         contracts_source: contracts_source.stat(),
         sdk_source: sdk_source.stat(),
+        worker_source: worker_source.stat(),
     }
     contracts_source.write_text('CONTRACT_MARKER = "new-contract"\n', encoding="utf-8")
     sdk_source.write_text('CACHE_MARKER = "new-source"\n', encoding="utf-8")
+    worker_source.write_text('WORKER_MARKER = "new-worker"\n', encoding="utf-8")
     for source, stat in original_times.items():
         os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns))
 
@@ -402,6 +445,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
     for observed in (stale_online, stale_offline):
         assert observed["contracts_marker"] == "old-contract"
         assert observed["sdk_marker"] == "old-source"
+        assert observed["worker_marker"] == "old-worker"
 
     online_after_target = tmp_path / "runtime-online-after"
     online_after = build_and_probe(
@@ -423,9 +467,12 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
     ):
         assert observed["contracts_marker"] == "new-contract"
         assert observed["sdk_marker"] == "new-source"
+        assert observed["worker_marker"] == "new-worker"
         assert Path(observed["contracts_file"]).is_relative_to(target)
         assert Path(observed["sdk_file"]).is_relative_to(target)
+        assert Path(observed["worker_file"]).is_relative_to(target)
         assert not Path(observed["sdk_file"]).is_relative_to(before_target)
+        assert not Path(observed["worker_file"]).is_relative_to(before_target)
 
 
 def test_runtime_build_plan_cancels_its_process_tree(tmp_path) -> None:

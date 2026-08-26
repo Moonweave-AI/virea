@@ -20,6 +20,7 @@ resource_profiles:
 entrypoint_argv:
   - python
   - -m
+  - virea_model_sdk.worker_entrypoint
   - virea_cmdm.worker
 startup_timeout_seconds: 600
 environment_allowlist:
@@ -32,5 +33,5 @@ environment_allowlist:
 working_directory: plugins/models/cmdm-humanml3d/runtime-cu128
 project_package: virea-model-cmdm-humanml3d-cu128-runtime
 project_version: 0.1.2
-runtime_core_epoch: virea-runtime-core-20260821.2
-availability: real_checkpoint_production_acceptance_passed_on_win64_rtx5090
+runtime_core_epoch: virea-runtime-core-20260826.1
+availability: historical_real_checkpoint_acceptance_requires_current_core_epoch_reacceptance

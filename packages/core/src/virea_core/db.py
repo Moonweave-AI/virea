@@ -255,9 +255,10 @@ def _sqlite_statements(script: str) -> tuple[str, ...]:
 
 def _is_sqlite_lock_error(error: sqlite3.OperationalError) -> bool:
     code = getattr(error, "sqlite_errorcode", None)
-    return code in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED} or "locked" in str(
-        error
-    ).lower()
+    return (
+        code in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+        or "locked" in str(error).lower()
+    )
 
 
 def _result_artifact_digest(path: Path) -> tuple[int, str]:

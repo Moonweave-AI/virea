@@ -72,6 +72,7 @@ class HyMotionPlugin:
                 "min_vram_gib": None if strategy == "cpu" else 26.0,
                 "min_ram_gib": 40.0 if strategy == "cpu" else 24.0,
                 "memory_strategies": ["cpu", "cuda_full"],
+                "active_memory_strategy": strategy,
                 **self._backend.device_facts,
             },
         )

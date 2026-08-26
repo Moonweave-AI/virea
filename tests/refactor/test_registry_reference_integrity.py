@@ -366,12 +366,12 @@ def test_momadiff_memory_floor_calibration_binds_both_runtime_profiles() -> None
     assert cuda_runtime.resource_profiles[0].min_free_vram_gib == 6
     assert cpu_runtime.resource_profiles[0].min_free_ram_gib == 12
     assert cuda_runtime.availability == (
-        "real_checkpoint_production_acceptance_and_memory_floor_calibration_passed_"
-        "on_win64_rtx5090"
+        "historical_real_checkpoint_acceptance_and_calibration_requires_current_"
+        "core_epoch_reacceptance"
     )
     assert cpu_runtime.availability == (
-        "real_checkpoint_direct_worker_resource_calibration_passed_on_win64_cpu_"
-        "build_import_passed_wsl_ubuntu_24_04_linux_native_macos_unverified"
+        "historical_real_checkpoint_calibration_requires_current_core_epoch_"
+        "reacceptance_other_platforms_unverified"
     )
 
 

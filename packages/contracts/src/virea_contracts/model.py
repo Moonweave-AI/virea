@@ -200,7 +200,10 @@ class ModelDefinition(ContractModel):
                 raise ValueError(
                     "integrated models require a runtime and production E2E acceptance"
                 )
-        if contracts and tuple(contract.request.task for contract in contracts) != self.tasks:
+        if (
+            contracts
+            and tuple(contract.request.task for contract in contracts) != self.tasks
+        ):
             raise ValueError(
                 "integrated models must declare exactly one production acceptance "
                 "contract for every task, in task order"

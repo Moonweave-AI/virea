@@ -68,16 +68,66 @@ The progress bar advances only at completed operation boundaries. During a Huggi
 snapshots are routed into VIREA's single live line; a narrow fallback filter catches dependency versions that ignore the
 custom progress adapter while preserving ordinary warnings and errors. This prevents carriage-return updates from
 becoming hundreds of retained lines on Windows, Linux, WSL2, macOS, or an IDE terminal.
+Hugging Face's private `local_dir/.cache/huggingface` transfer records are isolated from the installed artifact and are
+never counted, hashed, or published as model files. The warning about unauthenticated Hub requests is not an installation
+failure; public assets still download, but the Hub may apply a lower rate limit. Authentication is optional and is needed
+only for higher limits or access-controlled assets. The installed Worker runs offline and never needs a Hub token.
+An interrupted pinned Hub fetch remains under `VIREA_HOME/cache/model-assets/<asset-key>.partial`. Retrying that same
+asset continues in the same directory instead of starting from zero. Only a complete, verified content tree is atomically
+published to `VIREA_HOME/model-store/assets`; partial bytes never become an installed asset. Do not delete
+`VIREA_HOME/cache/model-assets` while recovering an interrupted download.
+
+If you choose to authenticate, keep the credential cache under the selected data root and let the official CLI prompt for
+the token so the token is not written into shell history. The one-time VIREA configuration persists `HF_HOME`; the
+assignment below is an explicit current-session verification/override, not a step required in every new terminal:
+
+```powershell
+# Windows PowerShell: keep Hugging Face credentials/cache below the already persisted VIREA_HOME data root.
+$env:HF_HOME = Join-Path $env:VIREA_HOME "cache\huggingface"
+# Open the official interactive login prompt; paste the token only when prompted, not as a command argument.
+uv run hf auth login
+# Start VIREA; authentication only changes Hub access/rate limits, not model execution.
+uv run virea
+```
+
+```bash
+# Linux, WSL2, or macOS: keep Hugging Face credentials/cache below the already persisted VIREA_HOME data root.
+export HF_HOME="$VIREA_HOME/cache/huggingface"
+# Open the official interactive login prompt; paste the token only when prompted, not as a command argument.
+uv run hf auth login
+# Start VIREA; authentication only changes Hub access/rate limits, not model execution.
+uv run virea
+```
+
 When download, Runtime construction, or inference has no honest total, the UI shows an activity indicator and elapsed
 time instead of inventing a percentage. Interactive mode never dumps raw JSON: failures show the error code, primary
 reasons, next action, and evidence location; the full transaction remains in `VIREA_HOME/state` and
 `VIREA_HOME/logs`. Explicit subcommands below retain their machine-readable JSON contracts for automation and advanced
 diagnostics, without unsolicited third-party progress output on stderr.
 
-If installation reaches publication but does not become `READY`, the compact result prioritizes the acceptance
-`error_code`, `error_message`, failed stages, and retry action before successful artifact-download notes. Reopening
+If installation reaches publication but does not become `READY`, the compact result prioritizes the first failed task's
+job ID, `error_code`, `error_message`, failed stages, and retry action before aggregate or successful artifact-download
+notes. Reopening
 `uv run virea` also restores this summary from the failed transaction. Verified stable assets remain reusable, so retrying
 the same model/target does not download them again.
+
+Every supervised model Worker must declare all supported `memory_strategies` and the exact
+`active_memory_strategy`. The SDK rejects a missing, unsupported, or mismatched strategy before loading model weights,
+and the control plane verifies it again after load. A catalog-wide contract test applies this invariant to every integrated
+model, including models that have not yet accumulated platform-specific field evidence.
+
+These protections live in the shared Runtime, Worker SDK, supervisor, model pool, and acceptance pipeline; they are not a
+SentiAvatar-only workaround. Every integrated Runtime starts through the same failure-reporting wrapper, so module import,
+argument/identity checks, plugin construction, and model load can preserve a bounded error record under
+`VIREA_HOME/logs/workers`. The supervisor accepts it only when Worker instance, Job, model, and Runtime identities match.
+Native Windows/Linux/macOS and WSL use the same channel; missing or invalid evidence falls back to
+`WORKER_STARTUP_ERROR`, while stdout/stderr remain supporting logs instead of replacing the structured cause.
+
+When an update advances `runtime_core_epoch`, `git pull` only updates the checkout. The next user-approved install or
+repair rejects the stale isolated Runtime and rebuilds it from the current lock. The rebuild refreshes the complete
+transitive local path-package closure—the model Worker plus shared SDK/contracts—so an old uv wheel cannot survive.
+Verified assets remain under `VIREA_HOME/model-store/assets` and are reused; rebuilding a Runtime does not redownload the
+model.
 
 Color and live progress are enabled only on an interactive terminal. Redirected output, `TERM=dumb`, or `NO_COLOR`
 automatically uses line-oriented plain text without losing stages or results. Model downloads emit the first transfer
@@ -233,6 +283,11 @@ publish a READY installation. For a multi-task model, it runs one immutable cont
 order. Every task must produce its own Job/result evidence and pass; one passing primary task cannot make a failed or
 unexecuted suite READY. `repair` plans a new transaction when the latest installation is unhealthy; neither command falls
 back to a different domain.
+
+If the shared Worker fails `model_load` on the first attempted task, VIREA does not start the remaining task contracts
+against that unusable Worker. Each remaining task still receives immutable evidence with `execution_status: skipped`,
+`error_code: ACCEPTANCE_PREREQUISITE_FAILED`, and `skipped_due_to` bound to the primary failure. The suite remains
+FAILED, and skipped stages are never presented as passed.
 
 | Option | Meaning |
 |---|---|

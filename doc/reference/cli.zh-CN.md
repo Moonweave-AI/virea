@@ -64,14 +64,60 @@ indeterminate。
 `Downloading bytes`、`Reconstructing` 和 `Fetching files` 进度条，把下载/重建的字节数与速率接入 VIREA
 的唯一动态行；若某个依赖版本不遵守自定义进度适配器，还会由只过滤已知进度帧、但保留普通警告/错误的
 兼容边界收口。因此无论 Windows、Linux、WSL2、macOS 还是 IDE 终端，都不会再把回车刷新累积成几百行。
+Hugging Face 在 `local_dir/.cache/huggingface` 中生成的私有传输记录会与安装制品隔离，绝不会被当作模型
+文件计数、哈希或发布。“未认证访问 HF Hub”只是限速提示，不是安装失败；公开制品仍可下载，但可能使用较低
+速率限制。认证仅在需要更高限额或访问受控制品时可选使用。安装完成后的 Worker 完全离线运行，不需要 Hub token。
+固定 Hub 制品的下载中断后，未完成数据会保留在 `VIREA_HOME/cache/model-assets/<asset-key>.partial`；再次获取
+同一制品时会在同一目录继续，而不是从零开始。只有完整下载并通过内容树校验的数据才会原子发布到
+`VIREA_HOME/model-store/assets`，partial 数据绝不会成为已安装制品。恢复中断下载时不要删除
+`VIREA_HOME/cache/model-assets`。
+
+如需认证，请把凭据缓存也放在已选择的数据根目录下，并通过官方 CLI 的交互提示输入 token，避免 token 进入
+shell 历史。VIREA 的一次性配置已经持久设置 `HF_HOME`；下方赋值只是当前会话中的显式核对/覆盖，并不表示
+每次打开新终端都要重新配置：
+
+```powershell
+# Windows PowerShell：把 Hugging Face 凭据/缓存放到已经持久化的 VIREA_HOME 数据根目录下。
+$env:HF_HOME = Join-Path $env:VIREA_HOME "cache\huggingface"
+# 打开官方交互登录；仅在提示出现后粘贴 token，不要把 token 写成命令参数。
+uv run hf auth login
+# 启动 VIREA；认证只影响 Hub 访问/限额，不改变模型执行方式。
+uv run virea
+```
+
+```bash
+# Linux、WSL2 或 macOS：把 Hugging Face 凭据/缓存放到已经持久化的 VIREA_HOME 数据根目录下。
+export HF_HOME="$VIREA_HOME/cache/huggingface"
+# 打开官方交互登录；仅在提示出现后粘贴 token，不要把 token 写成命令参数。
+uv run hf auth login
+# 启动 VIREA；认证只影响 Hub 访问/限额，不改变模型执行方式。
+uv run virea
+```
+
 下载、Runtime 构建和模型推理无法预知
 可信总量时，会显示活动指示器与已用时间，不伪造百分比。交互模式不会打印完整 RAW JSON；失败只显示
 错误码、主要原因、下一步和证据目录，完整事务仍保存在 `VIREA_HOME/state` 与 `VIREA_HOME/logs`。下面的
 显式子命令继续保持机器可读 JSON，供自动化和高级诊断使用，同时不会向 stderr 混入第三方原始进度条。
 
-若安装到发布阶段仍未成为 `READY`，紧凑结果会把验收 `error_code`、`error_message`、失败阶段和重试动作放在
-“制品下载成功”之前。重新打开 `uv run virea` 也会从失败 transaction 恢复这段摘要。已验证的稳定制品仍可
+若安装到发布阶段仍未成为 `READY`，紧凑结果会把首个失败任务的 job ID、`error_code`、`error_message`、
+失败阶段和重试动作放在聚合诊断与“制品下载成功”之前。重新打开 `uv run virea` 也会从失败 transaction
+恢复这段摘要。已验证的稳定制品仍可
 复用，因此用相同模型/环境重试不会重新下载。
+
+每个受监督模型 Worker 都必须声明全部 `memory_strategies` 和当前准确的 `active_memory_strategy`。SDK 会在
+加载模型权重前拒绝缺失、未声明或不匹配的策略，控制面会在加载完成后再次验证。全模型目录契约测试对每个已集成
+模型执行同一不变量，包括尚未积累特定平台实机证据的模型。
+
+这些保护位于共享 Runtime、Worker SDK、Supervisor、模型池与验收流水线中，并非只针对 SentiAvatar 的补丁。
+全部已集成 Runtime 都从同一个故障报告包装入口启动，因此模块导入、参数/身份校验、插件构造和模型加载阶段都能在
+`VIREA_HOME/logs/workers` 保存有大小上限的错误记录。Supervisor 只有在 Worker 实例、Job、模型与 Runtime 身份
+完全匹配时才接受该记录。Windows/Linux/macOS 原生环境与 WSL 使用同一通道；证据缺失或无效时才退化为
+`WORKER_STARTUP_ERROR`，stdout/stderr 只作为辅助日志，不再覆盖结构化根因。
+
+版本更新推进 `runtime_core_epoch` 时，`git pull` 本身只更新项目文件；下一次由用户确认执行的安装或修复会拒绝旧的
+隔离 Runtime，并按当前 lock 自动重建。重建会强制刷新模型 Worker、共享 SDK/contracts 等全部传递式本地 path
+package，避免 uv 继续复用旧 wheel。已验证模型资产仍保存在 `VIREA_HOME/model-store/assets` 并直接复用；重建
+Runtime 不会重新下载模型。
 
 颜色和动态进度只在交互式终端启用。重定向输出、`TERM=dumb` 或设置 `NO_COLOR` 时自动退化为逐行纯文本，
 不会丢失阶段或结果。模型下载只记录第一次传输快照、每 15 秒至多一次的中间快照和最后一次完成快照，
@@ -223,6 +269,11 @@ uv run virea model repair flood-diffusion-tiny --execution-domain windows-native
 它会按照 manifest 任务顺序，为每个声明任务执行一个不可变合同。每个任务都必须产生自己独立的 Job/result evidence
 并通过；只通过主任务不能让包含失败或未执行任务的套件成为 READY。`repair` 在最新安装不健康时规划新事务；两个
 命令都不会 fallback 到另一个执行域。
+
+若共享 Worker 在首个已尝试任务的 `model_load` 阶段失败，VIREA 不会继续用同一个不可用 Worker 启动其余任务合同。
+每个剩余任务仍会生成不可变记录，包含 `execution_status: skipped`、`error_code: ACCEPTANCE_PREREQUISITE_FAILED`，
+并通过 `skipped_due_to` 绑定首个根因。整个套件保持 FAILED，跳过的阶段绝不会
+伪装成通过。
 
 | 选项 | 含义 |
 |---|---|

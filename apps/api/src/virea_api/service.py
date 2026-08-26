@@ -5,6 +5,7 @@ import json
 import math
 import os
 import posixpath
+import re
 import shutil
 import signal
 import subprocess
@@ -110,13 +111,87 @@ _CROSS_DOMAIN_PATH_FIELD_TYPES = frozenset(
 )
 
 
+def installation_failure_evidence(
+    manifest: Any,
+    exc: Exception,
+    *,
+    installation_id: str,
+    artifact_identity: dict[str, str] | None,
+) -> dict[str, Any]:
+    """Build one canonical failed-acceptance record for API and CLI callers."""
+
+    contracts = manifest.production_acceptance_contracts
+    protocol_payload = getattr(exc, "payload", None)
+    structured = protocol_payload if isinstance(protocol_payload, dict) else {}
+    error_code = structured.get("code")
+    if not isinstance(error_code, str) or not error_code:
+        error_code = re.sub(r"(?<!^)(?=[A-Z])", "_", type(exc).__name__).upper()
+    error_message = structured.get("message")
+    if not isinstance(error_message, str) or not error_message:
+        error_message = str(exc)
+
+    if manifest.production_acceptance_suite is not None:
+        failures = [
+            {
+                "task": contract.request.task,
+                "job_id": None,
+                "job_state": "FAILED",
+                "error_code": error_code,
+                "error_message": error_message,
+                "failed_stages": [stage.value for stage in contract.required_stages],
+            }
+            for contract in contracts
+        ]
+        outstanding = list(
+            dict.fromkeys(
+                stage.value
+                for contract in contracts
+                for stage in contract.required_stages
+            )
+        )
+        return {
+            "schema_version": ("virea.installation_acceptance_suite_evidence.v1.0.0"),
+            "kind": "installation_real_e2e_suite",
+            "installation_id": installation_id,
+            "artifact_identity": artifact_identity,
+            "model_id": manifest.model.id,
+            "contract": manifest.production_acceptance_suite.model_dump(mode="json"),
+            "tasks": [contract.request.task for contract in contracts],
+            "task_acceptances": [],
+            "installation_acceptance_succeeded": False,
+            "production_e2e_succeeded": False,
+            "outstanding_required_stages": outstanding,
+            "web_playback": {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
+            "task_failures": failures,
+            "primary_failure": failures[0] if failures else None,
+        }
+
+    contract = contracts[0] if contracts else None
+    return {
+        "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
+        "kind": "installation_real_e2e",
+        "installation_id": installation_id,
+        "artifact_identity": artifact_identity,
+        "contract": contract.model_dump(mode="json") if contract is not None else None,
+        "job_id": None,
+        "job_state": "FAILED",
+        "installation_acceptance_succeeded": False,
+        "production_e2e_succeeded": False,
+        "result_id": None,
+        "error_code": error_code,
+        "error_message": error_message,
+    }
+
+
 def _is_installation_artifact_identity(value: Any) -> bool:
     if not isinstance(value, dict) or set(value) != {"schema_version", "sha256"}:
         return False
     digest = value.get("sha256")
     return (
-        value.get("schema_version")
-        == "virea.installation_artifact_identity.v1.0.0"
+        value.get("schema_version") == "virea.installation_artifact_identity.v1.0.0"
         and isinstance(digest, str)
         and len(digest) == 64
         and all(character in "0123456789abcdef" for character in digest)
@@ -632,9 +707,7 @@ class ControlPlane:
         if acceptance_context_declared and (
             not acceptance_installation_id
             or not allow_unready_model
-            or not _is_installation_artifact_identity(
-                acceptance_artifact_identity
-            )
+            or not _is_installation_artifact_identity(acceptance_artifact_identity)
         ):
             raise ValueError(
                 "acceptance context requires one content-bound staged installation"
@@ -1004,9 +1077,16 @@ class ControlPlane:
                 or selected_strategy not in declared_strategies
                 or active_strategy != selected_strategy
             ):
-                raise ValueError(
-                    "Worker does not attest and activate the selected memory "
-                    f"strategy: selected={selected_strategy}, active={active_strategy}"
+                raise WorkerProtocolError(
+                    500,
+                    {
+                        "code": "MEMORY_STRATEGY_ATTESTATION_FAILED",
+                        "message": (
+                            "Worker does not attest and activate the selected memory "
+                            "strategy: "
+                            f"selected={selected_strategy}, active={active_strategy}"
+                        ),
+                    },
                 )
             if request.task not in metadata.tasks:
                 raise ValueError(f"worker does not support task: {request.task}")
@@ -1563,54 +1643,94 @@ class ControlPlane:
             )
         artifact_identity = self.model_pool.acceptance_artifact_identity(outcome)
         acceptances: list[dict[str, Any]] = []
+
+        def failed_evidence(
+            contract: ProductionE2EAcceptance,
+            *,
+            error_code: str,
+            error_message: str,
+            execution_status: str,
+            skipped_due_to: dict[str, Any] | None = None,
+        ) -> dict[str, Any]:
+            required_stages = tuple(stage.value for stage in contract.required_stages)
+            return {
+                "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
+                "kind": "installation_real_e2e",
+                "installation_id": outcome.installation_id,
+                "artifact_identity": artifact_identity,
+                "contract": contract.model_dump(mode="json"),
+                "request": contract.request.model_dump(mode="json"),
+                "expected": contract.expected.model_dump(mode="json"),
+                "required_stages": list(required_stages),
+                "timeout_seconds": contract.timeout_seconds,
+                "stages": {stage: False for stage in required_stages},
+                "observed": {
+                    "representation_id": None,
+                    "skeleton_id": None,
+                    "frame_count": None,
+                    "artifacts": [],
+                },
+                "installation_acceptance_succeeded": False,
+                "production_e2e_succeeded": False,
+                "outstanding_required_stages": list(required_stages),
+                "web_playback": {
+                    "passed": False,
+                    "status": "requires_external_browser_evidence",
+                },
+                "job_id": None,
+                "job_state": None,
+                "result_id": None,
+                "error_code": error_code,
+                "error_message": error_message,
+                "execution_status": execution_status,
+                "skipped_due_to": skipped_due_to,
+                "compatibility": {},
+                "build_preflight": {},
+                "execution_target": None,
+                "missing_installation_files": [],
+            }
+
+        shared_load_failure: dict[str, Any] | None = None
         for contract in contracts:
-            try:
-                acceptance = self._run_real_acceptance_contract(
-                    outcome,
+            if shared_load_failure is not None:
+                failed_task = str(shared_load_failure["task"])
+                acceptance = failed_evidence(
                     contract,
-                    execution_target=execution_target,
-                )
-            except Exception as exc:
-                required_stages = tuple(
-                    stage.value for stage in contract.required_stages
-                )
-                acceptance = {
-                    "schema_version": (
-                        "virea.installation_acceptance_evidence.v1.0.0"
+                    error_code="ACCEPTANCE_PREREQUISITE_FAILED",
+                    error_message=(
+                        "acceptance was not started because the shared Worker failed "
+                        f"model_load for task {failed_task!r}"
                     ),
-                    "kind": "installation_real_e2e",
-                    "installation_id": outcome.installation_id,
-                    "artifact_identity": artifact_identity,
-                    "contract": contract.model_dump(mode="json"),
-                    "request": contract.request.model_dump(mode="json"),
-                    "expected": contract.expected.model_dump(mode="json"),
-                    "required_stages": list(required_stages),
-                    "timeout_seconds": contract.timeout_seconds,
-                    "stages": {stage: False for stage in required_stages},
-                    "observed": {
-                        "representation_id": None,
-                        "skeleton_id": None,
-                        "frame_count": None,
-                        "artifacts": [],
-                    },
-                    "installation_acceptance_succeeded": False,
-                    "production_e2e_succeeded": False,
-                    "outstanding_required_stages": list(required_stages),
-                    "web_playback": {
-                        "passed": False,
-                        "status": "requires_external_browser_evidence",
-                    },
-                    "job_id": None,
-                    "job_state": JobState.FAILED.value,
-                    "result_id": None,
-                    "error_code": "ACCEPTANCE_EXECUTION_FAILED",
-                    "error_message": f"{type(exc).__name__}: {exc}",
-                    "compatibility": {},
-                    "build_preflight": {},
-                    "execution_target": None,
-                    "missing_installation_files": [],
-                }
+                    execution_status="skipped",
+                    skipped_due_to=shared_load_failure,
+                )
+            else:
+                try:
+                    acceptance = self._run_real_acceptance_contract(
+                        outcome,
+                        contract,
+                        execution_target=execution_target,
+                    )
+                except Exception as exc:
+                    acceptance = failed_evidence(
+                        contract,
+                        error_code="ACCEPTANCE_EXECUTION_FAILED",
+                        error_message=f"{type(exc).__name__}: {exc}",
+                        execution_status="failed",
+                    )
             acceptances.append(acceptance)
+            stages = acceptance.get("stages")
+            if (
+                shared_load_failure is None
+                and isinstance(stages, dict)
+                and stages.get(ProductionE2EStage.MODEL_LOAD.value) is False
+            ):
+                shared_load_failure = {
+                    "task": contract.request.task,
+                    "job_id": acceptance.get("job_id"),
+                    "error_code": acceptance.get("error_code"),
+                    "error_message": acceptance.get("error_message"),
+                }
         if manifest.production_acceptance_suite is None:
             return acceptances[0]
         suite = manifest.production_acceptance_suite
@@ -1627,19 +1747,33 @@ class ControlPlane:
                     outstanding.append(stage.value)
         if all_succeeded:
             outstanding = [ProductionE2EStage.WEB_PLAYBACK.value]
-        failures = [
-            {
-                "task": contract.request.task,
-                "error_code": acceptance.get("error_code"),
-                "error_message": acceptance.get("error_message"),
-            }
-            for contract, acceptance in zip(contracts, acceptances, strict=True)
-            if acceptance.get("installation_acceptance_succeeded") is not True
-        ]
+        failures: list[dict[str, Any]] = []
+        for contract, acceptance in zip(contracts, acceptances, strict=True):
+            if acceptance.get("installation_acceptance_succeeded") is True:
+                continue
+            stages = acceptance.get("stages")
+            failed_stages = (
+                [
+                    str(stage)
+                    for stage, passed in stages.items()
+                    if passed is False
+                    and str(stage) != ProductionE2EStage.WEB_PLAYBACK.value
+                ]
+                if isinstance(stages, dict)
+                else []
+            )
+            failures.append(
+                {
+                    "task": contract.request.task,
+                    "job_id": acceptance.get("job_id"),
+                    "job_state": acceptance.get("job_state"),
+                    "error_code": acceptance.get("error_code"),
+                    "error_message": acceptance.get("error_message"),
+                    "failed_stages": failed_stages,
+                }
+            )
         return {
-            "schema_version": (
-                "virea.installation_acceptance_suite_evidence.v1.0.0"
-            ),
+            "schema_version": ("virea.installation_acceptance_suite_evidence.v1.0.0"),
             "kind": "installation_real_e2e_suite",
             "installation_id": outcome.installation_id,
             "artifact_identity": artifact_identity,
@@ -1655,6 +1789,7 @@ class ControlPlane:
                 "status": "requires_external_browser_evidence",
             },
             "task_failures": failures,
+            "primary_failure": failures[0] if failures else None,
         }
 
     def _run_real_acceptance_contract(

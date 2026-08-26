@@ -59,6 +59,7 @@ _ASSET_PATHS = (
     "packages/model_sdk/src/virea_model_sdk/runtime_identity.py",
     "packages/model_sdk/src/virea_model_sdk/upstream_runtime.py",
     "packages/model_sdk/src/virea_model_sdk/worker.py",
+    "packages/model_sdk/src/virea_model_sdk/worker_entrypoint.py",
     *_release_model_assets(),
 )
 

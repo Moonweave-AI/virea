@@ -6,12 +6,17 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 uses the declared backport.
+    import tomli as tomllib
 from virea_contracts.machine import ExecutionDomainReport
 from virea_contracts.runtime import RuntimeBackend, RuntimeSpec
 
 from ..execution import (
     domain_python_path,
     is_host_routed_wsl,
+    managed_domain_environment,
     managed_domain_path,
     map_host_path_to_domain,
     wrap_domain_command,
@@ -26,14 +31,6 @@ from .base import (
     resolve_runtime_source,
 )
 
-_LOCAL_CORE_REFRESH_ARGS = (
-    "--refresh-package",
-    "virea-contracts",
-    "--refresh-package",
-    "virea-model-sdk",
-)
-_LOCAL_CORE_PACKAGES = ("virea-contracts", "virea-model-sdk")
-
 
 def _offline_requested(environment: dict[str, str]) -> bool:
     return environment.get("UV_OFFLINE", "").strip().casefold() in {
@@ -42,6 +39,69 @@ def _offline_requested(environment: dict[str, str]) -> bool:
         "yes",
         "on",
     }
+
+
+def _local_path_package_closure(source: Path) -> tuple[str, ...]:
+    """Return every local project whose wheel must reflect current source."""
+
+    pending = [source.resolve(strict=True)]
+    projects: dict[str, Path] = {}
+    while pending:
+        project_root = pending.pop()
+        pyproject_path = project_root / "pyproject.toml"
+        try:
+            pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            raise RuntimeBuildError(
+                f"local Runtime project metadata is invalid: {pyproject_path}"
+            ) from exc
+        project_name = pyproject.get("project", {}).get("name")
+        if not isinstance(project_name, str) or not project_name.strip():
+            raise RuntimeBuildError(
+                f"local Runtime project has no package name: {pyproject_path}"
+            )
+        project_name = project_name.strip()
+        previous = projects.get(project_name)
+        if previous is not None:
+            if previous != project_root:
+                raise RuntimeBuildError(
+                    "local Runtime dependency closure repeats package name at "
+                    f"different paths: {project_name}"
+                )
+            continue
+        projects[project_name] = project_root
+
+        sources = pyproject.get("tool", {}).get("uv", {}).get("sources", {})
+        if not isinstance(sources, dict):
+            continue
+        for dependency_name, source_declaration in sources.items():
+            declarations = (
+                source_declaration
+                if isinstance(source_declaration, list)
+                else [source_declaration]
+            )
+            for declaration in declarations:
+                if not isinstance(declaration, dict) or "path" not in declaration:
+                    continue
+                relative = declaration.get("path")
+                if not isinstance(relative, str) or not relative.strip():
+                    raise RuntimeBuildError(
+                        f"local Runtime dependency {dependency_name!r} has no path"
+                    )
+                dependency_root = (project_root / relative).resolve(strict=False)
+                if not (dependency_root / "pyproject.toml").is_file():
+                    raise RuntimeBuildError(
+                        "local Runtime dependency project is unavailable: "
+                        f"{dependency_name} -> {dependency_root}"
+                    )
+                pending.append(dependency_root.resolve(strict=True))
+    return tuple(sorted(projects))
+
+
+def _refresh_package_args(packages: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(
+        argument for package in packages for argument in ("--refresh-package", package)
+    )
 
 
 class UvNativeBackend:
@@ -122,6 +182,7 @@ class UvNativeBackend:
         if lockfile.name == "uv.lock":
             environment["UV_PROJECT_ENVIRONMENT"] = str(target.resolve(strict=False))
             offline = _offline_requested(environment)
+            local_packages = _local_path_package_closure(source)
             package_args = (
                 ("--package", spec.project_package) if spec.project_package else ()
             )
@@ -132,14 +193,14 @@ class UvNativeBackend:
                 str(source),
                 *package_args,
                 "--locked",
-                *(() if offline else _LOCAL_CORE_REFRESH_ARGS),
+                *(() if offline else _refresh_package_args(local_packages)),
                 "--no-editable",
                 "--no-dev",
                 "--python",
                 spec.python,
             )
             clean_commands = (
-                ((uv, "cache", "clean", *_LOCAL_CORE_PACKAGES),) if offline else ()
+                ((uv, "cache", "clean", *local_packages),) if offline else ()
             )
             commands = (*clean_commands, sync)
         else:
@@ -214,20 +275,21 @@ class UvNativeBackend:
                 + (f" Git probe output: {detail}" if detail else "")
             )
 
-    @staticmethod
     def _wsl_environment(
-        domain: ExecutionDomainReport, environment: dict[str, str]
+        self, domain: ExecutionDomainReport, environment: dict[str, str]
     ) -> dict[str, str]:
         domain_environment = {
             "PYTHONUTF8": "1",
             "PYTHONIOENCODING": "utf-8",
-            "VIREA_HOME": domain.virea_home,
         }
+        domain_environment.update(managed_domain_environment(domain))
         if "UV_OFFLINE" in environment:
             domain_environment["UV_OFFLINE"] = environment["UV_OFFLINE"]
-        uv_cache_dir = environment.get("UV_CACHE_DIR")
-        if uv_cache_dir and uv_cache_dir.startswith("/"):
-            domain_environment["UV_CACHE_DIR"] = uv_cache_dir
+        # ``wsl.exe --exec`` does not source the distribution's shell profile.
+        # The detector has already parsed the generated, domain-local VIREA
+        # environment file without executing it, so only propagate that
+        # attested POSIX path view.  Never leak the Windows host cache path into
+        # a Linux uv process.
         return domain_environment
 
     def _plan_wsl(
@@ -281,6 +343,7 @@ class UvNativeBackend:
         )
         if Path(spec.lockfile).name == "uv.lock":
             offline = _offline_requested(domain_environment)
+            local_packages = _local_path_package_closure(source_host)
             package_args = (
                 ("--package", spec.project_package) if spec.project_package else ()
             )
@@ -291,7 +354,7 @@ class UvNativeBackend:
                 source,
                 *package_args,
                 "--locked",
-                *(() if offline else _LOCAL_CORE_REFRESH_ARGS),
+                *(() if offline else _refresh_package_args(local_packages)),
                 "--no-editable",
                 "--no-dev",
                 "--python",
@@ -307,7 +370,7 @@ class UvNativeBackend:
                     (
                         wrap_domain_command(
                             domain,
-                            (uv, "cache", "clean", *_LOCAL_CORE_PACKAGES),
+                            (uv, "cache", "clean", *local_packages),
                             working_directory=source,
                             environment=build_environment,
                         ),

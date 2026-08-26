@@ -20,6 +20,7 @@ resource_profiles:
 entrypoint_argv:
   - python
   - -m
+  - virea_model_sdk.worker_entrypoint
   - virea_acmdm.worker
 startup_timeout_seconds: 600
 environment_allowlist:
@@ -32,5 +33,5 @@ environment_allowlist:
 working_directory: plugins/models/acmdm-humanml3d/runtime-cu128
 project_package: virea-model-acmdm-humanml3d-cu128-runtime
 project_version: 0.1.4
-runtime_core_epoch: virea-runtime-core-20260821.2
+runtime_core_epoch: virea-runtime-core-20260826.1
 availability: cuda_wrapper_contract_and_lock_baseline_historical_runtime_0_1_3_evidence_requires_reacceptance

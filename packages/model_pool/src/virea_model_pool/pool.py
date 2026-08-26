@@ -37,14 +37,104 @@ from .sources import (
     ArtifactProgressCallback,
     ArtifactTransferProgress,
     fetch_source,
+    source_payload_files,
+    source_transport_metadata_directories,
     validate_source_files,
 )
 
 _INTERNAL_ASSET_IDENTITY = ".virea-asset-identity.json"
 _INTERNAL_ASSET_TREE = ".virea-asset-tree.json"
+_INTERNAL_ASSET_ATOMIC_TEMP_PREFIXES = (
+    f".{_INTERNAL_ASSET_IDENTITY}.",
+    f".{_INTERNAL_ASSET_TREE}.",
+)
 _INTERNAL_REFERENCE_MANIFEST = "internal-artifact-roots.json"
 _ASSET_QUARANTINE_JOURNAL_PREFIX = "asset-quarantine-"
 _ARTIFACT_CONTENT_BINDING = "complete-tree-sha256-v2"
+
+
+def _latest_attempt_payload(latest: dict[str, Any]) -> dict[str, Any]:
+    """Recover one compact, restart-safe installation attempt summary."""
+
+    payload = latest["payload"]
+    diagnostics = list(payload.get("diagnostics", ()))
+    attempt = {
+        "installation_id": latest["id"],
+        "state": latest["state"],
+        "locator": payload.get("locator"),
+        "diagnostics": diagnostics,
+    }
+    acceptance = payload.get("acceptance")
+    if latest["state"] != InstallationState.FAILED.value or not isinstance(
+        acceptance, dict
+    ):
+        return attempt
+
+    failure_source = acceptance
+    primary_failure = acceptance.get("primary_failure")
+    if not isinstance(primary_failure, dict):
+        task_failures = acceptance.get("task_failures")
+        primary_failure = (
+            task_failures[0]
+            if isinstance(task_failures, list)
+            and task_failures
+            and isinstance(task_failures[0], dict)
+            else None
+        )
+    if isinstance(primary_failure, dict):
+        failure_source = primary_failure
+
+    web_playback = acceptance.get("web_playback")
+    expected_external = (
+        {ProductionE2EStage.WEB_PLAYBACK.value}
+        if isinstance(web_playback, dict)
+        and web_playback.get("status") == "requires_external_browser_evidence"
+        else set()
+    )
+    stage_order = {stage.value: index for index, stage in enumerate(ProductionE2EStage)}
+    declared_failed_stages = failure_source.get("failed_stages")
+    stages = failure_source.get("stages")
+    if isinstance(declared_failed_stages, list):
+        failed_stages = sorted(
+            (
+                str(stage)
+                for stage in declared_failed_stages
+                if str(stage) not in expected_external
+            ),
+            key=lambda value: stage_order.get(value, len(stage_order)),
+        )
+    else:
+        failed_stages = (
+            sorted(
+                (
+                    str(name)
+                    for name, passed in stages.items()
+                    if passed is False and str(name) not in expected_external
+                ),
+                key=lambda value: stage_order.get(value, len(stage_order)),
+            )
+            if isinstance(stages, dict)
+            else []
+        )
+    publication_failure = next(
+        (
+            str(value)
+            for value in reversed(diagnostics)
+            if "acceptance" in str(value).lower() or "failed" in str(value).lower()
+        ),
+        None,
+    )
+    attempt["failure"] = {
+        "task": failure_source.get("task"),
+        "job_id": failure_source.get("job_id"),
+        "job_state": failure_source.get("job_state"),
+        "error_code": failure_source.get("error_code"),
+        "error_message": failure_source.get("error_message"),
+        "failed_stages": failed_stages,
+        "publication_failure": publication_failure,
+        "downloads_reusable": True,
+    }
+    return attempt
 
 
 def _now() -> str:
@@ -138,6 +228,55 @@ def _remove_tree_without_following_references(root: Path) -> None:
     for reference in sorted(references, key=lambda item: len(item.parts), reverse=True):
         _remove_directory_reference(reference)
     shutil.rmtree(root)
+
+
+def _remove_source_transport_metadata(
+    asset_root: Path,
+    source: ArtifactSource,
+) -> None:
+    """Remove only downloader-owned metadata after recovery state is durable."""
+
+    for relative in sorted(
+        source_transport_metadata_directories(source),
+        key=lambda value: len(Path(value).parts),
+        reverse=True,
+    ):
+        metadata_root = asset_root / Path(relative)
+        if not os.path.lexists(metadata_root):
+            continue
+        if _is_reparse_point(metadata_root) or not _is_ordinary_directory(
+            metadata_root
+        ):
+            raise OSError(
+                f"source transport metadata is not an ordinary directory: {relative}"
+            )
+        _remove_tree_without_following_references(metadata_root)
+        parent = metadata_root.parent
+        while parent != asset_root:
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
+
+
+def _remove_internal_asset_atomic_orphans(asset_root: Path) -> None:
+    """Discard only interrupted VIREA metadata writes from a partial root."""
+
+    for candidate in asset_root.iterdir():
+        if not candidate.name.startswith(_INTERNAL_ASSET_ATOMIC_TEMP_PREFIXES):
+            continue
+        if _is_reparse_point(candidate):
+            raise OSError("internal asset atomic temporary file is a reparse point")
+        try:
+            mode = candidate.lstat().st_mode
+        except OSError as exc:
+            raise OSError(
+                "internal asset atomic temporary file could not be inspected"
+            ) from exc
+        if not stat.S_ISREG(mode):
+            raise OSError("internal asset atomic temporary path is not a regular file")
+        candidate.unlink()
 
 
 def _create_directory_reference(link: Path, target: Path) -> str:
@@ -403,6 +542,7 @@ def _artifact_content_tree(
     schema_version: str,
     artifact_id: str,
     excluded_paths: frozenset[str] = frozenset(),
+    excluded_directories: frozenset[str] = frozenset(),
     allow_internal_references: bool = False,
     cancel_event: threading.Event | None = None,
     progress: ArtifactProgressCallback | None = None,
@@ -413,6 +553,7 @@ def _artifact_content_tree(
     if not _is_ordinary_directory(asset_root):
         raise OSError("asset root is missing or is a directory reference")
     canonical_root = asset_root.resolve(strict=True)
+
     def scan_tree() -> tuple[
         list[tuple[Path, str, tuple[int, ...]]], list[dict[str, str]], int
     ]:
@@ -489,6 +630,8 @@ def _artifact_content_tree(
                     raise OSError(
                         f"asset tree contains a non-directory entry: {candidate}"
                     )
+                if relative in excluded_directories:
+                    names.remove(name)
             for name in filenames:
                 _raise_if_verification_cancelled(cancel_event)
                 candidate = directory_path / name
@@ -615,6 +758,7 @@ def _artifact_content_tree(
 def _internal_asset_tree(
     asset_root: Path,
     *,
+    excluded_directories: frozenset[str] = frozenset(),
     cancel_event: threading.Event | None = None,
 ) -> dict[str, Any]:
     """Build the local integrity tree without following directory references."""
@@ -624,6 +768,7 @@ def _internal_asset_tree(
         schema_version="virea.internal_asset_tree.v1.0.0",
         artifact_id="internal-asset",
         excluded_paths=frozenset({_INTERNAL_ASSET_TREE}),
+        excluded_directories=excluded_directories,
         cancel_event=cancel_event,
     )
 
@@ -996,7 +1141,18 @@ class ModelPool:
                 )
             time.sleep(0.05)
 
-        temporary = self.paths.temporary / f"asset-{asset_key}-{lock_owner_id}"
+        resumable_huggingface = source.kind == "huggingface"
+        transport_metadata = source_transport_metadata_directories(source)
+        if resumable_huggingface:
+            partial_root = self.paths.cache / "model-assets"
+            partial_root.mkdir(parents=True, exist_ok=True)
+            if not _is_ordinary_directory(partial_root):
+                raise OSError(
+                    "resumable model asset cache is not an ordinary directory"
+                )
+            temporary = partial_root / f"{asset_key}.partial"
+        else:
+            temporary = self.paths.temporary / f"asset-{asset_key}-{lock_owner_id}"
         try:
             valid_asset: Path | None = None
             for candidate in sorted(assets_root.iterdir(), key=lambda path: path.name):
@@ -1022,6 +1178,12 @@ class ModelPool:
                     lock_owner_id=lock_owner_id,
                 )
             if valid_asset is not None:
+                if os.path.lexists(temporary):
+                    if not _is_ordinary_directory(temporary):
+                        raise OSError(
+                            "model asset partial staging is not an ordinary directory"
+                        )
+                    _remove_tree_without_following_references(temporary)
                 files = [
                     path
                     for path in valid_asset.rglob("*")
@@ -1036,32 +1198,115 @@ class ModelPool:
                     raise OSError(
                         "internal asset staging exists and is not an ordinary directory"
                     )
-                _remove_tree_without_following_references(temporary)
-            temporary.mkdir(parents=False, exist_ok=False)
-            fetched = fetch_source(
-                source,
-                temporary,
-                cache_dir=self.paths.cache / "huggingface",
-                progress=progress,
+                if not resumable_huggingface:
+                    _remove_tree_without_following_references(temporary)
+            else:
+                temporary.mkdir(parents=False, exist_ok=False)
+
+            _remove_internal_asset_atomic_orphans(temporary)
+
+            # A process may stop after writing VIREA's private validation
+            # metadata but before atomically publishing the completed asset.
+            # Recover that fully validated state without touching the payload;
+            # otherwise remove only our ordinary metadata files and let the Hub
+            # client resume into the same persistent local_dir.
+            recovered_file_count: int | None = None
+            reserved_metadata = (
+                temporary / _INTERNAL_ASSET_IDENTITY,
+                temporary / _INTERNAL_ASSET_TREE,
             )
+            if resumable_huggingface and any(
+                os.path.lexists(path) for path in reserved_metadata
+            ):
+                for metadata_path in reserved_metadata:
+                    if not os.path.lexists(metadata_path):
+                        continue
+                    if _is_reparse_point(metadata_path):
+                        raise OSError(
+                            "resumable model asset metadata is a directory "
+                            "reference or reparse point"
+                        )
+                    try:
+                        metadata_mode = metadata_path.lstat().st_mode
+                    except OSError as exc:
+                        raise OSError(
+                            "resumable model asset metadata could not be inspected"
+                        ) from exc
+                    if not stat.S_ISREG(metadata_mode):
+                        raise OSError(
+                            "resumable model asset metadata is not an ordinary file"
+                        )
+                metadata_complete = all(
+                    os.path.lexists(path) for path in reserved_metadata
+                )
+                if metadata_complete and not self._internal_asset_failures(
+                    temporary,
+                    identity=identity,
+                    source=source,
+                    excluded_directories=transport_metadata,
+                ):
+                    recovered_file_count = sum(
+                        1
+                        for path in source_payload_files(source, temporary)
+                        if path.name
+                        not in {_INTERNAL_ASSET_IDENTITY, _INTERNAL_ASSET_TREE}
+                    )
+                else:
+                    for metadata_path in reserved_metadata:
+                        if not os.path.lexists(metadata_path):
+                            continue
+                        metadata_path.unlink()
+
+            if recovered_file_count is None:
+                fetched = fetch_source(
+                    source,
+                    temporary,
+                    cache_dir=self.paths.cache / "huggingface",
+                    progress=progress,
+                )
+            else:
+                fetched = []
             if (temporary / _INTERNAL_ASSET_IDENTITY).exists() or (
                 temporary / _INTERNAL_ASSET_TREE
             ).exists():
-                raise OSError("artifact payload uses a reserved VIREA metadata path")
-            atomic_write_json(temporary / _INTERNAL_ASSET_IDENTITY, identity)
-            atomic_write_json(
-                temporary / _INTERNAL_ASSET_TREE,
-                _internal_asset_tree(temporary),
+                if recovered_file_count is None:
+                    raise OSError(
+                        "artifact payload uses a reserved VIREA metadata path"
+                    )
+            else:
+                atomic_write_json(temporary / _INTERNAL_ASSET_IDENTITY, identity)
+                atomic_write_json(
+                    temporary / _INTERNAL_ASSET_TREE,
+                    _internal_asset_tree(
+                        temporary,
+                        excluded_directories=transport_metadata,
+                    ),
+                )
+            staging_failures = self._internal_asset_failures(
+                temporary,
+                identity=identity,
+                source=source,
+                excluded_directories=transport_metadata,
             )
-            failures = self._internal_asset_failures(
+            if staging_failures:
+                raise OSError(
+                    "staged model asset failed identity validation: "
+                    + "; ".join(staging_failures)
+                )
+            # VIREA's identity and payload tree are now durable. Only at this
+            # point is it safe to discard resumable downloader state. A crash
+            # before here resumes through the Hub metadata; a crash after here
+            # recovers through VIREA's metadata without a second download.
+            _remove_source_transport_metadata(temporary, source)
+            stable_failures = self._internal_asset_failures(
                 temporary,
                 identity=identity,
                 source=source,
             )
-            if failures:
+            if stable_failures:
                 raise OSError(
-                    "staged model asset failed identity validation: "
-                    + "; ".join(failures)
+                    "finalized model asset failed identity validation: "
+                    + "; ".join(stable_failures)
                 )
             destination = assets_root / f"{asset_key}-{new_ulid()}"
             if os.path.lexists(destination):
@@ -1070,10 +1315,16 @@ class ModelPool:
                 )
             os.replace(temporary, destination)
             _make_internal_asset_read_only(destination)
-            return destination.resolve(strict=True), False, len(fetched)
+            return (
+                destination.resolve(strict=True),
+                False,
+                recovered_file_count
+                if recovered_file_count is not None
+                else len(fetched),
+            )
         finally:
             try:
-                if os.path.lexists(temporary):
+                if os.path.lexists(temporary) and not resumable_huggingface:
                     _remove_tree_without_following_references(temporary)
             finally:
                 quarantine_journal = self.paths.temporary / (
@@ -1135,6 +1386,7 @@ class ModelPool:
         *,
         identity: dict[str, Any],
         source: ArtifactSource,
+        excluded_directories: frozenset[str] = frozenset(),
         cancel_event: threading.Event | None = None,
     ) -> list[str]:
         _raise_if_verification_cancelled(cancel_event)
@@ -1153,6 +1405,7 @@ class ModelPool:
             persisted_tree = json.loads(tree_path.read_text(encoding="utf-8"))
             observed_tree = _internal_asset_tree(
                 asset_root,
+                excluded_directories=excluded_directories,
                 cancel_event=cancel_event,
             )
         except (OSError, json.JSONDecodeError) as exc:
@@ -1165,10 +1418,15 @@ class ModelPool:
                     _internal_asset_tree_difference(persisted_tree, observed_tree)
                 )
         try:
+            candidates = (
+                source_payload_files(source, asset_root)
+                if excluded_directories
+                else sorted(path for path in asset_root.rglob("*") if path.is_file())
+            )
             files: list[Path] = []
-            for path in asset_root.rglob("*"):
+            for path in candidates:
                 _raise_if_verification_cancelled(cancel_event)
-                if path.is_file() and path.name not in {
+                if path.name not in {
                     _INTERNAL_ASSET_IDENTITY,
                     _INTERNAL_ASSET_TREE,
                 }:
@@ -1715,8 +1973,7 @@ class ModelPool:
                                 continue
                             check(
                                 candidate.is_file(),
-                                "declared artifact is missing: "
-                                f"{source.id}/{relative}",
+                                f"declared artifact is missing: {source.id}/{relative}",
                             )
             except (
                 FileNotFoundError,
@@ -1827,8 +2084,7 @@ class ModelPool:
         )
         if acceptance_binding_required and selected:
             check(
-                selected.get("acceptance_installation_id")
-                == outcome.installation_id,
+                selected.get("acceptance_installation_id") == outcome.installation_id,
                 "acceptance job is not bound to this installation",
             )
             check(
@@ -2044,8 +2300,7 @@ class ModelPool:
                 )
             else:
                 check(
-                    acceptance.get("artifact_identity")
-                    == expected_artifact_identity,
+                    acceptance.get("artifact_identity") == expected_artifact_identity,
                     "acceptance suite artifact identity differs",
                 )
         check(
@@ -2643,12 +2898,7 @@ class ModelPool:
 
         latest = installations[-1]
         latest_payload = latest["payload"]
-        latest_attempt = {
-            "installation_id": latest["id"],
-            "state": latest["state"],
-            "locator": latest_payload.get("locator"),
-            "diagnostics": list(latest_payload.get("diagnostics", ())),
-        }
+        latest_attempt = _latest_attempt_payload(latest)
         try:
             manifest = self.catalog.get(model_id)
         except KeyError:
@@ -2905,55 +3155,7 @@ class ModelPool:
             }
         latest = installations[-1]
         latest_payload = latest["payload"]
-        latest_attempt = {
-            "installation_id": latest["id"],
-            "state": latest["state"],
-            "locator": latest_payload.get("locator"),
-            "diagnostics": list(latest_payload.get("diagnostics", ())),
-        }
-        acceptance = latest_payload.get("acceptance")
-        if latest["state"] == InstallationState.FAILED.value and isinstance(
-            acceptance, dict
-        ):
-            web_playback = acceptance.get("web_playback")
-            expected_external = (
-                {ProductionE2EStage.WEB_PLAYBACK.value}
-                if isinstance(web_playback, dict)
-                and web_playback.get("status") == "requires_external_browser_evidence"
-                else set()
-            )
-            stages = acceptance.get("stages")
-            stage_order = {
-                stage.value: index for index, stage in enumerate(ProductionE2EStage)
-            }
-            failed_stages = (
-                sorted(
-                    (
-                        str(name)
-                        for name, passed in stages.items()
-                        if passed is False and str(name) not in expected_external
-                    ),
-                    key=lambda value: stage_order.get(value, len(stage_order)),
-                )
-                if isinstance(stages, dict)
-                else []
-            )
-            publication_failure = next(
-                (
-                    str(value)
-                    for value in reversed(latest_attempt["diagnostics"])
-                    if "acceptance" in str(value).lower()
-                    or "failed" in str(value).lower()
-                ),
-                None,
-            )
-            latest_attempt["failure"] = {
-                "error_code": acceptance.get("error_code"),
-                "error_message": acceptance.get("error_message"),
-                "failed_stages": failed_stages,
-                "publication_failure": publication_failure,
-                "downloads_reusable": True,
-            }
+        latest_attempt = _latest_attempt_payload(latest)
 
         usable: dict[str, Any] | None = None
         ready_failures: dict[str, list[str]] = {}

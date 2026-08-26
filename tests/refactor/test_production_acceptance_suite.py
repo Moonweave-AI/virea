@@ -8,7 +8,11 @@ from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
-from virea_api.service import ControlPlane, _is_installation_artifact_identity
+from virea_api.service import (
+    ControlPlane,
+    _is_installation_artifact_identity,
+    installation_failure_evidence,
+)
 from virea_cli.real_e2e_validator import (
     AcceptanceFailure,
     _validate_common_job,
@@ -18,6 +22,7 @@ from virea_contracts.model import ProductionE2EStage
 from virea_model_pool import ModelCatalog
 from virea_model_pool.manifest import ModelPluginManifest
 from virea_model_pool.pool import ModelPool
+from virea_runtime import WorkerProtocolError
 
 ROOT = Path(__file__).resolve().parents[2]
 MULTI_TASK_MODELS = {
@@ -53,10 +58,46 @@ def test_integrated_multi_task_models_declare_one_contract_per_task(
         manifest = catalog.get(model_id)
         assert manifest.production_acceptance is None
         assert manifest.production_acceptance_suite is not None
-        assert tuple(
-            contract.request.task
-            for contract in manifest.production_acceptance_contracts
-        ) == tasks == manifest.model.tasks
+        assert (
+            tuple(
+                contract.request.task
+                for contract in manifest.production_acceptance_contracts
+            )
+            == tasks
+            == manifest.model.tasks
+        )
+
+
+def test_shared_failure_evidence_preserves_protocol_cause_for_every_suite_task(
+    catalog: ModelCatalog,
+) -> None:
+    manifest = catalog.get("sentiavatar-susu")
+    evidence = installation_failure_evidence(
+        manifest,
+        WorkerProtocolError(
+            500,
+            {
+                "code": "CHECKPOINT_LAYOUT_INVALID",
+                "message": "checkpoint tensor layout differs",
+                "retryable": False,
+            },
+        ),
+        installation_id="install-structured-suite-failure",
+        artifact_identity=None,
+    )
+
+    assert evidence["primary_failure"] == evidence["task_failures"][0]
+    assert evidence["primary_failure"]["error_code"] == ("CHECKPOINT_LAYOUT_INVALID")
+    assert evidence["primary_failure"]["error_message"] == (
+        "checkpoint tensor layout differs"
+    )
+    assert [failure["task"] for failure in evidence["task_failures"]] == list(
+        manifest.model.tasks
+    )
+    assert set(evidence["outstanding_required_stages"]) == {
+        stage.value for stage in ProductionE2EStage
+    }
+    assert all(failure["failed_stages"] for failure in evidence["task_failures"])
 
 
 def test_manifest_rejects_missing_duplicate_and_dual_acceptance_contracts(
@@ -144,6 +185,96 @@ def test_control_plane_runs_acceptance_suite_sequentially(
     assert len(evidence["task_acceptances"]) == len(manifest.model.tasks)
 
 
+def test_control_plane_preserves_the_first_actionable_suite_failure(
+    catalog: ModelCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = catalog.get("sentiavatar-susu")
+    control = object.__new__(ControlPlane)
+    control.catalog = SimpleNamespace(get=lambda model_id: manifest)
+    control.model_pool = SimpleNamespace(
+        acceptance_artifact_identity=lambda outcome: {
+            "schema_version": "virea.installation_artifact_identity.v1.0.0",
+            "sha256": "a" * 64,
+        }
+    )
+
+    def run_contract(self, outcome, contract, *, execution_target=None):
+        del self, outcome, execution_target
+        return {
+            "installation_acceptance_succeeded": False,
+            "error_code": "MEMORY_STRATEGY_ATTESTATION_FAILED",
+            "error_message": "selected=cuda_full, active=None",
+            "job_id": f"job-{contract.request.task}",
+            "job_state": "FAILED",
+            "stages": {
+                ProductionE2EStage.ENVIRONMENT_DETECTION.value: True,
+                ProductionE2EStage.MODEL_LOAD.value: False,
+                ProductionE2EStage.INFERENCE.value: False,
+                ProductionE2EStage.WEB_PLAYBACK.value: False,
+            },
+        }
+
+    monkeypatch.setattr(ControlPlane, "_run_real_acceptance_contract", run_contract)
+
+    evidence = control.run_real_acceptance(
+        SimpleNamespace(model_id=manifest.model.id, installation_id="install-suite")
+    )
+
+    primary = evidence["primary_failure"]
+    assert primary["task"] == manifest.model.tasks[0]
+    assert primary["job_id"] == f"job-{manifest.model.tasks[0]}"
+    assert primary["error_code"] == "MEMORY_STRATEGY_ATTESTATION_FAILED"
+    assert primary["failed_stages"] == ["model_load", "inference"]
+    assert evidence["task_failures"][0] == primary
+
+
+def test_control_plane_skips_remaining_tasks_after_shared_model_load_failure(
+    catalog: ModelCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = catalog.get("motioncraft-smplx")
+    control = object.__new__(ControlPlane)
+    control.catalog = SimpleNamespace(get=lambda model_id: manifest)
+    control.model_pool = SimpleNamespace(
+        acceptance_artifact_identity=lambda outcome: {
+            "schema_version": "virea.installation_artifact_identity.v1.0.0",
+            "sha256": "a" * 64,
+        }
+    )
+    calls: list[str] = []
+
+    def run_contract(self, outcome, contract, *, execution_target=None):
+        del self, outcome, execution_target
+        calls.append(contract.request.task)
+        return {
+            "installation_acceptance_succeeded": False,
+            "error_code": "MODEL_LOAD_FAILED",
+            "error_message": "shared checkpoint graph did not load",
+            "job_id": "job-first",
+            "job_state": "FAILED",
+            "stages": {
+                stage.value: stage is ProductionE2EStage.ENVIRONMENT_DETECTION
+                for stage in contract.required_stages
+            },
+        }
+
+    monkeypatch.setattr(ControlPlane, "_run_real_acceptance_contract", run_contract)
+
+    evidence = control.run_real_acceptance(
+        SimpleNamespace(model_id=manifest.model.id, installation_id="install-suite")
+    )
+
+    assert calls == [manifest.model.tasks[0]]
+    assert len(evidence["task_acceptances"]) == len(manifest.model.tasks)
+    for acceptance in evidence["task_acceptances"][1:]:
+        assert acceptance["execution_status"] == "skipped"
+        assert acceptance["job_id"] is None
+        assert acceptance["job_state"] is None
+        assert acceptance["error_code"] == "ACCEPTANCE_PREREQUISITE_FAILED"
+        assert acceptance["skipped_due_to"]["job_id"] == "job-first"
+
+
 @pytest.mark.parametrize(
     "identity",
     (
@@ -173,12 +304,15 @@ def test_acceptance_artifact_identity_rejects_noncanonical_values(identity) -> N
 
 
 def test_acceptance_artifact_identity_accepts_canonical_sha256() -> None:
-    assert _is_installation_artifact_identity(
-        {
-            "schema_version": "virea.installation_artifact_identity.v1.0.0",
-            "sha256": "0123456789abcdef" * 4,
-        }
-    ) is True
+    assert (
+        _is_installation_artifact_identity(
+            {
+                "schema_version": "virea.installation_artifact_identity.v1.0.0",
+                "sha256": "0123456789abcdef" * 4,
+            }
+        )
+        is True
+    )
 
 
 def test_model_pool_suite_binds_distinct_evidence_to_each_contract(

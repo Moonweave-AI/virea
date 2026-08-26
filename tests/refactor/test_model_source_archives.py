@@ -176,6 +176,53 @@ def test_huggingface_progress_remains_silent_without_a_human_reporter(
     assert captured.err == ""
 
 
+def test_huggingface_transport_metadata_is_retained_but_excluded_from_payload(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observed_local_dir: Path | None = None
+
+    def fake_snapshot_download(**kwargs: Any) -> str:
+        nonlocal observed_local_dir
+        observed_local_dir = Path(kwargs["local_dir"])
+        (observed_local_dir / "model").mkdir()
+        (observed_local_dir / "model" / "weights.bin").write_bytes(b"model")
+        private = observed_local_dir / ".cache" / "huggingface" / "download"
+        private.mkdir(parents=True)
+        (private / "weights.bin.metadata").write_text(
+            "private transport state", encoding="utf-8"
+        )
+        (observed_local_dir / ".cache" / "upstream-payload.bin").write_bytes(
+            b"payload-owned-cache"
+        )
+        return str(observed_local_dir)
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
+    source = ArtifactSource.model_validate(
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["model/weights.bin"],
+        }
+    )
+    destination = tmp_path / "installed"
+
+    files = fetch_source(source, destination, cache_dir=tmp_path / "hub-cache")
+
+    assert observed_local_dir is not None
+    assert observed_local_dir == destination
+    assert {path.relative_to(destination).as_posix() for path in files} == {
+        ".cache/upstream-payload.bin",
+        "model/weights.bin",
+    }
+    assert (destination / ".cache" / "huggingface").is_dir()
+    assert (destination / ".cache" / "upstream-payload.bin").read_bytes() == (
+        b"payload-owned-cache"
+    )
+
+
 def test_huggingface_fallback_filters_only_progress_frames(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

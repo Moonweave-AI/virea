@@ -49,6 +49,7 @@ from virea_model_pool.installation import (
 )
 from virea_model_pool.manifest import ArtifactSource, ModelPluginManifest
 from virea_model_pool.pool import (
+    _INTERNAL_ASSET_ATOMIC_TEMP_PREFIXES,
     InstallOutcome,
     ModelPool,
     ModelVerificationCancelled,
@@ -627,9 +628,7 @@ def test_finalize_success_publishes_job_result_and_artifacts_atomically(
         "native",
         "vrma:actor-0",
     ]
-    assert all(
-        len(item["sha256"]) == 64 for item in finalized["artifacts"]
-    )
+    assert all(len(item["sha256"]) == 64 for item in finalized["artifacts"])
     assert store.result_for_job("job-atomic-success")["id"] == "result-atomic"
     assert store.get_result("result-atomic")["job_id"] == "job-atomic-success"
     assert store.job_events("job-atomic-success")[-1]["event_type"] == "job.succeeded"
@@ -797,8 +796,7 @@ def test_state_store_concurrent_v1_upgrade_is_serialized(tmp_path: Path) -> None
         assert modes == ["wal"] * 8
         with sqlite3.connect(paths.database) as connection:
             transaction_columns = {
-                row[1]
-                for row in connection.execute("PRAGMA table_info(transactions)")
+                row[1] for row in connection.execute("PRAGMA table_info(transactions)")
             }
             artifact_columns = {
                 row[1]
@@ -1463,6 +1461,385 @@ def test_internal_asset_failure_is_retryable_without_partial_publication(
     assert len(tuple(paths.model_assets.iterdir())) == 1
     assert not tuple(paths.temporary.glob("asset-*"))
     assert pool.store.list_locks(prefix="model-asset:") == []
+
+
+def test_huggingface_asset_retry_resumes_the_same_persistent_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("resumable-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    destinations: list[Path] = []
+
+    def resumable_fetch(source, destination, **kwargs):
+        del source, kwargs
+        destinations.append(destination)
+        destination.mkdir(parents=True, exist_ok=True)
+        weights = destination / "weights.bin"
+        if len(destinations) == 1:
+            weights.write_bytes(b"verified partial checkpoint")
+            transfer_state = destination / ".cache" / "huggingface" / "download"
+            transfer_state.mkdir(parents=True)
+            (transfer_state / "weights.metadata").write_text(
+                "resume-token", encoding="utf-8"
+            )
+            raise OSError("injected interrupted Hugging Face transfer")
+        assert weights.read_bytes() == b"verified partial checkpoint"
+        assert (destination / ".cache" / "huggingface").is_dir()
+        return [weights]
+
+    monkeypatch.setattr(model_pool_module, "fetch_source", resumable_fetch)
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partials = tuple((paths.cache / "model-assets").glob("*.partial"))
+    retried = pool.stage_artifacts(manifest.model.id)
+
+    assert failed.state is InstallationState.FAILED
+    assert retried.state is InstallationState.BUILDING_RUNTIME
+    assert len(destinations) == 2
+    assert destinations[0] == destinations[1]
+    assert partials == (destinations[0],)
+    assert not destinations[0].exists()
+    stable = tuple(paths.model_assets.iterdir())
+    assert len(stable) == 1
+    assert (stable[0] / "weights.bin").read_bytes() == (b"verified partial checkpoint")
+
+
+def test_huggingface_asset_retry_recovers_validated_prepublication_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("recoverable-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    fetch_calls = 0
+    original_replace = os.replace
+    publication_failures = 0
+
+    def completed_fetch(source, destination, **kwargs):
+        nonlocal fetch_calls
+        del source, kwargs
+        fetch_calls += 1
+        destination.mkdir(parents=True, exist_ok=True)
+        weights = destination / "weights.bin"
+        weights.write_bytes(b"complete checkpoint")
+        return [weights]
+
+    def interrupt_first_asset_publication(source, destination):
+        nonlocal publication_failures
+        source_path = Path(source)
+        destination_path = Path(destination)
+        is_asset_publication = (
+            source_path.name.endswith(".partial")
+            and source_path.parent == paths.cache / "model-assets"
+            and destination_path.parent == paths.model_assets
+        )
+        if is_asset_publication and publication_failures == 0:
+            publication_failures += 1
+            raise OSError("injected crash before stable asset publication")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(model_pool_module, "fetch_source", completed_fetch)
+    monkeypatch.setattr(
+        model_pool_module.os, "replace", interrupt_first_asset_publication
+    )
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partial = next((paths.cache / "model-assets").glob("*.partial"))
+    assert (partial / ".virea-asset-identity.json").is_file()
+    assert (partial / ".virea-asset-tree.json").is_file()
+
+    retried = pool.stage_artifacts(manifest.model.id)
+
+    assert failed.state is InstallationState.FAILED
+    assert retried.state is InstallationState.BUILDING_RUNTIME
+    assert fetch_calls == 1
+    assert publication_failures == 1
+    assert not partial.exists()
+    stable = tuple(paths.model_assets.iterdir())
+    assert len(stable) == 1
+    assert (stable[0] / "weights.bin").read_bytes() == b"complete checkpoint"
+
+
+def test_huggingface_completed_snapshot_survives_pre_metadata_crash_offline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("offline-recoverable-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    fetch_calls = 0
+    payload_writes = 0
+
+    def completed_or_offline_resume(source, destination, **kwargs):
+        nonlocal fetch_calls, payload_writes
+        del kwargs
+        fetch_calls += 1
+        weights = destination / "weights.bin"
+        transfer_state = destination / ".cache" / "huggingface" / "download"
+        upstream_payload = destination / ".cache" / "upstream-payload.bin"
+        if fetch_calls == 1:
+            weights.write_bytes(b"complete checkpoint bytes")
+            transfer_state.mkdir(parents=True)
+            (transfer_state / "weights.metadata").write_text(
+                "verified-offline-resume-state",
+                encoding="utf-8",
+            )
+            upstream_payload.write_bytes(b"payload-owned-cache")
+            payload_writes += 1
+        else:
+            assert os.environ["HF_HUB_OFFLINE"] == "1"
+            assert weights.read_bytes() == b"complete checkpoint bytes"
+            assert (transfer_state / "weights.metadata").is_file()
+            assert upstream_payload.read_bytes() == b"payload-owned-cache"
+        return model_pool_module.source_payload_files(source, destination)
+
+    original_atomic_write_json = model_pool_module.atomic_write_json
+    interrupted = False
+
+    def interrupt_first_identity_write(path, value):
+        nonlocal interrupted
+        if path.name == ".virea-asset-identity.json" and not interrupted:
+            interrupted = True
+            raise OSError("injected crash after completed Hub snapshot")
+        return original_atomic_write_json(path, value)
+
+    monkeypatch.setattr(model_pool_module, "fetch_source", completed_or_offline_resume)
+    monkeypatch.setattr(
+        model_pool_module,
+        "atomic_write_json",
+        interrupt_first_identity_write,
+    )
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partial = next((paths.cache / "model-assets").glob("*.partial"))
+    assert (partial / ".cache" / "huggingface").is_dir()
+    assert not (partial / ".virea-asset-identity.json").exists()
+
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    recovered = pool.stage_artifacts(manifest.model.id)
+
+    assert failed.state is InstallationState.FAILED
+    assert recovered.state is InstallationState.BUILDING_RUNTIME
+    assert fetch_calls == 2
+    assert payload_writes == 1
+    assert not partial.exists()
+    stable = tuple(paths.model_assets.iterdir())
+    assert len(stable) == 1
+    assert not (stable[0] / ".cache" / "huggingface").exists()
+    assert (stable[0] / ".cache" / "upstream-payload.bin").read_bytes() == (
+        b"payload-owned-cache"
+    )
+    tree = json.loads(
+        (stable[0] / ".virea-asset-tree.json").read_text(encoding="utf-8")
+    )
+    tree_paths = {entry["path"] for entry in tree["files"]}
+    assert ".cache/upstream-payload.bin" in tree_paths
+    assert not any(path.startswith(".cache/huggingface/") for path in tree_paths)
+
+
+def test_huggingface_resume_removes_interrupted_virea_metadata_temp_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("atomic-orphan-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    fetch_calls = 0
+    payload_writes = 0
+
+    def resumable_fetch(source, destination, **kwargs):
+        nonlocal fetch_calls, payload_writes
+        del kwargs
+        fetch_calls += 1
+        weights = destination / "weights.bin"
+        transfer_state = destination / ".cache" / "huggingface" / "download"
+        if fetch_calls == 1:
+            weights.write_bytes(b"one completed payload")
+            transfer_state.mkdir(parents=True)
+            (transfer_state / "weights.metadata").write_text(
+                "resume-state",
+                encoding="utf-8",
+            )
+            payload_writes += 1
+        else:
+            assert weights.read_bytes() == b"one completed payload"
+            assert (transfer_state / "weights.metadata").is_file()
+        return model_pool_module.source_payload_files(source, destination)
+
+    original_atomic_write_json = model_pool_module.atomic_write_json
+    interrupted = False
+    orphan_names = tuple(
+        f"{prefix}interrupted" for prefix in _INTERNAL_ASSET_ATOMIC_TEMP_PREFIXES
+    )
+
+    def leave_identity_and_atomic_orphans(path, value):
+        nonlocal interrupted
+        if path.name == ".virea-asset-identity.json" and not interrupted:
+            interrupted = True
+            original_atomic_write_json(path, value)
+            for name in orphan_names:
+                (path.parent / name).write_text(
+                    "partial atomic metadata",
+                    encoding="utf-8",
+                )
+            raise OSError("injected termination during VIREA metadata write")
+        return original_atomic_write_json(path, value)
+
+    monkeypatch.setattr(model_pool_module, "fetch_source", resumable_fetch)
+    monkeypatch.setattr(
+        model_pool_module,
+        "atomic_write_json",
+        leave_identity_and_atomic_orphans,
+    )
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partial = next((paths.cache / "model-assets").glob("*.partial"))
+    assert (partial / ".virea-asset-identity.json").is_file()
+    assert all((partial / name).is_file() for name in orphan_names)
+
+    recovered = pool.stage_artifacts(manifest.model.id)
+
+    assert failed.state is InstallationState.FAILED
+    assert recovered.state is InstallationState.BUILDING_RUNTIME
+    assert fetch_calls == 2
+    assert payload_writes == 1
+    stable = tuple(paths.model_assets.iterdir())
+    assert len(stable) == 1
+    assert all(not (stable[0] / name).exists() for name in orphan_names)
+
+
+def test_huggingface_transport_metadata_file_fails_closed_before_publish(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("file-transport-metadata-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    poisoned_metadata = b"not a downloader-owned directory"
+
+    def fetch_with_metadata_file(source, destination, **kwargs):
+        del kwargs
+        (destination / "weights.bin").write_bytes(b"complete checkpoint")
+        cache = destination / ".cache"
+        cache.mkdir()
+        (cache / "huggingface").write_bytes(poisoned_metadata)
+        return model_pool_module.source_payload_files(source, destination)
+
+    monkeypatch.setattr(model_pool_module, "fetch_source", fetch_with_metadata_file)
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partial = next((paths.cache / "model-assets").glob("*.partial"))
+    metadata_root = partial / ".cache" / "huggingface"
+
+    assert failed.state is InstallationState.FAILED
+    assert failed.locator is None
+    assert metadata_root.read_bytes() == poisoned_metadata
+    assert not tuple(paths.model_assets.iterdir())
+
+
+def test_huggingface_transport_metadata_reference_fails_closed_without_touching_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _manifest_payload("reference-transport-metadata-huggingface-model")
+    payload["artifacts"] = [
+        {
+            "id": "checkpoint",
+            "kind": "huggingface",
+            "repository": "owner/model",
+            "revision": "0123456789abcdef",
+            "expected_files": ["weights.bin"],
+        }
+    ]
+    manifest = _production_manifest(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    pool = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    external_target = tmp_path / "external-huggingface-metadata"
+    external_target.mkdir()
+    sentinel = external_target / "must-survive.bin"
+    sentinel.write_bytes(b"outside the model asset staging root")
+    reference_kind: str | None = None
+
+    def fetch_with_metadata_reference(source, destination, **kwargs):
+        nonlocal reference_kind
+        del kwargs
+        (destination / "weights.bin").write_bytes(b"complete checkpoint")
+        cache = destination / ".cache"
+        cache.mkdir()
+        reference_kind = _create_directory_reference(
+            cache / "huggingface",
+            external_target,
+        )
+        return model_pool_module.source_payload_files(source, destination)
+
+    monkeypatch.setattr(
+        model_pool_module,
+        "fetch_source",
+        fetch_with_metadata_reference,
+    )
+
+    failed = pool.stage_artifacts(manifest.model.id)
+    partial = next((paths.cache / "model-assets").glob("*.partial"))
+    metadata_root = partial / ".cache" / "huggingface"
+
+    try:
+        assert failed.state is InstallationState.FAILED
+        assert failed.locator is None
+        assert reference_kind in {"symbolic_link", "junction"}
+        assert metadata_root.resolve(strict=True) == external_target.resolve(
+            strict=True
+        )
+        assert sentinel.read_bytes() == b"outside the model asset staging root"
+        assert not tuple(paths.model_assets.iterdir())
+    finally:
+        if os.path.lexists(metadata_root):
+            _remove_directory_reference(metadata_root)
 
 
 def test_same_length_asset_corruption_fails_closed_then_refetches_new_generation(
@@ -2568,9 +2945,7 @@ def test_external_content_tree_rejects_reference_outside_root(tmp_path: Path) ->
     )
 
     assert failed.state is InstallationState.FAILED
-    assert any(
-        "escapes" in item and "root" in item for item in failed.diagnostics
-    ), (
+    assert any("escapes" in item and "root" in item for item in failed.diagnostics), (
         failed.diagnostics
     )
 
@@ -2815,6 +3190,58 @@ def test_model_pool_persists_failed_real_acceptance_checks(tmp_path) -> None:
     assert failure["error_code"] == "WORKER_OOM"
     assert failure["failed_stages"] == ["model_load", "inference"]
     assert "installation acceptance did not succeed" in failure["publication_failure"]
+
+
+def test_model_pool_recovers_primary_suite_failure_after_restart(tmp_path) -> None:
+    model_id = "failed-suite-acceptance-model"
+    payload = _manifest_payload(model_id)
+    payload["model"]["tasks"] = ["text_to_motion", "text_to_motion_variant"]  # type: ignore[index]
+    first = _production_acceptance_payload(model_id)
+    second = deepcopy(first)
+    second["request"]["task"] = "text_to_motion_variant"  # type: ignore[index]
+    payload["production_acceptance_suite"] = {
+        "schema_version": "virea.production_e2e_acceptance_suite.v1.0.0",
+        "kind": "production_e2e_suite",
+        "contracts": [first, second],
+    }
+    manifest = ModelPluginManifest.model_validate(payload)
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    pool = ModelPool(paths, store, ModelCatalog((manifest,)))
+    staged = pool.stage_artifacts(model_id)
+    primary = {
+        "task": "text_to_motion",
+        "job_id": "job-primary",
+        "job_state": "FAILED",
+        "error_code": "MEMORY_STRATEGY_ATTESTATION_FAILED",
+        "error_message": "selected=cuda_full, active=None",
+        "failed_stages": ["model_load", "inference"],
+    }
+
+    pool.publish_ready(
+        staged,
+        acceptance={
+            "schema_version": ("virea.installation_acceptance_suite_evidence.v1.0.0"),
+            "kind": "installation_real_e2e_suite",
+            "installation_acceptance_succeeded": False,
+            "task_acceptances": [],
+            "task_failures": [primary],
+            "primary_failure": primary,
+            "web_playback": {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
+        },
+    )
+
+    restarted = ModelPool(paths, StateStore(paths), ModelCatalog((manifest,)))
+    failure = restarted.verify_latest(model_id)["latest_attempt"]["failure"]
+
+    assert failure["task"] == "text_to_motion"
+    assert failure["job_id"] == "job-primary"
+    assert failure["job_state"] == "FAILED"
+    assert failure["error_code"] == "MEMORY_STRATEGY_ATTESTATION_FAILED"
+    assert failure["failed_stages"] == ["model_load", "inference"]
 
 
 @pytest.mark.parametrize(

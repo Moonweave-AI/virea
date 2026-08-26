@@ -22,6 +22,7 @@ resource_profiles:
 entrypoint_argv:
   - python
   - -m
+  - virea_model_sdk.worker_entrypoint
   - virea_momadiff.worker
 startup_timeout_seconds: 600
 environment_allowlist:
@@ -34,5 +35,5 @@ environment_allowlist:
 working_directory: plugins/models/momadiff-humanml3d/runtime-cpu
 project_package: virea-model-momadiff-humanml3d-cpu-runtime
 project_version: 0.1.3
-runtime_core_epoch: virea-runtime-core-20260821.2
-availability: real_checkpoint_direct_worker_resource_calibration_passed_on_win64_cpu_build_import_passed_wsl_ubuntu_24_04_linux_native_macos_unverified
+runtime_core_epoch: virea-runtime-core-20260826.1
+availability: historical_real_checkpoint_calibration_requires_current_core_epoch_reacceptance_other_platforms_unverified

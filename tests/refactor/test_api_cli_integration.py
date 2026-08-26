@@ -382,8 +382,8 @@ def test_control_plane_persists_source_target_execution_and_actor_identity(
         assert attestation["runtime_core_epoch"] is None
         runtime_core = attestation["worker_runtime_core_identity"]
         assert runtime_core["schema_version"] == ("virea.runtime_core_identity.v1.0.0")
-        assert runtime_core["contracts_epoch"] == "virea-runtime-core-20260821.2"
-        assert runtime_core["model_sdk_epoch"] == "virea-runtime-core-20260821.2"
+        assert runtime_core["contracts_epoch"] == "virea-runtime-core-20260826.1"
+        assert runtime_core["model_sdk_epoch"] == "virea-runtime-core-20260826.1"
         assert Path(runtime_core["contracts_source"]).name == "runtime_identity.py"
         assert Path(runtime_core["model_sdk_source"]).name == "runtime_identity.py"
         model_result = json.loads(
@@ -782,6 +782,59 @@ def test_models_v1_default_preserves_full_integrity_readiness_semantics(
         item["installation"]["verification_scope"] == "full_integrity"
         and item["installation"]["integrity_verified"] is False
         for item in catalog
+    )
+
+
+def test_models_metadata_catalog_exposes_latest_structured_install_failure(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    app = create_app(
+        virea_home=tmp_path / "virea-home-failed-catalog",
+        plugin_root=PLUGIN_ROOT,
+        include_legacy_preview=False,
+    )
+    failure = {
+        "task": "audio_text_to_avatar_motion",
+        "job_id": "acceptance-job-failed",
+        "job_state": "FAILED",
+        "error_code": "CHECKPOINT_LAYOUT_INVALID",
+        "error_message": "checkpoint tensor layout differs",
+        "failed_stages": ["model_load"],
+        "publication_failure": "real acceptance failed",
+        "downloads_reusable": True,
+    }
+
+    def metadata_summary(model_id: str) -> dict:
+        return {
+            "model_id": model_id,
+            "installation_id": "install-failed",
+            "state": "FAILED",
+            "locator": None,
+            "installed": False,
+            "ready": False,
+            "latest_attempt": {
+                "installation_id": "install-failed",
+                "state": "FAILED",
+                "failure": failure,
+            },
+            "verification_scope": "metadata",
+            "integrity_verified": False,
+            "diagnostics": ["real acceptance failed"],
+        }
+
+    with TestClient(app) as client:
+        monkeypatch.setattr(
+            app.state.control_plane.model_pool,
+            "installation_summary",
+            metadata_summary,
+        )
+        response = client.get("/api/v1/models?verification_scope=metadata")
+
+    assert response.status_code == 200
+    assert all(
+        item["installation"]["latest_attempt"]["failure"] == failure
+        for item in response.json()
     )
 
 

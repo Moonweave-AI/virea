@@ -1113,11 +1113,7 @@ def _production_contract_for_task(manifest: Any, task: str | None):
         if task is None:
             return legacy
         contracts = (legacy,)
-    matches = tuple(
-        contract
-        for contract in contracts
-        if contract.request.task == task
-    )
+    matches = tuple(contract for contract in contracts if contract.request.task == task)
     _require(
         len(matches) == 1,
         f"model manifest has no unique production acceptance for task {task}",
@@ -1155,8 +1151,7 @@ def _task_acceptance_evidence(
     )
     task_acceptances = acceptance.get("task_acceptances")
     _require(
-        isinstance(task_acceptances, list)
-        and len(task_acceptances) == len(contracts),
+        isinstance(task_acceptances, list) and len(task_acceptances) == len(contracts),
         "installation acceptance suite task count differs",
     )
     matches = [
@@ -1180,8 +1175,7 @@ def _task_acceptance_evidence(
         )
     if acceptance.get("installation_id") is not None:
         _require(
-            task_acceptance.get("installation_id")
-            == acceptance.get("installation_id"),
+            task_acceptance.get("installation_id") == acceptance.get("installation_id"),
             "suite task installation identity differs",
         )
         _require(

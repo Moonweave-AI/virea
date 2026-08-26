@@ -128,6 +128,7 @@ class MotionCraftPlugin:
                 "min_vram_gib": None if strategy == "cpu" else 12.0,
                 "min_ram_gib": 24.0,
                 "memory_strategies": ["cpu", "cuda_full"],
+                "active_memory_strategy": strategy,
                 "tasks_loaded_one_at_a_time": True,
                 **self._backend.device_facts,
             },

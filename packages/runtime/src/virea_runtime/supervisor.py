@@ -19,13 +19,18 @@ from virea_bootstrap import sanitized_python_environment
 from virea_contracts.job import JobRequest
 from virea_contracts.machine import ExecutionDomainReport
 from virea_contracts.result import ModelResult
-from virea_contracts.worker import WorkerInferRequest, WorkerMetadata
+from virea_contracts.worker import (
+    WorkerInferRequest,
+    WorkerMetadata,
+    WorkerStartupFailure,
+)
 from virea_core.db import StateStore
 from virea_core.ids import new_ulid
 from virea_core.paths import VireaPaths
 
 from .execution import (
     is_host_routed_wsl,
+    managed_domain_environment,
     map_host_path_to_domain,
     wrap_domain_command,
 )
@@ -36,12 +41,14 @@ from .process_identity import (
     inspect_process,
 )
 
+_DOMAIN_MANAGED_PATH_VARIABLES = frozenset({"VIREA_HOME", "UV_CACHE_DIR", "HF_HOME"})
+
 
 class WorkerStartError(RuntimeError):
     def __init__(
         self, message: str, *, process_termination_proven: bool = True
     ) -> None:
-        super().__init__(message)
+        RuntimeError.__init__(self, message)
         self.process_termination_proven = process_termination_proven
 
 
@@ -52,6 +59,25 @@ class WorkerProtocolError(RuntimeError):
         self.payload = payload
 
 
+class WorkerReportedStartError(WorkerStartError, WorkerProtocolError):
+    """A structured SDK startup failure with proven process cleanup semantics."""
+
+    def __init__(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        process_termination_proven: bool = True,
+    ) -> None:
+        message = str(payload.get("message") or "Worker startup failed")
+        WorkerStartError.__init__(
+            self,
+            message,
+            process_termination_proven=process_termination_proven,
+        )
+        self.status = 500
+        self.payload = dict(payload)
+
+
 def _worker_exit_description(return_code: int) -> str:
     unsigned_code = return_code & 0xFFFFFFFF
     if unsigned_code == 0xC0000005:
@@ -60,6 +86,46 @@ def _worker_exit_description(return_code: int) -> str:
             "inspect the faulthandler stack and native dependency boundary)"
         )
     return str(return_code)
+
+
+_WORKER_STARTUP_FAILURE_SUFFIX = ".startup-failure.json"
+_MAX_WORKER_STARTUP_FAILURE_BYTES = 64 * 1024
+
+
+def _read_worker_startup_failure(
+    path: Path,
+    *,
+    instance_id: str,
+    job_id: str | None,
+    model_id: str,
+    runtime_id: str,
+) -> dict[str, Any] | None:
+    """Read only an exact, bounded failure record for this Worker identity."""
+
+    try:
+        if (
+            not path.is_file()
+            or path.stat().st_size > _MAX_WORKER_STARTUP_FAILURE_BYTES
+        ):
+            return None
+        candidate = WorkerStartupFailure.model_validate_json(path.read_bytes())
+    except (OSError, ValueError):
+        return None
+    expected_identity = {
+        "instance_id": instance_id,
+        "job_id": job_id or "",
+        "model_id": model_id,
+        "runtime_id": runtime_id,
+    }
+    if any(
+        getattr(candidate, name) != value for name, value in expected_identity.items()
+    ):
+        return None
+    return {
+        "code": candidate.code,
+        "message": candidate.message,
+        "retryable": candidate.retryable,
+    }
 
 
 def _loopback_port() -> int:
@@ -111,6 +177,7 @@ def _map_worker_environment_for_domain(
     values: Mapping[str, str],
 ) -> dict[str, str]:
     mapped = dict(values)
+    domain_environment = managed_domain_environment(domain)
     artifact_roots = mapped.get("VIREA_ARTIFACT_ROOTS_JSON")
     if artifact_roots:
         try:
@@ -132,6 +199,15 @@ def _map_worker_environment_for_domain(
         )
     for name, value in tuple(mapped.items()):
         if name == "VIREA_ARTIFACT_ROOTS_JSON":
+            continue
+        if name in _DOMAIN_MANAGED_PATH_VARIABLES:
+            if domain_value := domain_environment.get(name):
+                mapped[name] = domain_value
+            else:
+                # A legacy or unconfigured WSL report must use the guest
+                # tool's own defaults.  Mapping a Windows cache directory
+                # would silently merge two execution domains.
+                mapped.pop(name, None)
             continue
         if name in {"HF_HOME", "VIREA_MODEL_ROOT", "VIREA_TEXT_ENCODER_ROOT"} or (
             name.startswith("VIREA_") and name.endswith(("_ROOT", "_HOME"))
@@ -341,15 +417,22 @@ class WorkerSupervisor:
         stopped: bool,
         failure: str,
         detail: str,
+        worker_error: Mapping[str, Any] | None = None,
     ) -> None:
         """Persist failure evidence without ever gating process termination."""
 
+        diagnostics: dict[str, Any] = {
+            "failure": failure,
+            "failure_detail": detail,
+        }
+        if worker_error is not None:
+            diagnostics["worker_error"] = dict(worker_error)
         try:
             self.store.update_worker_instance(
                 instance_id,
                 state="FAILED" if stopped else "RECOVERY_BLOCKED",
                 stopped_at=_utc_now() if stopped else None,
-                diagnostics={"failure": failure, "failure_detail": detail},
+                diagnostics=diagnostics,
             )
         except Exception:
             # The triggering error may itself be a StateStore failure. The
@@ -401,6 +484,20 @@ class WorkerSupervisor:
         log_root.mkdir(parents=True, exist_ok=True)
         stdout_path = log_root / f"{instance_id}.stdout.log"
         stderr_path = log_root / f"{instance_id}.stderr.log"
+        startup_failure_path = log_root / (
+            f"{instance_id}{_WORKER_STARTUP_FAILURE_SUFFIX}"
+        )
+        startup_failure_path.unlink(missing_ok=True)
+
+        def reported_startup_failure() -> dict[str, Any] | None:
+            return _read_worker_startup_failure(
+                startup_failure_path,
+                instance_id=instance_id,
+                job_id=job_id,
+                model_id=model_id,
+                runtime_id=runtime_id,
+            )
+
         stdout_stream = stdout_path.open("w", encoding="utf-8")
         stderr_stream = stderr_path.open("w", encoding="utf-8")
         additions = {
@@ -410,16 +507,29 @@ class WorkerSupervisor:
             "VIREA_WORKER_JOB_ID": job_id or "",
             "VIREA_WORKER_MODEL_ID": model_id,
             "VIREA_WORKER_PORT": str(port),
+            "VIREA_WORKER_STARTUP_FAILURE_ROOT": str(log_root.resolve()),
         }
         if is_host_routed_wsl(execution_domain):
             assert execution_domain is not None
             additions = _map_worker_environment_for_domain(execution_domain, additions)
+            requested_domain_paths = _DOMAIN_MANAGED_PATH_VARIABLES.intersection(
+                environment_allowlist
+            )
             domain_values = {
                 name: value
                 for name in environment_allowlist
-                if (value := os.getenv(name)) is not None
+                if name not in _DOMAIN_MANAGED_PATH_VARIABLES
+                and (value := os.getenv(name)) is not None
             }
             domain_values.update(additions)
+            managed_environment = managed_domain_environment(execution_domain)
+            for name, value in managed_environment.items():
+                if (
+                    name == "VIREA_HOME"
+                    or name in domain_values
+                    or name in requested_domain_paths
+                ):
+                    domain_values[name] = value
             domain_values.update(
                 {
                     "VIREA_HOME": execution_domain.virea_home,
@@ -545,12 +655,19 @@ class WorkerSupervisor:
             )
         except Exception as exc:
             stopped = self._terminate_failed_start(handle, timeout=5.0)
+            reported_failure = reported_startup_failure()
             self._record_failed_start(
                 instance_id,
                 stopped=stopped,
                 failure="process identity capture failed",
                 detail=str(exc),
+                worker_error=reported_failure,
             )
+            if reported_failure is not None:
+                raise WorkerReportedStartError(
+                    reported_failure,
+                    process_termination_proven=stopped,
+                ) from exc
             raise WorkerStartError(
                 f"worker process identity could not be persisted safely: {exc}",
                 process_termination_proven=stopped,
@@ -568,6 +685,7 @@ class WorkerSupervisor:
                 handle.close_streams()
                 detail = _worker_log_tail(stdout_path, stderr_path)
                 exit_description = _worker_exit_description(process.returncode)
+                reported_failure = reported_startup_failure()
                 self.store.update_worker_instance(
                     instance_id,
                     state="FAILED",
@@ -577,8 +695,11 @@ class WorkerSupervisor:
                         "return_code": process.returncode,
                         "return_code_description": exit_description,
                         "log_tail": detail,
+                        "worker_error": reported_failure,
                     },
                 )
+                if reported_failure is not None:
+                    raise WorkerReportedStartError(reported_failure)
                 raise WorkerStartError(
                     "worker exited before readiness with code "
                     f"{exit_description}: {detail}"
@@ -624,6 +745,12 @@ class WorkerSupervisor:
             time.sleep(0.05)
         self.stop(handle, timeout=3.0, terminal_state="FAILED")
         detail = _worker_log_tail(stdout_path, stderr_path)
+        reported_failure = reported_startup_failure()
+        if reported_failure is not None:
+            raise WorkerReportedStartError(
+                reported_failure,
+                process_termination_proven=not handle.running,
+            )
         raise WorkerStartError(
             f"worker readiness timed out: {detail}",
             process_termination_proven=not handle.running,

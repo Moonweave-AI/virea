@@ -907,6 +907,20 @@ def _resolve_runtime_in_domain(
         )
     if not _python_constraint_is_supported(spec.python):
         hard.append(f"unsupported Python constraint: {spec.python}")
+    if (
+        domain.kind is ExecutionDomainKind.WSL
+        and not domain.is_host
+        and domain.tools.get("managed_data_root_status") != "configured"
+    ):
+        hard.append(
+            "configuration-required: the host-routed WSL execution domain has "
+            "no valid persistent VIREA data root"
+        )
+        remediation.append(
+            "inside WSL distribution "
+            f"{domain.distribution}, run scripts/configure-virea.sh --data-root PATH "
+            "from the VIREA clone, then rerun uv run virea doctor"
+        )
     python_candidate = _matching_python(domain, spec)
     build_tool = _required_build_tool(spec)
     unsupported_cross_domain_backend = (

@@ -867,6 +867,40 @@ def test_failed_installation_prioritizes_acceptance_cause_and_retry_action() -> 
     assert rendered.index("WORKER_OOM") < rendered.index("fetched stable asset")
 
 
+def test_suite_failure_shows_child_task_cause_before_aggregate_diagnostics() -> None:
+    payload = {
+        "acceptance": {
+            "primary_failure": {
+                "task": "audio_text_to_avatar_motion",
+                "job_id": "job-sentiavatar-1",
+                "job_state": "FAILED",
+                "error_code": "MEMORY_STRATEGY_ATTESTATION_FAILED",
+                "error_message": "selected=cuda_full, active=None",
+                "failed_stages": ["model_load", "inference"],
+            },
+            "task_failures": [],
+            "web_playback": {
+                "passed": False,
+                "status": "requires_external_browser_evidence",
+            },
+        },
+        "diagnostics": [
+            "real installation acceptance failed: " + ("aggregate mismatch; " * 80)
+        ],
+    }
+
+    lines = list(presentation._diagnostic_lines(payload))
+
+    assert lines[0].startswith(
+        "audio_text_to_avatar_motion · job-sentiavatar-1 — "
+        "MEMORY_STRATEGY_ATTESTATION_FAILED: selected=cuda_full, active=None"
+    )
+    assert lines[1] == (
+        "Failed acceptance stages / 验收失败阶段: model_load, inference"
+    )
+    assert "{" not in "\n".join(lines)
+
+
 def test_existing_failed_installation_shows_cause_and_cache_reuse() -> None:
     """A restart explains the prior failure without repeating the download."""
 

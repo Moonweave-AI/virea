@@ -9,6 +9,7 @@ from virea_api.capabilities import model_capability
 from virea_api.service import (
     ControlPlane,
     ExecutionTargetResolutionError,
+    installation_failure_evidence,
     validate_inference_timeout,
 )
 from virea_contracts.execution import ExecutionTargetSelection
@@ -71,8 +72,19 @@ def _outcome(outcome: InstallOutcome) -> dict[str, Any]:
 def _installation_failure_next_action(acceptance: object) -> str:
     """Return one actionable retry instruction without exposing raw evidence."""
 
-    error_code = (
-        str(acceptance.get("error_code") or "") if isinstance(acceptance, dict) else ""
+    failure = acceptance if isinstance(acceptance, dict) else {}
+    primary_failure = failure.get("primary_failure")
+    if not isinstance(primary_failure, dict):
+        task_failures = failure.get("task_failures")
+        primary_failure = (
+            task_failures[0]
+            if isinstance(task_failures, list)
+            and task_failures
+            and isinstance(task_failures[0], dict)
+            else {}
+        )
+    error_code = str(
+        primary_failure.get("error_code") or failure.get("error_code") or ""
     )
     if error_code in {"INSUFFICIENT_MEMORY", "WORKER_OOM"}:
         repair = (
@@ -84,15 +96,22 @@ def _installation_failure_next_action(acceptance: object) -> str:
         "RUNTIME_NOT_READY",
         "WORKER_START_ERROR",
         "WORKER_START_FAILED",
+        "WORKER_STARTUP_ERROR",
+        "WORKERSTARTERROR",
     }:
         repair = (
             "Repair the Runtime issue named above before retrying / "
             "先修复上方指出的 Runtime 问题再重试"
         )
+    elif error_code == "MEMORY_STRATEGY_ATTESTATION_FAILED":
+        repair = (
+            "Update the model Worker to the current VIREA release before retrying / "
+            "先将模型 Worker 更新到当前 VIREA 版本后再重试"
+        )
     else:
         repair = (
-            "Review the acceptance error and Worker log named above, then retry / "
-            "查看上方验收错误及对应 Worker 日志后重试"
+            "Review the exact acceptance cause and evidence paths shown above, "
+            "then retry / 查看上方准确验收原因和证据路径后重试"
         )
     return (
         f"{repair}. Run `uv run virea` again; verified downloads are reused and "
@@ -107,10 +126,7 @@ def _acceptance_override_mismatches(args, manifest) -> dict[str, dict[str, Any]]
         return {"production_acceptance": {"requested": None, "required": "declared"}}
 
     def required(getter):
-        values = {
-            contract.request.task: getter(contract)
-            for contract in contracts
-        }
+        values = {contract.request.task: getter(contract) for contract in contracts}
         distinct = {json.dumps(value, sort_keys=True) for value in values.values()}
         return next(iter(values.values())) if len(distinct) == 1 else values
 
@@ -146,54 +162,6 @@ def _declared_acceptance_payload(manifest) -> dict[str, Any] | None:
     return contracts[0].model_dump(mode="json") if contracts else None
 
 
-def _failed_acceptance_payload(
-    manifest,
-    exc: Exception,
-    *,
-    installation_id: str,
-    artifact_identity: dict[str, str] | None,
-) -> dict[str, Any]:
-    contracts = manifest.production_acceptance_contracts
-    if manifest.production_acceptance_suite is not None:
-        return {
-            "schema_version": "virea.installation_acceptance_suite_evidence.v1.0.0",
-            "kind": "installation_real_e2e_suite",
-            "installation_id": installation_id,
-            "artifact_identity": artifact_identity,
-            "model_id": manifest.model.id,
-            "contract": manifest.production_acceptance_suite.model_dump(mode="json"),
-            "tasks": [contract.request.task for contract in contracts],
-            "task_acceptances": [],
-            "installation_acceptance_succeeded": False,
-            "production_e2e_succeeded": False,
-            "outstanding_required_stages": [],
-            "web_playback": {
-                "passed": False,
-                "status": "requires_external_browser_evidence",
-            },
-            "task_failures": [
-                {
-                    "task": contract.request.task,
-                    "error_code": type(exc).__name__.upper(),
-                    "error_message": str(exc),
-                }
-                for contract in contracts
-            ],
-        }
-    return {
-        "schema_version": "virea.installation_acceptance_evidence.v1.0.0",
-        "kind": "installation_real_e2e",
-        "installation_id": installation_id,
-        "artifact_identity": artifact_identity,
-        "contract": contracts[0].model_dump(mode="json") if contracts else None,
-        "job_id": None,
-        "job_state": "FAILED",
-        "installation_acceptance_succeeded": False,
-        "production_e2e_succeeded": False,
-        "result_id": None,
-        "error_code": type(exc).__name__.upper(),
-        "error_message": str(exc),
-    }
 def _named_install_values(values: list[str], *, option: str) -> dict[str, str]:
     parsed: dict[str, str] = {}
     for value in values:
@@ -505,7 +473,7 @@ def _install(args) -> int:
                 )
             except (OSError, ValueError, json.JSONDecodeError):
                 artifact_identity = None
-            acceptance = _failed_acceptance_payload(
+            acceptance = installation_failure_evidence(
                 manifest,
                 exc,
                 installation_id=outcome.installation_id,

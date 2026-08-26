@@ -29,7 +29,7 @@ from virea_core.db import StateStore
 from virea_core.paths import VireaPaths
 from virea_model_pool import ModelVerificationCancelled
 from virea_runtime.process_identity import inspect_process
-from virea_runtime.supervisor import WorkerStartError
+from virea_runtime.supervisor import WorkerReportedStartError, WorkerStartError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_MANIFEST = REPO_ROOT / "plugins" / "models" / "fake-motion-v1" / "manifest.yaml"
@@ -923,6 +923,48 @@ def test_worker_start_error_controls_resource_lease_release(
             control.close()
         assert control.store.list_locks(prefix="control-plane:owner")
         _release_resource_rows(control)
+        control.close()
+
+
+def test_reported_worker_start_failure_reaches_control_plane_error_code(
+    tmp_path: Path, monkeypatch
+) -> None:
+    control = ControlPlane(
+        paths=VireaPaths(tmp_path / "home-reported-start-failure"),
+        plugin_root=_real_adapter_plugin_root(tmp_path / "plugins-reported-failure"),
+        allow_test_models=True,
+    )
+
+    def fail_start(**_kwargs):
+        raise WorkerReportedStartError(
+            {
+                "code": "MEMORY_STRATEGY_ATTESTATION_FAILED",
+                "message": "selected=cuda_full, active=None",
+                "retryable": False,
+            }
+        )
+
+    try:
+        monkeypatch.setattr(
+            control, "_ensure_runtime", lambda runtime, **_: Path(sys.executable)
+        )
+        monkeypatch.setattr(control.supervisor, "start", fail_start)
+        job = control._submit(
+            JobRequest(
+                model_id="fake-motion-v1",
+                task="text_to_motion",
+                input={"prompt": "reported startup failure"},
+                execution_target=_execution_target(control),
+            ),
+            model_roots={"fixture": tmp_path},
+            allow_unready_model=True,
+        )
+        terminal = control.wait(job["id"], timeout=15.0)
+
+        assert terminal["state"] == "FAILED"
+        assert terminal["error_code"] == "MEMORY_STRATEGY_ATTESTATION_FAILED"
+        assert terminal["error_message"] == "selected=cuda_full, active=None"
+    finally:
         control.close()
 
 

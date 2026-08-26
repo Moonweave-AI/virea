@@ -20,6 +20,7 @@ resource_profiles:
 entrypoint_argv:
   - python
   - -m
+  - virea_model_sdk.worker_entrypoint
   - virea_prism.worker
 startup_timeout_seconds: 1800
 environment_allowlist:
@@ -36,5 +37,5 @@ environment_allowlist:
 working_directory: plugins/models/prism-tp2m-1-4b/runtime-cu128
 project_package: virea-model-prism-tp2m-1-4b-cu128-runtime
 project_version: 0.1.6
-runtime_core_epoch: virea-runtime-core-20260821.2
+runtime_core_epoch: virea-runtime-core-20260826.1
 availability: windows_and_linux_cuda_lock_resolution_verified_runtime_0_1_6_accelerate_dispatch_removed_requires_reacceptance

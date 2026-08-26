@@ -56,6 +56,7 @@ runtime_variants:
     entrypoint_argv:
       - python
       - -m
+      - virea_model_sdk.worker_entrypoint
       - virea_model_sdk.fake_worker
     environment_allowlist:
       - VIREA_RUNTIME_ID

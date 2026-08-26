@@ -3,12 +3,14 @@ from __future__ import annotations
 import base64
 import binascii
 import gc
+import hashlib
 import io
 import math
 import os
 import random
 import re
 import sys
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -23,6 +25,13 @@ from virea_model_sdk.worker import WorkerFailure
 
 SOURCE_REVISION = "71c61b05a0609a41c17aa146c9f4ee7778ebc649"
 CHECKPOINT_REVISION = "242b2031a913dd1b25f43fe1f3e112611864c9cc"
+_KMEANS_MODEL_SHA256 = (
+    "1faf1a70098f1853427347520475a802de9aaf7dfb955c3af2cd83b6ca3857cd"
+)
+_KMEANS_ORIGINAL_SKLEARN_VERSION = "1.0.2"
+_HUBERT_MODEL_SHA256 = (
+    "2fefccd26c2794a583b80f6f7210c721873cb7ebae2c1cde3baf9b27855e24d8"
+)
 
 ARTIFACT_REQUIREMENTS = {
     "sentiavatar-source": (
@@ -310,6 +319,109 @@ class SentiAvatarBackend:
         )
         return model.float().to(device).eval()
 
+    def _load_kmeans_centers(self, joblib_module: Any) -> np.ndarray:
+        """Extract the one trusted numeric contract from the pinned estimator."""
+
+        path = self.checkpoint_root / "hubert_kmeans/model.mdl"
+        try:
+            with path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        except OSError as exc:
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                f"HuBERT K-means checkpoint cannot be read: {exc}",
+            ) from exc
+        if digest != _KMEANS_MODEL_SHA256:
+            raise WorkerFailure(
+                "CHECKPOINT_INTEGRITY_MISMATCH",
+                "HuBERT K-means checkpoint differs from the pinned official asset",
+            )
+
+        from sklearn.exceptions import InconsistentVersionWarning
+
+        with warnings.catch_warnings(record=True) as observed:
+            warnings.simplefilter("always", InconsistentVersionWarning)
+            estimator = joblib_module.load(path)
+        version_warnings = [
+            item.message
+            for item in observed
+            if isinstance(item.message, InconsistentVersionWarning)
+        ]
+        if any(
+            warning.original_sklearn_version != _KMEANS_ORIGINAL_SKLEARN_VERSION
+            for warning in version_warnings
+        ):
+            versions = sorted(
+                {warning.original_sklearn_version for warning in version_warnings}
+            )
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                "HuBERT K-means estimator has unexpected scikit-learn provenance: "
+                + ", ".join(versions),
+            )
+        if type(estimator).__name__ != "MiniBatchKMeans" or not type(
+            estimator
+        ).__module__.startswith("sklearn.cluster"):
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                "HuBERT K-means checkpoint is not the official scikit-learn "
+                "MiniBatchKMeans estimator",
+            )
+        centers = np.asarray(estimator.cluster_centers_, dtype=np.float32)
+        if centers.shape != (500, 768) or not np.isfinite(centers).all():
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                "HuBERT K-means centers must be one finite 500x768 matrix; "
+                f"got {centers.shape}",
+            )
+        return np.ascontiguousarray(centers)
+
+    def _load_hubert_model(
+        self,
+        torch_module: Any,
+        config_type: Any,
+        model_type: Any,
+    ) -> Any:
+        """Load the one pinned legacy state dict without a version-dependent loader."""
+
+        root = self.checkpoint_root / "chinese-hubert-base"
+        checkpoint = root / "pytorch_model.bin"
+        try:
+            with checkpoint.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        except OSError as exc:
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                f"HuBERT checkpoint cannot be read: {exc}",
+            ) from exc
+        if digest != _HUBERT_MODEL_SHA256:
+            raise WorkerFailure(
+                "CHECKPOINT_INTEGRITY_MISMATCH",
+                "HuBERT checkpoint differs from the pinned official asset",
+            )
+
+        state_dict = torch_module.load(
+            checkpoint,
+            map_location="cpu",
+            weights_only=True,
+        )
+        if (
+            not isinstance(state_dict, dict)
+            or len(state_dict) != 211
+            or not all(isinstance(key, str) for key in state_dict)
+            or not all(
+                isinstance(value, torch_module.Tensor) for value in state_dict.values()
+            )
+        ):
+            raise WorkerFailure(
+                "CHECKPOINT_CONTRACT_MISMATCH",
+                "HuBERT checkpoint is not the expected 211-tensor state dict",
+            )
+        config = config_type.from_pretrained(root, local_files_only=True)
+        model = model_type(config)
+        model.load_state_dict(state_dict, strict=True)
+        return model
+
     def load(self) -> None:
         if self.loaded:
             return
@@ -338,12 +450,16 @@ class SentiAvatarBackend:
                 from transformers import (
                     AutoModelForCausalLM,
                     AutoTokenizer,
+                    HubertConfig,
                     HubertModel,
                     Wav2Vec2FeatureExtractor,
                 )
 
                 from configs import default_config
 
+                # Reject an altered or incompatible legacy estimator before
+                # allocating the LLM, HuBERT, mask transformer, or VAEs.
+                centers = self._load_kmeans_centers(joblib)
                 if strategy == "cuda_full":
                     if not torch.cuda.is_available():
                         raise WorkerFailure(
@@ -383,9 +499,7 @@ class SentiAvatarBackend:
                     hubert_root, local_files_only=True
                 )
                 hubert = (
-                    HubertModel.from_pretrained(
-                        hubert_root, local_files_only=True, dtype=torch.float32
-                    )
+                    self._load_hubert_model(torch, HubertConfig, HubertModel)
                     .to(device)
                     .eval()
                 )
@@ -394,13 +508,6 @@ class SentiAvatarBackend:
                 )
                 rvq_model = self._load_rvqvae(default_config, rvqvae, device)
                 face_model = self._load_face_model(face_model_vq, device)
-                kmeans = joblib.load(self.checkpoint_root / "hubert_kmeans/model.mdl")
-                centers = np.asarray(kmeans.cluster_centers_, dtype=np.float32)
-                if centers.ndim != 2 or centers.shape[1] != 768:
-                    raise WorkerFailure(
-                        "CHECKPOINT_CONTRACT_MISMATCH",
-                        f"HuBERT K-means centers have shape {centers.shape}",
-                    )
                 mean = self._validated_vector(
                     self.motion_root / "meta/mta_gen_demo/mean.npy", label="body mean"
                 )
@@ -438,7 +545,7 @@ class SentiAvatarBackend:
         self._planner = planner
         self._hubert_extractor = hubert_extractor
         self._hubert = hubert
-        self._kmeans_centers = np.ascontiguousarray(centers)
+        self._kmeans_centers = centers
         self._mask_model = mask_model
         self._rvqvae = rvq_model
         self._face_model = face_model

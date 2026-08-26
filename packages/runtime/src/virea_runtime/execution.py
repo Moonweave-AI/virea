@@ -161,6 +161,45 @@ def managed_domain_path(
     return posixpath.join(home, collection, name)
 
 
+def managed_domain_environment(domain: ExecutionDomainReport) -> dict[str, str]:
+    """Return the validated domain-local persistent path environment.
+
+    Older execution-domain reports have no managed-cache tool facts, so they
+    retain the historical guest defaults.  New WSL probes publish both cache
+    paths only after safely parsing the environment generated inside that
+    distribution by ``configure-virea.sh``.
+    """
+
+    home = _require_posix_absolute(domain.virea_home, label="domain VIREA_HOME")
+    uv_cache = domain.tools.get("managed_uv_cache_dir")
+    hf_home = domain.tools.get("managed_hf_home")
+    if uv_cache is None and hf_home is None:
+        return {"VIREA_HOME": home}
+    if not uv_cache or not hf_home:
+        raise ValueError(
+            f"execution domain {domain.id} has an incomplete managed cache layout"
+        )
+    uv_cache = _require_posix_absolute(uv_cache, label="domain managed UV_CACHE_DIR")
+    hf_home = _require_posix_absolute(hf_home, label="domain managed HF_HOME")
+    data_root = posixpath.dirname(home)
+    expected_uv_cache = posixpath.join(data_root, "uv-cache")
+    expected_hf_home = posixpath.join(home, "cache", "huggingface")
+    if (
+        posixpath.basename(home) != "home"
+        or uv_cache != expected_uv_cache
+        or hf_home != expected_hf_home
+    ):
+        raise ValueError(
+            f"execution domain {domain.id} managed paths do not share the "
+            "configure-virea.sh data-root layout"
+        )
+    return {
+        "VIREA_HOME": home,
+        "UV_CACHE_DIR": uv_cache,
+        "HF_HOME": hf_home,
+    }
+
+
 def domain_python_path(
     domain: ExecutionDomainReport | None, prefix: str | Path
 ) -> str | Path:

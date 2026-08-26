@@ -42,7 +42,13 @@ from .runtime import (
 from .runtime_identity import RUNTIME_CORE_EPOCH
 from .skeleton import SkeletonProfile
 from .vrm import ActorExportIdentity, ExportRecord, ResultIdentity, VrmMotionResult
-from .worker import RuntimeCoreIdentity, WorkerError, WorkerInferRequest, WorkerMetadata
+from .worker import (
+    RuntimeCoreIdentity,
+    WorkerError,
+    WorkerInferRequest,
+    WorkerMetadata,
+    WorkerStartupFailure,
+)
 
 __all__ = [
     "TERMINAL_INSTALLATION_STATES",
@@ -85,6 +91,7 @@ __all__ = [
     "WorkerError",
     "WorkerInferRequest",
     "WorkerMetadata",
+    "WorkerStartupFailure",
     "RUNTIME_CORE_EPOCH",
     "canonical_nvidia_uuid",
     "execution_domain_id",

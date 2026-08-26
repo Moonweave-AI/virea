@@ -802,13 +802,32 @@ def _diagnostic_lines(payload: Mapping[str, Any]) -> Iterable[str]:
     candidates: list[str] = []
     acceptance = payload.get("acceptance")
     if isinstance(acceptance, Mapping):
-        error_code = acceptance.get("error_code")
-        error_message = acceptance.get("error_message")
-        if error_code or error_message:
-            candidates.append(
-                ": ".join(str(value) for value in (error_code, error_message) if value)
+        primary_failure = acceptance.get("primary_failure")
+        if not isinstance(primary_failure, Mapping):
+            task_failures = acceptance.get("task_failures")
+            primary_failure = (
+                task_failures[0]
+                if isinstance(task_failures, Sequence)
+                and not isinstance(task_failures, str)
+                and task_failures
+                and isinstance(task_failures[0], Mapping)
+                else None
             )
-        stages = acceptance.get("stages")
+        failure = primary_failure or acceptance
+        error_code = failure.get("error_code")
+        error_message = failure.get("error_message")
+        if error_code or error_message:
+            identity = " · ".join(
+                str(value)
+                for value in (failure.get("task"), failure.get("job_id"))
+                if value
+            )
+            cause = ": ".join(
+                str(value) for value in (error_code, error_message) if value
+            )
+            candidates.append(f"{identity} — {cause}" if identity else cause)
+        stages = failure.get("stages")
+        declared_failed_stages = failure.get("failed_stages")
         web_playback = acceptance.get("web_playback")
         expected_external = (
             {"web_playback"}
@@ -816,7 +835,11 @@ def _diagnostic_lines(payload: Mapping[str, Any]) -> Iterable[str]:
             and web_playback.get("status") == "requires_external_browser_evidence"
             else set()
         )
-        if isinstance(stages, Mapping):
+        if isinstance(declared_failed_stages, Sequence) and not isinstance(
+            declared_failed_stages, str
+        ):
+            failed_stages = [str(value) for value in declared_failed_stages]
+        elif isinstance(stages, Mapping):
             failed_stages = sorted(
                 (
                     str(name)
@@ -827,11 +850,12 @@ def _diagnostic_lines(payload: Mapping[str, Any]) -> Iterable[str]:
                     value, len(_ACCEPTANCE_STAGE_ORDER)
                 ),
             )
-            if failed_stages:
-                candidates.append(
-                    "Failed acceptance stages / 验收失败阶段: "
-                    + ", ".join(failed_stages)
-                )
+        else:
+            failed_stages = []
+        if failed_stages:
+            candidates.append(
+                "Failed acceptance stages / 验收失败阶段: " + ", ".join(failed_stages)
+            )
         missing_files = acceptance.get("missing_installation_files")
         if isinstance(missing_files, Sequence) and not isinstance(missing_files, str):
             if missing_files:

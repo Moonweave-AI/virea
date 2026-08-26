@@ -299,6 +299,16 @@ export interface ModelManifest {
     latest_attempt?: {
       installation_id?: string | null;
       state?: string | null;
+      failure?: {
+        task?: string | null;
+        job_id?: string | null;
+        job_state?: string | null;
+        error_code?: string | null;
+        error_message?: string | null;
+        failed_stages?: string[];
+        publication_failure?: string | null;
+        downloads_reusable?: boolean;
+      } | null;
     } | null;
   } | null;
   test_only?: boolean;

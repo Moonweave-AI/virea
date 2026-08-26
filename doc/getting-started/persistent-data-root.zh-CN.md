@@ -110,6 +110,39 @@ cd virea
 Linux、WSL2 与 macOS 使用相同的六阶段可见输出。首次运行显示 `Added hook:`；以后运行显示
 `Hook already present:`，表明启动文件没有被重复追加。
 
+### 从 Windows 选择 WSL 执行域时
+
+Windows 控制面不会把 Windows 的 Runtime 或依赖缓存冒充成 Linux 环境。每个准备从 Windows 选择的
+`wsl:<distribution>` 都必须在该发行版内部完成一次上述 POSIX 配置；`wsl.exe --exec` 不会读取交互 shell
+启动文件，因此 VIREA 会把脚本生成的 `environment.sh` 当作数据严格解析，而不会执行其中内容。缺失、损坏、
+相对路径或不属于同一数据根的配置会使该 WSL 域显示 `configuration-required`，不会回退到
+`~/.local/share/virea` 或 Windows 的缓存目录。
+
+```powershell
+# 从 Windows 进入 doctor 显示的精确发行版；-d 后是发行版名称，不是泛指“WSL”。
+wsl.exe -d Ubuntu-24.04
+```
+
+```bash
+# 以下命令在刚进入的 WSL shell 内运行。把示例改成该发行版能访问的现有 git clone。
+cd '/mnt/e/moonweave-ai/VIREA_LOCAL/virea'
+
+# 为这个 WSL 域选择独立子根，避免 Linux 与 Windows venv 使用同一 home；引号不属于目录名。
+wsl_data_root='/mnt/e/moonweave-ai/VIREA_LOCAL/domains/Ubuntu-24.04'
+
+# 写入这个发行版自己的 VIREA_HOME、UV_CACHE_DIR 与 HF_HOME；--data-root 接收上面的根，不接收 home/。
+./scripts/configure-virea.sh --data-root "$wsl_data_root"
+
+# 让当前 WSL shell 立即生效；以后新 shell 会由已安装的 hook 自动加载。
+. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
+
+# 返回 Windows 后重新运行 uv run virea 或 doctor，新的执行域报告才会读取该配置。
+exit
+```
+
+模型 checkpoint 仍由控制面作为与操作系统无关的资产复用；只有 WSL 的隔离 Runtime 与依赖缓存使用这个
+发行版自己的子根，所以更新源码或修复 Runtime 不需要删除、复制或重新下载已经验证的模型文件。
+
 ## 首次配置之后
 
 打开新终端、进入 clone 后，正常命令不再重复传根路径：
