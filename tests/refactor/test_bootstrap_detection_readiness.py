@@ -573,6 +573,56 @@ def test_built_runtime_accepts_exact_matching_project_and_core_identity() -> Non
     assert outcome.runtime_rebuild_required is False
 
 
+@pytest.mark.parametrize("observed", (None, {"sha256": "stale"}))
+def test_built_runtime_rejects_missing_or_stale_source_identity_as_rebuildable(
+    observed,
+) -> None:
+    expected = {
+        "schema_version": "virea.runtime_source_identity.v1",
+        "runtime_id": "fixture-cu128",
+        "sha256": "current",
+        "file_count": 4,
+        "local_packages": ["fixture-runtime"],
+    }
+    probe = _built_probe()
+    probe["runtime_source_identity"] = observed
+
+    outcome = resolve_built_runtime(
+        _runtime(),
+        probe,
+        expected_runtime_source_identity=expected,
+    )
+
+    assert outcome.status == "not-ready"
+    assert outcome.runtime_rebuild_required is True
+    assert outcome.reasons == (
+        "isolated runtime source identity mismatch: "
+        f"expected sha256=current, observed sha256="
+        f"{observed.get('sha256') if isinstance(observed, dict) else None}",
+    )
+
+
+def test_built_runtime_accepts_exact_source_identity() -> None:
+    expected = {
+        "schema_version": "virea.runtime_source_identity.v1",
+        "runtime_id": "fixture-cu128",
+        "sha256": "current",
+        "file_count": 4,
+        "local_packages": ["fixture-runtime"],
+    }
+    probe = _built_probe()
+    probe["runtime_source_identity"] = expected
+
+    outcome = resolve_built_runtime(
+        _runtime(),
+        probe,
+        expected_runtime_source_identity=expected,
+    )
+
+    assert outcome.status == "ready"
+    assert outcome.runtime_rebuild_required is False
+
+
 def test_built_runtime_rejects_unsupported_compute_capability() -> None:
     outcome = resolve_built_runtime(
         _runtime(),

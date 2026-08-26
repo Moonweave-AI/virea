@@ -90,6 +90,17 @@ uv sync --locked --all-packages --extra dev
 uv run virea
 ```
 
+## 仓库已经更新，但模型隔离 Runtime 仍使用旧代码
+
+`uv sync --locked --all-packages --extra dev` 更新的是 VIREA 主 workspace；`VIREA_HOME/runtimes` 下的逐模型环境按设计与其
+隔离。当前 VIREA 不再只依据 `project_version` 或 `runtime_core_epoch` 判断能否复用。每个构建完成的 Runtime 都记录一个
+SHA-256 源码身份，覆盖 lockfile 和传递性的本地安装闭包（模型包装包、共享 Worker、Model SDK、contracts）。每次复用前，
+`uv run virea` 都会把这份记录与当前 clone 比较；记录缺失或任意内容不一致都属于可自动重建的过期状态。
+
+不要删除模型安装或 checkpoint。完成上面的普通 `git pull` 和 `uv sync` 后，运行 `uv run virea`，选择同一模型和执行域即可。
+VIREA 会隔离旧 Python 环境、创建并探测新环境，然后原子发布；model store 中已经校验的模型 artifact 会直接复用。Windows
+native、Linux native、macOS native 和 WSL 使用同一机制；WSL 的身份文件会在所选发行版自己的 Runtime 前缀中写入和探测。
+
 ## 下载成功，但最后显示 `Model state FAILED`
 
 `fetched stable asset` 只说明下载和制品校验成功，不代表后续模型加载、推理、Motion IR 转换、重定向与 VRMA

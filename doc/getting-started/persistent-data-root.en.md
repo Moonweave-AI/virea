@@ -174,8 +174,10 @@ path: PowerShell uses `$env:VIREA_HOME`; POSIX shells use `"$VIREA_HOME"`.
 ## Update another device that is already deployed
 
 An update does not require a fresh clone, deletion of `VIREA_HOME`, or a complete model download. These commands update
-source, locked environments, and the Web build only. Models, Runtimes, jobs, results, and logs remain in the persistent
-home configured on that device.
+source, the main locked workspace, and the Web build. Per-model Runtimes intentionally remain outside that workspace,
+but the next `uv run virea` compares each selected Runtime's recorded source-content identity with the current locked
+source closure and rebuilds only a missing or stale isolated environment. Model assets, jobs, results, and logs remain in
+the persistent home configured on that device.
 
 ```powershell
 # Enter the existing clone on the other device. -LiteralPath treats the complete value as a path; replace this example.
@@ -236,12 +238,16 @@ uv run virea model verify MODEL_ID
 uv run virea
 ```
 
-When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, or `runtime_core_epoch`
-change can instead produce `installed: true` with `ready: false`: the files still exist, but the new code correctly refuses
-to treat old evidence as current READY evidence. Preview
+When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, `runtime_core_epoch`, or
+Runtime source-content change can instead produce `installed: true` with `ready: false`: the model files still exist, but
+the new code correctly refuses to run an outdated isolated environment. A Runtime installed before source identities were
+introduced is rebuilt once on first use. The identity covers the lockfile and transitive local package closure (the model
+wrapper, shared Worker, Model SDK, and contracts), so a same-version Worker fix is detected without relying on timestamps
+or a manual version bump. Preview
 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` without `--apply`; append `--apply` only after reviewing the
 plan. `DOMAIN` is `windows-native`, `linux-native`, `macos-native`, or the exact `wsl:distribution` ID. Repair reuses verified
-artifacts and compatible Runtimes; only a newly required revision or a missing/corrupt file requires the corresponding download.
+artifacts; rebuilding a stale Python Runtime does not re-download a valid checkpoint. Only a newly required artifact
+revision or a missing/corrupt file requires the corresponding download.
 
 ## Moving to another volume
 

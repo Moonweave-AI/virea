@@ -90,6 +90,20 @@ uv sync --locked --all-packages --extra dev
 uv run virea
 ```
 
+## The repository updated, but an isolated model Runtime still used old code
+
+`uv sync --locked --all-packages --extra dev` updates the main VIREA workspace; per-model environments under
+`VIREA_HOME/runtimes` are deliberately isolated from it. Current VIREA does not decide reuse from only
+`project_version` or `runtime_core_epoch`. Every built Runtime records a SHA-256 source identity covering its lockfile and
+transitive local install closure (model wrapper, shared Worker, Model SDK, and contracts). Before reuse, `uv run virea`
+compares that record with the current clone. A missing record or any content mismatch is rebuildable stale state.
+
+Do not delete the model installation or checkpoint. After the ordinary `git pull` and `uv sync` commands above, run
+`uv run virea` and select the same model and execution domain. VIREA quarantines the stale Python environment, creates and
+probes a fresh one, then publishes it atomically. Verified model assets remain in the model store and are reused. This
+works the same way for Windows native, Linux native, macOS native, and WSL; WSL writes and probes the identity inside the
+selected distribution's Runtime prefix.
+
 ## Download succeeded, but installation ends in `Model state FAILED`
 
 Lines such as `fetched stable asset` prove that acquisition and verification completed; they do not prove that model

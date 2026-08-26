@@ -6,10 +6,6 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10 uses the declared backport.
-    import tomli as tomllib
 from virea_contracts.machine import ExecutionDomainReport
 from virea_contracts.runtime import RuntimeBackend, RuntimeSpec
 
@@ -20,6 +16,11 @@ from ..execution import (
     managed_domain_path,
     map_host_path_to_domain,
     wrap_domain_command,
+)
+from ..source_identity import (
+    local_runtime_projects,
+    runtime_source_identity,
+    runtime_source_identity_write_command,
 )
 from .base import (
     BuildPlan,
@@ -44,58 +45,7 @@ def _offline_requested(environment: dict[str, str]) -> bool:
 def _local_path_package_closure(source: Path) -> tuple[str, ...]:
     """Return every local project whose wheel must reflect current source."""
 
-    pending = [source.resolve(strict=True)]
-    projects: dict[str, Path] = {}
-    while pending:
-        project_root = pending.pop()
-        pyproject_path = project_root / "pyproject.toml"
-        try:
-            pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError) as exc:
-            raise RuntimeBuildError(
-                f"local Runtime project metadata is invalid: {pyproject_path}"
-            ) from exc
-        project_name = pyproject.get("project", {}).get("name")
-        if not isinstance(project_name, str) or not project_name.strip():
-            raise RuntimeBuildError(
-                f"local Runtime project has no package name: {pyproject_path}"
-            )
-        project_name = project_name.strip()
-        previous = projects.get(project_name)
-        if previous is not None:
-            if previous != project_root:
-                raise RuntimeBuildError(
-                    "local Runtime dependency closure repeats package name at "
-                    f"different paths: {project_name}"
-                )
-            continue
-        projects[project_name] = project_root
-
-        sources = pyproject.get("tool", {}).get("uv", {}).get("sources", {})
-        if not isinstance(sources, dict):
-            continue
-        for dependency_name, source_declaration in sources.items():
-            declarations = (
-                source_declaration
-                if isinstance(source_declaration, list)
-                else [source_declaration]
-            )
-            for declaration in declarations:
-                if not isinstance(declaration, dict) or "path" not in declaration:
-                    continue
-                relative = declaration.get("path")
-                if not isinstance(relative, str) or not relative.strip():
-                    raise RuntimeBuildError(
-                        f"local Runtime dependency {dependency_name!r} has no path"
-                    )
-                dependency_root = (project_root / relative).resolve(strict=False)
-                if not (dependency_root / "pyproject.toml").is_file():
-                    raise RuntimeBuildError(
-                        "local Runtime dependency project is unavailable: "
-                        f"{dependency_name} -> {dependency_root}"
-                    )
-                pending.append(dependency_root.resolve(strict=True))
-    return tuple(sorted(projects))
+    return tuple(name for name, _root in local_runtime_projects(source))
 
 
 def _refresh_package_args(packages: tuple[str, ...]) -> tuple[str, ...]:
@@ -166,6 +116,7 @@ class UvNativeBackend:
                 f"uv executable was not found in execution domain {domain_id}"
             )
         source = resolve_runtime_source(spec, source_root=self.source_root)
+        source_identity = runtime_source_identity(spec, source_root=self.source_root)
         lockfile = (source / spec.lockfile).resolve(strict=False)
         if not lockfile.exists():
             raise FileNotFoundError(f"runtime lockfile not found: {lockfile}")
@@ -215,6 +166,12 @@ class UvNativeBackend:
                     str(domain_python_path(execution_domain, target)),
                 ),
             )
+        commands = (
+            *commands,
+            runtime_source_identity_write_command(
+                domain_python_path(execution_domain, target), source_identity
+            ),
+        )
         return BuildPlan(
             runtime_id=spec.id,
             target=target,
@@ -310,6 +267,7 @@ class UvNativeBackend:
                 f"Python executable was not found inside execution domain {domain.id}"
             )
         source_host = resolve_runtime_source(spec, source_root=self.source_root)
+        source_identity = runtime_source_identity(spec, source_root=self.source_root)
         source = self.domain_path_mapper(domain, source_host)
         lockfile = posixpath.join(source, spec.lockfile)
         target_name = target.name
@@ -402,6 +360,16 @@ class UvNativeBackend:
                     environment=domain_environment,
                 ),
             )
+        runtime_python = domain_python_path(domain, domain_target)
+        commands = (
+            *commands,
+            wrap_domain_command(
+                domain,
+                runtime_source_identity_write_command(runtime_python, source_identity),
+                working_directory=source,
+                environment=domain_environment,
+            ),
+        )
         return BuildPlan(
             runtime_id=spec.id,
             target=domain_target,

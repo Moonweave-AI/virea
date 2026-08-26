@@ -1115,6 +1115,7 @@ def resolve_built_runtime(
     selected_resource_profile: str | None = None,
     selected_accelerator: AcceleratorSelection | None = None,
     execution_domain: ExecutionDomainReport | None = None,
+    expected_runtime_source_identity: dict[str, Any] | None = None,
 ) -> RuntimeCompatibility:
     """Validate the interpreter produced for one isolated runtime.
 
@@ -1178,6 +1179,24 @@ def resolve_built_runtime(
             )
             remediation.append(
                 f"rebuild runtime {spec.id} from its declared core epoch"
+            )
+            runtime_rebuild_required = True
+    if expected_runtime_source_identity is not None:
+        observed_source_identity = python_probe.get("runtime_source_identity")
+        if observed_source_identity != expected_runtime_source_identity:
+            expected_digest = expected_runtime_source_identity.get("sha256")
+            observed_digest = (
+                observed_source_identity.get("sha256")
+                if isinstance(observed_source_identity, dict)
+                else None
+            )
+            hard.append(
+                "isolated runtime source identity mismatch: "
+                f"expected sha256={expected_digest}, "
+                f"observed sha256={observed_digest}"
+            )
+            remediation.append(
+                f"rebuild runtime {spec.id} from the current locked source closure"
             )
             runtime_rebuild_required = True
 

@@ -20,6 +20,10 @@ import yaml
 from virea_contracts.runtime import RuntimeSpec
 from virea_runtime import BuildPlan, RuntimeBuildError
 from virea_runtime.backends.uv_native import UvNativeBackend
+from virea_runtime.source_identity import (
+    RUNTIME_SOURCE_IDENTITY_FILENAME,
+    runtime_source_identity,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -215,6 +219,69 @@ def _write_local_package(
     (root / "setup.cfg").write_text("[build]\nforce = 1\n", encoding="utf-8")
 
 
+def test_runtime_source_identity_tracks_content_without_versions_or_timestamps(
+    tmp_path: Path,
+) -> None:
+    runtime = tmp_path / "runtime"
+    _write_local_package(
+        runtime,
+        project_name="virea-source-identity-runtime",
+        import_name="virea_source_identity_runtime",
+        body='SOURCE_MARKER = "old"\n',
+        version="0.1.0",
+    )
+    (runtime / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    payload = yaml.safe_load(
+        (
+            REPO_ROOT / "registries" / "runtimes" / "acmdm-humanml3d-cu128.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    spec = RuntimeSpec.model_validate(payload).model_copy(
+        update={
+            "id": "source-identity-test",
+            "working_directory": ".",
+            "lockfile": "uv.lock",
+            "project_package": "virea-source-identity-runtime",
+            "project_version": "0.1.0",
+        }
+    )
+    source = runtime / "src" / "virea_source_identity_runtime" / "__init__.py"
+    original_stat = source.stat()
+
+    before = runtime_source_identity(spec, source_root=runtime)
+    source.write_text('SOURCE_MARKER = "new"\n', encoding="utf-8")
+    os.utime(source, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
+    after = runtime_source_identity(spec, source_root=runtime)
+
+    assert before["schema_version"] == "virea.runtime_source_identity.v1"
+    assert before["local_packages"] == ["virea-source-identity-runtime"]
+    assert before["sha256"] != after["sha256"]
+
+
+def test_every_registered_uv_runtime_has_a_complete_source_identity() -> None:
+    index = yaml.safe_load(
+        (REPO_ROOT / "registries" / "index.yaml").read_text(encoding="utf-8")
+    )
+    checked: list[str] = []
+    for relative in index["registries"]["runtimes"]:
+        spec = RuntimeSpec.model_validate(
+            yaml.safe_load((REPO_ROOT / relative).read_text(encoding="utf-8"))
+        )
+        if spec.backend.value != "uv-native" or spec.availability == "fixture_only":
+            continue
+        identity = runtime_source_identity(spec, source_root=REPO_ROOT)
+        assert identity["runtime_id"] == spec.id
+        assert identity["project_package"] == spec.project_package
+        assert identity["file_count"] > 1
+        assert spec.project_package in identity["local_packages"]
+        assert {"virea-contracts", "virea-model-sdk"}.issubset(
+            identity["local_packages"]
+        )
+        assert len(identity["sha256"]) == 64
+        checked.append(spec.id)
+    assert len(checked) >= 28
+
+
 def test_runtime_refreshes_same_version_local_core_source_offline(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -335,14 +402,21 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         else:
             monkeypatch.delenv("UV_OFFLINE", raising=False)
         plan = backend.plan(spec, target)
+        sync_index = next(
+            index
+            for index, command in enumerate(plan.commands)
+            if len(command) > 1 and command[1] == "sync"
+        )
         if not refresh_local_core:
-            command = list(plan.commands[0])
+            command = list(plan.commands[sync_index])
             while "--refresh-package" in command:
                 refresh_index = command.index("--refresh-package")
                 del command[refresh_index : refresh_index + 2]
+            commands = list(plan.commands)
+            commands[sync_index] = tuple(command)
             plan = replace(
                 plan,
-                commands=(tuple(command),),
+                commands=tuple(commands),
             )
         local_packages = {
             "virea-contracts",
@@ -353,21 +427,27 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         if offline and refresh_local_core:
             assert plan.commands[0][1:3] == ("cache", "clean")
             assert set(plan.commands[0][3:]) == local_packages
-            assert "--refresh-package" not in plan.commands[-1]
+            assert "--refresh-package" not in plan.commands[sync_index]
         elif refresh_local_core:
             refreshed = {
-                plan.commands[-1][index + 1]
-                for index, argument in enumerate(plan.commands[-1][:-1])
+                plan.commands[sync_index][index + 1]
+                for index, argument in enumerate(plan.commands[sync_index][:-1])
                 if argument == "--refresh-package"
             }
             assert refreshed == local_packages
         else:
-            assert "--locked" in plan.commands[-1]
+            assert "--locked" in plan.commands[sync_index]
         environment = {**plan.environment, "UV_CACHE_DIR": str(cache)}
         if offline:
             environment["UV_OFFLINE"] = "1"
         replace(plan, environment=environment).execute(timeout_per_command=180.0)
         python = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        marker = json.loads(
+            target.joinpath(RUNTIME_SOURCE_IDENTITY_FILENAME).read_text(
+                encoding="utf-8"
+            )
+        )
+        assert marker == runtime_source_identity(spec, source_root=runtime)
         completed = subprocess.run(
             (
                 str(python),

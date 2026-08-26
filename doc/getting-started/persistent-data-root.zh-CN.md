@@ -168,8 +168,10 @@ shell 使用 `"$VIREA_HOME"`。
 
 ## 更新另一台已经部署过的设备
 
-版本更新不要求重新 clone、删除 `VIREA_HOME` 或重新下载全部模型。下面命令只更新源码、锁定环境和 Web build；模型、
-Runtime、任务、结果和日志继续使用这台设备最初配置的持久 home。
+版本更新不要求重新 clone、删除 `VIREA_HOME` 或重新下载全部模型。下面命令会更新源码、主 workspace 的锁定环境和 Web
+build。每个模型的隔离 Runtime 按设计不属于主 workspace；但下一次 `uv run virea` 会比较所选 Runtime 已记录的源码内容
+身份与当前锁定源码闭包，只重建缺失或过期的隔离环境。模型 artifact、任务、结果和日志继续使用这台设备最初配置的持久
+home。
 
 ```powershell
 # 进入另一台设备现有的 clone。-LiteralPath 把整段路径作为原样路径；请替换为那台设备的实际 clone。
@@ -230,11 +232,14 @@ uv run virea model verify MODEL_ID
 uv run virea
 ```
 
-`model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision 或
-`runtime_core_epoch`，它可能返回 `installed: true` 但 `ready: false`：这表示旧文件仍在、但新代码拒绝把旧证据当作当前
-READY 证据。先运行不带 `--apply` 的 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` 查看计划；确认后才追加
-`--apply`。`DOMAIN` 是 `windows-native`、`linux-native`、`macos-native` 或实际 `wsl:发行版` ID。修复会优先复用通过校验的
-artifact 与仍兼容的 Runtime；只有新 manifest 明确要求不同 revision 或文件缺失/损坏时才需要下载对应内容。
+`model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision、
+`runtime_core_epoch` 或 Runtime 源码内容，它可能返回 `installed: true` 但 `ready: false`：模型文件仍在，但新代码会拒绝运行
+过期的隔离环境。首次使用本机制前安装的 Runtime 因没有源码身份，会在下一次使用时自动重建一次。身份覆盖 lockfile 与
+传递性的本地包闭包（模型包装包、共享 Worker、Model SDK、contracts），所以即使版本号和文件修改时间都没变，Worker
+源码修正也能被识别，不再依赖人工提升版本/epoch。先运行不带 `--apply` 的
+`uv run virea model repair MODEL_ID --execution-domain DOMAIN` 查看计划；确认后才追加 `--apply`。`DOMAIN` 是
+`windows-native`、`linux-native`、`macos-native` 或实际 `wsl:发行版` ID。重建过期 Python Runtime 不会重新下载通过校验的
+checkpoint；只有新 manifest 明确要求不同 artifact revision，或文件缺失/损坏时，才需要下载对应内容。
 
 ## 迁移到另一块盘
 
