@@ -338,8 +338,13 @@ class MotionCraftPlugin:
             frame_count=int(generated.normalized_motion322.shape[0]),
             coordinate_system="motionx.right_handed_y_up_profile_defined_forward",
             units="meters_after_task_checkpoint_denormalization",
-            root_translation_semantics="absolute_world_translation_features_309_to_312_with_explicit_source_profile",
-            root_rotation_semantics="smplx_global_orient_axis_angle_features_0_to_3_local_to_world",
+            root_translation_semantics=(
+                "absolute_world_translation_at_features_309_to_312_with_explicit_"
+                "source_profile"
+            ),
+            root_rotation_semantics=(
+                "smplx_global_orient_axis_angle_at_features_0_to_3_local_to_world"
+            ),
             artifacts=artifacts,
             seed=seed,
             precision="float32_output",

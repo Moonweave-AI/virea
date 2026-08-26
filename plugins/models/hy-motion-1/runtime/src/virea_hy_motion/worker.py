@@ -205,7 +205,10 @@ class HyMotionPlugin:
             frame_count=frame_count,
             coordinate_system="hy_motion.right_handed_y_up_ground_aligned",
             units="meters",
-            root_translation_semantics="absolute_world_translation_smoothed_and_ground_aligned",
+            root_translation_semantics=(
+                "absolute_world_translation_smoothed_and_shifted_vertically_to_"
+                "ground_the_decoded_mesh"
+            ),
             root_rotation_semantics="root_6d_rotation_local_to_world_smoothed_by_upstream_slerp_path",
             artifacts=(
                 *(

@@ -315,13 +315,15 @@ class SentiAvatarPlugin:
             skeleton_id=SKELETON_ID,
             fps=FPS,
             frame_count=frame_count,
-            coordinate_system="susu_native_xyz",
+            coordinate_system=("susu_native_xyz_with_official_bvh_export_xzy_swizzle"),
             units="centimeters_for_native_root_channel_rotations_unitless",
             root_translation_semantics=(
-                "differential_root_offsets_integrated_downstream_from_native_seed"
+                "first_three_body_features_are_differential_root_offsets_"
+                "integrated_by_cumulative_sum_then_seeded_at_native_0_0_102"
             ),
             root_rotation_semantics=(
-                "body25_parent_local_continuous_6d_with_native_pelvis_correction"
+                "first_body_joint_6d_parent_local_rotation_with_fixed_pelvis_"
+                "export_correction"
             ),
             artifacts=(
                 *(

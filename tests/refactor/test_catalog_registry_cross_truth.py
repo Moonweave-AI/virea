@@ -26,6 +26,15 @@ INTEGRATED_STATUSES = frozenset(
 )
 INTEGRATED_STATUS_VALUES = frozenset(status.value for status in INTEGRATED_STATUSES)
 EXPECTED_INTEGRATED_MODEL_COUNT = 14
+NATIVE_RESULT_CONTRACT_FIELDS = (
+    "representation_id",
+    "skeleton_id",
+    "fps",
+    "coordinate_system",
+    "units",
+    "root_translation_semantics",
+    "root_rotation_semantics",
+)
 
 
 def _yaml_mapping(path: Path) -> dict[str, Any]:
@@ -119,6 +128,93 @@ def _worker_resource_literals(model_id: str) -> tuple[Path, dict[str, ast.expr]]
         key.value: value
         for key, value in zip(resources.keys, resources.values, strict=True)
         if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+
+
+def _worker_native_result_contract(model_id: str) -> tuple[Path, dict[str, Any]]:
+    """Resolve the native result declaration without importing model dependencies."""
+
+    worker_path, _ = _worker_metadata_keywords(model_id)
+    tree = ast.parse(worker_path.read_text(encoding="utf-8"), filename=str(worker_path))
+    trees = {worker_path: tree}
+
+    def module_tree(path: Path) -> ast.Module:
+        if path not in trees:
+            trees[path] = ast.parse(
+                path.read_text(encoding="utf-8"), filename=str(path)
+            )
+        return trees[path]
+
+    def imported_module_path(path: Path, node: ast.ImportFrom) -> Path:
+        base = path.parent
+        for _ in range(max(0, node.level - 1)):
+            base = base.parent
+        if node.module:
+            base = base.joinpath(*node.module.split("."))
+        module_file = base.with_suffix(".py")
+        return module_file if module_file.is_file() else base / "__init__.py"
+
+    def resolve_name(name: str, path: Path, stack: tuple[tuple[Path, str], ...]) -> Any:
+        identity = (path, name)
+        assert identity not in stack, f"cyclic static assignment: {path}:{name}"
+        for node in module_tree(path).body:
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AnnAssign):
+                targets = (node.target,)
+            else:
+                targets = ()
+            if any(
+                isinstance(target, ast.Name) and target.id == name for target in targets
+            ):
+                return resolve(node.value, path, (*stack, identity))
+            if isinstance(node, ast.ImportFrom) and node.level:
+                for alias in node.names:
+                    if (alias.asname or alias.name) == name:
+                        return resolve_name(
+                            alias.name,
+                            imported_module_path(path, node),
+                            (*stack, identity),
+                        )
+        raise AssertionError(f"{path} has no statically resolvable {name!r}")
+
+    def resolve(
+        expression: ast.expr,
+        path: Path = worker_path,
+        stack: tuple[tuple[Path, str], ...] = (),
+    ) -> Any:
+        if isinstance(expression, ast.Name):
+            return resolve_name(expression.id, path, stack)
+        try:
+            return ast.literal_eval(expression)
+        except (ValueError, TypeError) as exc:
+            raise AssertionError(
+                f"{worker_path} native result contract is not statically resolvable"
+            ) from exc
+
+    calls = tuple(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (
+            isinstance(node.func, ast.Name)
+            and node.func.id in {"NativeMotionDescriptor", "native_model_result"}
+            or isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"NativeMotionDescriptor", "native_model_result"}
+        )
+    )
+    assert len(calls) == 1, (
+        f"{worker_path} must declare exactly one native ModelResult descriptor"
+    )
+    keywords = {
+        keyword.arg: keyword.value for keyword in calls[0].keywords if keyword.arg
+    }
+    missing = set(NATIVE_RESULT_CONTRACT_FIELDS) - keywords.keys()
+    assert not missing, (
+        f"{worker_path} native result omits contract fields: {sorted(missing)}"
+    )
+    return worker_path, {
+        field: resolve(keywords[field]) for field in NATIVE_RESULT_CONTRACT_FIELDS
     }
 
 
@@ -274,6 +370,19 @@ def test_every_integrated_runtime_uses_the_shared_failure_reporting_entrypoint()
             assert runtime.entrypoint_argv[:3] == prefix, runtime.id
             assert len(runtime.entrypoint_argv) == 4, runtime.id
             assert runtime.entrypoint_argv[3].endswith(".worker"), runtime.id
+
+
+def test_every_integrated_worker_native_result_matches_its_manifest() -> None:
+    for manifest in _integrated_manifests():
+        worker_path, actual = _worker_native_result_contract(manifest.model.id)
+        expected = {
+            field: getattr(manifest.output, field)
+            for field in NATIVE_RESULT_CONTRACT_FIELDS
+        }
+        assert actual == expected, (
+            f"{manifest.model.id} native ModelResult contract in {worker_path} "
+            f"differs from its manifest: actual={actual}, expected={expected}"
+        )
 
 
 def test_intel_macos_cpu_locks_keep_legacy_torch_on_numpy_1_26() -> None:
