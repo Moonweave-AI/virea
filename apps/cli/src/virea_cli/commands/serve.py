@@ -1,15 +1,94 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 import sys
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import BinaryIO, TextIO
 
 import uvicorn
 
+from virea.resources import discover_resources
+
 _APP_FACTORY = "virea_api.app:create_app"
+
+
+def _web_source_files(repository_root: Path) -> tuple[Path, ...]:
+    project_root = repository_root / "apps" / "web"
+    fixed = (
+        project_root / "index.html",
+        project_root / "package.json",
+        project_root / "tsconfig.json",
+        project_root / "vite.config.ts",
+        repository_root / "pnpm-lock.yaml",
+        repository_root / "pnpm-workspace.yaml",
+    )
+    trees = (project_root / "src", project_root / "public")
+    return tuple(
+        sorted(
+            (
+                *(path for path in fixed if path.is_file()),
+                *(
+                    path
+                    for tree in trees
+                    if tree.is_dir()
+                    for path in tree.rglob("*")
+                    if path.is_file()
+                ),
+            ),
+            key=lambda path: path.as_posix(),
+        )
+    )
+
+
+def _web_distribution_is_current(repository_root: Path) -> bool:
+    sources = _web_source_files(repository_root)
+    distribution = repository_root / "apps" / "web" / "dist"
+    index = distribution / "index.html"
+    assets = distribution / "assets"
+    if not sources or not index.is_file() or not assets.is_dir():
+        return False
+    outputs = (index, *(path for path in assets.iterdir() if path.is_file()))
+    if len(outputs) == 1:
+        return False
+    newest_source = max(path.stat().st_mtime_ns for path in sources)
+    oldest_output = min(path.stat().st_mtime_ns for path in outputs)
+    return oldest_output >= newest_source
+
+
+def _prepare_web_distribution() -> None:
+    """Build a source checkout's ignored Web dist before it can become stale UI."""
+
+    if os.getenv("VIREA_WEB_DIST"):
+        return
+    resources = discover_resources()
+    if resources.origin != "source-tree" or _web_distribution_is_current(
+        resources.root
+    ):
+        return
+    pnpm = shutil.which("pnpm")
+    if pnpm is None:
+        raise SystemExit(
+            "VIREA Web sources changed but pnpm is unavailable / Web 源码已更新但找不到 pnpm；"
+            "install the documented Node.js 24 + pnpm 10 toolchain, then run "
+            "`uv run virea serve` again / 请安装文档要求的 Node.js 24 + pnpm 10 后重试"
+        )
+    print("VIREA Web / Web 前端: rebuilding the current source checkout...")
+    completed = subprocess.run(
+        [pnpm, "--dir", str(resources.root / "apps" / "web"), "build"],
+        cwd=resources.root,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise SystemExit(
+            "VIREA Web build failed / Web 前端构建失败；review the pnpm output above "
+            "and retry / 请检查上方 pnpm 输出后重试"
+        )
+    print("VIREA Web / Web 前端: current production bundle is ready.")
 
 
 def _request_shutdown_on_stdin_eof(
@@ -71,6 +150,8 @@ def run(args) -> int:
         raise SystemExit(
             "VIREA 0.4.0 local mode only binds loopback; remote mode is not enabled"
         )
+
+    _prepare_web_distribution()
 
     environment: dict[str, str] = {}
     if args.virea_home:

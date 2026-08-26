@@ -14,8 +14,8 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(http, /`\/api\/v1\$\{path\}`/);
   assert.match(api, /createInstallPayload\(manifest, executionTarget\)/);
   assert.match(api, /productionAcceptanceTimeoutSeconds\(manifest\)/);
-  assert.match(api, /createGenerationPayload\(manifest, prompt, seconds, seed, executionTarget, idempotencyKey\)/);
   assert.match(api, /createManifestGenerationPayload\(manifest, draft, executionTarget, idempotencyKey\)/);
+  assert.doesNotMatch(api, /createGenerationPayload|generate:\s*\(/);
   assert.match(api, /"\/execution-domains"/);
   assert.match(api, /\/execution-options/);
   assert.match(api, /"\/state"/);

@@ -257,12 +257,6 @@ export function createInstallPayload(
   };
 }
 
-export interface GenerationDefaults {
-  prompt: string;
-  seconds: number;
-  seed: number;
-}
-
 export interface GenerationFormDraft {
   task: string;
   values: Record<string, unknown>;
@@ -415,75 +409,6 @@ export function generationFormDefaults(
     ]),
   );
   return { task, values };
-}
-
-export function generationDefaults(
-  manifest: ModelManifest,
-  requestedTask?: string,
-): GenerationDefaults {
-  const contracts = productionAcceptanceContracts(manifest);
-  const task = requestedTask ?? contracts[0]?.request.task ?? "";
-  const acceptance = productionAcceptanceForTask(manifest, task);
-  if (!acceptance) {
-    throw new Error(`${manifest.model.id} 没有可执行的 production acceptance`);
-  }
-  const { input, parameters } = acceptance.request;
-  const prompt = input.prompt;
-  const fps = parameters.fps;
-  const seed = parameters.seed;
-  if (typeof prompt !== "string" || !prompt.trim()) {
-    throw new Error(`${manifest.model.id} 的 production acceptance prompt 无效`);
-  }
-  if (typeof fps !== "number" || !Number.isFinite(fps) || fps <= 0) {
-    throw new Error(`${manifest.model.id} 的 production acceptance fps 必须是正有限数`);
-  }
-  if (typeof seed !== "number" || !Number.isSafeInteger(seed) || seed < 0) {
-    throw new Error(`${manifest.model.id} 的 production acceptance seed 无效`);
-  }
-  let seconds: unknown = parameters.seconds;
-  if (seconds == null && typeof input.motion_length_frames === "number") {
-    seconds = input.motion_length_frames / fps;
-  }
-  if (seconds == null && typeof parameters.motion_length_frames === "number") {
-    seconds = parameters.motion_length_frames / fps;
-  }
-  if (seconds == null && typeof parameters.num_frames === "number") {
-    seconds = parameters.num_frames / fps;
-  }
-  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) {
-    throw new Error(`${manifest.model.id} 的 production acceptance 缺少可映射的时长`);
-  }
-  return { prompt: prompt.trim(), seconds, seed };
-}
-
-function setDuration(
-  request: WebGenerationJobRequest,
-  seconds: number,
-  fps: number,
-  modelId: string,
-): void {
-  if (Object.hasOwn(request.parameters, "seconds")) {
-    request.parameters.seconds = seconds;
-    return;
-  }
-  const framesFloat = seconds * fps;
-  const frames = Math.round(framesFloat);
-  if (Math.abs(framesFloat - frames) > 1e-6) {
-    throw new Error(`${modelId} 的时长与 fps 不能形成整数帧`);
-  }
-  if (Object.hasOwn(request.input, "motion_length_frames")) {
-    request.input.motion_length_frames = frames;
-    return;
-  }
-  if (Object.hasOwn(request.parameters, "motion_length_frames")) {
-    request.parameters.motion_length_frames = frames;
-    return;
-  }
-  if (Object.hasOwn(request.parameters, "num_frames")) {
-    request.parameters.num_frames = frames;
-    return;
-  }
-  throw new Error(`${modelId} 的 production acceptance 没有可映射的时长字段`);
 }
 
 const OMIT_FIELD = Symbol("omit-field");
@@ -685,52 +610,5 @@ export function createManifestGenerationPayload(
     );
     request[destination][name] = value;
   }
-  return request;
-}
-
-export function createGenerationPayload(
-  manifest: ModelManifest,
-  prompt: string,
-  seconds: number,
-  seed: number,
-  executionTarget: ExecutionTargetSelection,
-  idempotencyKey: string,
-): WebGenerationJobRequest {
-  const modelId = manifest.model.id;
-  if (!modelId) throw new Error("请选择真实可运行模型");
-  if (!prompt.trim()) throw new Error("Prompt 不能为空");
-  if (!Number.isFinite(seconds) || seconds < 1 || seconds > 90) {
-    throw new Error("时长必须在 1 到 90 秒之间");
-  }
-  if (!Number.isSafeInteger(seed) || seed < 0 || seed > 2_147_483_647) {
-    throw new Error("Seed 必须是 0 到 2147483647 的整数");
-  }
-  if (!idempotencyKey.trim() || idempotencyKey.length > 128) {
-    throw new Error("生成请求缺少有效的幂等键");
-  }
-  const acceptance = productionAcceptanceContracts(manifest)[0];
-  if (!acceptance) {
-    throw new Error(`${modelId} 没有与模型一致的 production acceptance，不能生成可追溯请求`);
-  }
-  const template = acceptance.request;
-  if (
-    template.schema_version !== "virea.job_request.v1.0.0" ||
-    template.avatar_id !== null
-  ) {
-    throw new Error(`${modelId} 的 production acceptance 不是可执行的 Web JobRequest`);
-  }
-  const fps = template.parameters.fps;
-  if (typeof fps !== "number" || !Number.isFinite(fps) || fps <= 0) {
-    throw new Error(`${modelId} 的 production acceptance fps 必须是正有限数`);
-  }
-  const request: WebGenerationJobRequest = structuredClone(template) as WebGenerationJobRequest;
-  request.input.prompt = prompt.trim();
-  if (!Object.hasOwn(request.parameters, "seed")) {
-    throw new Error(`${modelId} 的 production acceptance 缺少 parameters.seed`);
-  }
-  request.parameters.seed = seed;
-  request.idempotency_key = idempotencyKey;
-  request.execution_target = executionTarget;
-  setDuration(request, seconds, fps, modelId);
   return request;
 }

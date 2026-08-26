@@ -12,7 +12,6 @@ import type {
 import {
   artifactBasename,
   artifactUrl,
-  createGenerationPayload,
   createManifestGenerationPayload,
   createInstallPayload,
   productionAcceptanceTimeoutSeconds,
@@ -65,18 +64,6 @@ export const api = {
     }, { timeoutMs: installTimeout(manifest) }),
   jobs: () => request<JobRecord[]>("/jobs"),
   job: (jobId: string) => request<JobRecord>(`/jobs/${encodeURIComponent(jobId)}`),
-  generate: (
-    manifest: ModelManifest,
-    prompt: string,
-    seconds: number,
-    seed: number,
-    executionTarget: ExecutionTargetSelection,
-    idempotencyKey: string,
-  ) =>
-    request<JobRecord>("/jobs", {
-      method: "POST",
-      body: JSON.stringify(createGenerationPayload(manifest, prompt, seconds, seed, executionTarget, idempotencyKey)),
-    }),
   generateFromFields: (
     manifest: ModelManifest,
     draft: GenerationFormDraft,

@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 from virea_core.paths import VireaPaths
 
 from virea.resources import plugin_root as bundled_plugin_root
@@ -21,6 +22,22 @@ from .routes import (
     system_router,
 )
 from .service import ControlPlane
+
+_FRESH_WEB_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+class FreshWebStaticFiles(StaticFiles):
+    """Serve the local Studio without reusing a bundle from an older checkout."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers.update(_FRESH_WEB_HEADERS)
+        return response
 
 
 def _default_plugin_root() -> Path:
@@ -118,9 +135,17 @@ def create_app(
 
     @application.get("/", include_in_schema=False)
     async def web_root() -> RedirectResponse:
-        return RedirectResponse(url="/app/", status_code=307)
+        return RedirectResponse(
+            url="/app/",
+            status_code=307,
+            headers=_FRESH_WEB_HEADERS,
+        )
 
-    application.mount("/app", StaticFiles(directory=web_dist, html=True), name="web")
+    application.mount(
+        "/app",
+        FreshWebStaticFiles(directory=web_dist, html=True),
+        name="web",
+    )
     return application
 
 

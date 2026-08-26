@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: English troubleshooting guide for VIREA detection, installation, Worker, result, and browser-playback failures.
 canonical: doc/operations/troubleshooting.en.md
@@ -29,6 +29,7 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 | Runtime build fails | Target-domain Python/uv/lock and captured tail | Repair the selected domain; do not install dependencies manually into the checkout. |
 | Worker readiness times out | Startup limit, offline assets and model load logs | Verify, then repair; ensure the process tree has stopped. |
 | Generation times out/cancels | Job state, Worker instance and child tree | Let bounded cancellation finish; never publish a partial result. |
+| Web says an acceptance is not an executable JobRequest | Old Web bundle or a manifest/task contract drift | Update, restart the server, and load the current root entry point once; do not reinstall the model. |
 | VRMA validation fails | Rest hips, root translation, track counts and finite values | Fix exporter/adapter rather than hiding it in Viewer code. |
 | Avatar disappears/crops | VRM rest pose, VRMA absolute hips and console | Re-run Viewer QA against the real artifact. |
 
@@ -103,6 +104,48 @@ Do not delete the model installation or checkpoint. After the ordinary `git pull
 probes a fresh one, then publishes it atomically. Verified model assets remain in the model store and are reused. This
 works the same way for Windows native, Linux native, macOS native, and WSL; WSL writes and probes the identity inside the
 selected distribution's Runtime prefix.
+
+## Web says a model's production acceptance is not an executable JobRequest
+
+This message came from the retired prompt/seconds/seed-only browser request builder. That path could not represent audio,
+streaming, interaction, editing, or other task-specific schemas even when their production acceptance was valid. The Web
+client now has one request path: it selects the acceptance for the active task, renders that task's `manifest.inputs`
+fields, and submits the resulting versioned JobRequest. A catalog-derived test executes this path for every task of every
+integrated model, including both SentiAvatar tasks.
+
+The server now marks the Web entry point and assets `no-store`, so a normal navigation cannot reuse an older checkout's
+bundle. In a source clone, `virea serve` also compares the ignored `apps/web/dist` timestamps with the Web source and runs
+the locked `pnpm build` automatically when the distribution is missing or stale. An installed wheel uses its bundled,
+already-built distribution. A JavaScript program that was already running in an open tab cannot be replaced by the server,
+so load the root entry point once after updating. This is a source/Web update only: keep `VIREA_HOME`, the isolated Runtime,
+checkpoints, READY installation, jobs, and results.
+
+```powershell
+# Fast-forward this clone to current main; this changes repository files only and leaves the persistent data root intact.
+git pull --ff-only origin main
+
+# Reconcile the main workspace with the committed lock; model checkpoints under VIREA_HOME are not downloaded again.
+uv sync --locked --all-packages --extra dev
+
+# Start on loopback; source clones automatically rebuild a missing/stale Web bundle before binding the selected --port.
+uv run virea serve --host 127.0.0.1 --port 8080
+```
+
+Close the older Motion Studio tab, then open `http://127.0.0.1:8080/`. If the tab must remain open, use one hard refresh
+(`Ctrl+Shift+R`) after the server restart. Do not run `model remove`, delete the data root, or download SentiAvatar again.
+
+```bash
+# Linux, WSL, or macOS: fast-forward the same clone without changing persistent model data.
+git pull --ff-only origin main
+
+# Reconcile the locked main workspace; per-model environments and verified checkpoints remain reusable.
+uv sync --locked --all-packages --extra dev
+
+# Serve locally and auto-rebuild stale source assets; stop it later with Ctrl+C in this terminal.
+uv run virea serve --host 127.0.0.1 --port 8080
+```
+
+Close the old tab and open `http://127.0.0.1:8080/`; on macOS, one hard refresh is `Command+Shift+R`.
 
 ## Download succeeded, but installation ends in `Model state FAILED`
 

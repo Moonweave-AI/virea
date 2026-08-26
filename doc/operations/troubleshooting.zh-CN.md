@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
 review_cycle_days: 30
 summary: 环境探测、资源准入、安装、Worker、结果和浏览器播放的分层排错入口。
 canonical: doc/operations/troubleshooting.zh-CN.md
@@ -30,6 +30,7 @@ superseded_by: []
 | Runtime build 失败 | 目标执行域的 uv/Python、lock 和 stdout/stderr tail | 修复执行域，不在 checkout 手装依赖 |
 | Worker readiness 超时 | startup timeout、离线资产、模型加载日志 | `model verify` 后 repair；确认进程树已回收 |
 | 推理超时/取消 | job state、Worker instance、PID/child tree | 等待有界取消；不得发布 result |
+| Web 提示 acceptance 不是可执行 JobRequest | 旧 Web bundle 或 manifest/task 契约漂移 | 更新并重启服务，只加载一次当前根入口；不要重装模型 |
 | VRMA 校验失败 | rest hips、root translation、track 数、finite | 修 exporter/adapter，不在 Viewer 中掩盖 |
 | 浏览器角色消失或裁切 | VRM rest pose、VRMA absolute hips、console | 使用真实产物重跑 Viewer QA |
 
@@ -100,6 +101,45 @@ SHA-256 源码身份，覆盖 lockfile 和传递性的本地安装闭包（模�
 不要删除模型安装或 checkpoint。完成上面的普通 `git pull` 和 `uv sync` 后，运行 `uv run virea`，选择同一模型和执行域即可。
 VIREA 会隔离旧 Python 环境、创建并探测新环境，然后原子发布；model store 中已经校验的模型 artifact 会直接复用。Windows
 native、Linux native、macOS native 和 WSL 使用同一机制；WSL 的身份文件会在所选发行版自己的 Runtime 前缀中写入和探测。
+
+## Web 提示模型的 production acceptance 不是可执行 JobRequest
+
+这条提示来自已退役的“只支持 prompt/seconds/seed”浏览器请求构造器。即使 production acceptance 完全合法，旧路径也无法
+表达音频、流式、双人交互、编辑等任务专属 schema。当前 Web 只保留一条请求路径：按当前任务选择对应 acceptance，依据该任务
+的 `manifest.inputs` 渲染字段，再提交生成的版本化 JobRequest。仓库门禁会对每个已接入模型的每个任务实际执行这条路径，其中
+包括 SentiAvatar 的音频文本任务与流式对话任务。
+
+服务端现在为 Web 入口和静态资产发送 `no-store`，正常重新打开页面时不会复用旧 checkout 的 bundle。但已经在标签页中运行的
+JavaScript 无法被服务端隔空替换。源码 clone 中，`virea serve` 还会比较被 Git 忽略的 `apps/web/dist` 与 Web 源码时间戳；
+缺失或过期时自动执行锁定的 `pnpm build`。已安装 wheel 则直接使用打包时已经构建的前端。因此更新后只需加载一次根入口。
+此操作只更新源码与 Web：保留 `VIREA_HOME`、隔离 Runtime、checkpoint、READY 安装、任务和结果。
+
+```powershell
+# 将当前 clone 以 fast-forward 更新到最新 main；只更新仓库文件，不会改动持久数据根。
+git pull --ff-only origin main
+
+# 按提交的 lock 对齐主 workspace；不会重新下载 VIREA_HOME 中的模型 checkpoint。
+uv sync --locked --all-packages --extra dev
+
+# 在本机 loopback 启动；源码 clone 会先自动重建缺失/过期 Web，--port 决定浏览器地址。
+uv run virea serve --host 127.0.0.1 --port 8080
+```
+
+关闭旧 Motion Studio 标签页，再打开 `http://127.0.0.1:8080/`。如果必须保留原标签页，服务重启后只执行一次强制刷新
+（Windows/Linux/WSL 为 `Ctrl+Shift+R`）。不要运行 `model remove`、删除数据根或重新下载 SentiAvatar。
+
+```bash
+# Linux、WSL 或 macOS：fast-forward 同一个 clone，不修改持久模型数据。
+git pull --ff-only origin main
+
+# 对齐锁定的主 workspace；逐模型环境与已验证 checkpoint 仍可复用。
+uv sync --locked --all-packages --extra dev
+
+# 在本机启动并自动重建过期源码前端；之后在这个终端按 Ctrl+C 可完整停止服务。
+uv run virea serve --host 127.0.0.1 --port 8080
+```
+
+关闭旧标签页并打开 `http://127.0.0.1:8080/`；macOS 的一次强制刷新快捷键为 `Command+Shift+R`。
 
 ## 下载成功，但最后显示 `Model state FAILED`
 

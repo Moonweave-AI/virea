@@ -557,10 +557,20 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
         root = client.get("/", follow_redirects=False)
         assert root.status_code == 307
         assert root.headers["location"] == "/app/"
-        assert client.get("/app/").status_code == 200
+        assert root.headers["cache-control"] == (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
+        entrypoint = client.get("/app/")
+        assert entrypoint.status_code == 200
+        assert entrypoint.headers["cache-control"] == (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
         asset = client.get("/app/assets/app.js")
         assert asset.status_code == 200
         assert "ready = true" in asset.text
+        assert asset.headers["cache-control"] == (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
 
 
 def test_default_app_keeps_legacy_data_api_but_never_legacy_web_ui(
@@ -583,7 +593,11 @@ def test_default_app_keeps_legacy_data_api_but_never_legacy_web_ui(
         root = client.get("/", follow_redirects=False)
         assert root.status_code == 307
         assert root.headers["location"] == "/app/"
-        assert client.get("/app/").text == "<h1>current VIREA Web</h1>"
+        current_web = client.get("/app/")
+        assert current_web.text == "<h1>current VIREA Web</h1>"
+        assert current_web.headers["cache-control"] == (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
         assert client.get("/ui/").status_code == 404
         assert client.get("/api/health").status_code == 200
 
@@ -1391,6 +1405,87 @@ def test_cli_serve_factory_resolves_requested_home_after_stale_app_import(
     assert os.environ["VIREA_HOME"] == str(stale_home)
     assert os.environ["VIREA_DATA_SOURCE"] == "demo"
     assert "--data-source is deprecated" in capsys.readouterr().err
+
+
+def test_source_checkout_serve_rebuilds_a_stale_web_distribution(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    from types import SimpleNamespace
+
+    from virea_cli.commands import serve as serve_command
+
+    web = tmp_path / "apps" / "web"
+    source = web / "src"
+    assets = web / "dist" / "assets"
+    source.mkdir(parents=True)
+    assets.mkdir(parents=True)
+    (web / "package.json").write_text("{}", encoding="utf-8")
+    (source / "main.ts").write_text("export const current = true;", encoding="utf-8")
+    (web / "dist" / "index.html").write_text("old", encoding="utf-8")
+    (assets / "index-old.js").write_text("old", encoding="utf-8")
+    old_timestamp = 1_700_000_000
+    os.utime(web / "dist" / "index.html", (old_timestamp, old_timestamp))
+    os.utime(assets / "index-old.js", (old_timestamp, old_timestamp))
+
+    observed: dict[str, object] = {}
+
+    def fake_run(argv, *, cwd, check):
+        observed.update(argv=argv, cwd=cwd, check=check)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.delenv("VIREA_WEB_DIST", raising=False)
+    monkeypatch.setattr(
+        serve_command,
+        "discover_resources",
+        lambda: SimpleNamespace(origin="source-tree", root=tmp_path),
+    )
+    monkeypatch.setattr(serve_command.shutil, "which", lambda executable: "pnpm")
+    monkeypatch.setattr(serve_command.subprocess, "run", fake_run)
+
+    serve_command._prepare_web_distribution()
+
+    assert observed == {
+        "argv": ["pnpm", "--dir", str(web), "build"],
+        "cwd": tmp_path,
+        "check": False,
+    }
+    output = capsys.readouterr().out
+    assert "rebuilding the current source checkout" in output
+    assert "current production bundle is ready" in output
+
+
+def test_source_checkout_serve_reuses_a_current_web_distribution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from types import SimpleNamespace
+
+    from virea_cli.commands import serve as serve_command
+
+    web = tmp_path / "apps" / "web"
+    source = web / "src"
+    assets = web / "dist" / "assets"
+    source.mkdir(parents=True)
+    assets.mkdir(parents=True)
+    (source / "main.ts").write_text("export const current = true;", encoding="utf-8")
+    (web / "dist" / "index.html").write_text("current", encoding="utf-8")
+    (assets / "index-current.js").write_text("current", encoding="utf-8")
+    current_timestamp = 1_800_000_000
+    os.utime(web / "dist" / "index.html", (current_timestamp, current_timestamp))
+    os.utime(assets / "index-current.js", (current_timestamp, current_timestamp))
+
+    monkeypatch.delenv("VIREA_WEB_DIST", raising=False)
+    monkeypatch.setattr(
+        serve_command,
+        "discover_resources",
+        lambda: SimpleNamespace(origin="source-tree", root=tmp_path),
+    )
+    monkeypatch.setattr(
+        serve_command.subprocess,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("current Web distribution was rebuilt"),
+    )
+
+    serve_command._prepare_web_distribution()
 
 
 def test_cli_serve_stdin_eof_runs_real_loopback_lifespan_and_releases_owner(

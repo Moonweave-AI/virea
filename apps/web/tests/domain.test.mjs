@@ -4,11 +4,9 @@ import assert from "node:assert/strict";
 import {
   artifactBasename,
   artifactUrl,
-  createGenerationPayload as createGenerationPayloadWithKey,
   createManifestGenerationPayload,
   createInstallPayload,
   firstVrmaExport,
-  generationDefaults,
   generationFormDefaults,
   generationInputFields,
   generationTaskSchemas,
@@ -29,10 +27,6 @@ import {
 } from "../src/domain.ts";
 
 const IDEMPOTENCY_KEY = "web-test-generation-01";
-
-function createGenerationPayload(...args) {
-  return createGenerationPayloadWithKey(...args, IDEMPOTENCY_KEY);
-}
 
 const windowsTarget = {
   schema_version: "virea.execution_target_selection.v1.0.0",
@@ -448,7 +442,16 @@ test("metadata-only READY is labeled as persisted state, not fresh integrity pro
 
 test("generation payload carries the selected model, prompt, seconds, and seed", () => {
   const selected = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
-  assert.deepEqual(createGenerationPayload(selected, "  Walk forward. ", 2.5, 17, windowsTarget), {
+  const draft = generationFormDefaults(selected);
+  draft.values.prompt = "  Walk forward. ";
+  draft.values.seconds = 2.5;
+  draft.values.seed = 17;
+  assert.deepEqual(createManifestGenerationPayload(
+    selected,
+    draft,
+    windowsTarget,
+    IDEMPOTENCY_KEY,
+  ), {
     schema_version: "virea.job_request.v1.0.0",
     model_id: "flood-diffusion-tiny",
     task: "text_to_motion",
@@ -586,7 +589,12 @@ test("generation payload preserves the selected manifest acceptance fps without 
   const selected = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
   selected.production_acceptance.request.parameters.fps = 29.97;
 
-  assert.equal(createGenerationPayload(selected, "Walk.", 4, 42, windowsTarget).parameters.fps, 29.97);
+  assert.equal(createManifestGenerationPayload(
+    selected,
+    generationFormDefaults(selected),
+    windowsTarget,
+    IDEMPOTENCY_KEY,
+  ).parameters.fps, 29.97);
 });
 
 test("matching Web inputs reproduce the manifest production acceptance JobRequest exactly", () => {
@@ -594,12 +602,11 @@ test("matching Web inputs reproduce the manifest production acceptance JobReques
   const expected = selected.production_acceptance.request;
 
   assert.deepEqual(
-    createGenerationPayload(
+    createManifestGenerationPayload(
       selected,
-      expected.input.prompt,
-      expected.parameters.seconds,
-      expected.parameters.seed,
+      generationFormDefaults(selected),
       windowsTarget,
+      IDEMPOTENCY_KEY,
     ),
     acceptanceRequestWithTarget(expected),
   );
@@ -611,12 +618,11 @@ test("generation maps seconds to the manifest input motion length without adding
   delete selected.production_acceptance.request.parameters.seconds;
 
   assert.deepEqual(
-    createGenerationPayload(
+    createManifestGenerationPayload(
       selected,
-      selected.production_acceptance.request.input.prompt,
-      4,
-      selected.production_acceptance.request.parameters.seed,
+      generationFormDefaults(selected),
       windowsTarget,
+      IDEMPOTENCY_KEY,
     ),
     acceptanceRequestWithTarget(selected.production_acceptance.request),
   );
@@ -627,10 +633,12 @@ test("generation maps seconds to a manifest parameter motion length", () => {
   selected.production_acceptance.request.parameters.motion_length_frames = 80;
   delete selected.production_acceptance.request.parameters.seconds;
 
-  assert.equal(
-    createGenerationPayload(selected, "Walk.", 4, 42, windowsTarget).parameters.motion_length_frames,
-    80,
-  );
+  assert.equal(createManifestGenerationPayload(
+    selected,
+    generationFormDefaults(selected),
+    windowsTarget,
+    IDEMPOTENCY_KEY,
+  ).parameters.motion_length_frames, 80);
 });
 
 test("PRISM generation preserves the manifest frame-based acceptance request exactly", () => {
@@ -644,28 +652,25 @@ test("PRISM generation preserves the manifest frame-based acceptance request exa
     fps: 30,
   };
   const expected = selected.production_acceptance.request;
-  const defaults = generationDefaults(selected);
+  const defaults = generationFormDefaults(selected);
 
   assert.deepEqual(defaults, {
-    prompt: expected.input.prompt,
-    seconds: 4.3,
-    seed: 42,
+    task: "text_to_motion",
+    values: {
+      prompt: expected.input.prompt,
+      seconds: 4.3,
+      seed: 42,
+    },
   });
   assert.deepEqual(
-    createGenerationPayload(selected, defaults.prompt, defaults.seconds, defaults.seed, windowsTarget),
+    createManifestGenerationPayload(
+      selected,
+      defaults,
+      windowsTarget,
+      IDEMPOTENCY_KEY,
+    ),
     acceptanceRequestWithTarget(expected),
   );
-});
-
-test("generation fails closed when manifest acceptance fps is missing or not positive finite", () => {
-  for (const fps of [undefined, null, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, "20"]) {
-    const selected = manifest({ id: "flood-diffusion-tiny", runtimes: ["flood-tiny-cu128"] });
-    selected.production_acceptance.request.parameters.fps = fps;
-    assert.throws(
-      () => createGenerationPayload(selected, "Walk.", 4, 42, windowsTarget),
-      /fps 必须是正有限数/,
-    );
-  }
 });
 
 test("install delegates the exact manifest request and preserves only its timeout override", () => {
@@ -693,7 +698,12 @@ test("one global execution target is carried by both install and generation", ()
 
   assert.deepEqual(createInstallPayload(selected, wslTarget).execution_target, wslTarget);
   assert.deepEqual(
-    createGenerationPayload(selected, "Walk.", 4, 42, wslTarget).execution_target,
+    createManifestGenerationPayload(
+      selected,
+      generationFormDefaults(selected),
+      wslTarget,
+      IDEMPOTENCY_KEY,
+    ).execution_target,
     wslTarget,
   );
 });
