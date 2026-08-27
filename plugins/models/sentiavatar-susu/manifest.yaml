@@ -15,29 +15,40 @@ model:
 inputs:
   - schema_version: virea.job_request.v1.0.0
     task: audio_text_to_avatar_motion
+    presentation:
+      description: 只需描述动作；音频、对话和推理参数使用已通过生产验收的默认值。
     fields:
       audio:
         type: mono_pcm_audio
         sample_rate_hz: 16000
         required: true
         accepted_values: [browser_audio_data_uri, server_local_path, artifact_uri]
+        ui: {hidden: true}
       dialogue_text:
         type: string
         required: true
         maximum_length: 8000
+        ui: {hidden: true}
       action_and_expression_tags:
         type: string
         required: false
         default: 动作：说话
         maximum_length: 8000
-      seed: {type: integer, default: 3407, minimum: 0, maximum: 2147483583}
-      temperature: {type: number, default: 0.2, minimum: 0.05, maximum: 2.0}
-      top_p: {type: number, default: 0.2, minimum: 0.05, maximum: 1.0}
-      generate_steps: {type: integer, default: 6, minimum: 1, maximum: 24}
-      planner_max_new_tokens: {type: integer, default: 1024, minimum: 64, maximum: 1024}
-      generate_face: {type: boolean, default: true}
+        ui:
+          primary: true
+          label: 动作描述 / Motion description
+          placeholder: 例如：自然说话，右手轻轻挥动，微笑并在结尾点头。
+      seed: {type: integer, default: 3407, minimum: 0, maximum: 2147483583, ui: {hidden: true}}
+      temperature: {type: number, default: 0.2, minimum: 0.05, maximum: 2.0, ui: {hidden: true}}
+      top_p: {type: number, default: 0.2, minimum: 0.05, maximum: 1.0, ui: {hidden: true}}
+      generate_steps: {type: integer, default: 6, minimum: 1, maximum: 24, ui: {hidden: true}}
+      planner_max_new_tokens: {type: integer, default: 1024, minimum: 64, maximum: 1024, ui: {hidden: true}}
+      generate_face: {type: boolean, default: true, ui: {hidden: true}}
   - schema_version: virea.job_request.v1.0.0
     task: streaming_dialogue_avatar_motion
+    presentation:
+      hidden: true
+      description: 流式批处理任务保留完整 manifest/API 能力，不进入普通单动作表单。
     fields:
       audio_chunks:
         type: mono_pcm_audio_stream

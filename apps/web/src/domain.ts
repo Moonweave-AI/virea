@@ -351,6 +351,19 @@ export function generationInputFields(
   )));
 }
 
+export function generationVisibleTaskSchemas(
+  manifest: ModelManifest,
+): ManifestInputSchema[] {
+  return generationTaskSchemas(manifest).filter((schema) => schema.presentation?.hidden !== true);
+}
+
+export function generationVisibleInputFields(
+  manifest: ModelManifest,
+  task: string,
+): Array<[string, ManifestInputField]> {
+  return generationInputFields(manifest, task).filter(([, field]) => field.ui?.hidden !== true);
+}
+
 function matchingAcceptanceRequest(manifest: ModelManifest, task: string) {
   return productionAcceptanceForTask(manifest, task)?.request ?? null;
 }

@@ -151,6 +151,44 @@ def test_manifest_generation_request_accepts_audio_stream_arrays() -> None:
     assert parameters == {}
 
 
+def test_sentiavatar_guided_generation_asks_only_for_action() -> None:
+    """CLI and Web share the same guided presentation without weakening the request."""
+
+    manifest = next(
+        item for item in wizard._model_manifests() if item.model.id == "sentiavatar-susu"
+    )
+    prompts: list[str] = []
+    messages: list[str] = []
+
+    def answer(prompt: str) -> str:
+        prompts.append(prompt)
+        return "动作：向前走两步，右手挥动，最后微笑点头"
+
+    schema = wizard._choose_task_schema(manifest, answer, messages.append)
+    task, request_input, parameters = wizard._generation_request(
+        manifest,
+        schema,
+        answer,
+        messages.append,
+    )
+    acceptance = next(
+        contract
+        for contract in manifest.production_acceptance_contracts
+        if contract.request.task == "audio_text_to_avatar_motion"
+    ).request
+
+    assert task == "audio_text_to_avatar_motion"
+    assert len(prompts) == 1
+    assert "action_and_expression_tags" in prompts[0]
+    assert request_input["action_and_expression_tags"] == (
+        "动作：向前走两步，右手挥动，最后微笑点头"
+    )
+    assert request_input["audio"] == acceptance.input["audio"]
+    assert request_input["dialogue_text"] == acceptance.input["dialogue_text"]
+    assert parameters == dict(acceptance.parameters)
+    assert any(message.startswith("Task / 任务:") for message in messages)
+
+
 def test_multi_audio_example_is_valid_json_with_windows_friendly_paths() -> None:
     """The displayed Windows example must be pasteable JSON, not bad escapes."""
 

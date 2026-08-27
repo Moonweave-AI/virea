@@ -23,6 +23,8 @@ import {
   generationFormDefaults,
   generationInputFields,
   generationTaskSchemas,
+  generationVisibleInputFields,
+  generationVisibleTaskSchemas,
   installationState,
   isInstalledReady,
   isInstallationIntegrityDeferred,
@@ -48,6 +50,7 @@ import {
 type View = "playground" | "catalog" | "overview";
 type SyncStatus = "connecting" | "live" | "polling" | "degraded" | "offline";
 type GenerationPhase = "idle" | "validating" | "submitting" | "tracking" | "loading_result";
+type ThemePreference = "system" | "light" | "dark";
 type Draft = GenerationFormDraft;
 type JobEvent = NonNullable<JobRecord["events"]>[number];
 
@@ -61,6 +64,7 @@ const TERMINAL_JOB_STATES = new Set([
 const STATE_POLL_INTERVAL_MS = 4_000;
 const JOB_STREAM_STALL_MS = 10_000;
 const PENDING_SUBMISSION_STORAGE_KEY = "virea.pending-generation.v1";
+const THEME_STORAGE_KEY = "virea.theme.v1";
 
 const state: {
   view: View;
@@ -129,6 +133,42 @@ const state: {
 const appNode = document.querySelector<HTMLDivElement>("#app");
 if (!appNode) throw new Error("#app is missing");
 const app: HTMLDivElement = appNode;
+
+function storedThemePreference(): ThemePreference {
+  try {
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return value === "light" || value === "dark" ? value : "system";
+  } catch {
+    return "system";
+  }
+}
+
+let themePreference = storedThemePreference();
+
+function applyThemePreference(preference: ThemePreference): void {
+  themePreference = preference;
+  if (preference === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = preference;
+  try {
+    if (preference === "system") window.localStorage.removeItem(THEME_STORAGE_KEY);
+    else window.localStorage.setItem(THEME_STORAGE_KEY, preference);
+  } catch {
+    // Private browsing and locked-down WebViews may deny storage; the active
+    // page still receives the selected appearance.
+  }
+  document.querySelectorAll<HTMLButtonElement>("[data-theme-preference]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themePreference === preference));
+  });
+}
+
+applyThemePreference(themePreference);
+app.addEventListener("click", (event) => {
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-theme-preference]");
+  const preference = button?.dataset.themePreference;
+  if (preference === "system" || preference === "light" || preference === "dark") {
+    applyThemePreference(preference);
+  }
+});
 
 let viewerRuntime: RealVrmViewer | null = null;
 let viewerCanvas: HTMLCanvasElement | null = null;
@@ -454,6 +494,18 @@ function syncLabel(): string {
   return labels[state.syncStatus];
 }
 
+function themeSelector(): string {
+  const choices: Array<[ThemePreference, string, string]> = [
+    ["system", "◐", "跟随系统 / System"],
+    ["light", "☀", "浅色 / Light"],
+    ["dark", "☾", "深色 / Dark"],
+  ];
+  return `<div class="theme-selector" role="group" aria-label="外观 / Appearance">${choices.map(([value, icon, label]) => `
+    <button type="button" data-theme-preference="${value}" aria-pressed="${value === themePreference}" title="${label}">
+      <span aria-hidden="true">${icon}</span><span class="theme-label">${label.split(" / ")[0]}</span>
+    </button>`).join("")}</div>`;
+}
+
 function layout(content: string): string {
   const nav: Array<[View, string, string]> = [
     ["playground", "工作台", "生成与预览"],
@@ -473,6 +525,7 @@ function layout(content: string): string {
           </button>`).join("")}</nav>
         <div class="topbar-tools">
           ${executionDomainSelector()}
+          ${themeSelector()}
           <div class="data-root-pill ${hasFreshVireaHomeAuthority() ? "" : "stale"}" id="data-root-indicator" title="${escapeHtml(hasFreshVireaHomeAuthority() ? `当前服务 VIREA_HOME：${state.vireaHome}` : state.vireaHome ? `上次确认的 VIREA_HOME：${state.vireaHome}；正在等待服务重新确认` : "正在读取当前服务的 VIREA_HOME")}">
             <span>${hasFreshVireaHomeAuthority() ? "VIREA_HOME" : "VIREA_HOME · 待确认"}</span><code>${escapeHtml(state.vireaHome || "读取中…")}</code>
           </div>
@@ -654,7 +707,7 @@ function generationFieldMarkup(
   disabled: boolean,
 ): string {
   const fieldType = field.type ?? "structured";
-  const label = GENERATION_FIELD_LABELS[name] ?? name.replaceAll("_", " ");
+  const label = field.ui?.label ?? GENERATION_FIELD_LABELS[name] ?? name.replaceAll("_", " ");
   const id = name;
   const disabledAttribute = disabled ? "disabled" : "";
   const help = fieldConstraintHelp(name, field);
@@ -677,11 +730,11 @@ function generationFieldMarkup(
     const fileLike = browserAudio
       || browserText
       || Boolean(field.representation_id);
-    const placeholder = fileLike
+    const placeholder = field.ui?.placeholder ?? (fileLike
       ? "服务端本地路径（不加首尾引号），或直接粘贴 JSON / Unquoted server-local path or inline JSON"
       : name === "prompt"
         ? "例如：A person walks forward, turns left, and waves."
-        : "请输入内容 / Enter a value";
+        : "请输入内容 / Enter a value");
     const maximumLength = typeof field.maximum_length === "number"
       ? `maxlength="${escapeHtml(field.maximum_length)}"`
       : "";
@@ -696,7 +749,7 @@ function generationFieldMarkup(
       control += "<small>请输入服务端可访问且不带首尾引号的路径，或直接粘贴 JSON；浏览器不会把 .npy 等二进制文件错误地当作文本读取。 / Enter an unquoted server-local path or inline JSON; binary files such as .npy are not decoded as text in the browser.</small>";
     }
   }
-  return `<div class="field schema-field ${name === "prompt" ? "prompt-field schema-field-full" : ""}"><label class="schema-field-label" for="${escapeHtml(id)}">${escapeHtml(label)}</label>${control}${help ? `<small>${escapeHtml(help)}</small>` : ""}</div>`;
+  return `<div class="field schema-field ${name === "prompt" || field.ui?.primary === true ? "prompt-field schema-field-full primary-schema-field" : ""}"><label class="schema-field-label" for="${escapeHtml(id)}">${escapeHtml(label)}</label>${control}${help ? `<small>${escapeHtml(help)}</small>` : ""}</div>`;
 }
 
 function playground(): string {
@@ -705,10 +758,14 @@ function playground(): string {
   const draft = manifest
     ? state.drafts[manifest.model.id]!
     : { task: "", values: {} };
-  const taskSchemas = manifest ? generationTaskSchemas(manifest) : [];
-  const generationFields = manifest && draft.task
+  const taskSchemas = manifest ? generationVisibleTaskSchemas(manifest) : [];
+  const allGenerationFields = manifest && draft.task
     ? generationInputFields(manifest, draft.task)
     : [];
+  const generationFields = manifest && draft.task
+    ? generationVisibleInputFields(manifest, draft.task)
+    : [];
+  const hiddenGenerationFieldCount = allGenerationFields.length - generationFields.length;
   const ready = manifest ? modelReady(manifest) : false;
   const integrated = manifest ? isVireaIntegratedModel(manifest) : false;
   const installState = manifest ? currentInstallationState(manifest) : null;
@@ -733,7 +790,7 @@ function playground(): string {
       <article class="composer-card surface">
         <div class="section-title"><span>01</span><div><h2>动作生成</h2><p>使用已部署模型创建可追溯结果</p></div></div>
         <label class="field"><span>模型</span><select id="model-id" ${availableModels().length ? "" : "disabled"}>${modelSelectOptions()}</select></label>
-        ${taskSchemas.length ? `<label class="field"><span>任务 / Task</span><select id="generation-task">${taskSchemas.map((schema) => `<option value="${escapeHtml(schema.task)}" ${schema.task === draft.task ? "selected" : ""}>${escapeHtml(GENERATION_TASK_LABELS[schema.task] ?? schema.task)}</option>`).join("")}</select><small>任务和字段均来自当前模型的 manifest.inputs；切换任务会载入该任务自己的默认值。</small></label>` : '<div class="capability-note"><strong>缺少输入 schema / No input schema</strong></div>'}
+        ${taskSchemas.length > 1 ? `<label class="field"><span>任务 / Task</span><select id="generation-task">${taskSchemas.map((schema) => `<option value="${escapeHtml(schema.task)}" ${schema.task === draft.task ? "selected" : ""}>${escapeHtml(GENERATION_TASK_LABELS[schema.task] ?? schema.task)}</option>`).join("")}</select><small>切换任务会载入该任务自己的生产验收默认值。</small></label>` : taskSchemas.length === 0 ? '<div class="capability-note"><strong>缺少可呈现的输入 schema / No presentable input schema</strong></div>' : ""}
         <div class="model-readiness ${ready && integrated ? "ready" : integrated ? "pending" : "unsupported"}">
           <div><i></i><span>${manifest ? escapeHtml(manifest.model.display_name) : "没有可执行模型"}</span></div>
           <strong>${manifest ? escapeHtml(integrated ? ready ? modelReadyBadge(manifest) : installationLabel(installState) : "UPSTREAM ONLY") : "UNAVAILABLE"}</strong>
@@ -741,9 +798,10 @@ function playground(): string {
         ${manifest && ready && integrated ? `<p class="readiness-evidence">${escapeHtml(modelIntegrityNote(manifest))}</p>` : ""}
         ${manifest && !integrated ? `<div class="capability-note" role="note"><strong>仅上游登记，尚未接入 VIREA</strong><p>${escapeHtml(capabilityReason(manifest))}。此模型仍可浏览，但不会伪装成可部署。</p></div>` : ""}
         ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "部署这个模型"}</button>` : ""}
-        <div class="parameter-grid schema-parameter-grid">${generationFields.map(([name, field]) => generationFieldMarkup(name, field, draft.values[name], !integrated)).join("")}</div>
+        ${hiddenGenerationFieldCount > 0 ? `<div class="guided-mode-note" role="note"><i></i><span>简洁模式：只填写下方动作；其余 ${hiddenGenerationFieldCount} 项使用已通过生产验收的默认值。<small>Guided mode keeps verified audio, dialogue, and runtime parameters automatically.</small></span></div>` : ""}
+        <div class="parameter-grid schema-parameter-grid ${generationFields.length === 1 ? "single-field" : ""}">${generationFields.map(([name, field]) => generationFieldMarkup(name, field, draft.values[name], !integrated)).join("")}</div>
         <button class="primary generate-button" id="generate" ${canGenerate ? "" : "disabled"}>
-          <span data-generate-button-label>${active ? jobLabel(active.state) : !hasFreshVireaHomeAuthority() ? "等待数据根同步" : !integrated ? "该模型尚未接入" : ready ? "生成动作" : "请先完成模型部署"}</span><i>→</i>
+          <span data-generate-button-label>${active ? jobLabel(active.state) : !hasFreshVireaHomeAuthority() ? "等待数据根同步" : !integrated ? "该模型尚未接入" : ready ? "生成动作" : "请先完成模型部署"}</span><i aria-hidden="true">→</i>
         </button>
         ${generationStatusMarkup()}
         <pre id="generation-output" class="machine-evidence" aria-hidden="true">${escapeHtml(state.generationEvidence)}</pre>
@@ -926,6 +984,8 @@ function renderLiveRegions(): void {
       || !state.selectedExecutionDomainId
       || presentation.busy
       || Boolean(state.installingModelId);
+    button.classList.toggle("is-busy", presentation.busy);
+    button.setAttribute("aria-busy", String(presentation.busy));
     const label = button.querySelector<HTMLElement>("[data-generate-button-label]");
     if (label) {
       label.textContent = presentation.busy
@@ -942,7 +1002,9 @@ function renderLiveRegions(): void {
 }
 
 function nextPaint(): Promise<void> {
-  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+  return new Promise((resolve) => window.requestAnimationFrame(() => (
+    window.requestAnimationFrame(() => resolve())
+  )));
 }
 
 function readBrowserFile(file: File, asText: boolean): Promise<string> {

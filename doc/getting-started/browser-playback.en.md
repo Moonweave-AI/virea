@@ -3,8 +3,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-27
+last_reviewed: 2026-08-27
 review_cycle_days: 14
 summary: English instructions for serving VIREA locally and inspecting a generated VRMA result with a local VRM Avatar.
 canonical: doc/getting-started/browser-playback.en.md
@@ -29,6 +29,22 @@ Open the canonical entry point at `http://127.0.0.1:8000/`. The root opens the o
 UI is no longer exposed, while an existing `/app/` bookmark still opens the same application. Generation stays on the left
 of the workbench. The result stage then plays the decoded model-space skeleton before retargeting beside the final VRM/VRMA,
 with no separate result page.
+
+The workbench uses the available width while keeping the composer readable and splitting the remaining stage evenly
+between the source skeleton and VRM. It changes to one column on narrower windows; browser zoom is not needed to repair
+the layout. The top-bar **System / Light / Dark** appearance choice persists in the current browser. System mode follows
+`prefers-color-scheme`; light and dark use separate muted semantic palettes rather than a mechanical inversion.
+
+The ordinary `sentiavatar-susu` Web flow and no-argument `uv run virea` wizard share the same guided mode: after selecting the model, enter only an action description, such as
+“Speak naturally, wave the right hand gently, then smile and nod,” and press **Generate motion**. The acceptance-tested
+audio, dialogue, seed, and inference settings remain in the complete `JobRequest`; a hidden field is not removed from the
+runtime contract. The streaming multi-turn task remains available through the manifest, CLI, and API, but does not force
+audio arrays or sampling controls into the ordinary single-action form.
+
+After **Generate motion** is pressed, the button enters its busy state before the next browser paint and the progress area
+immediately reports target validation. The service still refreshes execution readiness and then rechecks authoritative
+`VIREA_HOME` in order. Those fail-closed checks may take a few seconds, but the page continues to show the active stage;
+do not repeat the click or reload while validation is running.
 
 The source panel is not a wireframe of the final VRM. It is generated from the model's native payload through its source
 decoder and only normalizes coordinates for display; the payload explicitly records `vrm_retarget_applied: false`. If the

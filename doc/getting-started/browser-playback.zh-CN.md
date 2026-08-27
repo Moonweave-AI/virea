@@ -3,8 +3,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-25
-last_reviewed: 2026-08-25
+updated: 2026-08-27
+last_reviewed: 2026-08-27
 review_cycle_days: 14
 summary: 启动 Web、加载真实 VRM 与生成 VRMA，并验证可见播放和浏览器错误。
 canonical: doc/getting-started/browser-playback.zh-CN.md
@@ -29,6 +29,19 @@ uv run virea serve --host 127.0.0.1 --port 8000
 打开规范入口 `http://127.0.0.1:8000/`。根地址会进入唯一的新 Motion Studio；旧版 Web 不再对外提供，已有
 `/app/` 书签仍会打开同一应用。工作台左侧生成动作，结果舞台会把“重定向前的模型源骨架”和“重定向后的最终
 VRM/VRMA”并排播放，不需要在生成页、源骨架页和最终结果页之间切换。
+
+工作台默认使用宽屏内容区：生成表单保持适合阅读的宽度，源骨架与 VRM 舞台平分剩余空间；在较窄窗口中会自动
+切换为单列，不应通过浏览器缩放来修复布局。顶部“跟随系统 / 浅色 / 深色”外观选择会保存在当前浏览器中；跟随
+系统使用 `prefers-color-scheme`，浅色与深色各有独立的莫兰迪语义色，不是简单反相。
+
+`sentiavatar-susu` 的普通 Web 流程和无参数 `uv run virea` 向导使用同一简洁模式：选择模型后只填写“动作描述”，例如“自然说话，右手轻轻挥动，
+最后微笑点头”，然后点击“生成动作”。生产验收中已经验证的音频、对话、seed 与推理参数会自动保留在完整
+`JobRequest` 中；隐藏字段不等于被删除。流式多轮任务仍保留在 manifest、CLI 和 API 中，但不会让普通单动作表单
+要求用户填写音频数组或采样参数。
+
+点击“生成动作”后，按钮会在下一次浏览器绘制前进入忙碌状态，进度区立即显示“核验执行目标”。随后服务仍会按
+顺序刷新执行目标并复核权威 `VIREA_HOME`，这两个 fail-closed 检查可能需要数秒，但页面会持续给出阶段反馈；不要
+因为核验尚未结束而重复点击或刷新页面。
 
 源骨架并不是最终 VRM 的线框。它来自模型原生 payload 的专用解码器，只为显示统一坐标，结果契约明确记录
 `vrm_retarget_applied: false`。若左侧已经错误，应检查模型输出或解码；若左侧正确而右侧错误，应检查骨骼重定向或导出。

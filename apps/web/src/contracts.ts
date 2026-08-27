@@ -126,6 +126,12 @@ export interface ManifestInputField {
   multiple_of?: number;
   maximum_length?: number;
   sample_rate_hz?: number;
+  ui?: {
+    hidden?: boolean;
+    primary?: boolean;
+    label?: string;
+    placeholder?: string;
+  };
   [key: string]: unknown;
 }
 
@@ -133,6 +139,10 @@ export interface ManifestInputSchema {
   schema_version: typeof schemaVersions.jobRequest;
   task: string;
   fields: Record<string, ManifestInputField>;
+  presentation?: {
+    hidden?: boolean;
+    description?: string;
+  };
 }
 
 export interface ProductionE2EAcceptance {

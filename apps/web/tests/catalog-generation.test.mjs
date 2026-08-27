@@ -8,6 +8,8 @@ import {
   createManifestGenerationPayload,
   generationFormDefaults,
   generationInputFields,
+  generationVisibleInputFields,
+  generationVisibleTaskSchemas,
   isVireaIntegratedModel,
   productionAcceptanceContracts,
   productionAcceptanceForTask,
@@ -101,4 +103,33 @@ test("SentiAvatar audio and streaming acceptances require no text-to-motion assu
     assert.equal(Object.hasOwn(payload.parameters, "seconds"), false);
     assert.equal(Object.hasOwn(payload.parameters, "fps"), false);
   }
+});
+
+test("SentiAvatar guided Web mode asks only for an action while preserving verified defaults", () => {
+  const manifest = models.find(({ model }) => model.id === "sentiavatar-susu");
+  assert.ok(manifest);
+  assert.deepEqual(
+    generationVisibleTaskSchemas(manifest).map(({ task }) => task),
+    ["audio_text_to_avatar_motion"],
+  );
+  assert.deepEqual(
+    generationVisibleInputFields(manifest, "audio_text_to_avatar_motion").map(([name]) => name),
+    ["action_and_expression_tags"],
+  );
+
+  const acceptance = productionAcceptanceForTask(manifest, "audio_text_to_avatar_motion");
+  assert.ok(acceptance);
+  const draft = generationFormDefaults(manifest);
+  draft.values.action_and_expression_tags = "动作：向前走两步，右手挥动，最后微笑点头";
+  const payload = createManifestGenerationPayload(
+    manifest,
+    draft,
+    executionTarget,
+    idempotencyKey,
+  );
+
+  assert.equal(payload.input.action_and_expression_tags, draft.values.action_and_expression_tags);
+  assert.equal(payload.input.audio, acceptance.request.input.audio);
+  assert.equal(payload.input.dialogue_text, acceptance.request.input.dialogue_text);
+  assert.deepEqual(payload.parameters, acceptance.request.parameters);
 });

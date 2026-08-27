@@ -651,7 +651,16 @@ def _choose_task_schema(
     *,
     ui: TerminalUI | None = None,
 ) -> dict[str, Any]:
-    schemas = _input_schemas(manifest)
+    declared_schemas = _input_schemas(manifest)
+    visible_schemas = tuple(
+        schema
+        for schema in declared_schemas
+        if not (
+            isinstance(schema.get("presentation"), dict)
+            and schema["presentation"].get("hidden") is True
+        )
+    )
+    schemas = visible_schemas or declared_schemas
     if len(schemas) == 1:
         _write(output, f"Task / 任务: {_task_label(schemas[0])}")
         return schemas[0]
@@ -922,6 +931,11 @@ def _generation_request(
             request_parameters.pop(name, None)
             continue
         spec = dict(raw_spec) if isinstance(raw_spec, dict) else {}
+        ui_spec = spec.get("ui")
+        if isinstance(ui_spec, dict) and ui_spec.get("hidden") is True:
+            # Presentation-only hiding keeps the immutable acceptance value in
+            # the request. It never deletes a required runtime field.
+            continue
         default = _field_default(manifest, task, name, spec)
         value = _collect_field(name, spec, default, input_fn, output)
         previous_location = _field_location(
