@@ -53,6 +53,31 @@ _ASSET_QUARANTINE_JOURNAL_PREFIX = "asset-quarantine-"
 _ARTIFACT_CONTENT_BINDING = "complete-tree-sha256-v2"
 
 
+def _load_installation_manifest_snapshot(
+    path: Path,
+    *,
+    expected_model_id: str,
+) -> dict[str, Any]:
+    """Load the stable audit envelope without applying the live catalog schema."""
+
+    try:
+        snapshot = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise OSError("installation manifest snapshot is invalid") from exc
+    schema_version = snapshot.get("schema_version") if isinstance(snapshot, dict) else None
+    if (
+        not isinstance(snapshot, dict)
+        or not isinstance(schema_version, str)
+        or not schema_version.startswith("virea.model_plugin.v")
+        or not isinstance(snapshot.get("model"), dict)
+        or not isinstance(snapshot["model"].get("id"), str)
+    ):
+        raise OSError("installation manifest snapshot is invalid")
+    if snapshot["model"]["id"] != expected_model_id:
+        raise OSError("installation manifest snapshot model identity differs")
+    return snapshot
+
+
 def _latest_attempt_payload(latest: dict[str, Any]) -> dict[str, Any]:
     """Recover one compact, restart-safe installation attempt summary."""
 
@@ -1721,10 +1746,10 @@ class ModelPool:
         installation_root = expected_root.resolve(strict=True)
         manifest = self.catalog.get(outcome.model_id)
         manifest_path = installation_root / "manifest.json"
-        if json.loads(manifest_path.read_text(encoding="utf-8")) != manifest.model_dump(
-            mode="json"
-        ):
-            raise OSError("installation manifest snapshot differs")
+        _load_installation_manifest_snapshot(
+            manifest_path,
+            expected_model_id=outcome.model_id,
+        )
         failures = [
             *self._external_artifact_reference_failures(
                 installation_root,
@@ -1922,10 +1947,9 @@ class ModelPool:
                 snapshot = installation_root / "manifest.json"
                 check(snapshot.is_file(), "installation manifest snapshot is missing")
                 if snapshot.is_file():
-                    check(
-                        json.loads(snapshot.read_text(encoding="utf-8"))
-                        == manifest.model_dump(mode="json"),
-                        "installation manifest snapshot differs",
+                    _load_installation_manifest_snapshot(
+                        snapshot,
+                        expected_model_id=outcome.model_id,
                     )
                 if acceptance_binding_required:
                     check(

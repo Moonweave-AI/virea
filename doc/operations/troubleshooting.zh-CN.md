@@ -31,6 +31,7 @@ superseded_by: []
 | Worker readiness 超时 | startup timeout、离线资产、模型加载日志 | `model verify` 后 repair；确认进程树已回收 |
 | 推理超时/取消 | job state、Worker instance、PID/child tree | 等待有界取消；不得发布 result |
 | Web 提示 acceptance 不是可执行 JobRequest | 旧 Web bundle 或 manifest/task 契约漂移 | 更新并重启服务，只加载一次当前根入口；不要重装模型 |
+| 更新后出现 `installation manifest snapshot differs` | 旧版整份清单比较误把展示元数据变化当成不兼容 | 更新 clone 与 workspace 后重新验证；保留 READY 安装和 checkpoint |
 | VRMA 校验失败 | rest hips、root translation、track 数、finite | 修 exporter/adapter，不在 Viewer 中掩盖 |
 | 浏览器角色消失或裁切 | VRM rest pose、VRMA absolute hips、console | 使用真实产物重跑 Viewer QA |
 
@@ -101,6 +102,27 @@ uv run virea
 不要删除模型安装或 checkpoint。完成上面的普通 `git pull` 和 `uv sync` 后，运行 `uv run virea`，选择同一模型和执行域即可。
 VIREA 会隔离旧 Python 环境、创建并探测新环境，然后原子发布；model store 中已经校验的模型 artifact 会直接复用。Windows
 native、Linux native、macOS native 和 WSL 使用同一机制。旧环境残留的 `.virea-runtime-source.json` 会被忽略，无需手工删除。
+
+## 更新后 READY 模型提示 `installation manifest snapshot differs`
+
+旧版会把安装时保存的整份 `manifest.json` 与当前 catalog 做完全相等比较，因此 Web 标签、说明、占位符或隐藏字段提示等
+无害的展示变化也会被误判成模型不兼容。当前版本把该文件恢复为不可变的安装审计快照：它必须仍是合法的 VIREA 清单并且
+属于同一模型；实际执行兼容性则由明确的 plugin、上游 revision、Runtime、artifact 与 acceptance 契约判断。
+
+```powershell
+# 只更新源码历史；不会删除 VIREA_HOME，也不会删除已经下载的模型文件。
+git pull --ff-only origin main
+
+# 按仓库 lock 对齐主 workspace；隔离模型数据仍保留在已配置的数据根中。
+uv sync --locked --all-packages --extra dev
+
+# 重新检查现有 SentiAvatar READY 安装；已验证的 checkpoint 和源码资产会直接复用。
+uv run virea model verify sentiavatar-susu
+```
+
+遇到这个提示时不要删除 READY snapshot、`VIREA_HOME`、Runtime 或 checkpoint。完成更新后，只要变化仅限 catalog 展示元数据，
+原先通过验收的安装会继续可用。真正的 plugin 版本、上游 revision、Runtime epoch、artifact 来源、模型身份或 acceptance 契约
+变化，仍会进入对应的重建或重新验收路径。
 
 ## Web 提示模型的 production acceptance 不是可执行 JobRequest
 

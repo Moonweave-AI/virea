@@ -30,6 +30,7 @@ Diagnose the layer that failed; do not disable validation or edit result files t
 | Worker readiness times out | Startup limit, offline assets and model load logs | Verify, then repair; ensure the process tree has stopped. |
 | Generation times out/cancels | Job state, Worker instance and child tree | Let bounded cancellation finish; never publish a partial result. |
 | Web says an acceptance is not an executable JobRequest | Old Web bundle or a manifest/task contract drift | Update, restart the server, and load the current root entry point once; do not reinstall the model. |
+| `installation manifest snapshot differs` after an update | Old whole-manifest comparison rejected presentation metadata changes | Update the clone and workspace, then verify again; keep the READY installation and checkpoints. |
 | VRMA validation fails | Rest hips, root translation, track counts and finite values | Fix exporter/adapter rather than hiding it in Viewer code. |
 | Avatar disappears/crops | VRM rest pose, VRMA absolute hips and console | Re-run Viewer QA against the real artifact. |
 
@@ -105,6 +106,29 @@ Do not delete the model installation or checkpoint. After the ordinary `git pull
 probes a fresh one, then publishes it atomically. Verified model assets remain in the model store and are reused. This
 works the same way for Windows native, Linux native, macOS native, and WSL. A legacy `.virea-runtime-source.json` file is
 ignored and does not require manual cleanup.
+
+## A READY model reports `installation manifest snapshot differs` after an update
+
+Older builds compared the complete installation-time `manifest.json` with the current catalog. That made harmless Web
+presentation changes—labels, descriptions, placeholders, or hidden-field hints—look like model incompatibility. Current
+VIREA treats the installed file as an immutable audit snapshot: it must remain a valid VIREA manifest for the same model,
+while execution compatibility is decided by the explicit plugin, upstream, Runtime, artifact, and acceptance contracts.
+
+```powershell
+# Update source history only; this does not remove VIREA_HOME or downloaded model assets.
+git pull --ff-only origin main
+
+# Reconcile the main workspace with the committed lock; isolated model data remains under the configured data root.
+uv sync --locked --all-packages --extra dev
+
+# Recheck the existing SentiAvatar READY installation; verified checkpoints and source assets are reused.
+uv run virea model verify sentiavatar-susu
+```
+
+Do not delete the READY snapshot, `VIREA_HOME`, Runtime, or checkpoints for this message. After updating, the same accepted
+installation remains usable when only catalog presentation metadata changed. A real plugin version, upstream revision,
+Runtime epoch, artifact source, model identity, or acceptance-contract change still requires the corresponding rebuild or
+acceptance path.
 
 ## Web says a model's production acceptance is not an executable JobRequest
 

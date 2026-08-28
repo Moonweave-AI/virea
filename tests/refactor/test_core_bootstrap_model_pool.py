@@ -3290,7 +3290,7 @@ def test_model_pool_rejects_nonconforming_manifest_acceptance_evidence(
     ("tamper", "diagnostic"),
     (
         ("legacy_without_acceptance", "acceptance evidence is missing"),
-        ("stale_manifest", "installation manifest snapshot differs"),
+        ("wrong_manifest_model", "manifest snapshot model identity differs"),
         ("missing_job", "acceptance job does not exist"),
         ("mismatched_job", "acceptance job model differs"),
         ("missing_result", "acceptance job has no immutable result"),
@@ -3321,10 +3321,13 @@ def test_verify_latest_rejects_ready_without_current_production_evidence(
 
     if tamper == "legacy_without_acceptance":
         transaction_payload.pop("acceptance")
-    elif tamper == "stale_manifest":
+    elif tamper == "wrong_manifest_model":
         snapshot = paths.resolve_locator(ready.locator or "") / "manifest.json"
         snapshot_payload = json.loads(snapshot.read_text(encoding="utf-8"))
-        snapshot_payload["model"]["plugin_version"] = "stale-version"
+        snapshot_payload["model"]["id"] = "different-model"
+        snapshot_payload["production_acceptance"]["request"]["model_id"] = (
+            "different-model"
+        )
         snapshot.write_text(json.dumps(snapshot_payload), encoding="utf-8")
     elif tamper == "missing_job":
         persisted_acceptance["job_id"] = "missing-acceptance-job"
@@ -3367,6 +3370,42 @@ def test_verify_latest_rejects_ready_without_current_production_evidence(
     assert verified["installed"] is True
     assert verified["ready"] is False
     assert any(diagnostic in item for item in verified["diagnostics"])
+
+
+def test_ready_installation_survives_presentation_only_manifest_changes(
+    tmp_path: Path,
+) -> None:
+    manifest = _production_manifest(_manifest_payload("presentation-update-model"))
+    paths = VireaPaths(tmp_path / "virea-home")
+    store = StateStore(paths)
+    pool = ModelPool(paths, store, ModelCatalog((manifest,)))
+    staged = pool.stage_artifacts(manifest.model.id)
+    acceptance = _persist_completed_acceptance(
+        pool,
+        manifest,
+        installation_id=staged.installation_id,
+    )
+    ready = pool.publish_ready(staged, acceptance=acceptance)
+
+    current_payload = manifest.model_dump(mode="json")
+    current_payload["inputs"][0]["presentation"] = {
+        "description": "Updated Web guidance",
+    }
+    current_payload["inputs"][0]["fields"] = {
+        "prompt": {
+            "type": "string",
+            "ui": {"primary": True, "label": "Motion description"},
+        },
+    }
+    current_manifest = _production_manifest(current_payload)
+    current_pool = ModelPool(paths, store, ModelCatalog((current_manifest,)))
+
+    verified = current_pool.verify_latest(current_manifest.model.id)
+
+    assert verified["installation_id"] == ready.installation_id
+    assert verified["state"] == InstallationState.READY.value
+    assert verified["installed"] is True
+    assert verified["ready"] is True
 
 
 @pytest.mark.parametrize(

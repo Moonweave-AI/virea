@@ -62,6 +62,7 @@ from virea_model_pool.pool import (
     _internal_asset_locator_name_is_valid,
     _internal_asset_tree,
     _internal_asset_tree_difference,
+    _load_installation_manifest_snapshot,
 )
 from virea_motion_ir import load_motion_ir
 
@@ -1531,10 +1532,13 @@ def _validate_installation_chain(
     )
     manifest_snapshot = installation_root / "manifest.json"
     _require(manifest_snapshot.is_file(), "READY installation has no manifest snapshot")
-    _require(
-        _load_json(manifest_snapshot) == manifest.model_dump(mode="json"),
-        "READY installation manifest snapshot differs",
-    )
+    try:
+        _load_installation_manifest_snapshot(
+            manifest_snapshot,
+            expected_model_id=job["model_id"],
+        )
+    except OSError as exc:
+        raise AcceptanceFailure(str(exc)) from exc
     if binding_required:
         _require(
             acceptance.get("artifact_identity") is not None,
