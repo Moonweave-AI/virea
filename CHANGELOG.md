@@ -3,8 +3,8 @@ type: release-notes
 status: Active
 owner: VIREA maintainers
 created: 2026-08-20
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-08-28
+last_reviewed: 2026-08-28
 review_cycle_days: 14
 summary: VIREA 的版本级用户可见变更、兼容边界与发布状态。
 canonical: CHANGELOG.md
@@ -23,7 +23,7 @@ superseded_by: []
 - Added versioned Python and JSON contracts for jobs, models, runtimes, Worker messages, results, skeletons, representations, and Motion IR v2.
 - Preserved canonical211 v3 and the existing Viewer/Preview compatibility surface.
 - Added transactional VIREA_HOME state, cancellable runtime build planning, model installation history, restart recovery, recoverable removal, and bounded control-plane shutdown that cancels active work and joins job threads.
-- Added content-addressed invalidation for isolated model Runtimes. Every uv-native build records the lockfile plus transitive local source closure (model wrapper, shared Worker, Model SDK, and contracts), then independently hashes the distribution files actually installed in the isolated interpreter. Reuse rejects a missing identity, a stale source marker, or a same-version stale wheel and automatically rebuilds the environment without deleting or re-downloading verified model artifacts, including all CPU/CUDA variants across native Windows/Linux/macOS and WSL execution domains.
+- Simplified isolated Runtime reuse to declared Python/platform compatibility, project version, shared `runtime_core_epoch`, and real framework/device readiness. Removed the source-tree marker, source-content SHA-256 calculation, and installed-distribution hash matrix that could reject a valid wheel because its packaging intentionally omitted test modules. Locked builds still refresh the complete local path-package closure, while verified model artifacts remain reusable across native Windows/Linux/macOS and WSL execution domains.
 - Replaced the Web client's parallel prompt-only and manifest-driven generation paths with one task-aware `manifest.inputs` path. A Web test now parses the real YAML catalog and executes all 19 tasks across all 14 integrated models, including SentiAvatar audio and streaming requests. Source-checkout `virea serve` detects and rebuilds a missing/stale ignored `apps/web/dist`, while the local server marks the entry point and assets `no-store`, so `git pull` cannot leave a reopened Studio on an older bundle.
 - Catalog-only real-model install apply now returns HTTP 409 before staging and leaves no installation transaction; registry visibility cannot create a false READY state.
 - Retained a deterministic test-only model fixture for Worker, `ModelResult`, Motion IR, retargeting, canonical `VrmMotionResult`, NPZ/VRMA and API contracts; it is not a production starter or evidence for real-model quality.

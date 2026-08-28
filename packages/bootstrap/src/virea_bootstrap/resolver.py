@@ -1115,7 +1115,6 @@ def resolve_built_runtime(
     selected_resource_profile: str | None = None,
     selected_accelerator: AcceleratorSelection | None = None,
     execution_domain: ExecutionDomainReport | None = None,
-    expected_runtime_source_identity: dict[str, Any] | None = None,
 ) -> RuntimeCompatibility:
     """Validate the interpreter produced for one isolated runtime.
 
@@ -1181,49 +1180,6 @@ def resolve_built_runtime(
                 f"rebuild runtime {spec.id} from its declared core epoch"
             )
             runtime_rebuild_required = True
-    if expected_runtime_source_identity is not None:
-        observed_source_identity = python_probe.get("runtime_source_identity")
-        if observed_source_identity != expected_runtime_source_identity:
-            expected_digest = expected_runtime_source_identity.get("sha256")
-            observed_digest = (
-                observed_source_identity.get("sha256")
-                if isinstance(observed_source_identity, dict)
-                else None
-            )
-            hard.append(
-                "isolated runtime source identity mismatch: "
-                f"expected sha256={expected_digest}, "
-                f"observed sha256={observed_digest}"
-            )
-            remediation.append(
-                f"rebuild runtime {spec.id} from the current locked source closure"
-            )
-            runtime_rebuild_required = True
-        expected_installed = expected_runtime_source_identity.get("installed_packages")
-        observed_installed = python_probe.get("installed_source_identities")
-        if (
-            isinstance(expected_installed, dict)
-            and observed_installed != expected_installed
-        ):
-            observed_packages = (
-                observed_installed if isinstance(observed_installed, dict) else {}
-            )
-            mismatched_packages = sorted(
-                package_name
-                for package_name in set(expected_installed) | set(observed_packages)
-                if observed_packages.get(package_name)
-                != expected_installed.get(package_name)
-            )
-            hard.append(
-                "isolated runtime installed source identity mismatch: "
-                + ", ".join(mismatched_packages)
-            )
-            remediation.append(
-                f"rebuild runtime {spec.id}; its installed wheels do not match "
-                "the current locked source closure"
-            )
-            runtime_rebuild_required = True
-
     profiles = _resource_profiles(spec)
     profile = next(
         (

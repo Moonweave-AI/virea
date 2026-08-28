@@ -88,10 +88,6 @@ from virea_runtime import (
     map_host_path_to_domain,
     wrap_domain_command,
 )
-from virea_runtime.source_identity import (
-    RUNTIME_SOURCE_IDENTITY_FILENAME,
-    runtime_source_identity,
-)
 from virea_vrm import export_vrma
 
 from virea.motion.skeleton import FK_BONES, FK_EDGES, forward_kinematics_from_sequence
@@ -2015,9 +2011,6 @@ class ControlPlane:
             runtime,
             selected_resource_profile=selected_profile,
             selected_accelerator=selected_accelerator,
-            expected_runtime_source_identity=_expected_runtime_source_identity(
-                runtime, self.runtime_source_root
-            ),
         )
         if runtime_readiness.status != "ready":
             return evidence(
@@ -2172,9 +2165,6 @@ class ControlPlane:
                 runtime,
                 selected_resource_profile=selected_profile,
                 selected_accelerator=resolution.selected_accelerator,
-                expected_runtime_source_identity=_expected_runtime_source_identity(
-                    runtime, self.runtime_source_root
-                ),
             )
             # A prebuilt runtime removes only the build-tool prerequisite.  It
             # must not bypass current RAM/VRAM/disk/platform admission before
@@ -3173,16 +3163,12 @@ class ControlPlane:
         try:
             self._raise_if_runtime_cancelled(cancel_event)
             effective_cancel = cancel_event or self._closing
-            expected_source_identity = _expected_runtime_source_identity(
-                runtime, self.runtime_source_root
-            )
             existing_readiness = _runtime_readiness(
                 runtime_python,
                 runtime,
                 selected_resource_profile=selected_resource_profile,
                 selected_accelerator=selected_accelerator,
                 cancel_event=effective_cancel,
-                expected_runtime_source_identity=expected_source_identity,
             )
             if existing_readiness.status == "ready":
                 return runtime_python
@@ -3240,7 +3226,6 @@ class ControlPlane:
                 selected_resource_profile=selected_resource_profile,
                 selected_accelerator=selected_accelerator,
                 cancel_event=effective_cancel,
-                expected_runtime_source_identity=expected_source_identity,
             )
             self._raise_if_runtime_cancelled(cancel_event)
             if staged_readiness.status != "ready":
@@ -3613,24 +3598,13 @@ def _runtime_import_probe(project_package: str | None) -> str:
     """Build valid Python for both production packages and test-only ``None``."""
 
     project_literal = repr(project_package)
-    source_identity_filename = repr(RUNTIME_SOURCE_IDENTITY_FILENAME)
     return (
-        "import importlib.metadata as metadata, json, pathlib, sys, virea_contracts, "
+        "import importlib.metadata as metadata, json, virea_contracts, "
         "virea_model_sdk, uvicorn; "
-        "from virea_contracts.source_identity import distribution_source_identities; "
         f"package={project_literal}; "
         "version=metadata.version(package) if package else None; "
-        f"source_marker=pathlib.Path(sys.prefix)/{source_identity_filename}; "
-        "source_identity=json.loads(source_marker.read_text(encoding='utf-8')) "
-        "if source_marker.is_file() else None; "
-        "installed_packages=source_identity.get('installed_packages') "
-        "if isinstance(source_identity,dict) else None; "
-        "installed_source_identities=distribution_source_identities("
-        "installed_packages) if isinstance(installed_packages,dict) else {}; "
         "print(json.dumps({'project_package': package, "
         "'project_version': version, "
-        "'runtime_source_identity': source_identity, "
-        "'installed_source_identities': installed_source_identities, "
         "'contracts_runtime_core_epoch': "
         "getattr(virea_contracts, 'RUNTIME_CORE_EPOCH', None), "
         "'model_sdk_runtime_core_epoch': "
@@ -3645,7 +3619,6 @@ def _runtime_readiness(
     selected_resource_profile: str | None = None,
     selected_accelerator: AcceleratorSelection | None = None,
     cancel_event: threading.Event | None = None,
-    expected_runtime_source_identity: dict[str, Any] | None = None,
 ) -> RuntimeCompatibility:
     interpreter = python if isinstance(python, _RuntimeInterpreter) else None
     executable = interpreter.executable if interpreter else python
@@ -3763,17 +3736,7 @@ def _runtime_readiness(
         selected_resource_profile=selected_resource_profile,
         selected_accelerator=selected_accelerator,
         execution_domain=domain,
-        expected_runtime_source_identity=expected_runtime_source_identity,
     )
-
-
-def _expected_runtime_source_identity(
-    runtime: RuntimeSpec,
-    source_root: Path,
-) -> dict[str, Any] | None:
-    if runtime.backend is not RuntimeBackend.UV_NATIVE:
-        return None
-    return runtime_source_identity(runtime, source_root=source_root)
 
 
 def _terminate_runtime_probe_process(process: subprocess.Popen[str]) -> None:

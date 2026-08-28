@@ -1105,7 +1105,7 @@ def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
         execution_domain=wsl,
     )
 
-    assert len(plan.commands) == 3
+    assert len(plan.commands) == 2
     sync = plan.commands[1]
     assert sync[:3] == wsl.launcher_argv
     assert "--exec" in sync
@@ -1121,9 +1121,6 @@ def test_wsl_uv_lock_plan_refreshes_local_core_packages(tmp_path) -> None:
         "virea-contracts",
         "virea-model-sdk",
     }
-    marker = plan.commands[2]
-    assert marker[:3] == wsl.launcher_argv
-    assert ".virea-runtime-source.json" in " ".join(marker)
 
 
 def test_wsl_uv_plan_uses_only_the_domain_persistent_environment(
@@ -1311,7 +1308,7 @@ def test_wsl_uv_lock_offline_plan_cleans_core_cache_before_locked_sync(
         execution_domain=wsl,
     )
 
-    assert len(plan.commands) == 4
+    assert len(plan.commands) == 3
     assert all(command[:3] == wsl.launcher_argv for command in plan.commands)
     clean = plan.commands[1]
     sync = plan.commands[2]
@@ -1326,7 +1323,6 @@ def test_wsl_uv_lock_offline_plan_cleans_core_cache_before_locked_sync(
     assert "--locked" in sync
     assert "--refresh-package" not in sync
     assert "UV_OFFLINE=1" in sync
-    assert ".virea-runtime-source.json" in " ".join(plan.commands[3])
 
 
 def test_same_distribution_wsl_unc_maps_directly_without_wslpath(monkeypatch) -> None:

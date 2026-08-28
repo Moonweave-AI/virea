@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-08-28
+last_reviewed: 2026-08-28
 review_cycle_days: 30
 summary: 一次选择并持久化 VIREA 数据根目录，避免将模型和环境写入系统盘。
 canonical: doc/getting-started/persistent-data-root.zh-CN.md
@@ -169,9 +169,8 @@ shell 使用 `"$VIREA_HOME"`。
 ## 更新另一台已经部署过的设备
 
 版本更新不要求重新 clone、删除 `VIREA_HOME` 或重新下载全部模型。下面命令会更新源码、主 workspace 的锁定环境和 Web
-build。每个模型的隔离 Runtime 按设计不属于主 workspace；但下一次 `uv run virea` 会比较所选 Runtime 已记录的源码内容
-身份与当前锁定源码闭包，只重建缺失或过期的隔离环境。模型 artifact、任务、结果和日志继续使用这台设备最初配置的持久
-home。
+build。每个模型的隔离 Runtime 按设计不属于主 workspace；下一次 `uv run virea` 只检查 Python、平台、项目版本和共享
+`runtime_core_epoch` 是否仍与所选 RuntimeSpec 一致。模型 artifact、任务、结果和日志继续使用这台设备最初配置的持久 home。
 
 ```powershell
 # 进入另一台设备现有的 clone。-LiteralPath 把整段路径作为原样路径；请替换为那台设备的实际 clone。
@@ -235,13 +234,11 @@ uv run virea model verify MODEL_ID
 uv run virea
 ```
 
-`model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision、
-`runtime_core_epoch` 或 Runtime 源码内容，它可能返回 `installed: true` 但 `ready: false`：模型文件仍在，但新代码会拒绝运行
-过期的隔离环境。V2 源码身份会同时比较仓库源码闭包，以及每个隔离 Runtime 中实际安装的 distribution 文件字节；因此，
-即使旧构建误写了当前 marker，同版本的过期 wheel 也无法继续复用。该机制统一适用于 Windows/Linux/macOS 原生环境、WSL，
-以及所有 CPU/CUDA Runtime 变体。携带旧 V1 marker 的 Runtime 会在首次使用时自动重建一次。身份覆盖 lockfile 与传递性的
-本地包闭包（模型包装包、共享 Worker、Model SDK、contracts），所以即使版本号和文件修改时间都没变，Worker 源码修正
-也能被识别，不再依赖人工提升版本/epoch。先运行不带 `--apply` 的
+`model verify` 若仍返回 `ready: true`，无需修复。若新版本改变了模型 manifest、checkpoint revision、项目版本或
+`runtime_core_epoch`，它可能返回 `installed: true` 但 `ready: false`：模型文件仍在，隔离 Python 环境会按 lockfile 重建。
+Runtime 复用不再记录源码树哈希 marker，也不再逐 distribution 比较文件字节矩阵；影响 Runtime 的正式更新必须提升项目版本
+或共享 epoch，锁定构建会刷新全部本地路径包。旧环境中的 `.virea-runtime-source.json` 已被忽略，保留它也没有影响。先运行
+不带 `--apply` 的
 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` 查看计划；确认后才追加 `--apply`。`DOMAIN` 是
 `windows-native`、`linux-native`、`macos-native` 或实际 `wsl:发行版` ID。重建过期 Python Runtime 不会重新下载通过校验的
 checkpoint；只有新 manifest 明确要求不同 artifact revision，或文件缺失/损坏时，才需要下载对应内容。如果已经打开的

@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-08-28
+last_reviewed: 2026-08-28
 review_cycle_days: 30
 summary: 环境探测、资源准入、安装、Worker、结果和浏览器播放的分层排错入口。
 canonical: doc/operations/troubleshooting.zh-CN.md
@@ -94,13 +94,13 @@ uv run virea
 ## 仓库已经更新，但模型隔离 Runtime 仍使用旧代码
 
 `uv sync --locked --all-packages --extra dev` 更新的是 VIREA 主 workspace；`VIREA_HOME/runtimes` 下的逐模型环境按设计与其
-隔离。当前 VIREA 不再只依据 `project_version` 或 `runtime_core_epoch` 判断能否复用。每个构建完成的 Runtime 都记录一个
-SHA-256 源码身份，覆盖 lockfile 和传递性的本地安装闭包（模型包装包、共享 Worker、Model SDK、contracts）。每次复用前，
-`uv run virea` 都会把这份记录与当前 clone 比较；记录缺失或任意内容不一致都属于可自动重建的过期状态。
+隔离。Runtime 复用只检查声明的 Python/平台、项目版本、共享 `runtime_core_epoch` 以及真实 framework/device 探针；不再写入
+或比较源码树哈希 marker，也不再逐 distribution 计算文件字节矩阵。影响 Runtime 的正式更新必须提升项目版本或共享 epoch；
+在线重建会对完整本地包闭包传入 `--refresh-package`，离线重建则先从受管 uv cache 清除这些包，再执行锁定同步。
 
 不要删除模型安装或 checkpoint。完成上面的普通 `git pull` 和 `uv sync` 后，运行 `uv run virea`，选择同一模型和执行域即可。
 VIREA 会隔离旧 Python 环境、创建并探测新环境，然后原子发布；model store 中已经校验的模型 artifact 会直接复用。Windows
-native、Linux native、macOS native 和 WSL 使用同一机制；WSL 的身份文件会在所选发行版自己的 Runtime 前缀中写入和探测。
+native、Linux native、macOS native 和 WSL 使用同一机制。旧环境残留的 `.virea-runtime-source.json` 会被忽略，无需手工删除。
 
 ## Web 提示模型的 production acceptance 不是可执行 JobRequest
 

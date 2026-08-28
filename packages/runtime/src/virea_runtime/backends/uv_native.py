@@ -17,11 +17,7 @@ from ..execution import (
     map_host_path_to_domain,
     wrap_domain_command,
 )
-from ..source_identity import (
-    local_runtime_projects,
-    runtime_source_identity,
-    runtime_source_identity_write_command,
-)
+from ..project_closure import local_runtime_projects
 from .base import (
     BuildPlan,
     RuntimeBuildError,
@@ -116,7 +112,6 @@ class UvNativeBackend:
                 f"uv executable was not found in execution domain {domain_id}"
             )
         source = resolve_runtime_source(spec, source_root=self.source_root)
-        source_identity = runtime_source_identity(spec, source_root=self.source_root)
         lockfile = (source / spec.lockfile).resolve(strict=False)
         if not lockfile.exists():
             raise FileNotFoundError(f"runtime lockfile not found: {lockfile}")
@@ -166,12 +161,6 @@ class UvNativeBackend:
                     str(domain_python_path(execution_domain, target)),
                 ),
             )
-        commands = (
-            *commands,
-            runtime_source_identity_write_command(
-                domain_python_path(execution_domain, target), source_identity
-            ),
-        )
         return BuildPlan(
             runtime_id=spec.id,
             target=target,
@@ -267,7 +256,6 @@ class UvNativeBackend:
                 f"Python executable was not found inside execution domain {domain.id}"
             )
         source_host = resolve_runtime_source(spec, source_root=self.source_root)
-        source_identity = runtime_source_identity(spec, source_root=self.source_root)
         source = self.domain_path_mapper(domain, source_host)
         lockfile = posixpath.join(source, spec.lockfile)
         target_name = target.name
@@ -360,16 +348,6 @@ class UvNativeBackend:
                     environment=domain_environment,
                 ),
             )
-        runtime_python = domain_python_path(domain, domain_target)
-        commands = (
-            *commands,
-            wrap_domain_command(
-                domain,
-                runtime_source_identity_write_command(runtime_python, source_identity),
-                working_directory=source,
-                environment=domain_environment,
-            ),
-        )
         return BuildPlan(
             runtime_id=spec.id,
             target=domain_target,

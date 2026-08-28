@@ -20,10 +20,6 @@ import yaml
 from virea_contracts.runtime import RuntimeSpec
 from virea_runtime import BuildPlan, RuntimeBuildError
 from virea_runtime.backends.uv_native import UvNativeBackend
-from virea_runtime.source_identity import (
-    RUNTIME_SOURCE_IDENTITY_FILENAME,
-    runtime_source_identity,
-)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -186,6 +182,35 @@ def test_runtime_source_rejects_declared_project_version_drift(tmp_path) -> None
         UvNativeBackend().plan(spec, tmp_path / "runtime-prefix")
 
 
+def test_every_registered_uv_runtime_refreshes_its_local_core(tmp_path) -> None:
+    index = yaml.safe_load(
+        (REPO_ROOT / "registries" / "index.yaml").read_text(encoding="utf-8")
+    )
+    checked: list[str] = []
+    for relative in index["registries"]["runtimes"]:
+        spec = RuntimeSpec.model_validate(
+            yaml.safe_load((REPO_ROOT / relative).read_text(encoding="utf-8"))
+        )
+        if spec.backend.value != "uv-native" or spec.availability == "fixture_only":
+            continue
+        plan = UvNativeBackend(source_root=REPO_ROOT).plan(
+            spec, tmp_path / spec.id
+        )
+        sync = next(command for command in plan.commands if "sync" in command)
+        refreshed = {
+            sync[index + 1]
+            for index, argument in enumerate(sync[:-1])
+            if argument == "--refresh-package"
+        }
+        assert {
+            spec.project_package,
+            "virea-contracts",
+            "virea-model-sdk",
+        }.issubset(refreshed)
+        checked.append(spec.id)
+    assert len(checked) >= 28
+
+
 def _write_local_package(
     root: Path,
     *,
@@ -219,77 +244,6 @@ def _write_local_package(
     (root / "setup.cfg").write_text("[build]\nforce = 1\n", encoding="utf-8")
 
 
-def test_runtime_source_identity_tracks_content_without_versions_or_timestamps(
-    tmp_path: Path,
-) -> None:
-    runtime = tmp_path / "runtime"
-    _write_local_package(
-        runtime,
-        project_name="virea-source-identity-runtime",
-        import_name="virea_source_identity_runtime",
-        body='SOURCE_MARKER = "old"\n',
-        version="0.1.0",
-    )
-    (runtime / "uv.lock").write_text("version = 1\n", encoding="utf-8")
-    payload = yaml.safe_load(
-        (
-            REPO_ROOT / "registries" / "runtimes" / "acmdm-humanml3d-cu128.yaml"
-        ).read_text(encoding="utf-8")
-    )
-    spec = RuntimeSpec.model_validate(payload).model_copy(
-        update={
-            "id": "source-identity-test",
-            "working_directory": ".",
-            "lockfile": "uv.lock",
-            "project_package": "virea-source-identity-runtime",
-            "project_version": "0.1.0",
-        }
-    )
-    source = runtime / "src" / "virea_source_identity_runtime" / "__init__.py"
-    original_stat = source.stat()
-
-    before = runtime_source_identity(spec, source_root=runtime)
-    source.write_text('SOURCE_MARKER = "new"\n', encoding="utf-8")
-    os.utime(source, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
-    after = runtime_source_identity(spec, source_root=runtime)
-
-    assert before["schema_version"] == "virea.runtime_source_identity.v2"
-    assert before["local_packages"] == ["virea-source-identity-runtime"]
-    assert set(before["installed_packages"]) == {"virea-source-identity-runtime"}
-    assert before["installed_packages"] != after["installed_packages"]
-    assert before["sha256"] != after["sha256"]
-
-
-def test_every_registered_uv_runtime_has_a_complete_source_identity() -> None:
-    index = yaml.safe_load(
-        (REPO_ROOT / "registries" / "index.yaml").read_text(encoding="utf-8")
-    )
-    checked: list[str] = []
-    for relative in index["registries"]["runtimes"]:
-        spec = RuntimeSpec.model_validate(
-            yaml.safe_load((REPO_ROOT / relative).read_text(encoding="utf-8"))
-        )
-        if spec.backend.value != "uv-native" or spec.availability == "fixture_only":
-            continue
-        identity = runtime_source_identity(spec, source_root=REPO_ROOT)
-        assert identity["runtime_id"] == spec.id
-        assert identity["project_package"] == spec.project_package
-        assert identity["file_count"] > 1
-        assert spec.project_package in identity["local_packages"]
-        assert {"virea-contracts", "virea-model-sdk"}.issubset(
-            identity["local_packages"]
-        )
-        assert set(identity["installed_packages"]) == set(identity["local_packages"])
-        assert all(
-            installed_identity["file_count"] >= 0
-            and len(installed_identity["sha256"]) == 64
-            for installed_identity in identity["installed_packages"].values()
-        )
-        assert len(identity["sha256"]) == 64
-        checked.append(spec.id)
-    assert len(checked) >= 28
-
-
 def test_runtime_refreshes_same_version_local_core_source_offline(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -306,15 +260,6 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
         project_name="virea-contracts",
         import_name="virea_contracts",
         body='CONTRACT_MARKER = "old-contract"\n',
-    )
-    shutil.copyfile(
-        REPO_ROOT
-        / "packages"
-        / "contracts"
-        / "src"
-        / "virea_contracts"
-        / "source_identity.py",
-        contracts / "src" / "virea_contracts" / "source_identity.py",
     )
     _write_local_package(
         sdk,
@@ -459,29 +404,19 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
             environment["UV_OFFLINE"] = "1"
         replace(plan, environment=environment).execute(timeout_per_command=180.0)
         python = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-        marker = json.loads(
-            target.joinpath(RUNTIME_SOURCE_IDENTITY_FILENAME).read_text(
-                encoding="utf-8"
-            )
-        )
-        assert marker == runtime_source_identity(spec, source_root=runtime)
         completed = subprocess.run(
             (
                 str(python),
                 "-I",
                 "-c",
                 "import json,virea_contracts,virea_model_sdk,virea_shared_worker; "
-                "from virea_contracts.source_identity import "
-                "distribution_source_identities; "
                 "print(json.dumps({'contracts_marker': "
                 "virea_contracts.CONTRACT_MARKER, "
                 "'contracts_file': virea_contracts.__file__, "
                 "'sdk_marker': virea_model_sdk.CACHE_MARKER, "
                 "'sdk_file': virea_model_sdk.__file__, "
                 "'worker_marker': virea_shared_worker.WORKER_MARKER, "
-                "'worker_file': virea_shared_worker.__file__, "
-                "'installed_source_identities': distribution_source_identities("
-                f"{sorted(local_packages)!r})}}, sort_keys=True))",
+                "'worker_file': virea_shared_worker.__file__}, sort_keys=True))",
             ),
             check=True,
             capture_output=True,
@@ -490,16 +425,7 @@ def test_runtime_refreshes_same_version_local_core_source_offline(
             errors="replace",
             timeout=30.0,
         )
-        observed = json.loads(completed.stdout.splitlines()[-1])
-        if refresh_local_core:
-            assert (
-                observed["installed_source_identities"] == marker["installed_packages"]
-            )
-        else:
-            assert (
-                observed["installed_source_identities"] != marker["installed_packages"]
-            )
-        return observed
+        return json.loads(completed.stdout.splitlines()[-1])
 
     online_before_target = tmp_path / "runtime-online-before"
     online_before = build_and_probe(

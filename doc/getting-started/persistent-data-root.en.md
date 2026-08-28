@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-08-28
+last_reviewed: 2026-08-28
 review_cycle_days: 30
 summary: Choose, enter, and persist a VIREA data root without putting models or environments in the system drive.
 canonical: doc/getting-started/persistent-data-root.en.md
@@ -175,9 +175,9 @@ path: PowerShell uses `$env:VIREA_HOME`; POSIX shells use `"$VIREA_HOME"`.
 
 An update does not require a fresh clone, deletion of `VIREA_HOME`, or a complete model download. These commands update
 source, the main locked workspace, and the Web build. Per-model Runtimes intentionally remain outside that workspace,
-but the next `uv run virea` compares each selected Runtime's recorded source-content identity with the current locked
-source closure and rebuilds only a missing or stale isolated environment. Model assets, jobs, results, and logs remain in
-the persistent home configured on that device.
+but the next `uv run virea` reuses an isolated Runtime only when its Python, platform, project version, and shared
+`runtime_core_epoch` still match the selected RuntimeSpec. Model assets, jobs, results, and logs remain in the persistent
+home configured on that device.
 
 ```powershell
 # Enter the existing clone on the other device. -LiteralPath treats the complete value as a path; replace this example.
@@ -241,14 +241,12 @@ uv run virea model verify MODEL_ID
 uv run virea
 ```
 
-When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, `runtime_core_epoch`, or
-Runtime source-content change can instead produce `installed: true` with `ready: false`: the model files still exist, but
-the new code correctly refuses to run an outdated isolated environment. V2 source identity compares both the repository
-source closure and the bytes actually installed in every isolated-runtime distribution. It therefore catches a stale
-same-version wheel even if an earlier build wrote a current marker, and it applies to every CPU/CUDA variant in native
-Windows/Linux/macOS and WSL. A Runtime carrying the older V1 marker is rebuilt once on first use. The identity covers the
-lockfile and transitive local package closure (the model wrapper, shared Worker, Model SDK, and contracts), so a
-same-version Worker fix is detected without relying on timestamps or a manual version bump. Preview
+When `model verify` returns `ready: true`, no repair is needed. A manifest, checkpoint revision, project version, or
+`runtime_core_epoch` change can instead produce `installed: true` with `ready: false`: the model files still exist while
+the isolated Python environment is rebuilt from its lockfile. Runtime reuse deliberately has no source-tree hash marker
+or per-distribution byte-hash matrix. Runtime-affecting releases must bump the project version or shared epoch; the locked
+build refreshes every local path package. Old `.virea-runtime-source.json` files are ignored and may remain harmlessly in
+an existing Runtime. Preview
 `uv run virea model repair MODEL_ID --execution-domain DOMAIN` without `--apply`; append `--apply` only after reviewing the
 plan. `DOMAIN` is `windows-native`, `linux-native`, `macos-native`, or the exact `wsl:distribution` ID. Repair reuses verified
 artifacts; rebuilding a stale Python Runtime does not re-download a valid checkpoint. Only a newly required artifact

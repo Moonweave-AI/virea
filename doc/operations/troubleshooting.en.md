@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-08-28
+last_reviewed: 2026-08-28
 review_cycle_days: 30
 summary: English troubleshooting guide for VIREA detection, installation, Worker, result, and browser-playback failures.
 canonical: doc/operations/troubleshooting.en.md
@@ -94,16 +94,17 @@ uv run virea
 ## The repository updated, but an isolated model Runtime still used old code
 
 `uv sync --locked --all-packages --extra dev` updates the main VIREA workspace; per-model environments under
-`VIREA_HOME/runtimes` are deliberately isolated from it. Current VIREA does not decide reuse from only
-`project_version` or `runtime_core_epoch`. Every built Runtime records a SHA-256 source identity covering its lockfile and
-transitive local install closure (model wrapper, shared Worker, Model SDK, and contracts). Before reuse, `uv run virea`
-compares that record with the current clone. A missing record or any content mismatch is rebuildable stale state.
+`VIREA_HOME/runtimes` are deliberately isolated from it. Runtime reuse checks the declared Python/platform, project
+version, shared `runtime_core_epoch`, and the real framework/device probe. It no longer records or compares source-tree
+hash markers or per-distribution byte-hash matrices. Runtime-affecting releases therefore bump the project version or
+shared epoch. An online rebuild passes `--refresh-package` for the complete local package closure; an offline rebuild
+clears those packages from the managed uv cache before its locked sync.
 
 Do not delete the model installation or checkpoint. After the ordinary `git pull` and `uv sync` commands above, run
 `uv run virea` and select the same model and execution domain. VIREA quarantines the stale Python environment, creates and
 probes a fresh one, then publishes it atomically. Verified model assets remain in the model store and are reused. This
-works the same way for Windows native, Linux native, macOS native, and WSL; WSL writes and probes the identity inside the
-selected distribution's Runtime prefix.
+works the same way for Windows native, Linux native, macOS native, and WSL. A legacy `.virea-runtime-source.json` file is
+ignored and does not require manual cleanup.
 
 ## Web says a model's production acceptance is not an executable JobRequest
 
