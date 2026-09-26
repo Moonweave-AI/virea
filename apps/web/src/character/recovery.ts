@@ -6,7 +6,7 @@ export interface PoseSample {
   position: THREE.Vector3;
 }
 
-/** A terminal speech gesture retracts from its actual velocity, not a frozen last frame. */
+/** Each speech gesture retracts from its actual velocity to a relaxed stance. */
 export class PoseRecovery {
   readonly duration: number;
   private readonly rotations: { bone: THREE.Object3D; target: THREE.Quaternion; bridge: RotationBridge }[];

@@ -28,7 +28,7 @@ root.innerHTML = `
       <form><label for="message">对角色说</label><textarea id="message" rows="3" maxlength="4000" placeholder="你好，看看你左边的杯子。" required></textarea>
         <div class="buttons"><button type="submit" id="send" disabled>发送</button><button type="button" id="interrupt" disabled>打断并留在此刻</button></div></form>
       <div id="error" role="alert"></div>
-      <details><summary>运行状态与能力边界</summary><p>片段衔接结合历史动作码约束、解码重叠和实际姿态的惯性过渡。动作规划器仍不支持完整历史或实际姿态条件输入。手指使用上游固定资源，面部映射为近似转换。</p><output id="metrics">尚无测量</output></details>
+      <details><summary>运行状态与能力边界</summary><p>每段动作平滑回到自然姿态，下一段从该实际姿态开始。收势后的姿态无法反向编码为模型历史，因此不沿用前段动作尾码。手指使用上游固定资源，面部映射为近似转换。</p><output id="metrics">尚无测量</output></details>
     </aside>
   </main>`;
 
@@ -124,7 +124,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   const generation = playbackGeneration;
   element<HTMLButtonElement>("#pause").disabled = false;
   element("#playback-note").textContent = packet.motion
-    ? "语音、动作与字幕使用同一播放时钟；整句结束后身体自然收势，字幕随语音结束。"
+    ? "每段动作结束后平滑回到自然姿态，再开始下一段；语音、动作与字幕使用同一播放时钟。"
     : "优先播放语音与字幕，口型按音量近似驱动；生成动作可稍后预览或同步重播。";
   let status = "completed";
   let message = "";

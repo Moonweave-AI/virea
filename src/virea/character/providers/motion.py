@@ -14,14 +14,15 @@ from ..contracts import CharacterConfig
 
 CAPABILITIES = {
     "body_and_face": True,
-    "native_history": True,
-    "native_history_mode": "rvq_infill_boundary_and_decoder_overlap",
+    "native_history": False,
+    "native_history_mode": "disabled_for_segment_recovery",
+    "model_native_history": True,
     "planner_history": False,
     "executed_pose_conditioning": False,
     "online_worker_streaming": False,
     "generative_fingers": False,
     "silent_generative_motion": False,
-    "playback_continuity": "executed_pose_inertialization",
+    "playback_continuity": "recover_to_rest_each_segment",
     "scene_actions": ["look_at", "move_to", "stop"],
 }
 

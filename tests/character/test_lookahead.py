@@ -26,13 +26,12 @@ def test_next_window_is_ready_while_parent_plays_and_is_discarded_on_interrupt(
         await session.interrupt(BodyState())
         assert session.pending is session.buffered is None
         assert not list(session.directory.glob("*.wav"))
-        assert session._motion_tail == []
         await session.close()
 
     asyncio.run(run())
 
 
-def test_only_completed_history_is_committed_and_successor_uses_parent_codes(tmp_path):
+def test_heard_text_commits_without_reusing_pre_recovery_motion_codes(tmp_path):
     class Motion:
         prefixes = []
 
@@ -52,17 +51,16 @@ def test_only_completed_history_is_committed_and_successor_uses_parent_codes(tmp
             lambda: session.pending is not None and session.buffered is not None
         )
         first = session.pending
-        assert session.motion.prefixes[:2] == [[], [[1] * 4]]
-        assert session._motion_tail == []
+        assert session.motion.prefixes[:2] == [[], []]
         session.acknowledge(feedback(session))
         await until(
             lambda: session.pending is not None and session.pending is not first
         )
-        assert session._motion_tail == [[1] * 4]
+        assert all(prefix == [] for prefix in session.motion.prefixes)
         assert session.history[-1]["content"] == first["text"]
         session.acknowledge(feedback(session, status="failed"))
         await until(lambda: session.status == "waiting")
-        assert session._motion_tail == []
+        assert all(prefix == [] for prefix in session.motion.prefixes)
         await session.close()
 
     asyncio.run(run())

@@ -1,0 +1,131 @@
+{
+  "schema_version": "virea.character_segment_rest.v1",
+  "baseline_commit": "6c71025803f789f529656169b68cd76526d6ba77",
+  "policy": "Every motion segment recovers before acknowledgment. Successors enter from the executed natural pose. Native pre-recovery codes are never propagated.",
+  "source_sha256": {
+    "apps/web/src/character/stage.ts": "97ba9332cde45d35ab8f8c56224291c69367ed5a0449d9715bdc9914bb60f3c3",
+    "src/virea/character/session.py": "24cc57820489dd8caaa5395bfa0dcaedf1c1b292834e1be997b584f87881c6b4",
+    "src/virea/character/providers/motion.py": "7f17536d86bad243de7f8915416a3542e578818154013d342f781bb5b9639e41",
+    "src/virea/character/manager.py": "1092a64c282d7dd21656c2516cea60ce205564c23c8369f4a2c822f3aa8c28a8",
+    "scripts/character/ending_e2e.mjs": "351ad4d3054e1005d79f66805b7fb563dad3753445d6f86cb86adf4a6d164eeb",
+    "scripts/character/continuous_e2e.mjs": "ab163db9c5c672686020447f15963ae756fd7f319c8af08ee948ac4b6bec744b"
+  },
+  "fixed_asset_replay": {
+    "outcome": "passed",
+    "finished_at": "2026-09-26T17:38:45.364Z",
+    "source_assets_manifest": "endings-20260927.json",
+    "trials": [
+      {
+        "continues": true,
+        "audio_seconds": 2.85,
+        "motion_seconds": 3.760254425981424,
+        "natural_pose_error_rad": 0,
+        "entry_pose_error_rad": 0,
+        "frames": 903
+      },
+      {
+        "continues": true,
+        "audio_seconds": 4.6,
+        "motion_seconds": 5.87238119268784,
+        "natural_pose_error_rad": 0,
+        "entry_pose_error_rad": 0,
+        "frames": 1411
+      },
+      {
+        "continues": false,
+        "audio_seconds": 4.15,
+        "motion_seconds": 5.535444688297108,
+        "natural_pose_error_rad": 0,
+        "entry_pose_error_rad": 0,
+        "frames": 1328
+      }
+    ],
+    "pause": {
+      "elapsed": 4.421333333333337,
+      "observed_ms": 400,
+      "unchanged": true
+    },
+    "interruption": {
+      "unchanged": true,
+      "completed": false
+    },
+    "errors": []
+  },
+  "checks": {
+    "character_tests": 42,
+    "character_frontend_tests": 11,
+    "production_build": "passed",
+    "ruff": "passed"
+  },
+  "limitations": [
+    "One VRM and three fixed real-model clips for exact-pose comparison.",
+    "Ground position and pelvic heading are retained; finger shape is retained rather than neutralized.",
+    "Model does not condition directly on rendered rest pose; renderer bridges from the executed pose."
+  ],
+  "real_model_continuous": {
+    "outcome": "passed",
+    "first_playback_seconds": 7.4389129,
+    "gaps_seconds": [
+      1.395666666666667,
+      1.3049999999999997
+    ],
+    "recovery_seconds": [
+      1.291150244923358,
+      1.2013866336385348,
+      1.2383130196292393
+    ],
+    "handoff_gaps_seconds": [
+      0.104516421743309,
+      0.1036133663614649
+    ],
+    "pause": {
+      "before": [
+        0.371,
+        0.371
+      ],
+      "after": [
+        0.371,
+        0.371
+      ]
+    },
+    "errors": [],
+    "native_history_applied": [
+      false,
+      false,
+      false
+    ],
+    "continues": [
+      true,
+      true,
+      false
+    ],
+    "feedback": [
+      {
+        "status": "completed",
+        "audio_seconds": 5.775,
+        "motion_seconds": 7.066150244923358
+      },
+      {
+        "status": "completed",
+        "audio_seconds": 9.375,
+        "motion_seconds": 10.576386633638535
+      },
+      {
+        "status": "completed",
+        "audio_seconds": 7.05,
+        "motion_seconds": 8.28831301962924
+      }
+    ],
+    "after_interrupt_metrics": {
+      "generated_seconds": 30.475,
+      "generation_seconds": 29.844000000011874,
+      "first_expression_seconds": 5.2810000000026776,
+      "rtf": 0.97929450369194,
+      "first_audio_seconds": 3.25,
+      "language_seconds": 3.187000000005355,
+      "tts_seconds": 0.0629999999946449,
+      "motion_seconds": 2.0310000000026776
+    }
+  },
+  "harness_teardown": "Continuous browser assertions completed and evidence was saved. Chrome teardown hung on Windows; owned test runner was stopped afterwards. Fixed-resource replay exited normally."
+}

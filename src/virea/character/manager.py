@@ -42,8 +42,8 @@ class CharacterManager:
             or request.playback_mode != "synchronized"
         ):
             raise ValueError(
-                "native motion history requires synchronized playback; "
-                "voice-first motion previews are not executed history"
+                "native motion history is unavailable for this playback policy; "
+                "per-segment recovery cannot be encoded into model history"
             )
         if len(self.sessions) >= self.config.max_sessions:
             raise ValueError(

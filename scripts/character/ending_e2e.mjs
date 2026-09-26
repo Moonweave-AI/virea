@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
+import { Quaternion } from "three";
 
 const [avatar, output, captured, base = "http://127.0.0.1:5173"] = process.argv.slice(2);
 if (!avatar || !output) throw new Error("usage: node ending_e2e.mjs AVATAR OUTPUT [CAPTURE_DIR] [VITE_URL]");
@@ -15,6 +16,10 @@ const page = await context.newPage();
 const errors = [], trials = [];
 const report = { started_at: new Date().toISOString(), captured: captured || null, trials, errors };
 let sessionId, lastPacket;
+let previousEnd = null;
+const poseError = (actual, expected, names = Object.keys(expected.pose)) => Math.max(0,
+  ...names.filter(name => actual.pose[name] && expected.pose[name]).map(name =>
+    new Quaternion(...actual.pose[name]).angleTo(new Quaternion(...expected.pose[name]))));
 page.on("pageerror", e => errors.push(String(e)));
 const request = async (path, method = "GET", data) => {
   const response = await page.request.fetch(`${base}/api/v1/characters${path}`, { method, data });
@@ -29,11 +34,14 @@ try {
       import { CharacterStage } from '/app/src/character/stage.ts';
       const stage = new CharacterStage(document.querySelector('canvas'));
       window.probe = { stage, frames: [], done: false, progress: null,
-        async load() { await stage.loadAvatar(document.querySelector('input').files[0]); await stage.unlockAudio(); },
+        async load() {
+          await stage.loadAvatar(document.querySelector('input').files[0]); await stage.unlockAudio();
+          this.rest = stage.state();
+        },
         async play(packet) {
           this.frames = []; this.done = false; this.progress = null;
           this.initial = stage.state();
-          const durations = await stage.perform(packet, () => {}, progress => {
+          const durations = await stage.perform(packet, () => { this.entry = stage.state(); }, progress => {
             this.progress = progress;
             this.frames.push({ ...progress, body: stage.state() });
             document.querySelector('#phase').textContent = packet.text + ' · ' + progress.elapsed.toFixed(2) + ' / ' + progress.motionDuration.toFixed(2);
@@ -83,6 +91,8 @@ try {
         assert.ok(response.ok()); await writeFile(resolve(directory, name), await response.body());
       }
     }
+    // Exercise internal and final windows, including old captures without this field.
+    packet.continues = index + 1 < prompts.length;
     const playback = page.evaluate(packet => window.probe.play(packet), packet);
     lastPacket = packet;
     let nearEnd = false, voiceEnd = false;
@@ -100,9 +110,19 @@ try {
     await new Promise(r => setTimeout(r, 350));
     await page.screenshot({ path: resolve(directory, "held.png") });
     const observation = await page.evaluate(() => ({ frames: window.probe.frames, initial: window.probe.initial,
+      entry: window.probe.entry, rest: window.probe.rest,
       result: window.probe.result, held: window.probe.stage.state() }));
     await writeFile(resolve(directory, "trajectory.json"), JSON.stringify(observation));
-    trials.push({ prompt: prompts[index], packet_id: packet.id, text: packet.text, ...result.durations,
+    const restingBones = Object.keys(observation.rest.pose).filter(name =>
+      /^(spine|chest|upperChest|neck|head)$|Shoulder|Arm|Leg|Foot/.test(name));
+    const naturalError = poseError(result.body, observation.rest, restingBones);
+    const entryError = previousEnd ? poseError(observation.entry, previousEnd) : poseError(observation.entry, observation.initial);
+    assert.ok(naturalError < 1e-6, "every segment ends in the natural body pose");
+    assert.ok(entryError < 1e-6, "the next segment begins at the preceding recovered pose");
+    if (previousEnd) assert.deepEqual(observation.entry.position, previousEnd.position);
+    previousEnd = result.body;
+    trials.push({ prompt: prompts[index], packet_id: packet.id, text: packet.text, continues: packet.continues,
+      ...result.durations, natural_pose_error_rad: naturalError, entry_pose_error_rad: entryError,
       frames: observation.frames.length, final_body: result.body });
     if (captured) {
       assert.ok(result.durations.motion_seconds > result.durations.audio_seconds + 0.6);
@@ -117,9 +137,9 @@ try {
     }
   }
   if (captured) {
-    // A continuing packet must retain its motion, with no per-window recovery delay.
+    // Text continuation does not bypass recovery at an internal boundary.
     const continued = await page.evaluate(packet => window.probe.play({ ...packet, continues: true }), lastPacket);
-    assert.equal(continued.durations.audio_seconds, continued.durations.motion_seconds);
+    assert.ok(continued.durations.motion_seconds > continued.durations.audio_seconds + 0.6);
     report.continuing_packet = continued.durations;
 
     const playback = page.evaluate(packet => window.probe.play(packet), lastPacket);

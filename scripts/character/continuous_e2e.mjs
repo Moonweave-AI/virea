@@ -61,7 +61,7 @@ try {
       });
     });
     assert.ok(tracks.every(track => Math.abs(track.elapsed - track.expected) < 0.035),
-      "audio and motion sample the same clock, including the terminal recovery tail");
+      "audio and motion sample the same clock, including every recovery tail");
     if (value.status === "waiting" && value.history.at(-1)?.role === "assistant") { completed = value; break; }
     await page.waitForTimeout(100);
   }
@@ -69,17 +69,18 @@ try {
   report.completed = completed;
   assert.equal(completed.history.at(-1).content, text);
   assert.ok(report.packets.length >= 2 && report.lookahead_observed);
-  assert.ok(report.packets.slice(1).every(p => p.motion.native_history_applied));
+  assert.ok(report.packets.every(p => !p.motion.native_history_applied), "pre-recovery tails are not the next motion's initial state");
   assert.ok(report.feedback.every(f => f.status === "completed"));
   assert.ok(report.packets.slice(0, -1).every(p => p.continues === true));
   assert.equal(report.packets.at(-1).continues, false);
-  assert.ok(report.feedback.slice(0, -1).every(f => Math.abs(f.audio_seconds - f.motion_seconds) < 0.001),
-    "internal windows must not retract between clauses");
-  assert.ok(report.feedback.at(-1).motion_seconds > report.feedback.at(-1).audio_seconds + 0.6,
-    "only the terminal acknowledgment waits for recovery");
+  assert.ok(report.feedback.every(f => f.motion_seconds > f.audio_seconds + 0.6),
+    "every acknowledgment waits for recovery, including internal windows");
   report.audio_schedules = await page.evaluate(() => window.audioSchedules);
   report.gaps_seconds = report.audio_schedules.slice(1).map((value, index) => value.when - report.audio_schedules[index].when - report.audio_schedules[index].duration);
-  assert.ok(report.gaps_seconds.every(gap => gap >= -0.02 && gap < 0.25), `successor gaps: ${report.gaps_seconds}`);
+  report.recovery_seconds = report.feedback.map(f => f.motion_seconds - f.audio_seconds);
+  report.handoff_gaps_seconds = report.gaps_seconds.map((gap, index) => gap - report.recovery_seconds[index]);
+  assert.ok(report.handoff_gaps_seconds.every(gap => gap >= -0.02 && gap < 0.25),
+    `handoff gaps after deliberate recovery: ${report.handoff_gaps_seconds}`);
   await page.screenshot({ path: resolve(output, "complete.png") });
   await page.locator("#message").fill(`请原样说出这段话：${text}`);
   await page.locator("#send").click();

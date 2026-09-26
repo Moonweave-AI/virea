@@ -82,7 +82,7 @@ retargeting and VRMA export.
 
 The browser uses an audio clock for motion and face playback. It anchors each new
 clip at the executed root, preserves entry pose and angular velocity with a
-240–600ms rotation correction. The last window of an utterance adds a 0.65–1.6s
+240–600ms rotation correction. Every motion window adds a 0.65–1.6s
 velocity-preserving recovery to a relaxed stance, retaining ground position, heading
 and finger shape. Blink and mouth tracks release instead of freezing. Body and face sampling
 span the actual audio duration. ARKit51
@@ -90,17 +90,15 @@ is explicitly approximated with VRM blink, vowel and emotion presets; unsupporte
 avatar expressions cannot be manufactured. `move_to` is bounded plane translation,
 not synthesized walking, navigation or obstacle avoidance.
 
-Native history now supplies up to eight RVQ codes to infill boundary conditioning
-and overlapping decoding. This is not autoregressive planner history; conditioning
-on actual post-IK executed pose remains unsupported. `/api/v1/characters/capabilities`
-distinguishes these capabilities. `require_native_history:true` is accepted in
-synchronized mode and rejected in voice-first mode, whose motion is only a preview.
-History is committed only after completed playback. Speculative successors depend
-on their parent completing; interruption discards unexecuted history and audio.
-Internal windows do not recover between clauses. Terminal recovery uses the same
-clock and remains pausable and interruptible; completion acknowledges the recovered
-pose. Native RVQ history is cleared after recovery because the rendered pose cannot
-be encoded back into the model's history. See the [ending observations](motion-endings.zh-CN.md).
+The model supports RVQ boundary conditioning and overlapping decoding, but the
+current character playback policy does not propagate these codes: every segment
+recovers to rest, which cannot be encoded back into native motion history.
+`/api/v1/characters/capabilities` reports `native_history:false` and
+`model_native_history:true`; requests with `require_native_history:true` return 409.
+Successors may be prepared early but start only after their parent completes its
+recovery. They enter from that actual relaxed pose. Recovery uses the same clock,
+remains pausable and interruptible, and is included in completion feedback.
+See the [per-segment recovery record](segment-rest.zh-CN.md).
 Generated body and face do not imply generated fingers: the upstream neutral hand
 asset remains in use. Silent actions use the scene engine, not silent audio inference.
 

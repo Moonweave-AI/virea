@@ -240,7 +240,7 @@ export class CharacterStage {
       const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips");
       if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), THREE.MathUtils.smoothstep(elapsed, 0, 0.2));
     };
-    if (gltf && !packet.continues && this.rest && duration > 0) {
+    if (gltf && this.rest && duration > 0) {
       const dt = Math.min(1 / 120, duration);
       sampleMotion(duration - dt);
       const before = this.poseSample();

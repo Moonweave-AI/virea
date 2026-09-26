@@ -47,7 +47,6 @@ class CharacterSession:
         self.status = "waiting"
         self.pending: dict | None = None
         self.buffered: dict | None = None
-        self._motion_tail: list = []
         self.last_seen = monotonic()
         self.metrics = {
             "generated_seconds": 0.0,
@@ -173,8 +172,6 @@ class CharacterSession:
         self._start(trigger)
 
     async def _cancel(self) -> None:
-        if self.pending is not None:
-            self._motion_tail = []
         self.epoch += 1
         if self._task and not self._task.done():
             self._task.cancel()
@@ -273,7 +270,7 @@ class CharacterSession:
             self.record("error", message=f"{type(exc).__name__}: {exc}")
 
     async def _prepare_speech(
-        self, epoch, text, intent, actions, prefix, started, reasoning_seconds
+        self, epoch, text, intent, actions, started, reasoning_seconds
     ):
         """Produce one bounded lookahead packet without advancing executed history."""
         if not self.pending:
@@ -293,7 +290,6 @@ class CharacterSession:
                 text,
                 intent,
                 self.avatar_id,
-                **({"motion_prefix": prefix} if prefix else {}),
             )
         motion_seconds = monotonic() - motion_started
         self.metrics["motion_seconds"] = motion_seconds
@@ -321,7 +317,6 @@ class CharacterSession:
                 chunks[0],
                 decision.motion_intent,
                 actions,
-                self._motion_tail,
                 started,
                 reasoning_seconds,
             )
@@ -339,7 +334,6 @@ class CharacterSession:
                             text,
                             decision.motion_intent,
                             [],
-                            parent["motion"].get("motion_tail", []),
                             started,
                             0,
                         )
@@ -352,15 +346,9 @@ class CharacterSession:
                     upcoming = asyncio.create_task(prepare_next())
                 feedback = await self._present(packet)
                 if feedback.status != "completed":
-                    self._motion_tail = []
                     return False
-                # The renderer's terminal recovery is not representable as native RVQ
-                # history. Keep native prefixes within an utterance, not after recovery.
-                self._motion_tail = (
-                    packet["motion"].get("motion_tail", [])
-                    if packet["continues"]
-                    else []
-                )
+                # Completion includes recovery to rest. Its rendered pose cannot be
+                # encoded as native RVQ history, so no pre-recovery tail is propagated.
                 if not spoken["content"]:
                     self.history.append(spoken)
                 spoken["content"] += packet["text"]

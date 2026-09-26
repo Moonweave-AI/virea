@@ -1,4 +1,4 @@
-"""Terminal recovery must never be inserted into the middle of an utterance."""
+"""Every window completes recovery before the next window can be presented."""
 
 import asyncio
 
@@ -26,7 +26,7 @@ def test_buffered_and_pending_windows_mark_only_the_last_as_terminal(tmp_path):
             ack = feedback(
                 session,
                 audio_seconds=1.5,
-                motion_seconds=1.5 if packet["continues"] else 2.6,
+                motion_seconds=2.6,
             )
             ack.body = BodyState(position=Position(x=3), behavior="relaxed")
             assert session.acknowledge(ack)
@@ -39,9 +39,6 @@ def test_buffered_and_pending_windows_mark_only_the_last_as_terminal(tmp_path):
         assert not packets[-1]["continues"]
         assert session.history[-1]["content"] == text
         assert session.body.position.x == 3
-        assert (
-            session._motion_tail == []
-        )  # Rendered recovery cannot be native RVQ history.
         assert session.language.contexts[-1][1]["body"]["behavior"] == "relaxed"
         await session.close()
 
