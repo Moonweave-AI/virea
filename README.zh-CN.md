@@ -33,6 +33,7 @@ VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VR
 | 你的目标 | 中文文档 | English documentation |
 |---|---|---|
 | 从 clone 到第一个结果 | [中文教程](doc/getting-started.zh-CN.md) | [English tutorial](doc/getting-started.en.md) |
+| 部署持续对话的三维角色 | [角色架构与部署](doc/character/README.zh-CN.md) | [Character sessions](doc/character/README.en.md) |
 | 查看每个 CLI 命令和参数 | [中文 CLI 参考](doc/reference/cli.zh-CN.md) | [English CLI reference](doc/reference/cli.en.md) |
 | 选择 Windows、Linux、WSL2 或 macOS 执行域 | [平台指南](doc/platforms/README.zh-CN.md) | [Platform guide](doc/platforms/README.en.md) |
 | 选择模型、Runtime 与资源 profile | [模型目录](doc/models/README.zh-CN.md) | [Model catalog](doc/models/README.zh-CN.md) |

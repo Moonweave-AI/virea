@@ -155,7 +155,9 @@ def test_sentiavatar_guided_generation_asks_only_for_action() -> None:
     """CLI and Web share the same guided presentation without weakening the request."""
 
     manifest = next(
-        item for item in wizard._model_manifests() if item.model.id == "sentiavatar-susu"
+        item
+        for item in wizard._model_manifests()
+        if item.model.id == "sentiavatar-susu"
     )
     prompts: list[str] = []
     messages: list[str] = []

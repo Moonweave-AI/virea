@@ -50,6 +50,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | I want to… | Start here |
 |---|---|
 | Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
+| Run a persistent speaking VRM character | [Character deployment and capability boundaries](doc/character/README.en.md) |
 | Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
 | Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
 | Update an already-deployed device without redownloading models | [Persistent-root update procedure](doc/getting-started/persistent-data-root.en.md#update-another-device-that-is-already-deployed) |

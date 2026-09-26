@@ -64,7 +64,9 @@ def _load_installation_manifest_snapshot(
         snapshot = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise OSError("installation manifest snapshot is invalid") from exc
-    schema_version = snapshot.get("schema_version") if isinstance(snapshot, dict) else None
+    schema_version = (
+        snapshot.get("schema_version") if isinstance(snapshot, dict) else None
+    )
     if (
         not isinstance(snapshot, dict)
         or not isinstance(schema_version, str)

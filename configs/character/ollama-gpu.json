@@ -1,0 +1,12 @@
+{
+  "llm_api": "ollama",
+  "llm_url": "http://127.0.0.1:11434",
+  "llm_model": "qwen3.5:2b",
+  "tts_url": "http://127.0.0.1:8081/v1",
+  "tts_voice": "zf_001",
+  "max_autonomous_decisions": 3,
+  "execution_target": {
+    "execution_domain_id": "windows-native",
+    "runtime_variant_id": "sentiavatar-susu-cu128"
+  }
+}

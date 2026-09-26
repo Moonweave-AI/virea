@@ -187,6 +187,16 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("GET", "/api/v1/results/{result_id}"),
         ("GET", "/api/v1/results/{result_id}/source-skeleton"),
         ("GET", "/api/v1/results/{result_id}/artifacts/{name}"),
+        ("GET", "/api/v1/characters/capabilities"),
+        ("POST", "/api/v1/characters"),
+        ("GET", "/api/v1/characters/{session_id}"),
+        ("DELETE", "/api/v1/characters/{session_id}"),
+        ("POST", "/api/v1/characters/{session_id}/messages"),
+        ("POST", "/api/v1/characters/{session_id}/environment"),
+        ("POST", "/api/v1/characters/{session_id}/feedback"),
+        ("POST", "/api/v1/characters/{session_id}/interrupt"),
+        ("GET", "/api/v1/characters/{session_id}/audio/{packet_id}"),
+        ("GET", "/api/v1/characters/results/{result_id}/face"),
     }
     for path in (
         "/api/v1/jobs/{job_id}/result",
