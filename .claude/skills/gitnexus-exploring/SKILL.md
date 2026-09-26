@@ -1,4 +1,16 @@
 ---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 90
+summary: GitNexus agent workflow and code intelligence instructions.
+canonical: .claude/skills/gitnexus-exploring/SKILL.md
+related: []
+supersedes: []
+superseded_by: []
 name: gitnexus-exploring
 description: "Use when the user asks how code works, wants to understand architecture, trace execution flows, or explore unfamiliar parts of the codebase. Examples: \"How does X work?\", \"What calls this function?\", \"Show me the auth flow\""
 ---

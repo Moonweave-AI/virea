@@ -1,4 +1,16 @@
 ---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 90
+summary: GitNexus agent workflow and code intelligence instructions.
+canonical: .claude/skills/gitnexus-guide/SKILL.md
+related: []
+supersedes: []
+superseded_by: []
 name: gitnexus-guide
 description: "Use when the user asks about GitNexus itself — available tools, how to query the knowledge graph, MCP resources, graph schema, or workflow reference. Examples: \"What GitNexus tools are available?\", \"How do I use GitNexus?\""
 ---

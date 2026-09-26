@@ -1,4 +1,16 @@
 ---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 90
+summary: GitNexus agent workflow and code intelligence instructions.
+canonical: .claude/skills/gitnexus-debugging/SKILL.md
+related: []
+supersedes: []
+superseded_by: []
 name: gitnexus-debugging
 description: "Use when the user is debugging a bug, tracing an error, or asking why something fails. Examples: \"Why is X failing?\", \"Where does this error come from?\", \"Trace this bug\""
 ---

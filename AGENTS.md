@@ -1,3 +1,18 @@
+---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 90
+summary: GitNexus agent workflow and code intelligence instructions.
+canonical: AGENTS.md
+related: []
+supersedes: []
+superseded_by: []
+---
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 

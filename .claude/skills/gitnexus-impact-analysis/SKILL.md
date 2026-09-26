@@ -1,4 +1,16 @@
 ---
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 90
+summary: GitNexus agent workflow and code intelligence instructions.
+canonical: .claude/skills/gitnexus-impact-analysis/SKILL.md
+related: []
+supersedes: []
+superseded_by: []
 name: gitnexus-impact-analysis
 description: "Use when the user wants to know what will break if they change something, or needs safety analysis before editing code. Examples: \"Is it safe to change X?\", \"What depends on this?\", \"What will break?\""
 ---
