@@ -24,6 +24,15 @@ chooses `SPEAK`, `ACT_SILENTLY` or `WAIT`. Subtitle, TTS and motion share the ex
 final response; users never specify a response duration. Executed pose and world
 position survive response completion and interruption within the live API process.
 
+The page presents separate audio, motion and text sections, with pause, volume,
+audio replay, motion preview and synchronized replay. Its default **voice-first**
+mode displays finalized text and plays speech as soon as TTS is ready. Late motion
+is available for explicit preview; it is never automatically played with mismatched
+speech. Interim mouth movement is an amplitude-based approximation, not phoneme alignment.
+**Synchronized** mode waits for all resources and uses the audible audio clock for
+both tracks. Set `playback_mode` when creating a session; the API default remains
+`synchronized`. Replays do not trigger autonomous responses.
+
 ## Run locally
 
 Follow the [getting-started guide](../getting-started.en.md) to build the workspace
@@ -77,6 +86,9 @@ acknowledgments, cancellation, feedback deadlines and client leases prevent unbo
 queues and stale playback. Restarting the API creates a new session; cross-restart
 memory is not implemented. Internal chunks are generated sequentially; this is not
 token-level streaming or double-buffered generation/playback.
+Short sentences are combined into bounded 80-character chunks to avoid repeated
+worker startup at every sentence. Voice-first playback overlaps motion generation;
+only one outstanding packet and one motion task are allowed.
 
 ## Observe and test
 
@@ -107,3 +119,11 @@ and CUDA SentiAvatar produced a 2.85s expression in 37.20s (RTF 13.05). Whole-de
 errors. This includes worker startup; it is not a warmed benchmark. The latency
 target was not met and 12GB hardware remains unverified. Raw local evidence is
 outside the repository under `VIREA-Data/evidence/character-5090-actions`.
+
+A subsequent voice-first run displayed text in 7.00s and began browser playback in
+7.66s; full expression readiness was still 37.25s (motion stage 29.97s). Shared-clock
+replay and pause passed browser checks. This improves time to speech, not motion
+generation throughput. Reproduce with `node scripts/character/playback_e2e.mjs AVATAR.vrm OUTPUT_DIR`.
+A subsequent run with the language model still loaded displayed text in 1.96s and
+began playback in 2.60s. Autonomous repeats with only a changed gesture label are
+stopped before another speech or motion generation task.

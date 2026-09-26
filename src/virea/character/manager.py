@@ -53,6 +53,7 @@ class CharacterManager:
             motion=self.motion,
             generation_slot=self.generation_slot,
             avatar_id=request.avatar_id,
+            playback_mode=request.playback_mode,
         )
         self.sessions[session.id] = session
         return session

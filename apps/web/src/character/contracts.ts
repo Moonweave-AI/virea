@@ -21,13 +21,21 @@ export interface Expression {
   motion: { vrma_url: string; result_id: string } | null;
 }
 export interface FaceTrack { fps: number; names: string[]; values: number[][] }
+export interface PlaybackProgress {
+  elapsed: number; audioDuration: number; motionDuration: number; paused: boolean;
+}
 export interface Session {
   id: string;
   epoch: number;
   status: string;
   body: BodyState;
   pending: Expression | null;
+  latest_expression: Expression | null;
+  draft_text: string;
+  playback_mode: "voice_first" | "synchronized";
   events: { sequence: number; kind: string; message?: string }[];
   history: { role: string; content: string }[];
-  metrics: { first_expression_seconds: number | null; rtf: number | null };
+  metrics: { first_expression_seconds: number | null; rtf: number | null;
+    first_audio_seconds: number | null; language_seconds: number | null;
+    tts_seconds: number | null; motion_seconds: number | null };
 }

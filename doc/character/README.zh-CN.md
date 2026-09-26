@@ -23,6 +23,15 @@ superseded_by: []
 角色依据用户消息或显式环境事件选择 `SPEAK`、`ACT_SILENTLY`、`WAIT`。
 用户不填写回应时长。语音、字幕、动作使用同一份最终文本；讲话结束后保留已执行姿态与世界位置。
 
+页面分别显示语音进度、动作进度和完整文本，提供暂停/继续、音量、语音重播、动作预览与同步重播。
+创建会话前可选择：
+
+- **语音优先**（页面默认）：文本生成后立即显示，TTS 就绪后开口。动作后台生成，完成后供预览；
+  不在语音结束后自动追播错位的口型。等待原生面部时按音量近似驱动嘴部，不宣称音素级唇形。
+- **严格同步**：等待音频、动作和面部就绪，共用音频输出时钟播放；暂停会冻结两条时间轴。
+
+重播属于本地预览，不触发新的自主回应。初次载入建立放松手臂姿态，之后持续保留实际执行状态。
+
 ## 部署
 
 先按[入门教程](../getting-started.zh-CN.md)准备 Python workspace、Web 构建和仓库外 `VIREA_HOME`，
@@ -92,6 +101,9 @@ scripts/character/
 ## 会话与终止
 
 `POST /api/v1/characters` 创建会话；`GET /{id}` 读取状态并刷新客户端租期。
+创建请求接受 `playback_mode: "voice_first" | "synchronized"`，API 默认保持 `synchronized`。
+状态中的 `draft_text` 是已完成语言决策的文本，`latest_expression` 是最近一个表达的资源摘要，
+`pending` 则仅表示正在等待执行回执的表达；晚到的动作不会生成第二个自动播放包。
 其余路径均在 `/api/v1/characters/{id}` 下：
 
 | 方法与路径 | 含义 |
@@ -106,8 +118,9 @@ scripts/character/
 回执可以推进状态；旧回执和重复回执返回 409。页面离开时主动关闭会话，断网后租期到期自动清理。
 会话状态在 API 进程存活期间连续；服务重启创建新会话，不承诺跨重启人格记忆。
 
-一次语言决策结束、音频播放结束、动作执行结束与会话关闭是不同边界。内部短文本片段依次合成并生成，
-完整音频和动作准备好才交给播放器；只允许一个未确认表达包，避免无限积压。
+一次语言决策结束、音频播放结束、动作执行结束与会话关闭是不同边界。短句合并为至多 80 字的内部片段，
+避免每个句号启动一个模型任务。严格同步模式等待完整资源；语音优先模式边播放声音边生成动作。
+只允许一个未确认表达包和一个动作生成任务，避免无限积压。
 播放器以 AudioContext 时钟驱动身体和面部，语音可以先结束，场景动作继续至完成。
 `WAIT` 不产生新的自触发请求；完成事件最多连续触发 3 次自主决策，重复决策会停止。
 每次用户发言重置该预算。上下文和事件环形历史有界，超时、取消、断开均有清理路径。
@@ -140,6 +153,8 @@ uv run python scripts/character/measure.py --session SESSION_ID --seconds 60 --o
 ```
 
 输出包含每秒整卡已用显存、利用率、GPU 型号、首个完整表达包延迟和生成 RTF。
+会话状态另含 `first_audio_seconds`、`language_seconds`、`tts_seconds`、`motion_seconds`，
+分别观察语音可用时间和各生成阶段；浏览器实际出声还包含轮询、下载、解码与音频输出延迟。
 完整表达包计时从触发决策到音频和动作全部就绪；RTF 包含语言推理、TTS、动作及排队时间，不包含等待播放回执。
 整卡采样包含渲染器与其他程序，并非某个模型独占峰值；1Hz 采样也可能错过短峰值。
 渲染并发应另存浏览器证据。目标为预热后约 2 秒、RTF < 0.7，只有实际报告能说明是否达到。
@@ -165,6 +180,20 @@ Qwen3.5:2b / Ollama（`ollama ps` 显示 CPU）、CPU Kokoro 与 CUDA SentiAvata
 Chrome WebGL 确认使用 NVIDIA GPU，页面无脚本错误。此结果包含 Worker 启动成本，
 不是预热基准，**未达到实时目标，也未验证 12GB 硬件**。
 本机原始证据位于仓库外 `VIREA-Data/evidence/character-5090-actions`。
+
+同日语音优先实测：文本显示 7.00 秒、浏览器开始播放 7.66 秒，完整表达准备仍为 37.25 秒，
+其中动作阶段 29.97 秒。同步重播的两条进度共用时钟，暂停 0.5 秒后均保持在 0.251 秒。
+模型保持加载后的复测为文本 1.96 秒、浏览器开始播放 2.60 秒；首声与冷启动结果分开记录。
+自主决策只改变动作意图、重复同一句话时，会停止重复而不再启动一轮模型任务。
+这是对首声等待的改善，**不是动作模型达到实时生成**；原始证据为
+`VIREA-Data/evidence/character-progressive-20260926`。可复现入口：
+
+包含重复抑制、音量口型、暂停和失效会话恢复的最终实测记录为
+`VIREA-Data/evidence/character-playback-complete-20260926`，首声 2.63 秒。
+
+```powershell
+node scripts/character/playback_e2e.mjs "$env:VIREA_HOME/avatars/character.vrm" "$env:VIREA_HOME/evidence/playback"
+```
 
 上游依据：[Qwen 模型卡](https://huggingface.co/Qwen/Qwen3.5-2B)、
 [Kokoro 中文模型卡](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh)、

@@ -88,6 +88,7 @@ class UserMessage(Contract):
 class SessionRequest(Contract):
     avatar_id: str | None = None
     require_native_history: bool = False
+    playback_mode: Literal["synchronized", "voice_first"] = "synchronized"
 
 
 class CharacterConfig(Contract):

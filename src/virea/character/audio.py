@@ -8,24 +8,20 @@ import wave
 
 
 def text_chunks(text: str, limit: int = 80) -> list[str]:
+    if limit < 1:
+        raise ValueError("chunk limit must be positive")
     chunks: list[str] = []
     pending = ""
     for part in re.findall(r"[^。！？!?\n]+[。！？!?\n]*|[。！？!?\n]+", text):
-        while part:
-            take = min(limit - len(pending), len(part))
-            pending += part[:take]
-            part = part[take:]
-            if len(pending) == limit:
-                chunks.append(pending)
-                pending = ""
-        if pending and pending.strip():
+        if pending and len(pending) + len(part) > limit:
             chunks.append(pending)
             pending = ""
+        while len(part) > limit:
+            chunks.append(part[:limit])
+            part = part[limit:]
+        pending += part
     if pending:
-        if chunks:
-            chunks[-1] += pending
-        else:
-            chunks.append(pending)
+        chunks.append(pending)
     return chunks
 
 

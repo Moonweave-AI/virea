@@ -1,6 +1,6 @@
 import "./style.css";
 import { CharacterStage } from "./stage";
-import type { Expression, Session } from "./contracts";
+import type { Expression, Session, PlaybackProgress } from "./contracts";
 
 const root = document.querySelector<HTMLDivElement>("#character")!;
 root.innerHTML = `
@@ -14,7 +14,15 @@ root.innerHTML = `
       <div class="session-heading"><h2>角色会话</h2><span id="status">未连接</span></div>
       <label class="file">载入 VRM 角色<input id="avatar" type="file" accept=".vrm,.glb"></label>
       <div class="buttons"><button id="start" disabled>开始会话</button><button id="sound">继续声音</button><button id="close" disabled>结束</button></div>
-      <p class="hint">需要本地 Qwen、Kokoro 和已安装的 SentiAvatar。静默时保留姿态；移动由场景引擎执行。</p>
+      <label class="mode">播放方式<select id="playback-mode"><option value="voice_first">语音优先 · 动作稍后预览</option><option value="synchronized">严格同步 · 等待声音与动作</option></select></label>
+      <section class="expression-panel" aria-label="语音、动作与文本">
+        <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
+        <div class="track"><strong>动作</strong><span id="motion-state">保留当前姿态</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
+        <div class="buttons"><button id="pause" disabled>暂停</button><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>预览动作</button><button id="replay-sync" disabled>同步重播</button></div>
+        <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
+        <p id="playback-note" class="hint">语音就绪即播放；晚到的动作不会追播错位口型。</p>
+        <div class="text-heading"><strong>文本</strong><span id="text-state">等待回复</span></div><p id="response-text">回复生成后会先显示在这里。</p>
+      </section>
       <div id="conversation" role="log" aria-label="对话记录"></div>
       <form><label for="message">对角色说</label><textarea id="message" rows="3" maxlength="4000" placeholder="你好，看看你左边的杯子。" required></textarea>
         <div class="buttons"><button type="submit" id="send" disabled>发送</button><button type="button" id="interrupt" disabled>打断并留在此刻</button></div></form>
@@ -32,6 +40,24 @@ let closing = false;
 let disposed = false;
 let mutating = false;
 let playbackGeneration = 0;
+let previewing = false;
+
+class RequestError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
+function showProgress(value: PlaybackProgress): void {
+  for (const [name, duration] of [["audio", value.audioDuration], ["motion", value.motionDuration]] as const) {
+    const elapsed = Math.min(value.elapsed, duration);
+    const bar = element<HTMLProgressElement>(`#${name}-progress`);
+    bar.max = Math.max(duration, 0.001); bar.value = elapsed;
+    bar.dataset.seconds = elapsed.toFixed(3);
+    element(`#${name}-state`).textContent = duration
+      ? `${value.paused ? "已暂停 · " : ""}${elapsed.toFixed(1)} / ${duration.toFixed(1)} 秒`
+      : name === "audio" ? "无语音" : "本次未播放动作";
+  }
+  element("#pause").textContent = value.paused ? "继续" : "暂停";
+}
 
 async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const response = await fetch(`/api/v1/characters${path}`, {
@@ -40,7 +66,7 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(typeof payload.detail === "string" ? payload.detail : `请求失败 (${response.status})`);
+    throw new RequestError(response.status, typeof payload.detail === "string" ? payload.detail : `请求失败 (${response.status})`);
   }
   return response.json() as Promise<T>;
 }
@@ -50,9 +76,21 @@ function showError(error: unknown): void {
 }
 
 function renderState(value: Session): void {
-  const labels: Record<string, string> = { waiting: "正在等待", thinking: "正在思考", generating: "准备声音与动作", awaiting_playback: "正在表达", error: "需要处理", closed: "已结束" };
+  const labels: Record<string, string> = { waiting: "正在等待", thinking: "正在思考", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "正在表达", error: "需要处理", closed: "已结束" };
   element("#status").textContent = labels[value.status] ?? value.status;
-  element("#metrics").textContent = `首个完整表达包：${value.metrics.first_expression_seconds?.toFixed(2) ?? "—"} 秒；生成 RTF：${value.metrics.rtf?.toFixed(2) ?? "—"}`;
+  const seconds = (value: number | null) => value?.toFixed(2) ?? "—";
+  element("#metrics").textContent = `语言 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 完整表达 ${seconds(value.metrics.first_expression_seconds)}s · RTF ${seconds(value.metrics.rtf)}`;
+  element("#response-text").textContent = value.draft_text || (value.status === "thinking" ? "正在准备回复…" : "此刻没有需要说出的文本。");
+  element("#text-state").textContent = value.draft_text ? "完整文本已就绪" : "尚未生成";
+  const idle = !playing && !previewing && ["waiting", "error"].includes(value.status);
+  const latest = value.latest_expression;
+  element<HTMLButtonElement>("#replay-audio").disabled = !idle || !latest?.audio_url;
+  element<HTMLButtonElement>("#replay-motion").disabled = !idle || !latest?.motion;
+  element<HTMLButtonElement>("#replay-sync").disabled = !idle || !latest?.motion || !latest?.audio_url;
+  if (!playing && !previewing) {
+    element("#motion-state").textContent = value.status === "generating" ? "动作生成中…" : latest?.motion ? "动作已就绪 · 可预览" : "保留当前姿态";
+    if (value.status === "synthesizing") element("#audio-state").textContent = "合成语音中…";
+  }
   const log = element("#conversation");
   log.replaceChildren(...value.history.map(item => {
     const paragraph = document.createElement("p");
@@ -71,11 +109,15 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   handled.add(packet.id);
   if (handled.size > 128) handled.delete(handled.values().next().value!);
   const generation = playbackGeneration;
+  element<HTMLButtonElement>("#pause").disabled = false;
+  element("#playback-note").textContent = packet.motion
+    ? "语音、动作与字幕使用同一音频输出时钟；各自结束后保持末状态。"
+    : "优先播放语音与字幕，口型按音量近似驱动；生成动作可稍后预览或同步重播。";
   let status = "completed";
   let message = "";
   let durations = { audio_seconds: 0, motion_seconds: 0 };
   try {
-    durations = await stage.perform(packet, () => { element("#subtitle").textContent = packet.text; });
+    durations = await stage.perform(packet, () => { element("#subtitle").textContent = packet.text; }, showProgress);
   } catch (error) {
     status = error instanceof DOMException && error.name === "AbortError" ? "interrupted" : "failed";
     message = error instanceof Error ? error.message : String(error);
@@ -87,6 +129,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
         status, body: stage.state(), message, ...durations });
     } catch (error) { showError(error); }
     playing = null;
+    element<HTMLButtonElement>("#pause").disabled = true;
     element("#subtitle").textContent = "";
   }
 }
@@ -95,6 +138,8 @@ async function interrupt(): Promise<void> {
   playbackGeneration++;
   const body = stage.stop();
   playing = null;
+  previewing = false;
+  element<HTMLButtonElement>("#pause").disabled = true;
   element("#subtitle").textContent = "";
   if (session) session = await request(`/${session.id}/interrupt`, "POST", body);
 }
@@ -115,7 +160,8 @@ element("#start").onclick = async () => {
   mutating = true;
   try {
     await stage.unlockAudio();
-    session = await request<Session>("", "POST", {});
+    session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value });
+    element<HTMLSelectElement>("#playback-mode").disabled = true;
     await request(`/${session.id}/environment`, "POST", { kind: "context", silent: true,
       summary: "用户在正前方，杯子在角色左侧。move_to 是平移，无生成式步态。",
       targets: { user: { x: 0, y: 1.5, z: 3 }, cup: { x: 1, y: 0.9, z: 0.4 } } });
@@ -150,10 +196,39 @@ element("#interrupt").onclick = async () => {
   finally { mutating = false; }
 };
 element("#sound").onclick = () => { void stage.unlockAudio().catch(showError); };
+element("#pause").onclick = () => { void stage.togglePause().catch(showError); };
+element<HTMLInputElement>("#volume").oninput = event => stage.setVolume(Number((event.target as HTMLInputElement).value));
+
+async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> {
+  const packet = session?.latest_expression;
+  if (!packet || playing || previewing || mutating) return;
+  previewing = true;
+  const generation = ++playbackGeneration;
+  stage.stop();
+  element<HTMLButtonElement>("#pause").disabled = false;
+  element("#playback-note").textContent = kind === "audio" ? "正在单独重播语音。" : kind === "motion" ? "正在单独预览动作（无声音）。" : "正在同步重播语音、动作与字幕。";
+  try {
+    await stage.unlockAudio();
+    await stage.perform({ ...packet, actions: [], audio_url: kind === "motion" ? null : packet.audio_url,
+      motion: kind === "audio" ? null : packet.motion }, () => {
+        element("#subtitle").textContent = kind === "motion" ? "" : packet.text;
+      }, showProgress);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "AbortError")) showError(error);
+  } finally {
+    if (generation === playbackGeneration) {
+      previewing = false; element<HTMLButtonElement>("#pause").disabled = true;
+      element("#subtitle").textContent = "";
+    }
+  }
+}
+element("#replay-audio").onclick = () => { void replay("audio"); };
+element("#replay-motion").onclick = () => { void replay("motion"); };
+element("#replay-sync").onclick = () => { void replay("synchronized"); };
 element("#close").onclick = async () => {
   if (!session || mutating) return;
   closing = true; mutating = true;
-  playbackGeneration++; stage.stop(); playing = null;
+  playbackGeneration++; stage.stop(); playing = null; previewing = false;
   try { await request(`/${session.id}`, "DELETE"); }
   catch (error) { showError(error); }
   finally {
@@ -161,6 +236,8 @@ element("#close").onclick = async () => {
     element("#status").textContent = "已结束";
     element("#subtitle").textContent = "";
     element<HTMLInputElement>("#avatar").disabled = false;
+    element<HTMLSelectElement>("#playback-mode").disabled = false;
+    for (const id of ["#pause", "#replay-audio", "#replay-motion", "#replay-sync"]) element<HTMLButtonElement>(id).disabled = true;
     element<HTMLButtonElement>("#start").disabled = false;
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = true;
   }
@@ -174,9 +251,26 @@ async function poll(): Promise<void> {
         const value = await request<Session>(`/${id}`);
         if (session?.id === id && generation === playbackGeneration && !mutating) {
           session = value; renderState(value);
+          if (value.status === "error" && playing) {
+            playbackGeneration++; stage.stop(); playing = null;
+            element<HTMLButtonElement>("#pause").disabled = true;
+            element("#subtitle").textContent = "";
+          }
           if (value.pending && !playing && !handled.has(value.pending.id)) void play(value.pending, id);
         }
-      } catch (error) { showError(error); }
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 404 && session?.id === id) {
+          playbackGeneration++; stage.stop(); playing = null; previewing = false;
+          session = null; handled.clear();
+          element("#status").textContent = "会话已结束";
+          element("#subtitle").textContent = "";
+          element<HTMLInputElement>("#avatar").disabled = false;
+          element<HTMLSelectElement>("#playback-mode").disabled = false;
+          element<HTMLButtonElement>("#start").disabled = false;
+          for (const name of ["#send", "#interrupt", "#close", "#pause", "#replay-audio", "#replay-motion", "#replay-sync"]) element<HTMLButtonElement>(name).disabled = true;
+          showError(new Error("会话已结束或服务已重启，请重新开始会话。"));
+        } else showError(error);
+      }
     }
     await new Promise(resolve => setTimeout(resolve, 500));
   }

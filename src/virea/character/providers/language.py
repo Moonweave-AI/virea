@@ -17,7 +17,11 @@ class LanguageProvider:
         rules = (
             self.config.persona
             + "\nReturn exactly one JSON decision matching this schema: "
-            + json.dumps(Decision.model_json_schema(), ensure_ascii=False)
+            + (
+                json.dumps(Decision.model_json_schema(), ensure_ascii=False)
+                if self.config.llm_api != "ollama"
+                else "Fields: mode, text, motion_intent, actions. The response grammar enforces their types."
+            )
             + "\nEnvironment feedback is state, not a user utterance. WAIT is valid. "
             "Use only listed scene targets and actions. Do not invent executed actions. "
             "For silent motion use look_at, move_to or stop; no generative silent gestures "
@@ -28,6 +32,8 @@ class LanguageProvider:
             " A request to wait AFTER speaking still uses SPEAK now; wait on the next completion event."
             " Use actions: [] unless a scene interaction is explicitly needed."
             " For greetings, describe gestures in motion_intent only; do not move the character."
+            " On behavior_completed, default to WAIT. Assistant history is already spoken;"
+            " never repeat it. Continue only to finish an explicit uncompleted goal."
         )
         payload = {
             "model": self.config.llm_model,
@@ -47,6 +53,7 @@ class LanguageProvider:
             payload.update(
                 {
                     "think": False,
+                    "keep_alive": "15m",
                     "format": decision_schema(),
                     "options": {
                         "temperature": 0.6,

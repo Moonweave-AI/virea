@@ -1,5 +1,11 @@
 import * as THREE from "three";
 
+/** setTime resets action time; release LoopOnce's clamp before resampling it. */
+export function sampleClip(mixer: THREE.AnimationMixer, action: THREE.AnimationAction, elapsed: number): void {
+  action.paused = false;
+  mixer.setTime(THREE.MathUtils.clamp(elapsed, 0, action.getClip().duration));
+}
+
 /** Rebase root translation to the actually held root. This is playback alignment. */
 export function anchorClip(clip: THREE.AnimationClip, hips: THREE.Object3D): THREE.AnimationClip {
   const anchored = clip.clone();

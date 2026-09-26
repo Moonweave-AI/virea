@@ -83,7 +83,7 @@ def test_text_audio_motion_agree_and_real_body_survives_response(tmp_path: Path)
         )
         await session.message("你好")
         played = []
-        for _ in range(2):
+        for _ in text_chunks("你好。今天怎么样？"):
             await until(lambda: session.pending is not None)
             packet = session.pending
             played.append(packet["text"])
@@ -175,7 +175,7 @@ def test_new_user_cancels_inflight_generation(tmp_path):
         session = make_session(tmp_path, Decision(mode="SPEAK", text="你好"))
         session.speech = BlockingSpeech()
         await session.message("你好")
-        await until(lambda: session.status == "generating")
+        await until(lambda: session.status == "synthesizing")
         await session.message("等一下")
         await until(lambda: session.status == "waiting")
         assert session.speech.cancelled
@@ -254,8 +254,9 @@ def test_wave_rejects_non_audio():
 
 def test_interrupt_keeps_already_heard_chunks_in_history(tmp_path):
     async def run():
+        first_sentence = "一" * 79 + "。"
         session = make_session(
-            tmp_path, Decision(mode="SPEAK", text="第一句。第二句。")
+            tmp_path, Decision(mode="SPEAK", text=first_sentence + "第二句。")
         )
         await session.message("说两句")
         await until(lambda: session.pending is not None)
@@ -265,7 +266,7 @@ def test_interrupt_keeps_already_heard_chunks_in_history(tmp_path):
             lambda: session.pending is not None and session.pending is not first
         )
         await session.interrupt(BodyState())
-        assert session.history[-1] == {"role": "assistant", "content": "第一句。"}
+        assert session.history[-1] == {"role": "assistant", "content": first_sentence}
         await session.close()
 
     asyncio.run(run())

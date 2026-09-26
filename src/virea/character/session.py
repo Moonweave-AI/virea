@@ -25,6 +25,7 @@ class CharacterSession:
         motion,
         generation_slot: asyncio.Semaphore,
         avatar_id: str | None = None,
+        playback_mode: str = "synchronized",
     ):
         self.id = uuid4().hex
         self.config = config
@@ -33,6 +34,9 @@ class CharacterSession:
         self.language, self.speech, self.motion = language, speech, motion
         self.generation_slot = generation_slot
         self.avatar_id = avatar_id
+        self.playback_mode = playback_mode
+        self.draft_text = ""
+        self.latest_expression: dict | None = None
         self.body = BodyState()
         self.targets = {}
         self.environment = ""
@@ -48,6 +52,10 @@ class CharacterSession:
             "generation_seconds": 0.0,
             "first_expression_seconds": None,
             "rtf": None,
+            "first_audio_seconds": None,
+            "language_seconds": None,
+            "tts_seconds": None,
+            "motion_seconds": None,
         }
         self._task: asyncio.Task | None = None
         self._feedback: asyncio.Future | None = None
@@ -70,6 +78,9 @@ class CharacterSession:
             "body": self.body.model_dump(),
             "targets": self.targets,
             "pending": self.pending,
+            "playback_mode": self.playback_mode,
+            "draft_text": self.draft_text,
+            "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
             "metrics": self.metrics,
             "history": list(self.history),
@@ -81,6 +92,16 @@ class CharacterSession:
             self._ensure_open()
             await self._cancel()
             self._autonomous = 0
+            self.draft_text = ""
+            self.latest_expression = None
+            for key in (
+                "language_seconds",
+                "tts_seconds",
+                "motion_seconds",
+                "first_audio_seconds",
+                "first_expression_seconds",
+            ):
+                self.metrics[key] = None
             self._last_decision = None
             self.history.append({"role": "user", "content": text})
             self.record("user_message", text=text)
@@ -189,8 +210,22 @@ class CharacterSession:
                     list(self.history), self._context(trigger)
                 )
             reasoning_seconds = monotonic() - started
-            signature = decision.model_dump_json()
-            if trigger != "user_message" and signature == self._last_decision:
+            if trigger == "user_message" or decision.mode != "WAIT":
+                self.metrics["language_seconds"] = reasoning_seconds
+            if decision.text:
+                self.draft_text = decision.text
+            # A different gesture label does not make repeating the same utterance useful.
+            signature = decision.model_dump_json(exclude={"motion_intent"})
+            repeated_speech = (
+                trigger == "behavior_completed"
+                and decision.mode == "SPEAK"
+                and self.history
+                and self.history[-1]["role"] == "assistant"
+                and self.history[-1]["content"].strip() == decision.text.strip()
+            )
+            if repeated_speech or (
+                trigger != "user_message" and signature == self._last_decision
+            ):
                 self.status = "waiting"
                 self.record("repetition_stopped")
                 return
@@ -207,37 +242,17 @@ class CharacterSession:
                 completed = True
                 spoken_entry = {"role": "assistant", "content": ""}
                 for index, text in enumerate(text_chunks(decision.text)):
-                    generation_start = monotonic()
-                    self.status = "generating"
-                    async with self.generation_slot:
-                        audio, duration = await self.speech.synthesize(text)
-                        motion = await self.motion.generate(
-                            audio, text, decision.motion_intent, self.avatar_id
-                        )
-                    elapsed = monotonic() - generation_start
-                    self.metrics["generation_seconds"] += elapsed + (
-                        reasoning_seconds if index == 0 else 0
-                    )
-                    self.metrics["generated_seconds"] += duration
-                    self.metrics["rtf"] = (
-                        self.metrics["generation_seconds"]
-                        / self.metrics["generated_seconds"]
-                    )
-                    if index == 0:
-                        self.metrics["first_expression_seconds"] = monotonic() - started
-                    feedback = await self._deliver(
+                    completed = await self._speech_expression(
                         epoch,
                         text,
+                        decision.motion_intent,
                         actions if index == 0 else [],
-                        (audio, duration),
-                        motion,
+                        spoken_entry,
+                        started,
+                        reasoning_seconds if index == 0 else 0,
                     )
-                    if feedback.status != "completed":
-                        completed = False
+                    if not completed:
                         break
-                    if not spoken_entry["content"]:
-                        self.history.append(spoken_entry)
-                    spoken_entry["content"] += text
             self.status = "waiting"
             self.record("response_finished", interrupted=not completed)
             if completed:
@@ -247,6 +262,59 @@ class CharacterSession:
         except Exception as exc:
             self.status = "error"
             self.record("error", message=f"{type(exc).__name__}: {exc}")
+
+    async def _speech_expression(
+        self, epoch, text, intent, actions, spoken_entry, started, reasoning_seconds
+    ) -> bool:
+        self.status = "synthesizing"
+        tts_started = monotonic()
+        audio, duration = await self.speech.synthesize(text)
+        tts_seconds = monotonic() - tts_started
+        self.metrics["tts_seconds"] = tts_seconds
+        if self.metrics["first_audio_seconds"] is None:
+            self.metrics["first_audio_seconds"] = monotonic() - started
+        self.status = "generating"
+
+        async def generate():
+            motion_started = monotonic()
+            async with self.generation_slot:
+                result = await self.motion.generate(audio, text, intent, self.avatar_id)
+            motion_seconds = monotonic() - motion_started
+            self.metrics["motion_seconds"] = motion_seconds
+            if self.metrics["first_expression_seconds"] is None:
+                self.metrics["first_expression_seconds"] = monotonic() - started
+            self.metrics["generation_seconds"] += (
+                reasoning_seconds + tts_seconds + motion_seconds
+            )
+            self.metrics["generated_seconds"] += duration
+            self.metrics["rtf"] = (
+                self.metrics["generation_seconds"] / self.metrics["generated_seconds"]
+            )
+            return result
+
+        motion_task = asyncio.create_task(generate())
+        try:
+            motion = await motion_task if self.playback_mode == "synchronized" else None
+            feedback = await self._deliver(
+                epoch, text, actions, (audio, duration), motion
+            )
+            if feedback.status != "completed":
+                return False
+            # Record heard text immediately, even if interruption cancels late motion.
+            if not spoken_entry["content"]:
+                self.history.append(spoken_entry)
+            spoken_entry["content"] += text
+            if self.playback_mode == "voice_first":
+                self.status = "generating"
+                motion = await motion_task
+                self.latest_expression["motion"] = motion
+                self.record("motion_ready", packet_id=self.latest_expression["id"])
+            return True
+        finally:
+            if not motion_task.done():
+                motion_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await motion_task
 
     async def _deliver(
         self, epoch: int, text: str, actions: list, audio, motion
@@ -267,6 +335,7 @@ class CharacterSession:
             "audio_seconds": audio[1] if audio else 0,
             "motion": motion,
         }
+        self.latest_expression = self.pending
         self.status = "awaiting_playback"
         self.record("expression_ready", packet_id=packet_id)
         try:

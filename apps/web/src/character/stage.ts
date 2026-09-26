@@ -4,8 +4,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from "@pixiv/three-vrm-animation";
 import { assertFiniteClip, ensureVRMLookAtQuaternionProxy } from "../viewer-compat";
-import { anchorClip, sceneDestination } from "./motion";
-import type { BodyState, Expression, FaceTrack, SceneAction } from "./contracts";
+import { anchorClip, sceneDestination, sampleClip } from "./motion";
+import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
   private readonly scene = new THREE.Scene();
@@ -14,6 +14,10 @@ export class CharacterStage {
   private readonly controls: OrbitControls;
   private readonly resize: ResizeObserver;
   private readonly audio = new AudioContext();
+  private readonly gain = this.audio.createGain();
+  private readonly analyser = this.audio.createAnalyser();
+  private readonly waveform = new Float32Array(256);
+  private cachedAudio: { url: string; buffer: AudioBuffer } | null = null;
   private vrm: VRM | null = null;
   private mixer: THREE.AnimationMixer | null = null;
   private action: THREE.AnimationAction | null = null;
@@ -26,6 +30,9 @@ export class CharacterStage {
   private lastFrame = performance.now();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
+    this.gain.connect(this.audio.destination);
+    this.analyser.fftSize = this.waveform.length;
+    this.analyser.connect(this.gain);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -60,6 +67,29 @@ export class CharacterStage {
 
   async unlockAudio(): Promise<void> { await this.audio.resume(); }
 
+  async togglePause(): Promise<void> {
+    if (this.audio.state === "running") await this.audio.suspend();
+    else await this.audio.resume();
+  }
+
+  setVolume(value: number): void { this.gain.gain.value = THREE.MathUtils.clamp(value, 0, 1); }
+
+  private audibleTime(): number {
+    const stamp = this.audio.getOutputTimestamp?.();
+    return this.audio.state === "running" && stamp?.contextTime && stamp.performanceTime
+      ? Math.min(this.audio.currentTime, stamp.contextTime + (performance.now() - stamp.performanceTime) / 1000)
+      : this.audio.currentTime;
+  }
+
+  private async loadAudio(url: string): Promise<AudioBuffer> {
+    if (this.cachedAudio?.url === url) return this.cachedAudio.buffer;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`语音读取失败 (${response.status})`);
+    const buffer = await this.audio.decodeAudioData(await response.arrayBuffer());
+    this.cachedAudio = { url, buffer };
+    return buffer;
+  }
+
   async loadAvatar(file: File): Promise<void> {
     this.stop();
     const epoch = this.epoch;
@@ -76,6 +106,10 @@ export class CharacterStage {
       }
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
+      // Establish a relaxed initial pose once; later responses retain executed bones.
+      for (const [name, angle] of [["leftUpperArm", -1.15], ["rightUpperArm", 1.15]] as const) {
+        vrm.humanoid.getNormalizedBoneNode(name)?.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+      }
       VRMUtils.rotateVRM0(vrm);
       ensureVRMLookAtQuaternionProxy(vrm);
       this.scene.add(vrm.scene);
@@ -101,7 +135,8 @@ export class CharacterStage {
     return this.state();
   }
 
-  async perform(packet: Expression, onStart: () => void): Promise<{ audio_seconds: number; motion_seconds: number }> {
+  async perform(packet: Expression, onStart: () => void,
+    onProgress: (value: PlaybackProgress) => void = () => {}): Promise<{ audio_seconds: number; motion_seconds: number }> {
     if (!this.vrm) throw new Error("请先载入 VRM");
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
@@ -114,7 +149,7 @@ export class CharacterStage {
     };
     const [gltf, audio, face] = await Promise.all([
       packet.motion ? loader.loadAsync(packet.motion.vrma_url) : null,
-      packet.audio_url ? checked(packet.audio_url).then(r => r.arrayBuffer()).then(b => this.audio.decodeAudioData(b)) : null,
+      packet.audio_url ? this.loadAudio(packet.audio_url) : null,
       packet.motion ? checked(`/api/v1/characters/results/${encodeURIComponent(packet.motion.result_id)}/face`).then(r => r.json() as Promise<FaceTrack>) : null,
     ]);
     if (!current()) throw new DOMException("Interrupted", "AbortError");
@@ -151,29 +186,41 @@ export class CharacterStage {
     if (audio) {
       this.source = this.audio.createBufferSource();
       this.source.buffer = audio;
-      this.source.connect(this.audio.destination);
+      this.source.connect(this.analyser);
       this.source.start(start);
     }
+    while (current() && this.audibleTime() < start) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
     const actions = this.executeActions(packet.actions, current);
     const end = Math.max(duration, audio?.duration ?? 0);
     try {
-      while (current() && this.audio.currentTime - start < end) {
-        if (audio && this.audio.state !== "running") throw new Error("音频设备暂停，表达已中断");
-        const elapsed = Math.max(0, this.audio.currentTime - start);
-        if (gltf && this.mixer) {
-          this.mixer.setTime(Math.min(elapsed, duration));
+      while (current() && this.audibleTime() - start < end) {
+        const elapsed = Math.max(0, this.audibleTime() - start);
+        if (gltf && this.mixer && this.action) {
+          sampleClip(this.mixer, this.action, elapsed);
           const blend = THREE.MathUtils.smoothstep(elapsed, 0, 0.2);
           for (const [bone, quaternion] of held) bone.quaternion.slerpQuaternions(quaternion, bone.quaternion.clone(), blend);
           const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
           if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), blend);
         }
         if (face) this.applyFace(face, elapsed);
-        await new Promise<void>(resolve => setTimeout(resolve, 16));
+        else if (audio && this.audio.state === "running") {
+          this.analyser.getFloatTimeDomainData(this.waveform);
+          const rms = Math.sqrt(this.waveform.reduce((sum, value) => sum + value * value, 0) / this.waveform.length);
+          const manager = this.vrm.expressionManager;
+          const previous = manager?.getValue("aa") ?? 0;
+          manager?.setValue("aa", THREE.MathUtils.lerp(previous, Math.min(1, rms * 5), 0.4));
+        }
+        onProgress({ elapsed, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: this.audio.state !== "running" });
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
-      if (current() && gltf && this.mixer) this.mixer.setTime(duration);
+      if (current() && gltf && this.mixer && this.action) {
+        sampleClip(this.mixer, this.action, duration);
+      }
       await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
+      onProgress({ elapsed: end, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: false });
       return { audio_seconds: audio?.duration ?? 0, motion_seconds: duration };
     } finally {
       if (current()) {
@@ -188,6 +235,7 @@ export class CharacterStage {
     this.stop(); this.disposed = true; cancelAnimationFrame(this.frame);
     this.resize.disconnect(); this.controls.dispose();
     this.mixer?.stopAllAction();
+    this.cachedAudio = null;
     VRMUtils.deepDispose(this.scene);
     this.renderer.dispose(); void this.audio.close();
   }
@@ -216,6 +264,11 @@ export class CharacterStage {
         // Engine translation is deliberately exposed as movement, not synthesized walking.
         let previous = performance.now();
         while (current()) {
+          if (this.audio.state !== "running") {
+            previous = performance.now();
+            await new Promise<void>(resolve => setTimeout(resolve, 16));
+            continue;
+          }
           const root = this.rootPosition();
           const delta = new THREE.Vector3(target.x - root.x, 0, target.z - root.z);
           if (delta.length() < 0.01) break;

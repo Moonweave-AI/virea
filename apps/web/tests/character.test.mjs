@@ -1,7 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { anchorClip, sceneDestination } from "../src/character/motion.ts";
+import { anchorClip, sceneDestination, sampleClip } from "../src/character/motion.ts";
+
+test("resampling a finished one-shot clip holds its last pose instead of jumping to its first", () => {
+  const root = new THREE.Object3D();
+  const mixer = new THREE.AnimationMixer(root);
+  const clip = new THREE.AnimationClip("motion", 1, [new THREE.NumberKeyframeTrack(".position[x]", [0, 1], [0, 2])]);
+  const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1);
+  action.clampWhenFinished = true; action.play();
+  sampleClip(mixer, action, 1);
+  assert.equal(root.position.x, 2);
+  sampleClip(mixer, action, 2);
+  assert.equal(root.position.x, 2);
+  sampleClip(mixer, action, 0.5);
+  assert.equal(root.position.x, 1);
+});
 
 test("next motion is anchored at executed planar root without modifying the source", () => {
   const hips = new THREE.Object3D();
