@@ -19,6 +19,8 @@ superseded_by: []
 
 [English](README.en.md)
 
+[速度、量化与连续性调研（含 5090 实测）](performance-continuity-research.zh-CN.md)
+
 打开 `/app/character.html`，载入 VRM，点击「开始会话」，输入文本。
 角色依据用户消息或显式环境事件选择 `SPEAK`、`ACT_SILENTLY`、`WAIT`。
 用户不填写回应时长。语音、字幕、动作使用同一份最终文本；讲话结束后保留已执行姿态与世界位置。
