@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-26
-last_reviewed: 2026-09-26
+updated: 2026-09-27
+last_reviewed: 2026-09-27
 review_cycle_days: 30
 summary: Deployment and acceptance boundaries for persistent character sessions.
 canonical: doc/character/README.en.md
@@ -82,7 +82,9 @@ retargeting and VRMA export.
 
 The browser uses an audio clock for motion and face playback. It anchors each new
 clip at the executed root, preserves entry pose and angular velocity with a
-240–600ms rotation correction, and holds the final pose. Body and face sampling
+240–600ms rotation correction. The last window of an utterance adds a 0.65–1.6s
+velocity-preserving recovery to a relaxed stance, retaining ground position, heading
+and finger shape. Blink and mouth tracks release instead of freezing. Body and face sampling
 span the actual audio duration. ARKit51
 is explicitly approximated with VRM blink, vowel and emotion presets; unsupported
 avatar expressions cannot be manufactured. `move_to` is bounded plane translation,
@@ -95,6 +97,10 @@ distinguishes these capabilities. `require_native_history:true` is accepted in
 synchronized mode and rejected in voice-first mode, whose motion is only a preview.
 History is committed only after completed playback. Speculative successors depend
 on their parent completing; interruption discards unexecuted history and audio.
+Internal windows do not recover between clauses. Terminal recovery uses the same
+clock and remains pausable and interruptible; completion acknowledges the recovered
+pose. Native RVQ history is cleared after recovery because the rendered pose cannot
+be encoded back into the model's history. See the [ending observations](motion-endings.zh-CN.md).
 Generated body and face do not imply generated fingers: the upstream neutral hand
 asset remains in use. Silent actions use the scene engine, not silent audio inference.
 

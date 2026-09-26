@@ -19,6 +19,8 @@ export interface Expression {
   audio_url: string | null;
   audio_seconds: number;
   motion: { vrma_url: string; result_id: string } | null;
+  /** True only when another window of this same utterance follows. */
+  continues?: boolean;
 }
 export interface FaceTrack { fps: number; names: string[]; values: number[][] }
 export interface PlaybackProgress {

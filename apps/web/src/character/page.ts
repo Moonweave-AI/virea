@@ -124,7 +124,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   const generation = playbackGeneration;
   element<HTMLButtonElement>("#pause").disabled = false;
   element("#playback-note").textContent = packet.motion
-    ? "语音、动作与字幕使用同一音频输出时钟；各自结束后保持末状态。"
+    ? "语音、动作与字幕使用同一播放时钟；整句结束后身体自然收势，字幕随语音结束。"
     : "优先播放语音与字幕，口型按音量近似驱动；生成动作可稍后预览或同步重播。";
   let status = "completed";
   let message = "";

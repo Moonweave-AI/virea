@@ -53,8 +53,15 @@ try {
     if (value.status === "error") throw new Error(JSON.stringify(value.events.at(-1)));
     if (value.buffered) report.lookahead_observed = true;
     if (value.pending && !report.packets.some(p => p.id === value.pending.id)) report.packets.push(value.pending);
-    const current = await clocks();
-    assert.ok(Math.abs(current[0] - current[1]) < 0.035, "audio and motion share the complete presentation timeline");
+    const tracks = await page.evaluate(() => {
+      const time = document.querySelector("#timeline-progress").value;
+      return ["audio", "motion"].map(name => {
+        const bar = document.querySelector(`#${name}-progress`);
+        return { elapsed: Number(bar.dataset.seconds), expected: Math.min(time, bar.max) };
+      });
+    });
+    assert.ok(tracks.every(track => Math.abs(track.elapsed - track.expected) < 0.035),
+      "audio and motion sample the same clock, including the terminal recovery tail");
     if (value.status === "waiting" && value.history.at(-1)?.role === "assistant") { completed = value; break; }
     await page.waitForTimeout(100);
   }
@@ -64,6 +71,12 @@ try {
   assert.ok(report.packets.length >= 2 && report.lookahead_observed);
   assert.ok(report.packets.slice(1).every(p => p.motion.native_history_applied));
   assert.ok(report.feedback.every(f => f.status === "completed"));
+  assert.ok(report.packets.slice(0, -1).every(p => p.continues === true));
+  assert.equal(report.packets.at(-1).continues, false);
+  assert.ok(report.feedback.slice(0, -1).every(f => Math.abs(f.audio_seconds - f.motion_seconds) < 0.001),
+    "internal windows must not retract between clauses");
+  assert.ok(report.feedback.at(-1).motion_seconds > report.feedback.at(-1).audio_seconds + 0.6,
+    "only the terminal acknowledgment waits for recovery");
   report.audio_schedules = await page.evaluate(() => window.audioSchedules);
   report.gaps_seconds = report.audio_schedules.slice(1).map((value, index) => value.when - report.audio_schedules[index].when - report.audio_schedules[index].duration);
   assert.ok(report.gaps_seconds.every(gap => gap >= -0.02 && gap < 0.25), `successor gaps: ${report.gaps_seconds}`);

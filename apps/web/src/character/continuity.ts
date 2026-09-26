@@ -22,7 +22,7 @@ export class RotationBridge {
   readonly duration: number;
 
   constructor(held: THREE.Quaternion, incoming: THREE.Quaternion,
-    heldVelocity = new THREE.Vector3(), incomingVelocity = new THREE.Vector3()) {
+    heldVelocity = new THREE.Vector3(), incomingVelocity = new THREE.Vector3(), duration?: number) {
     const correction = held.clone().multiply(incoming.clone().invert());
     this.offset = rotationVector(correction);
     const difference = heldVelocity.clone().sub(incomingVelocity.clone().applyQuaternion(correction));
@@ -32,7 +32,7 @@ export class RotationBridge {
     // Inverse SO(3) left Jacobian: offsets about another axis must preserve velocity too.
     this.velocity = difference.addScaledVector(cross, -0.5)
       .addScaledVector(this.offset.clone().cross(cross), coefficient).clampLength(0, 6);
-    this.duration = THREE.MathUtils.clamp(this.offset.length() / 3, 0.24, 0.6);
+    this.duration = duration ?? THREE.MathUtils.clamp(this.offset.length() / 3, 0.24, 0.6);
   }
 
   apply(incoming: THREE.Quaternion, seconds: number): void {

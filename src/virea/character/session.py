@@ -326,9 +326,14 @@ class CharacterSession:
                 reasoning_seconds,
             )
             for index in range(len(chunks)):
+                packet["continues"] = index + 1 < len(chunks)
                 if index + 1 < len(chunks):
 
-                    async def prepare_next(text=chunks[index + 1], parent=packet):
+                    async def prepare_next(
+                        text=chunks[index + 1],
+                        parent=packet,
+                        continues=index + 2 < len(chunks),
+                    ):
                         value = await self._prepare_speech(
                             epoch,
                             text,
@@ -339,6 +344,7 @@ class CharacterSession:
                             0,
                         )
                         value["parent_id"] = parent["id"]
+                        value["continues"] = continues
                         self.buffered = value
                         self.record("expression_buffered", packet_id=value["id"])
                         return value
@@ -348,7 +354,13 @@ class CharacterSession:
                 if feedback.status != "completed":
                     self._motion_tail = []
                     return False
-                self._motion_tail = packet["motion"].get("motion_tail", [])
+                # The renderer's terminal recovery is not representable as native RVQ
+                # history. Keep native prefixes within an utterance, not after recovery.
+                self._motion_tail = (
+                    packet["motion"].get("motion_tail", [])
+                    if packet["continues"]
+                    else []
+                )
                 if not spoken["content"]:
                     self.history.append(spoken)
                 spoken["content"] += packet["text"]
@@ -441,6 +453,7 @@ class CharacterSession:
             else None,
             "audio_seconds": audio[1] if audio else 0,
             "motion": motion,
+            "continues": False,
         }
 
     async def _present(self, packet: dict) -> PlaybackFeedback:

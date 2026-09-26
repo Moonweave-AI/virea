@@ -6,6 +6,7 @@ import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from "@pixiv/three-v
 import { assertFiniteClip, ensureVRMLookAtQuaternionProxy } from "../viewer-compat";
 import { anchorClip, sceneDestination, sampleClip } from "./motion";
 import { RotationBridge, rotationVector } from "./continuity";
+import { PoseRecovery, faceRelease, type PoseSample } from "./recovery";
 import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
@@ -20,6 +21,7 @@ export class CharacterStage {
   private readonly waveform = new Float32Array(256);
   private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
   private poseHistory = new Map<THREE.Object3D, { q: THREE.Quaternion; velocity: THREE.Vector3 }>();
+  private rest: PoseSample | null = null;
   private cachedAudio: { url: string; buffer: AudioBuffer } | null = null;
   private vrm: VRM | null = null;
   private mixer: THREE.AnimationMixer | null = null;
@@ -110,9 +112,21 @@ export class CharacterStage {
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
       // Establish a relaxed initial pose once; later responses retain executed bones.
-      for (const [name, angle] of [["leftUpperArm", -1.15], ["rightUpperArm", 1.15]] as const) {
+      for (const [name, angle] of [["leftUpperArm", -1.35], ["rightUpperArm", 1.35]] as const) {
         vrm.humanoid.getNormalizedBoneNode(name)?.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
       }
+      for (const [name, angle] of [["leftLowerArm", -0.12], ["rightLowerArm", 0.12]] as const) {
+        vrm.humanoid.getNormalizedBoneNode(name)?.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+      }
+      this.rest = this.poseSample();
+      // Retain the model's hand shape instead of straightening every finger on release.
+      for (const name of Object.keys(vrm.humanoid.humanBones)) {
+        if (/(Thumb|Index|Middle|Ring|Little)/.test(name)) {
+          const bone = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
+          if (bone) this.rest.rotations.delete(bone);
+        }
+      }
+      this.poseHistory.clear();
       VRMUtils.rotateVRM0(vrm);
       ensureVRMLookAtQuaternionProxy(vrm);
       this.scene.add(vrm.scene);
@@ -182,6 +196,7 @@ export class CharacterStage {
     let held: Map<THREE.Object3D, THREE.Quaternion> = new Map();
     let heldHips: THREE.Vector3 | null = null;
     const bridges = new Map<THREE.Object3D, RotationBridge>();
+    let recovery: PoseRecovery | null = null;
     if (gltf) {
       const animation = gltf.userData.vrmAnimations?.[0];
       if (!animation) throw new Error("动作资源缺少 VRMA 动画");
@@ -218,6 +233,23 @@ export class CharacterStage {
       }
       hips.position.copy(position);
     }
+    const sampleMotion = (elapsed: number) => {
+      if (!gltf || !this.mixer || !this.action) return;
+      sampleClip(this.mixer, this.action, elapsed * motionScale);
+      for (const [bone, bridge] of bridges) bridge.apply(bone.quaternion, elapsed);
+      const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips");
+      if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), THREE.MathUtils.smoothstep(elapsed, 0, 0.2));
+    };
+    if (gltf && !packet.continues && this.rest && duration > 0) {
+      const dt = Math.min(1 / 120, duration);
+      sampleMotion(duration - dt);
+      const before = this.poseSample();
+      sampleMotion(duration);
+      recovery = new PoseRecovery(this.vrm.humanoid.getNormalizedBoneNode("hips")!, before, this.poseSample(), this.rest, dt);
+      // Endpoint sampling is planning, not an executed jump before audio starts.
+      for (const [bone, q] of held) bone.quaternion.copy(q);
+      if (heldHips) this.vrm.humanoid.getNormalizedBoneNode("hips")?.position.copy(heldHips);
+    }
     const start = this.audio.currentTime + 0.04;
     if (audio) {
       this.source = this.audio.createBufferSource();
@@ -229,40 +261,45 @@ export class CharacterStage {
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
     const actions = this.executeActions(packet.actions, current);
-    const end = Math.max(duration, audio?.duration ?? 0);
+    const motionDuration = duration + (recovery?.duration ?? 0);
+    const end = Math.max(motionDuration, audio?.duration ?? 0);
+    const sample = (elapsed: number) => {
+      const tail = Math.max(0, elapsed - duration);
+      const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips");
+      if (recovery && hips && elapsed >= duration) recovery.apply(tail);
+      else sampleMotion(Math.min(elapsed, duration));
+      if (face) {
+        const time = Math.min(elapsed, duration);
+        this.applyFace(face, audio ? time * Math.max(0, face.values.length - 1) / (face.fps * audio.duration) : time);
+        if (recovery && elapsed >= duration) for (const name of face.names) {
+          const manager = this.vrm!.expressionManager;
+          manager?.setValue(name, (manager.getValue(name) ?? 0) * faceRelease(name, tail, recovery.duration));
+        }
+      } else if (audio && this.audio.state === "running") {
+        this.analyser.getFloatTimeDomainData(this.waveform);
+        const rms = Math.sqrt(this.waveform.reduce((sum, value) => sum + value * value, 0) / this.waveform.length);
+        const manager = this.vrm!.expressionManager;
+        const previous = manager?.getValue("aa") ?? 0;
+        manager?.setValue("aa", THREE.MathUtils.lerp(previous, Math.min(1, rms * 5), 0.4));
+      }
+    };
     try {
       while (current() && this.audibleTime() - start < end) {
         const elapsed = Math.max(0, this.audibleTime() - start);
-        if (gltf && this.mixer && this.action) {
-          sampleClip(this.mixer, this.action, elapsed * motionScale);
-          const blend = THREE.MathUtils.smoothstep(elapsed, 0, 0.2);
-          for (const [bone, bridge] of bridges) bridge.apply(bone.quaternion, elapsed);
-          const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
-          if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), blend);
-        }
-        if (face) this.applyFace(face, audio ? elapsed * Math.max(0, face.values.length - 1) / (face.fps * audio.duration) : elapsed);
-        else if (audio && this.audio.state === "running") {
-          this.analyser.getFloatTimeDomainData(this.waveform);
-          const rms = Math.sqrt(this.waveform.reduce((sum, value) => sum + value * value, 0) / this.waveform.length);
-          const manager = this.vrm.expressionManager;
-          const previous = manager?.getValue("aa") ?? 0;
-          manager?.setValue("aa", THREE.MathUtils.lerp(previous, Math.min(1, rms * 5), 0.4));
-        }
-        onProgress({ elapsed, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: this.audio.state !== "running" });
+        sample(elapsed);
+        onProgress({ elapsed, audioDuration: audio?.duration ?? 0, motionDuration, paused: this.audio.state !== "running" });
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
-      if (current() && gltf && this.mixer && this.action) {
-        sampleClip(this.mixer, this.action, duration * motionScale);
-      }
+      if (current()) sample(end);
       await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
-      onProgress({ elapsed: end, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: false });
-      return { audio_seconds: audio?.duration ?? 0, motion_seconds: duration };
+      onProgress({ elapsed: end, audioDuration: audio?.duration ?? 0, motionDuration, paused: false });
+      return { audio_seconds: audio?.duration ?? 0, motion_seconds: motionDuration };
     } finally {
       if (current()) {
         if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
         if (this.action) this.action.paused = true;
-        for (const name of ["aa", "oh", "ou"]) this.vrm?.expressionManager?.setValue(name, 0);
+        if (!face) for (const name of ["aa", "oh", "ou"]) this.vrm?.expressionManager?.setValue(name, 0);
       }
     }
   }
@@ -272,7 +309,7 @@ export class CharacterStage {
     this.resize.disconnect(); this.controls.dispose();
     this.mixer?.stopAllAction();
     this.cachedAudio = null;
-    this.prepared.clear(); this.poseHistory.clear();
+    this.prepared.clear(); this.poseHistory.clear(); this.rest = null;
     VRMUtils.deepDispose(this.scene);
     this.renderer.dispose(); void this.audio.close();
   }
@@ -281,6 +318,15 @@ export class CharacterStage {
     const hips = this.vrm?.humanoid.getNormalizedBoneNode("hips");
     this.vrm?.scene.updateMatrixWorld(true);
     return hips?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3();
+  }
+
+  private poseSample(): PoseSample {
+    const rotations = new Map<THREE.Object3D, THREE.Quaternion>();
+    if (this.vrm) for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
+      const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
+      if (bone) rotations.set(bone, bone.quaternion.clone());
+    }
+    return { rotations, position: this.vrm?.humanoid.getNormalizedBoneNode("hips")?.position.clone() ?? new THREE.Vector3() };
   }
 
   private applyFace(face: FaceTrack, seconds: number): void {
