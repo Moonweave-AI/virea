@@ -82,14 +82,18 @@ async def character_audio(
     session_id: str, packet_id: str, request: Request
 ) -> FileResponse:
     current = session(request, session_id)
-    if (
-        not current.pending
-        or current.pending["id"] != packet_id
-        or not current.pending["audio_url"]
-    ):
+    packet = next(
+        (
+            p
+            for p in (current.pending, current.buffered)
+            if p and p["id"] == packet_id and p["audio_url"]
+        ),
+        None,
+    )
+    if packet is None:
         raise HTTPException(404, "audio packet is no longer active")
     return FileResponse(
-        current.directory / f"{current.pending['id']}.wav", media_type="audio/wav"
+        current.directory / f"{packet['id']}.wav", media_type="audio/wav"
     )
 
 

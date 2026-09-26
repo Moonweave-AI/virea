@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "virea-model-sentiavatar-susu-cu128-runtime"
-version = "0.2.0"
+version = "0.3.0"
 description = "CUDA 12.8 environment for the SentiAvatar SuSu VIREA Worker"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 authors = [{ name = "Moonweave AI" }]
 dependencies = [
-  "virea-model-sentiavatar-susu-runtime==0.2.0",
+  "virea-model-sentiavatar-susu-runtime==0.3.0",
   "torch==2.8.0",
 ]
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from time import monotonic
 from uuid import uuid4
 
-from .audio import text_chunks
+from .audio import speech_windows, text_chunks
 from .contracts import BodyState, CharacterConfig, EnvironmentEvent, PlaybackFeedback
 from .providers.motion import CAPABILITIES
 
@@ -46,6 +46,8 @@ class CharacterSession:
         self.revision = 0
         self.status = "waiting"
         self.pending: dict | None = None
+        self.buffered: dict | None = None
+        self._motion_tail: list = []
         self.last_seen = monotonic()
         self.metrics = {
             "generated_seconds": 0.0,
@@ -78,6 +80,7 @@ class CharacterSession:
             "body": self.body.model_dump(),
             "targets": self.targets,
             "pending": self.pending,
+            "buffered": self.buffered,
             "playback_mode": self.playback_mode,
             "draft_text": self.draft_text,
             "latest_expression": self.latest_expression,
@@ -170,6 +173,8 @@ class CharacterSession:
         self._start(trigger)
 
     async def _cancel(self) -> None:
+        if self.pending is not None:
+            self._motion_tail = []
         self.epoch += 1
         if self._task and not self._task.done():
             self._task.cancel()
@@ -238,6 +243,10 @@ class CharacterSession:
             if decision.mode == "ACT_SILENTLY":
                 feedback = await self._deliver(epoch, "", actions, None, None)
                 completed = feedback.status == "completed"
+            elif self.playback_mode == "synchronized":
+                completed = await self._synchronized_speech(
+                    epoch, decision, actions, started, reasoning_seconds
+                )
             else:
                 completed = True
                 spoken_entry = {"role": "assistant", "content": ""}
@@ -262,6 +271,102 @@ class CharacterSession:
         except Exception as exc:
             self.status = "error"
             self.record("error", message=f"{type(exc).__name__}: {exc}")
+
+    async def _prepare_speech(
+        self, epoch, text, intent, actions, prefix, started, reasoning_seconds
+    ):
+        """Produce one bounded lookahead packet without advancing executed history."""
+        if not self.pending:
+            self.status = "synthesizing"
+        tts_started = monotonic()
+        audio, duration = await self.speech.synthesize(text)
+        tts_seconds = monotonic() - tts_started
+        self.metrics["tts_seconds"] = tts_seconds
+        if self.metrics["first_audio_seconds"] is None:
+            self.metrics["first_audio_seconds"] = monotonic() - started
+        if not self.pending:
+            self.status = "generating"
+        motion_started = monotonic()
+        async with self.generation_slot:
+            motion = await self.motion.generate(
+                audio,
+                text,
+                intent,
+                self.avatar_id,
+                **({"motion_prefix": prefix} if prefix else {}),
+            )
+        motion_seconds = monotonic() - motion_started
+        self.metrics["motion_seconds"] = motion_seconds
+        if self.metrics["first_expression_seconds"] is None:
+            self.metrics["first_expression_seconds"] = monotonic() - started
+        self.metrics["generation_seconds"] += (
+            reasoning_seconds + tts_seconds + motion_seconds
+        )
+        self.metrics["generated_seconds"] += duration
+        self.metrics["rtf"] = (
+            self.metrics["generation_seconds"] / self.metrics["generated_seconds"]
+        )
+        return self._packet(epoch, text, actions, (audio, duration), motion)
+
+    async def _synchronized_speech(
+        self, epoch, decision, actions, started, reasoning_seconds
+    ):
+        chunks = speech_windows(decision.text)
+        spoken = {"role": "assistant", "content": ""}
+        upcoming = None
+        packet = None
+        try:
+            packet = await self._prepare_speech(
+                epoch,
+                chunks[0],
+                decision.motion_intent,
+                actions,
+                self._motion_tail,
+                started,
+                reasoning_seconds,
+            )
+            for index in range(len(chunks)):
+                if index + 1 < len(chunks):
+
+                    async def prepare_next(text=chunks[index + 1], parent=packet):
+                        value = await self._prepare_speech(
+                            epoch,
+                            text,
+                            decision.motion_intent,
+                            [],
+                            parent["motion"].get("motion_tail", []),
+                            started,
+                            0,
+                        )
+                        value["parent_id"] = parent["id"]
+                        self.buffered = value
+                        self.record("expression_buffered", packet_id=value["id"])
+                        return value
+
+                    upcoming = asyncio.create_task(prepare_next())
+                feedback = await self._present(packet)
+                if feedback.status != "completed":
+                    self._motion_tail = []
+                    return False
+                self._motion_tail = packet["motion"].get("motion_tail", [])
+                if not spoken["content"]:
+                    self.history.append(spoken)
+                spoken["content"] += packet["text"]
+                if upcoming:
+                    packet = await upcoming
+                    upcoming = None
+                    self.buffered = None
+            return True
+        finally:
+            if upcoming:
+                if not upcoming.done():
+                    upcoming.cancel()
+                values = await asyncio.gather(upcoming, return_exceptions=True)
+                if isinstance(values[0], dict):
+                    (self.directory / f"{values[0]['id']}.wav").unlink(missing_ok=True)
+            if packet:
+                (self.directory / f"{packet['id']}.wav").unlink(missing_ok=True)
+            self.buffered = None
 
     async def _speech_expression(
         self, epoch, text, intent, actions, spoken_entry, started, reasoning_seconds
@@ -319,12 +424,14 @@ class CharacterSession:
     async def _deliver(
         self, epoch: int, text: str, actions: list, audio, motion
     ) -> PlaybackFeedback:
+        return await self._present(self._packet(epoch, text, actions, audio, motion))
+
+    def _packet(self, epoch, text, actions, audio, motion) -> dict:
         packet_id = uuid4().hex
         path = self.directory / f"{packet_id}.wav"
         if audio:
             path.write_bytes(audio[0])
-        self._feedback = asyncio.get_running_loop().create_future()
-        self.pending = {
+        return {
             "id": packet_id,
             "epoch": epoch,
             "text": text,
@@ -335,12 +442,16 @@ class CharacterSession:
             "audio_seconds": audio[1] if audio else 0,
             "motion": motion,
         }
+
+    async def _present(self, packet: dict) -> PlaybackFeedback:
+        self._feedback = asyncio.get_running_loop().create_future()
+        self.pending = packet
         self.latest_expression = self.pending
         self.status = "awaiting_playback"
-        self.record("expression_ready", packet_id=packet_id)
+        self.record("expression_ready", packet_id=packet["id"])
         try:
             return await asyncio.wait_for(self._feedback, self.config.feedback_timeout)
         finally:
             self.pending = None
             self._feedback = None
-            path.unlink(missing_ok=True)
+            (self.directory / f"{packet['id']}.wav").unlink(missing_ok=True)

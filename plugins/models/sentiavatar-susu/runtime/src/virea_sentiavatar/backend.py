@@ -23,6 +23,8 @@ from virea_model_sdk.upstream_runtime import (
 )
 from virea_model_sdk.worker import WorkerFailure
 
+from .continuation import HISTORY_TOKENS, motion_prefix
+
 SOURCE_REVISION = "71c61b05a0609a41c17aa146c9f4ee7778ebc649"
 CHECKPOINT_REVISION = "242b2031a913dd1b25f43fe1f3e112611864c9cc"
 _KMEANS_MODEL_SHA256 = (
@@ -82,6 +84,8 @@ class SentiAvatarGeneration:
     body_std153: np.ndarray
     face_arkit51: np.ndarray | None
     chunk_count: int
+    motion_tail: tuple[tuple[int, ...], ...] = ()
+    native_history_applied: bool = False
 
 
 def _safe_artifact_child(root: Path, relative: str) -> Path:
@@ -763,7 +767,8 @@ class SentiAvatarBackend:
         generate_steps: int,
         max_new_tokens: int,
         generate_face: bool,
-    ) -> tuple[np.ndarray, np.ndarray | None]:
+        prefix: list[list[int]] | None = None,
+    ) -> tuple[np.ndarray, np.ndarray | None, list[list[int]]]:
         self._seed(seed)
         waveform = _read_audio(audio_reference, self.roots)
         features, last_hidden = self._audio_features(waveform)
@@ -778,6 +783,9 @@ class SentiAvatarBackend:
             max_new_tokens=max_new_tokens,
         )
         keyframes = self._pipeline.sparse_to_keyframes(sparse)
+        if prefix:
+            # Infill sees the previous executed code as its first boundary condition.
+            keyframes[0] = prefix[-1]
         dense = self._pipeline.interpolate_sequence(
             self._mask_model,
             keyframes,
@@ -796,9 +804,10 @@ class SentiAvatarBackend:
                 "INFILL_OUTPUT_INVALID",
                 "SentiAvatar infill transformer returned tokens outside [0, 511]",
             )
-        body = self._decode_body(dense)
+        history = prefix or []
+        body = self._decode_body(history + dense)[len(history) * 2 :]
         face = self._face(last_hidden, body.shape[0]) if generate_face else None
-        return body, face
+        return body, face, dense[-HISTORY_TOKENS:]
 
     def generate(
         self,
@@ -811,6 +820,7 @@ class SentiAvatarBackend:
         generate_steps: int,
         max_new_tokens: int,
         generate_face: bool,
+        prefix: list[list[int]] | None = None,
     ) -> SentiAvatarGeneration:
         required = (
             self._planner,
@@ -831,13 +841,15 @@ class SentiAvatarBackend:
                 "INVALID_REQUEST", "audio chunks and dialogue/action texts must align"
             )
         self._seed(seed)
+        tail = motion_prefix(prefix)
+        history_applied = bool(tail)
         bodies: list[np.ndarray] = []
         faces: list[np.ndarray] = []
         try:
             for index, (audio, action) in enumerate(
                 zip(audio_references, action_texts, strict=True)
             ):
-                body, face = self._generate_chunk(
+                body, face, tail = self._generate_chunk(
                     audio,
                     action,
                     seed=seed + index,
@@ -846,6 +858,7 @@ class SentiAvatarBackend:
                     generate_steps=generate_steps,
                     max_new_tokens=max_new_tokens,
                     generate_face=generate_face,
+                    prefix=tail,
                 )
                 bodies.append(body)
                 if face is not None:
@@ -880,4 +893,6 @@ class SentiAvatarBackend:
             body_std153=self._std.copy(),
             face_arkit51=face,
             chunk_count=len(bodies),
+            motion_tail=tuple(tuple(row) for row in tail),
+            native_history_applied=history_applied or len(bodies) > 1,
         )

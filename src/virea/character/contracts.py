@@ -95,6 +95,7 @@ class CharacterConfig(Contract):
     llm_api: Literal["openai", "ollama"] = "openai"
     llm_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "Qwen3.5-2B"
+    llm_thinking: bool = False
     tts_url: str = "http://127.0.0.1:8081/v1"
     tts_voice: str = "zf_001"
     persona: str = "你是生活在三维空间中的角色，简洁自然地用中文交流。"

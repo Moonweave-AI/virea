@@ -37,9 +37,13 @@ class CharacterManager:
         self._reaper = asyncio.create_task(self._expire())
 
     def create(self, request: SessionRequest) -> CharacterSession:
-        if request.require_native_history and not CAPABILITIES["native_history"]:
+        if request.require_native_history and (
+            not CAPABILITIES["native_history"]
+            or request.playback_mode != "synchronized"
+        ):
             raise ValueError(
-                "SentiAvatar does not support native history/executed-pose conditioning"
+                "native motion history requires synchronized playback; "
+                "voice-first motion previews are not executed history"
             )
         if len(self.sessions) >= self.config.max_sessions:
             raise ValueError(

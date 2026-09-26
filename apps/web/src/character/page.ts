@@ -28,7 +28,7 @@ root.innerHTML = `
       <form><label for="message">对角色说</label><textarea id="message" rows="3" maxlength="4000" placeholder="你好，看看你左边的杯子。" required></textarea>
         <div class="buttons"><button type="submit" id="send" disabled>发送</button><button type="button" id="interrupt" disabled>打断并留在此刻</button></div></form>
       <div id="error" role="alert"></div>
-      <details><summary>运行状态与能力边界</summary><p>片段衔接使用播放器姿态混合。当前 SentiAvatar 不支持原生历史或实际姿态条件输入。手指使用上游固定资源，面部映射为近似转换。</p><output id="metrics">尚无测量</output></details>
+      <details><summary>运行状态与能力边界</summary><p>片段衔接结合历史动作码约束、解码重叠和实际姿态的惯性过渡。动作规划器仍不支持完整历史或实际姿态条件输入。手指使用上游固定资源，面部映射为近似转换。</p><output id="metrics">尚无测量</output></details>
     </aside>
   </main>`;
 
@@ -42,6 +42,13 @@ let disposed = false;
 let mutating = false;
 let playbackGeneration = 0;
 let previewing = false;
+
+function setMutating(value: boolean): void {
+  mutating = value;
+  for (const id of ["#send", "#interrupt", "#close"]) {
+    element<HTMLButtonElement>(id).disabled = value || !session;
+  }
+}
 
 class RequestError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
@@ -137,6 +144,12 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
     playing = null;
     element<HTMLButtonElement>("#pause").disabled = true;
     element("#subtitle").textContent = "";
+    // Consume a prepared successor immediately after its parent is acknowledged.
+    const next = await request<Session>(`/${sessionId}`).catch(() => null);
+    if (next && generation === playbackGeneration && session?.id === sessionId && !mutating && !closing) {
+      session = next; renderState(next);
+      if (next.pending && !handled.has(next.pending.id)) await play(next.pending, sessionId);
+    }
   }
 }
 
@@ -163,7 +176,7 @@ element<HTMLInputElement>("#avatar").onchange = async (event) => {
 
 element("#start").onclick = async () => {
   if (session || mutating) return;
-  mutating = true;
+  setMutating(true);
   try {
     await stage.unlockAudio();
     session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value });
@@ -177,14 +190,14 @@ element("#start").onclick = async () => {
     element("#error").textContent = "";
     renderState(session);
   } catch (error) { showError(error); }
-  finally { mutating = false; }
+  finally { setMutating(false); }
 };
 
 element<HTMLFormElement>("form").onsubmit = async (event) => {
   event.preventDefault();
   const text = element<HTMLTextAreaElement>("#message").value.trim();
   if (!session || !text || mutating) return;
-  mutating = true;
+  setMutating(true);
   try {
     await stage.unlockAudio();
     await interrupt();
@@ -192,14 +205,14 @@ element<HTMLFormElement>("form").onsubmit = async (event) => {
     element<HTMLTextAreaElement>("#message").value = "";
     element("#error").textContent = "";
   } catch (error) { showError(error); }
-  finally { mutating = false; }
+  finally { setMutating(false); }
 };
 
 element("#interrupt").onclick = async () => {
   if (mutating) return;
-  mutating = true;
+  setMutating(true);
   try { await interrupt(); } catch (error) { showError(error); }
-  finally { mutating = false; }
+  finally { setMutating(false); }
 };
 element("#sound").onclick = () => { void stage.unlockAudio().catch(showError); };
 element("#pause").onclick = () => { void stage.togglePause().catch(showError); };
@@ -233,12 +246,12 @@ element("#replay-motion").onclick = () => { void replay("motion"); };
 element("#replay-sync").onclick = () => { void replay("synchronized"); };
 element("#close").onclick = async () => {
   if (!session || mutating) return;
-  closing = true; mutating = true;
+  closing = true; setMutating(true);
   playbackGeneration++; stage.stop(); playing = null; previewing = false;
   try { await request(`/${session.id}`, "DELETE"); }
   catch (error) { showError(error); }
   finally {
-    session = null; closing = false; mutating = false; handled.clear();
+    session = null; closing = false; setMutating(false); handled.clear();
     element("#status").textContent = "已结束";
     element("#subtitle").textContent = "";
     element<HTMLInputElement>("#avatar").disabled = false;
@@ -262,6 +275,9 @@ async function poll(): Promise<void> {
             element<HTMLButtonElement>("#pause").disabled = true;
             element("#subtitle").textContent = "";
           }
+          if (value.buffered) void stage.preload(value.buffered).catch(error => {
+            if (generation === playbackGeneration && session?.id === id && !mutating) showError(error);
+          });
           if (value.pending && !playing && !handled.has(value.pending.id)) void play(value.pending, id);
         }
       } catch (error) {
@@ -278,7 +294,7 @@ async function poll(): Promise<void> {
         } else showError(error);
       }
     }
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
 window.addEventListener("pagehide", () => {

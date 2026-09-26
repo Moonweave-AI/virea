@@ -8,11 +8,12 @@
 # url = "https://download.pytorch.org/whl/cpu"
 # explicit = true
 # ///
-"""Isolated Chinese Kokoro CPU service; never import torch in the control plane."""
+"""Isolated resident Chinese Kokoro service, shared by CPU and CUDA launchers."""
 
 from __future__ import annotations
 
 import io
+import os
 import threading
 import wave
 from contextlib import asynccontextmanager
@@ -32,30 +33,64 @@ class SpeechRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    import torch
     from kokoro import KPipeline
 
+    device = os.environ.get("VIREA_TTS_DEVICE", "cpu")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available")
+    application.state.device = device
+    application.state.precision = os.environ.get("VIREA_TTS_PRECISION", "float32")
+    if application.state.precision not in {"auto", "float32", "float16", "bfloat16"}:
+        raise ValueError("unsupported TTS precision")
+
     application.state.pipeline = KPipeline(
-        lang_code="z", repo_id="hexgrad/Kokoro-82M-v1.1-zh", device="cpu"
+        lang_code="z", repo_id="hexgrad/Kokoro-82M-v1.1-zh", device=device
     )
     application.state.lock = threading.Lock()
+    # Readiness includes vocabulary, voice and GPU kernel initialization.
+    speech(SpeechRequest(input="你好。"))
+    if application.state.precision == "auto":
+        speech(SpeechRequest(input="我们可以慢慢聊一聊，等你准备好了再继续。" * 3))
     yield
 
 
-app = FastAPI(title="VIREA Chinese Kokoro CPU", lifespan=lifespan)
+app = FastAPI(title="VIREA Chinese Kokoro", lifespan=lifespan)
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"model": "hexgrad/Kokoro-82M-v1.1-zh", "device": "cpu"}
+    return {
+        "model": "hexgrad/Kokoro-82M-v1.1-zh",
+        "device": app.state.device,
+        "precision": app.state.precision,
+    }
 
 
 @app.post("/v1/audio/speech")
 def speech(request: SpeechRequest) -> Response:
-    with app.state.lock:
+    import torch
+
+    precision = app.state.precision
+    if precision == "auto":
+        precision = (
+            "float16"
+            if app.state.device == "cuda" and len(request.input) > 32
+            else "float32"
+        )
+    with (
+        app.state.lock,
+        torch.inference_mode(),
+        torch.autocast(
+            device_type=app.state.device,
+            dtype=torch.float16 if precision == "float16" else torch.bfloat16,
+            enabled=precision != "float32",
+        ),
+    ):
         samples = []
         for result in app.state.pipeline(request.input, voice=request.voice):
             if result.audio is not None:
-                samples.append(result.audio.detach().cpu().numpy())
+                samples.append(result.audio.detach().float().cpu().numpy())
         if not samples:
             raise HTTPException(422, "Kokoro produced no audio")
         values = np.concatenate(samples)

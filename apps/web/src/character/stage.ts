@@ -5,6 +5,7 @@ import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName } from "@pix
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from "@pixiv/three-vrm-animation";
 import { assertFiniteClip, ensureVRMLookAtQuaternionProxy } from "../viewer-compat";
 import { anchorClip, sceneDestination, sampleClip } from "./motion";
+import { RotationBridge, rotationVector } from "./continuity";
 import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
@@ -17,6 +18,8 @@ export class CharacterStage {
   private readonly gain = this.audio.createGain();
   private readonly analyser = this.audio.createAnalyser();
   private readonly waveform = new Float32Array(256);
+  private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
+  private poseHistory = new Map<THREE.Object3D, { q: THREE.Quaternion; velocity: THREE.Vector3 }>();
   private cachedAudio: { url: string; buffer: AudioBuffer } | null = null;
   private vrm: VRM | null = null;
   private mixer: THREE.AnimationMixer | null = null;
@@ -135,11 +138,7 @@ export class CharacterStage {
     return this.state();
   }
 
-  async perform(packet: Expression, onStart: () => void,
-    onProgress: (value: PlaybackProgress) => void = () => {}): Promise<{ audio_seconds: number; motion_seconds: number }> {
-    if (!this.vrm) throw new Error("请先载入 VRM");
-    const epoch = this.epoch;
-    const current = () => epoch === this.epoch && !this.disposed;
+  private prepare(packet: Expression) {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
     const checked = async (url: string) => {
@@ -147,16 +146,42 @@ export class CharacterStage {
       if (!response.ok) throw new Error(`表达资源读取失败 (${response.status})`);
       return response;
     };
-    const [gltf, audio, face] = await Promise.all([
+    return Promise.all([
       packet.motion ? loader.loadAsync(packet.motion.vrma_url) : null,
       packet.audio_url ? this.loadAudio(packet.audio_url) : null,
       packet.motion ? checked(`/api/v1/characters/results/${encodeURIComponent(packet.motion.result_id)}/face`).then(r => r.json() as Promise<FaceTrack>) : null,
     ]);
+  }
+
+  private resourceKey(packet: Expression): string {
+    return `${packet.id}|${packet.audio_url}|${packet.motion?.result_id}`;
+  }
+
+  preload(packet: Expression): Promise<unknown> {
+    const key = this.resourceKey(packet);
+    let value = this.prepared.get(key);
+    if (!value) {
+      value = this.prepare(packet);
+      this.prepared.set(key, value);
+      while (this.prepared.size > 3) this.prepared.delete(this.prepared.keys().next().value!);
+      void value.catch(() => { this.prepared.delete(key); });
+    }
+    return value;
+  }
+
+  async perform(packet: Expression, onStart: () => void,
+    onProgress: (value: PlaybackProgress) => void = () => {}): Promise<{ audio_seconds: number; motion_seconds: number }> {
+    if (!this.vrm) throw new Error("请先载入 VRM");
+    const epoch = this.epoch;
+    const current = () => epoch === this.epoch && !this.disposed;
+    const [gltf, audio, face] = await (this.prepared.get(this.resourceKey(packet)) ?? this.prepare(packet));
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     if (audio && this.audio.state !== "running") throw new Error("音频暂停，请点击继续声音后重试");
     let duration = 0;
+    let motionScale = 1;
     let held: Map<THREE.Object3D, THREE.Quaternion> = new Map();
     let heldHips: THREE.Vector3 | null = null;
+    const bridges = new Map<THREE.Object3D, RotationBridge>();
     if (gltf) {
       const animation = gltf.userData.vrmAnimations?.[0];
       if (!animation) throw new Error("动作资源缺少 VRMA 动画");
@@ -165,7 +190,8 @@ export class CharacterStage {
       let clip = createVRMAnimationClip(animation, this.vrm);
       assertFiniteClip(clip);
       clip = anchorClip(clip, hips);
-      duration = clip.duration;
+      duration = audio?.duration ?? clip.duration;
+      motionScale = duration > 0 ? clip.duration / duration : 1;
       for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (bone) held.set(bone, bone.quaternion.clone());
@@ -181,6 +207,16 @@ export class CharacterStage {
       this.action.setLoop(THREE.LoopOnce, 1);
       this.action.clampWhenFinished = true;
       this.action.play();
+      sampleClip(this.mixer, this.action, 0);
+      const first = new Map([...held.keys()].map(bone => [bone, bone.quaternion.clone()]));
+      sampleClip(this.mixer, this.action, motionScale / 120);
+      for (const [bone, q] of held) {
+        const incoming = first.get(bone)!;
+        const velocity = rotationVector(bone.quaternion.clone().multiply(incoming.clone().invert())).multiplyScalar(120);
+        bridges.set(bone, new RotationBridge(q, incoming, this.poseHistory.get(bone)?.velocity, velocity));
+        bone.quaternion.copy(q);
+      }
+      hips.position.copy(position);
     }
     const start = this.audio.currentTime + 0.04;
     if (audio) {
@@ -198,13 +234,13 @@ export class CharacterStage {
       while (current() && this.audibleTime() - start < end) {
         const elapsed = Math.max(0, this.audibleTime() - start);
         if (gltf && this.mixer && this.action) {
-          sampleClip(this.mixer, this.action, elapsed);
+          sampleClip(this.mixer, this.action, elapsed * motionScale);
           const blend = THREE.MathUtils.smoothstep(elapsed, 0, 0.2);
-          for (const [bone, quaternion] of held) bone.quaternion.slerpQuaternions(quaternion, bone.quaternion.clone(), blend);
+          for (const [bone, bridge] of bridges) bridge.apply(bone.quaternion, elapsed);
           const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
           if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), blend);
         }
-        if (face) this.applyFace(face, elapsed);
+        if (face) this.applyFace(face, audio ? elapsed * Math.max(0, face.values.length - 1) / (face.fps * audio.duration) : elapsed);
         else if (audio && this.audio.state === "running") {
           this.analyser.getFloatTimeDomainData(this.waveform);
           const rms = Math.sqrt(this.waveform.reduce((sum, value) => sum + value * value, 0) / this.waveform.length);
@@ -216,7 +252,7 @@ export class CharacterStage {
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
       if (current() && gltf && this.mixer && this.action) {
-        sampleClip(this.mixer, this.action, duration);
+        sampleClip(this.mixer, this.action, duration * motionScale);
       }
       await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
@@ -236,6 +272,7 @@ export class CharacterStage {
     this.resize.disconnect(); this.controls.dispose();
     this.mixer?.stopAllAction();
     this.cachedAudio = null;
+    this.prepared.clear(); this.poseHistory.clear();
     VRMUtils.deepDispose(this.scene);
     this.renderer.dispose(); void this.audio.close();
   }
@@ -247,8 +284,10 @@ export class CharacterStage {
   }
 
   private applyFace(face: FaceTrack, seconds: number): void {
-    const values = face.values[Math.min(face.values.length - 1, Math.floor(seconds * face.fps))];
-    face.names.forEach((name, index) => this.vrm?.expressionManager?.setValue(name, values?.[index] ?? 0));
+    const cursor = Math.min(face.values.length - 1, Math.max(0, seconds * face.fps));
+    const lower = Math.floor(cursor), upper = Math.min(lower + 1, face.values.length - 1);
+    face.names.forEach((name, index) => this.vrm?.expressionManager?.setValue(name,
+      THREE.MathUtils.lerp(face.values[lower]?.[index] ?? 0, face.values[upper]?.[index] ?? 0, cursor - lower)));
   }
 
   private async executeActions(actions: SceneAction[], current: () => boolean): Promise<void> {
@@ -288,6 +327,13 @@ export class CharacterStage {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     if (this.vrm) {
+      if (dt > 0 && this.audio.state === "running") for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
+        const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
+        if (!bone) continue;
+        const previous = this.poseHistory.get(bone);
+        const velocity = previous ? rotationVector(bone.quaternion.clone().multiply(previous.q.clone().invert())).divideScalar(dt) : new THREE.Vector3();
+        this.poseHistory.set(bone, { q: bone.quaternion.clone(), velocity });
+      }
       if (this.gazePoint) this.vrm.lookAt?.lookAt(this.gazePoint);
       this.vrm.update(dt);
     }

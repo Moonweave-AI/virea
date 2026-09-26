@@ -266,7 +266,7 @@ def test_interrupt_keeps_already_heard_chunks_in_history(tmp_path):
             lambda: session.pending is not None and session.pending is not first
         )
         await session.interrupt(BodyState())
-        assert session.history[-1] == {"role": "assistant", "content": first_sentence}
+        assert session.history[-1] == {"role": "assistant", "content": first["text"]}
         await session.close()
 
     asyncio.run(run())

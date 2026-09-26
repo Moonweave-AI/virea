@@ -14,12 +14,14 @@ from ..contracts import CharacterConfig
 
 CAPABILITIES = {
     "body_and_face": True,
-    "native_history": False,
+    "native_history": True,
+    "native_history_mode": "rvq_infill_boundary_and_decoder_overlap",
+    "planner_history": False,
     "executed_pose_conditioning": False,
     "online_worker_streaming": False,
     "generative_fingers": False,
     "silent_generative_motion": False,
-    "playback_continuity": "renderer_pose_blend",
+    "playback_continuity": "executed_pose_inertialization",
     "scene_actions": ["look_at", "move_to", "stop"],
 }
 
@@ -30,7 +32,13 @@ class MotionProvider:
         self.config = config
 
     async def generate(
-        self, audio: bytes, text: str, intent: str, avatar_id: str | None
+        self,
+        audio: bytes,
+        text: str,
+        intent: str,
+        avatar_id: str | None,
+        *,
+        motion_prefix: list | None = None,
     ) -> dict:
         request = JobRequest(
             model_id="sentiavatar-susu",
@@ -39,19 +47,26 @@ class MotionProvider:
                 "audio": "data:audio/wav;base64,"
                 + base64.b64encode(audio).decode("ascii"),
                 "dialogue_text": text,
-                "action_and_expression_tags": intent,
+                "action_and_expression_tags": intent.strip() or "动作：自然说话",
             },
-            parameters={"generate_face": True},
+            parameters={"generate_face": True, "motion_prefix": motion_prefix},
             avatar_id=avatar_id,
             execution_target=self.config.execution_target,
         )
         # submit is a short durable enqueue. Keep it atomic with ownership of job_id.
-        job = self.control.submit(request, inference_timeout=self.config.motion_timeout)
+        job = self.control.submit(
+            request,
+            inference_timeout=self.config.motion_timeout,
+            keep_worker_alive=True,
+        )
         job_id = job["id"]
         try:
             return await asyncio.wait_for(
                 self._result(job_id), self.config.motion_timeout + 10
             )
+        except asyncio.CancelledError:
+            await asyncio.to_thread(self.control.discard, job_id)
+            raise
         except BaseException:
             await asyncio.to_thread(self.control.cancel, job_id)
             raise
@@ -70,11 +85,22 @@ class MotionProvider:
                     if item["format"].lower() == "vrma"
                 )
                 result_id = result["result_id"]
+                metadata = await asyncio.to_thread(
+                    (
+                        self.control.paths.result_directory(result_id)
+                        / "model-result.json"
+                    ).read_text,
+                    encoding="utf-8",
+                )
+                generation = json.loads(metadata)["provenance"]["generation_parameters"]
                 return {
                     "job_id": job_id,
                     "result_id": result_id,
                     "vrma_url": f"/api/v1/results/{quote(result_id, safe='')}/artifacts/{quote(Path(export['locator']).name, safe='')}",
-                    "native_history_applied": False,
+                    "native_history_applied": generation.get(
+                        "native_history_applied", False
+                    ),
+                    "motion_tail": generation.get("motion_tail", []),
                     "executed_pose_conditioning": False,
                 }
             if job["state"] in {"FAILED", "REJECTED", "TIMED_OUT", "CANCELLED"}:

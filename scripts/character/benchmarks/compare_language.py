@@ -87,7 +87,12 @@ class MeasuredClient(httpx.AsyncClient):
         payload = kwargs["json"]
         payload["options"].update(temperature=0, seed=42)
         if self.compact_rules:
-            payload["messages"][0]["content"] = COMPACT_RULES
+            _, _, state = payload["messages"][0]["content"].partition(
+                "\nCurrent state: "
+            )
+            payload["messages"][0]["content"] = (
+                COMPACT_RULES + "\nCurrent state: " + state
+            )
         response = await super().post(url, **kwargs)
         self.last_result = response.json()
         return response
@@ -115,6 +120,8 @@ def failures(case: dict, decision: dict) -> list[str]:
             "看不到",
             "找不到",
             "哪里",
+            "在哪",
+            "没看到",
             "哪只",
             "位置",
             "不在",

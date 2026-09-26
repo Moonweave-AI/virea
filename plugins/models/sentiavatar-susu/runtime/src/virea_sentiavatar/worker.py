@@ -24,7 +24,7 @@ from .backend import (
 )
 
 MODEL_ID = "sentiavatar-susu"
-PLUGIN_VERSION = "0.2.0"
+PLUGIN_VERSION = "0.3.0"
 DEFAULT_RUNTIME_ID = "sentiavatar-susu-cpu"
 REPRESENTATION_ID = "susu.body25_hands40.cont6d_root_delta.v1"
 SKELETON_ID = "susu.body25_hands40.v1"
@@ -230,6 +230,7 @@ class SentiAvatarPlugin:
                 generate_steps=generate_steps,
                 max_new_tokens=max_new_tokens,
                 generate_face=generate_face,
+                prefix=request.request.parameters.get("motion_prefix"),
             )
         except WorkerFailure:
             raise
@@ -278,6 +279,8 @@ class SentiAvatarPlugin:
                 ),
                 "face_generated": generated.face_arkit51 is not None,
                 "chunk_count": generated.chunk_count,
+                "motion_tail": generated.motion_tail,
+                "native_history_applied": generated.native_history_applied,
                 "output": {
                     "frame_count": frame_count,
                     "fps": FPS,
@@ -355,6 +358,8 @@ class SentiAvatarPlugin:
                 "planner_max_new_tokens": max_new_tokens,
                 "generate_face": generate_face,
                 "chunk_count": generated.chunk_count,
+                "motion_tail": generated.motion_tail,
+                "native_history_applied": generated.native_history_applied,
                 "hands_are_denormalized": True,
             },
             sources=(

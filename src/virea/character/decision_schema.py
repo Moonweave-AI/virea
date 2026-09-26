@@ -7,11 +7,17 @@ from copy import deepcopy
 from .contracts import Decision
 
 
-def decision_schema() -> dict:
+def decision_schema(
+    targets: list[str] | None = None, positions: list[dict] | None = None
+) -> dict:
     schema = Decision.model_json_schema()
     actions = []
     for kind in ("stop", "look_at", "move_to"):
         for destination in (None,) if kind == "stop" else ("target_id", "position"):
+            if destination == "target_id" and targets == []:
+                continue
+            if destination == "position" and positions == []:
+                continue
             properties = {
                 "kind": {"const": kind, "type": "string"},
                 "target_id": {"type": "null"},
@@ -24,6 +30,10 @@ def decision_schema() -> dict:
                     if destination == "target_id"
                     else {"$ref": "#/$defs/Position"}
                 )
+                if destination == "target_id" and targets is not None:
+                    properties[destination]["enum"] = targets
+                if destination == "position" and positions is not None:
+                    properties[destination] = {"type": "object", "enum": positions}
                 required.append(destination)
             actions.append(
                 {

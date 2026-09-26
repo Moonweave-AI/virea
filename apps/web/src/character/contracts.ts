@@ -30,6 +30,7 @@ export interface Session {
   status: string;
   body: BodyState;
   pending: Expression | null;
+  buffered: Expression | null;
   latest_expression: Expression | null;
   draft_text: string;
   playback_mode: "voice_first" | "synchronized";

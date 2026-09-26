@@ -19,7 +19,7 @@ superseded_by: []
 
 [English](README.en.md)
 
-[速度、量化与连续性调研（含 5090 实测）](performance-continuity-research.zh-CN.md)
+[本轮升级与 GPU 实测](performance-upgrade.zh-CN.md) · [此前瓶颈调研](performance-continuity-research.zh-CN.md)
 
 打开 `/app/character.html`，载入 VRM，点击「开始会话」，输入文本。
 角色依据用户消息或显式环境事件选择 `SPEAK`、`ACT_SILENTLY`、`WAIT`。
@@ -41,7 +41,15 @@ superseded_by: []
 并通过 `virea model install` 安装 `sentiavatar-susu`。NVIDIA 选择 `sentiavatar-susu-cu128` / `cuda-full`。
 SentiAvatar 源代码和权重采用上游非商业许可证，安装流程保留许可确认与真实验收。
 
-独立终端启动中文语音服务（锁文件与脚本一同提供；权重缓存位于 `HF_HOME`）：
+本轮在 RTX 5090 Laptop 上验证的配置是 `configs/character/rtx5090.json`：
+Qwen3.5-9B Q4_K_M（llama.cpp CUDA）、CUDA Kokoro 和 SentiAvatar 0.3.0 常驻 Worker。
+按[升级记录中的启动命令](performance-upgrade.zh-CN.md#部署与复现)准备模型后，
+`scripts/character/start_gpu_stack.ps1` 会预热三个模型，再报告页面就绪。
+空闲 15 分钟、模型切换或推理失败会回收动作 Worker；下一次需要重新预热。
+播放打断允许正在推理的 Worker 最多 5 秒收尾后复用，旧结果不会发布；超时则强制取消。
+
+以下保留 CPU 语音 / Ollama 备选部署。独立终端启动中文语音服务
+（锁文件与脚本一同提供；权重缓存位于 `HF_HOME`）：
 
 ```powershell
 uv run --locked --script scripts/character/serve_kokoro.py
@@ -77,6 +85,8 @@ Ollama 配置使用原生 `/api/chat` 的 `think:false` 与 JSON Schema，避免
 src/virea/character/
   contracts.py              决策、实际身体状态、环境事件、播放回执
   decision_schema.py        约束解码的模式与动作目标互斥规则
+  grounding.py              将目标和显式坐标约束到已知输入
+  prompts.py                决策规则，与模型请求实现分离
   session.py                单会话事件状态机、取消、预算、有限历史
   manager.py                会话租期、生命周期、全局生成并发控制
   audio.py                  保持文本一致的分段与 WAV 验证
@@ -91,22 +101,29 @@ apps/api/src/virea_api/routes/
 apps/web/src/character/
   contracts.ts              渲染边界类型
   motion.ts                 实际根位置对齐
+  continuity.ts             从实际姿态和角速度接续新片段
   stage.ts                  VRM、音频时钟、面部、场景动作
   page.ts                   会话 UI、输入、中断、回执
 scripts/character/
   serve_kokoro.py            独立 CPU TTS 服务
+  serve_kokoro_cuda.py       独立 CUDA TTS，自适应 FP32 / FP16
+  start_gpu_stack.ps1        GPU 服务启动、预热和进程记录
+  benchmarks/               语言决策与原生动作连续性实测
   measure.py                 同机 GPU 与完整表达包观测
 ```
 
 控制面不导入 torch、Kokoro 或 Transformers。动作模型继续使用既有资源预检、隔离 Worker、
 原生产物校验、Motion IR、重定向与导出，不创建第二套动作任务系统。
+`apps/api/src/virea_api/residency.py` 管理单个可复用 Worker；GPU 租约随进程保留，
+确认进程退出后才释放。普通模型任务仍采用原生命周期，并可请求回收闲置常驻 Worker。
 
 ## 会话与终止
 
 `POST /api/v1/characters` 创建会话；`GET /{id}` 读取状态并刷新客户端租期。
 创建请求接受 `playback_mode: "voice_first" | "synchronized"`，API 默认保持 `synchronized`。
 状态中的 `draft_text` 是已完成语言决策的文本，`latest_expression` 是最近一个表达的资源摘要，
-`pending` 则仅表示正在等待执行回执的表达；晚到的动作不会生成第二个自动播放包。
+`pending` 表示正在等待执行回执的表达；`buffered` 是唯一预生成的后继表达，
+带有 `parent_id`，供浏览器提前下载解码。前一段完成回执到达后，后继才能成为 `pending`。
 其余路径均在 `/api/v1/characters/{id}` 下：
 
 | 方法与路径 | 含义 |
@@ -121,22 +138,24 @@ scripts/character/
 回执可以推进状态；旧回执和重复回执返回 409。页面离开时主动关闭会话，断网后租期到期自动清理。
 会话状态在 API 进程存活期间连续；服务重启创建新会话，不承诺跨重启人格记忆。
 
-一次语言决策结束、音频播放结束、动作执行结束与会话关闭是不同边界。短句合并为至多 80 字的内部片段，
-避免每个句号启动一个模型任务。严格同步模式等待完整资源；语音优先模式边播放声音边生成动作。
-只允许一个未确认表达包和一个动作生成任务，避免无限积压。
-播放器以 AudioContext 时钟驱动身体和面部，语音可以先结束，场景动作继续至完成。
+一次语言决策结束、音频播放结束、动作执行结束与会话关闭是不同边界。
+严格同步的首段在 32 字以内优先选分句边界，后续合并为至多 64 字的内部窗口；
+播放当前段时生成并预取下一段，只允许一个未确认包、一个后继包和一个动作生成任务。
+身体与面部按实际音频长度采样，共用 AudioContext 输出时钟；额外场景动作可继续至完成。
+语音优先模式保留至多 80 字分段，边播放声音边生成仅供预览的动作。
 `WAIT` 不产生新的自触发请求；完成事件最多连续触发 3 次自主决策，重复决策会停止。
 每次用户发言重置该预算。上下文和事件环形历史有界，超时、取消、断开均有清理路径。
 
-这是有界片段流水线，未做 token 级音频流式播放或生成/播放双缓冲；片段之间可能等待下一次推理。
+已实现有界生成/播放双缓冲，尚未做 token 级语言或音频流式播放。
+首段需要完整决策与该段音频、动作；如果后继生成慢于当前播放，仍会出现等待。
 
 ## 身体连续性与能力边界
 
 | 能力 | 当前实现 |
 | --- | --- |
 | 跨回应保留姿态与根位置 | 已实现；重定向后的实际骨骼状态由浏览器反馈 |
-| 片段衔接 | 实际根位置对齐、200ms 姿态混合、末帧保持 |
-| 原生运动历史条件输入 | **不支持**；SentiAvatar 现有 Worker 独立处理每一段 |
+| 片段衔接 | 实际根位置对齐，基于实际姿态和角速度的 240–600ms 旋转衔接，末帧保持 |
+| 原生运动历史条件输入 | 支持至多 8 个 RVQ 历史码，参与补帧边界条件和重叠解码；不是论文的自回归规划器历史 |
 | 以实际 IK/碰撞后姿态继续模型推理 | **不支持**；没有反向原生编码接口 |
 | 面部 | 读取 SentiAvatar 原生 ARKit51，近似映射到 VRM 眨眼、元音、开心与悲伤；不存在的表情由角色模型忽略 |
 | 手指 | 上游固定中性手部资源，非生成式手指表达 |
@@ -144,7 +163,9 @@ scripts/character/
 | 导航 | 简单有界平面平移，不包含避障、步态生成或物理交互 |
 
 能力接口 `/api/v1/characters/capabilities` 明确返回这些事实。
-创建会话时设置 `require_native_history:true` 会返回 409，不能把播放连续性当作模型连续性验收通过。
+严格同步会话接受 `require_native_history:true`；语音优先模式返回 409，因为预览动作不构成已执行历史。
+原生历史仅在完成回执后提交。后继可使用父段的预测尾部，但打断会丢弃它；
+执行器仍从实际停下的姿态接续，尚不能将该姿态反向编码给动作模型。
 给语言模型的是行为、根位置、目标和环境摘要；完整骨骼四元数只在执行状态边界保留。
 
 ## 测量与验证
@@ -176,8 +197,11 @@ pnpm --filter @virea/web build
 node scripts/character/browser_e2e.mjs "$env:VIREA_HOME/avatars/character.vrm" "$env:VIREA_HOME/evidence/character"
 ```
 
-该脚本验证两轮真实生成、实际骨骼回执、播放中打断、旧回执拒绝和关闭清理，保存截图、
-GPU 采样与 JSON。2026-09-26 的单轮实测使用 RTX 5090 Laptop（24,463 MiB）、
+该脚本验证两轮真实生成、实际骨骼回执、播放中打断、旧回执拒绝和关闭清理，保存截图、GPU 采样与 JSON。
+`continuous_e2e.mjs` 另外验证长回应的双缓冲、完整文本守恒、暂停冻结、时间轴同步和实际音频调度间隙。
+本轮数据见[升级记录](performance-upgrade.zh-CN.md)。以下是升级前的历史基线：
+
+2026-09-26 的单轮实测使用 RTX 5090 Laptop（24,463 MiB）、
 Qwen3.5:2b / Ollama（`ollama ps` 显示 CPU）、CPU Kokoro 与 CUDA SentiAvatar。
 2.85 秒表达的完整包准备时间为 37.20 秒，RTF 13.05，1Hz 整卡显存采样峰值 4,219 MiB；
 Chrome WebGL 确认使用 NVIDIA GPU，页面无脚本错误。此结果包含 Worker 启动成本，

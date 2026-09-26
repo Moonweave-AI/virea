@@ -18,7 +18,9 @@ def test_language_preserves_input_roles_and_disables_thinking():
         payload = json.loads(request.content)
         assert payload["chat_template_kwargs"] == {"enable_thinking": False}
         assert payload["messages"][1] == {"role": "user", "content": "你好"}
-        assert payload["messages"][-1]["role"] == "system"
+        assert payload["messages"][0]["role"] == "system"
+        assert "Current state:" in payload["messages"][0]["content"]
+        assert len(payload["messages"]) == 2
         return httpx.Response(
             200,
             json={
@@ -70,7 +72,7 @@ def test_motion_cancellation_reaches_control_plane():
             assert "duration" not in request.parameters
             return {"id": "motion-job"}
 
-        def cancel(self, job_id):
+        def discard(self, job_id):
             self.cancelled.append(job_id)
 
         @property

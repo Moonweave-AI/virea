@@ -1,0 +1,13 @@
+{
+  "llm_api": "openai",
+  "llm_url": "http://127.0.0.1:8080/v1",
+  "llm_model": "qwen3.5:9b",
+  "llm_thinking": true,
+  "tts_url": "http://127.0.0.1:8083/v1",
+  "tts_voice": "zf_001",
+  "max_autonomous_decisions": 3,
+  "execution_target": {
+    "execution_domain_id": "windows-native",
+    "runtime_variant_id": "sentiavatar-susu-cu128"
+  }
+}

@@ -7,6 +7,15 @@ import re
 import wave
 
 
+def speech_windows(text: str) -> list[str]:
+    """Start with a short spoken clause; later windows have time to generate ahead."""
+    if len(text) <= 32:
+        return [text]
+    stops = [match.end() for match in re.finditer(r"[。！？!?，,；;\n]", text[:32])]
+    first_end = next((end for end in reversed(stops) if end >= 8), 32)
+    return [text[:first_end], *text_chunks(text[first_end:], limit=64)]
+
+
 def text_chunks(text: str, limit: int = 80) -> list[str]:
     if limit < 1:
         raise ValueError("chunk limit must be positive")

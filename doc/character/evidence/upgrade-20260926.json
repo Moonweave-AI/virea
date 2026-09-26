@@ -1,0 +1,3355 @@
+{
+  "schema": "virea.character_upgrade_evidence.v1",
+  "date": "2026-09-26",
+  "code_parent": "5273f748cb254d50fc76a608d2f2f08394c05b0f",
+  "environment": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+    "gpu_total_mib": 24463,
+    "llama_cpp": "b11146",
+    "torch": "2.8.0+cu128",
+    "motion_runtime": "0.3.0",
+    "language_model": "Qwen3.5-9B-Q4_K_M.gguf",
+    "language_sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+    "kv_cache": "q8_0",
+    "reasoning_budget": 96
+  },
+  "language": {
+    "upgrade-language-4b-grounded": {
+      "model": "qwen3.5:4b",
+      "url": "http://127.0.0.1:8080/v1",
+      "temperature": 0.6,
+      "rows": [
+        {
+          "case": "greeting",
+          "round": -1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！有什么可以帮你的吗？",
+            "motion_intent": "微笑，眼神温和",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.7307138000032865
+        },
+        {
+          "case": "greeting",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "微笑",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.3823619999966468
+        },
+        {
+          "case": "wait",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.26981919999525417
+        },
+        {
+          "case": "look",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6021181999967666
+        },
+        {
+          "case": "move",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.5551807999945595
+        },
+        {
+          "case": "stop",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "微微停下脚步，身体重心略微下沉",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.7431527000007918
+        },
+        {
+          "case": "completion",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.2860218999994686
+        },
+        {
+          "case": "missing_target",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "身体微微前倾，步伐轻快地向目标位置移动",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": null,
+                "position": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                }
+              }
+            ]
+          },
+          "failures": [
+            "mode",
+            "unexpected_scene_action",
+            "missing_clarification"
+          ],
+          "seconds": 1.0291346000012709
+        },
+        {
+          "case": "verbatim",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.3816357999967295
+        },
+        {
+          "case": "greeting",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！有什么我可以帮你的吗？",
+            "motion_intent": "微笑着看向用户",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.4884858000004897
+        },
+        {
+          "case": "wait",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.2727171999940765
+        },
+        {
+          "case": "look",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6052794999995967
+        },
+        {
+          "case": "move",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.5439669000043068
+        },
+        {
+          "case": "stop",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "面部表情自然，身体停止动作",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.7200127999967663
+        },
+        {
+          "case": "completion",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.35493750000023283
+        },
+        {
+          "case": "missing_target",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": null,
+                "position": {
+                  "x": 1.5,
+                  "y": 0.0,
+                  "z": 0.5
+                }
+              }
+            ]
+          },
+          "failures": [
+            "mode",
+            "unexpected_scene_action",
+            "missing_clarification"
+          ],
+          "seconds": 0.8698421000008238
+        },
+        {
+          "case": "verbatim",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.38689399999566376
+        },
+        {
+          "case": "greeting",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.3070309000031557
+        },
+        {
+          "case": "wait",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.2750427999999374
+        },
+        {
+          "case": "look",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6866624999966007
+        },
+        {
+          "case": "move",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6217002000048524
+        },
+        {
+          "case": "stop",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6480623000024934
+        },
+        {
+          "case": "completion",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.36117730000114534
+        },
+        {
+          "case": "missing_target",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": null,
+                "position": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                }
+              }
+            ]
+          },
+          "failures": [
+            "mode",
+            "unexpected_scene_action",
+            "missing_clarification"
+          ],
+          "seconds": 1.0924692999979015
+        },
+        {
+          "case": "verbatim",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.3889950000011595
+        }
+      ],
+      "summary": {
+        "passed": 21,
+        "count": 24,
+        "median_seconds": 0.5162263500023982
+      }
+    },
+    "upgrade-language-9b-policy": {
+      "model": "qwen3.5:9b",
+      "url": "http://127.0.0.1:8080/v1",
+      "temperature": 0.6,
+      "rows": [
+        {
+          "case": "greeting",
+          "round": -1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！有什么我可以帮你的吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.6332369999945513
+        },
+        {
+          "case": "greeting",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.40831649999745423
+        },
+        {
+          "case": "wait",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.394766500001424
+        },
+        {
+          "case": "look",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.8915835000007064
+        },
+        {
+          "case": "move",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.6411552999998094
+        },
+        {
+          "case": "stop",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.8751991000026464
+        },
+        {
+          "case": "completion",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.5175791000001482
+        },
+        {
+          "case": "missing_target",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [
+            "mode",
+            "missing_clarification"
+          ],
+          "seconds": 0.5435083999982453
+        },
+        {
+          "case": "verbatim",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.5819526000050246
+        },
+        {
+          "case": "greeting",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.32802470000024186
+        },
+        {
+          "case": "wait",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.48435040000185836
+        },
+        {
+          "case": "look",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.8066259999977774
+        },
+        {
+          "case": "move",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "保持自然步态，目光注视前方。",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 1.1416940000053728
+        },
+        {
+          "case": "stop",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.899377400004596
+        },
+        {
+          "case": "completion",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.4587723000004189
+        },
+        {
+          "case": "missing_target",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "我没看到猫，能告诉我它在哪里吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.8019730999949388
+        },
+        {
+          "case": "verbatim",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.7591858999949181
+        },
+        {
+          "case": "greeting",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.4730660999994143
+        },
+        {
+          "case": "wait",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.28785720000450965
+        },
+        {
+          "case": "look",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.9172506000031717
+        },
+        {
+          "case": "move",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "身体微微前倾，步伐平稳地走向杯子。",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 1.2089101999954437
+        },
+        {
+          "case": "stop",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 0.8353711000017938
+        },
+        {
+          "case": "completion",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.44920100000308594
+        },
+        {
+          "case": "missing_target",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [
+            "mode",
+            "unexpected_scene_action",
+            "missing_clarification"
+          ],
+          "seconds": 0.5728289999970002
+        },
+        {
+          "case": "verbatim",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.6128287000028649
+        }
+      ],
+      "summary": {
+        "passed": 22,
+        "count": 24,
+        "median_seconds": 0.5973906500039448
+      }
+    },
+    "upgrade-language-9b-thinking96": {
+      "model": "qwen3.5:9b",
+      "url": "http://127.0.0.1:8080/v1",
+      "temperature": 0.6,
+      "rows": [
+        {
+          "case": "greeting",
+          "round": -1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！",
+            "motion_intent": "微微点头示意",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 2.3538008999967133,
+          "original_failures": []
+        },
+        {
+          "case": "greeting",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！有什么需要帮忙的吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.643113899997843,
+          "original_failures": []
+        },
+        {
+          "case": "wait",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.6604408999992302,
+          "original_failures": []
+        },
+        {
+          "case": "look",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "保持静止，视线转向杯子",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.3594263000049978,
+          "original_failures": []
+        },
+        {
+          "case": "move",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "身体平稳移动至目标位置",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.1031289999955334,
+          "original_failures": []
+        },
+        {
+          "case": "stop",
+          "round": 0,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.178481800001464,
+          "original_failures": []
+        },
+        {
+          "case": "completion",
+          "round": 0,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.43429919999471167,
+          "original_failures": []
+        },
+        {
+          "case": "missing_target",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "我还不知道猫在哪里，可以告诉我位置吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.949871600001643,
+          "original_failures": []
+        },
+        {
+          "case": "verbatim",
+          "round": 0,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.778393299995514,
+          "original_failures": []
+        },
+        {
+          "case": "greeting",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！有什么需要帮忙的吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.7579069999992498,
+          "original_failures": []
+        },
+        {
+          "case": "wait",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.7498354999988806,
+          "original_failures": []
+        },
+        {
+          "case": "look",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "身体微微转向，视线聚焦在杯子上",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 1.9964179000016884,
+          "original_failures": []
+        },
+        {
+          "case": "move",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.019317599995702,
+          "original_failures": []
+        },
+        {
+          "case": "stop",
+          "round": 1,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.0899525999993784,
+          "original_failures": []
+        },
+        {
+          "case": "completion",
+          "round": 1,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.4546914000020479,
+          "original_failures": []
+        },
+        {
+          "case": "missing_target",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "我还没看到那只猫，能告诉我它在哪吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 2.0740787999966415,
+          "original_failures": [
+            "missing_clarification"
+          ]
+        },
+        {
+          "case": "verbatim",
+          "round": 1,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.8460156000001007,
+          "original_failures": []
+        },
+        {
+          "case": "greeting",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "你好！今天过得怎么样？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.645235000003595,
+          "original_failures": []
+        },
+        {
+          "case": "wait",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.6538807000033557,
+          "original_failures": []
+        },
+        {
+          "case": "look",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "look_at",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 1.7573110000012093,
+          "original_failures": []
+        },
+        {
+          "case": "move",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "move_to",
+                "target_id": "cup",
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 1.7639314999978524,
+          "original_failures": []
+        },
+        {
+          "case": "stop",
+          "round": 2,
+          "answer": {
+            "mode": "ACT_SILENTLY",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": [
+              {
+                "kind": "stop",
+                "target_id": null,
+                "position": null
+              }
+            ]
+          },
+          "failures": [],
+          "seconds": 2.0999081000045408,
+          "original_failures": []
+        },
+        {
+          "case": "completion",
+          "round": 2,
+          "answer": {
+            "mode": "WAIT",
+            "text": "",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 0.4302603999967687,
+          "original_failures": []
+        },
+        {
+          "case": "missing_target",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "我还不知道猫在哪里，可以告诉我它的位置吗？",
+            "motion_intent": "自然说话",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 2.1684460999967996,
+          "original_failures": []
+        },
+        {
+          "case": "verbatim",
+          "round": 2,
+          "answer": {
+            "mode": "SPEAK",
+            "text": "好的",
+            "motion_intent": "点头示意",
+            "actions": []
+          },
+          "failures": [],
+          "seconds": 1.9538793000028818,
+          "original_failures": []
+        }
+      ],
+      "thinking": true,
+      "reasoning_budget": 96,
+      "grading_correction": "Accept equivalent Chinese clarification 在哪/没看到. Original failures retained.",
+      "summary": {
+        "passed": 24,
+        "count": 24,
+        "median_seconds": 1.8122044499978074
+      }
+    }
+  },
+  "speech_comparison": [
+    {
+      "port": 8081,
+      "repeat": 0,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.5598601000019698,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.053494336987108634,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 0,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.9494683000011719,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.05376388547337252,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 0,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.8340389000004507,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05297239673280833,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 1,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.5297114000059082,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.053553283404890066,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 1,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.8220749000029173,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.05375698573518364,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 1,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.7550245000020368,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.0529443687290951,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 2,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.4490918999945279,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.05347265895893653,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 2,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.8304697999992641,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.053727436948805135,
+      "clipped": 0.0
+    },
+    {
+      "port": 8081,
+      "repeat": 2,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.7192302999974345,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05294915059798375,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 0,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.24098319999757223,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.05344194390316287,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 0,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.10675849999825004,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.053688697789290654,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 0,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.09649780000472674,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05287380867040932,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.0823445999994874,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.05346043389617364,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.11057540000183508,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.05372574775808428,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.09807290000026114,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05294949689007025,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.08010859999922104,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.05355149272277281,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.08346349999919767,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.053691000710654274,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.09883260000060545,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05292950242420877,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.15630780000356026,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.053404438078371134,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.13359469999704743,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.05368346122065398,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.12806790000468027,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.0529350855517964,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.07833839999511838,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.053485819692877995,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.11209080000116955,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.053759452833717164,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.10881089999747928,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05292238032832144,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.09473520000028657,
+      "status": 200,
+      "duration": 2.85,
+      "rms": 0.053465204102862485,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "text": "先喝口水吧。我们可以慢慢把今天的事情讲清楚，不用着急。",
+      "seconds": 0.1009355999995023,
+      "status": 200,
+      "duration": 6.225,
+      "rms": 0.053777384640896944,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "text": "虽然刚才没说完，但我还记得你提到的那只杯子。",
+      "seconds": 0.11576639999839244,
+      "status": 200,
+      "duration": 5.35,
+      "rms": 0.05291382454657352,
+      "clipped": 0.0
+    }
+  ],
+  "speech_paired_fp32_8082_fp16_8083": [
+    {
+      "port": 8082,
+      "repeat": 0,
+      "length": 10,
+      "seconds": 0.17742250000446802,
+      "audio_seconds": 2.85,
+      "rms": 0.05341477976725323,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "length": 10,
+      "seconds": 0.09885829999984708,
+      "audio_seconds": 2.85,
+      "rms": 0.05351598778171439,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 0,
+      "length": 26,
+      "seconds": 0.12575440000364324,
+      "audio_seconds": 5.775,
+      "rms": 0.05182056045487542,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "length": 26,
+      "seconds": 0.18928829999640584,
+      "audio_seconds": 5.775,
+      "rms": 0.051806072421887665,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 0,
+      "length": 65,
+      "seconds": 0.2749843999990844,
+      "audio_seconds": 13.375,
+      "rms": 0.05429266696443685,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 0,
+      "length": 65,
+      "seconds": 0.16059759999916423,
+      "audio_seconds": 13.375,
+      "rms": 0.05430817301868167,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "length": 10,
+      "seconds": 0.10123490000114543,
+      "audio_seconds": 2.85,
+      "rms": 0.05348969976372068,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "length": 10,
+      "seconds": 0.0716995999973733,
+      "audio_seconds": 2.85,
+      "rms": 0.05346848377344595,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "length": 26,
+      "seconds": 0.1461834000001545,
+      "audio_seconds": 5.775,
+      "rms": 0.05189865208626581,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "length": 26,
+      "seconds": 0.10037040000315756,
+      "audio_seconds": 5.775,
+      "rms": 0.05183073583469001,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 1,
+      "length": 65,
+      "seconds": 0.1655726000026334,
+      "audio_seconds": 13.375,
+      "rms": 0.05434680305761959,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 1,
+      "length": 65,
+      "seconds": 0.1994157000008272,
+      "audio_seconds": 13.375,
+      "rms": 0.054367419453579105,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "length": 10,
+      "seconds": 0.0923118999999133,
+      "audio_seconds": 2.85,
+      "rms": 0.05350033546876474,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "length": 10,
+      "seconds": 0.10887309999816353,
+      "audio_seconds": 2.85,
+      "rms": 0.05343957935955945,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "length": 26,
+      "seconds": 0.08631359999708366,
+      "audio_seconds": 5.775,
+      "rms": 0.05179333435270658,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "length": 26,
+      "seconds": 0.14164489999529906,
+      "audio_seconds": 5.775,
+      "rms": 0.05187368249816321,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 2,
+      "length": 65,
+      "seconds": 0.1872695999991265,
+      "audio_seconds": 13.375,
+      "rms": 0.05430319092394848,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 2,
+      "length": 65,
+      "seconds": 0.18425530000240542,
+      "audio_seconds": 13.375,
+      "rms": 0.05430320877699931,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 3,
+      "length": 10,
+      "seconds": 0.10044900000502821,
+      "audio_seconds": 2.85,
+      "rms": 0.05353631376166413,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 3,
+      "length": 10,
+      "seconds": 0.08785019999777433,
+      "audio_seconds": 2.85,
+      "rms": 0.05348821723333987,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 3,
+      "length": 26,
+      "seconds": 0.13502339999831747,
+      "audio_seconds": 5.775,
+      "rms": 0.0518880809580153,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 3,
+      "length": 26,
+      "seconds": 0.11899779999657767,
+      "audio_seconds": 5.775,
+      "rms": 0.051810258803197215,
+      "clipped": 0.0
+    },
+    {
+      "port": 8083,
+      "repeat": 3,
+      "length": 65,
+      "seconds": 0.11920250000548549,
+      "audio_seconds": 13.375,
+      "rms": 0.05436119507298984,
+      "clipped": 0.0
+    },
+    {
+      "port": 8082,
+      "repeat": 3,
+      "length": 65,
+      "seconds": 0.19750609999755397,
+      "audio_seconds": 13.375,
+      "rms": 0.05427217090828823,
+      "clipped": 0.0
+    }
+  ],
+  "speech_auto_final": [
+    {
+      "endpoint": "cuda-auto",
+      "round": -1,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.06062550000206102,
+      "audio_seconds": 2.85,
+      "rms": 0.05344532325569625,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": -1,
+      "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+      "seconds": 0.07154669999727048,
+      "audio_seconds": 5.775,
+      "rms": 0.05172548674354541,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": -1,
+      "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们等你准备好了再继续。",
+      "seconds": 0.1485134000031394,
+      "audio_seconds": 13.625,
+      "rms": 0.053659480658502214,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 0,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.055622799998673145,
+      "audio_seconds": 2.85,
+      "rms": 0.0534807823194986,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 0,
+      "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+      "seconds": 0.0639865999983158,
+      "audio_seconds": 5.775,
+      "rms": 0.05184313870020965,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 0,
+      "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们等你准备好了再继续。",
+      "seconds": 0.11507870000059484,
+      "audio_seconds": 13.625,
+      "rms": 0.053626453063411926,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 1,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.05349220000061905,
+      "audio_seconds": 2.85,
+      "rms": 0.05342461729303407,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 1,
+      "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+      "seconds": 0.06328289999510162,
+      "audio_seconds": 5.775,
+      "rms": 0.05180635506167888,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 1,
+      "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们等你准备好了再继续。",
+      "seconds": 0.11817919999884907,
+      "audio_seconds": 13.625,
+      "rms": 0.053638321345653495,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 2,
+      "text": "你好，很高兴见到你。",
+      "seconds": 0.05159830000047805,
+      "audio_seconds": 2.85,
+      "rms": 0.05348744273919719,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 2,
+      "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+      "seconds": 0.0679937000022619,
+      "audio_seconds": 5.775,
+      "rms": 0.05181052367760007,
+      "clipped": 0.0
+    },
+    {
+      "endpoint": "cuda-auto",
+      "round": 2,
+      "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们等你准备好了再继续。",
+      "seconds": 0.13039350000326522,
+      "audio_seconds": 13.625,
+      "rms": 0.05367451494180239,
+      "clipped": 0.0
+    }
+  ],
+  "native_continuity": [
+    {
+      "conditioned": false,
+      "turn": 0,
+      "seconds": 1.9347211999993306,
+      "frames": 56,
+      "within_p95_deg": 0.5757307410240173,
+      "history_applied": false
+    },
+    {
+      "conditioned": false,
+      "turn": 1,
+      "seconds": 1.9752337999962037,
+      "frames": 124,
+      "within_p95_deg": 1.870800495147705,
+      "history_applied": false,
+      "boundary_mean_deg": 12.524453163146973,
+      "boundary_max_deg": 49.4490966796875,
+      "boundary_per_joint_deg": [
+        13.862021446228027,
+        5.239627361297607,
+        9.099799156188965,
+        12.2489595413208,
+        5.161713600158691,
+        1.8075356483459473,
+        9.521589279174805,
+        9.535575866699219,
+        6.3473029136657715,
+        10.55379581451416,
+        7.1114091873168945,
+        9.559501647949219,
+        9.138069152832031,
+        1.7264641523361206,
+        24.945959091186523,
+        0.7506923675537109,
+        11.089546203613281,
+        7.182502746582031,
+        18.064390182495117,
+        20.267955780029297,
+        9.44198226928711,
+        16.170259475708008,
+        17.34214210510254,
+        49.4490966796875,
+        27.493432998657227
+      ]
+    },
+    {
+      "conditioned": false,
+      "turn": 2,
+      "seconds": 1.7328723000027821,
+      "frames": 106,
+      "within_p95_deg": 3.0025689601898193,
+      "history_applied": false,
+      "boundary_mean_deg": 11.204401969909668,
+      "boundary_max_deg": 57.26266860961914,
+      "boundary_per_joint_deg": [
+        27.734346389770508,
+        6.901828765869141,
+        0.17693869769573212,
+        7.8964009284973145,
+        0.08846931904554367,
+        3.685145616531372,
+        0.942530632019043,
+        15.962776184082031,
+        0.15825876593589783,
+        0.5567266345024109,
+        1.9948828220367432,
+        1.9702036380767822,
+        1.9737764596939087,
+        1.7314444780349731,
+        5.273697376251221,
+        4.368432521820068,
+        11.260751724243164,
+        4.896969795227051,
+        8.809526443481445,
+        2.7037086486816406,
+        4.903446674346924,
+        28.477033615112305,
+        57.26266860961914,
+        32.64665985107422,
+        47.733421325683594
+      ]
+    },
+    {
+      "conditioned": true,
+      "turn": 0,
+      "seconds": 0.9293555000040215,
+      "frames": 56,
+      "within_p95_deg": 0.5757307410240173,
+      "history_applied": false
+    },
+    {
+      "conditioned": true,
+      "turn": 1,
+      "seconds": 1.9914419999986421,
+      "frames": 124,
+      "within_p95_deg": 1.9048691987991333,
+      "history_applied": true,
+      "boundary_mean_deg": 9.661957740783691,
+      "boundary_max_deg": 25.114030838012695,
+      "boundary_per_joint_deg": [
+        5.71929931640625,
+        4.449550151824951,
+        8.777670860290527,
+        11.396979331970215,
+        5.077132701873779,
+        3.0483808517456055,
+        8.74228572845459,
+        9.800905227661133,
+        6.232594013214111,
+        10.615743637084961,
+        6.667915344238281,
+        9.066311836242676,
+        8.658980369567871,
+        1.9638359546661377,
+        24.27947235107422,
+        1.195831060409546,
+        8.547895431518555,
+        4.068038463592529,
+        12.412299156188965,
+        15.016592025756836,
+        7.409943580627441,
+        11.869131088256836,
+        13.868861198425293,
+        25.114030838012695,
+        17.549259185791016
+      ]
+    },
+    {
+      "conditioned": true,
+      "turn": 2,
+      "seconds": 1.7249652999962564,
+      "frames": 106,
+      "within_p95_deg": 3.07031512260437,
+      "history_applied": true,
+      "boundary_mean_deg": 4.4710516929626465,
+      "boundary_max_deg": 24.717105865478516,
+      "boundary_per_joint_deg": [
+        8.95286750793457,
+        3.209063768386841,
+        0.27268099784851074,
+        1.3660168647766113,
+        0.0,
+        1.163315773010254,
+        0.584168016910553,
+        5.784316539764404,
+        0.0,
+        0.29475054144859314,
+        1.0686280727386475,
+        1.0464236736297607,
+        1.0864251852035522,
+        1.0256474018096924,
+        2.134050130844116,
+        1.8811758756637573,
+        3.806731939315796,
+        6.495944976806641,
+        4.508411884307861,
+        2.895026206970215,
+        2.409240961074829,
+        18.798887252807617,
+        24.717105865478516,
+        8.4337739944458,
+        9.841628074645996
+      ]
+    }
+  ],
+  "browsers": {
+    "upgrade-browser-fixed": {
+      "started_at": "2026-09-26T14:38:56.986Z",
+      "errors": [],
+      "webgl": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 Laptop GPU (0x00002C58) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "outcome": "passed",
+      "first_response": {
+        "metrics": {
+          "generated_seconds": 2.85,
+          "generation_seconds": 44.92199999999866,
+          "first_expression_seconds": 44.92199999999866,
+          "rtf": 15.762105263157425,
+          "first_audio_seconds": 2.6410000000032596,
+          "language_seconds": 2.5469999999986612,
+          "tts_seconds": 0.0940000000045984,
+          "motion_seconds": 42.2809999999954
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "只说一句：你好，很高兴见到你。说完请等待。"
+          },
+          {
+            "role": "assistant",
+            "content": "你好，很高兴见到你。"
+          }
+        ],
+        "status": "waiting"
+      },
+      "second_response": {
+        "metrics": {
+          "generated_seconds": 7.925000000000001,
+          "generation_seconds": 50.64100000000326,
+          "first_expression_seconds": 5.719000000004598,
+          "rtf": 6.390031545741736,
+          "first_audio_seconds": 3.0310000000026776,
+          "language_seconds": 2.8590000000040163,
+          "tts_seconds": 0.17199999999866122,
+          "motion_seconds": 2.688000000001921
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "只说一句：你好，很高兴见到你。说完请等待。"
+          },
+          {
+            "role": "assistant",
+            "content": "你好，很高兴见到你。"
+          },
+          {
+            "role": "user",
+            "content": "请只说：我会继续留在这里，和你一起看看周围的世界。说完请等待。"
+          }
+        ],
+        "status": "awaiting_playback"
+      },
+      "packets": [],
+      "executed_bone_counts": [],
+      "samples": [
+        {
+          "seconds": 0.118,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9395, 8",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 1.206,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9352, 98",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 2.293,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9348, 96",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 3.413,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9338, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 4.516,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9336, 17",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 5.593,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9334, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 6.694,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9334, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 7.771,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 8.872,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9349, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 9.971,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 11.051,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9349, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 12.143,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 13.238,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9345, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 14.354,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 15.442,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 16.547,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 17.647,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 18.748,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 19.842,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9565, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 20.94,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 22.038,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 23.143,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 24.238,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9349, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 25.327,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 26.426,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 27.489,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 28.59,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 29.677,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 30.763,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 31.839,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 32.917,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 34.014,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 35.109,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 36.189,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9344, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 37.252,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 9345, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 38.364,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 10683, 17",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 39.442,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 10683, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 40.542,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11453, 12",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 41.649,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11453, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 42.726,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11597, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 43.805,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11599, 39",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 44.909,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11599, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 46.008,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11628, 14",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 44.92199999999866,
+            "first_expression_seconds": 44.92199999999866,
+            "rtf": 15.762105263157425,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": 42.2809999999954
+          }
+        },
+        {
+          "seconds": 47.194,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11622, 14",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 44.92199999999866,
+            "first_expression_seconds": 44.92199999999866,
+            "rtf": 15.762105263157425,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": 42.2809999999954
+          }
+        },
+        {
+          "seconds": 48.294,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11612, 14",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 44.92199999999866,
+            "first_expression_seconds": 44.92199999999866,
+            "rtf": 15.762105263157425,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": 42.2809999999954
+          }
+        },
+        {
+          "seconds": 49.416,
+          "status": "waiting",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11608, 96",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 44.92199999999866,
+            "first_expression_seconds": 44.92199999999866,
+            "rtf": 15.762105263157425,
+            "first_audio_seconds": 2.6410000000032596,
+            "language_seconds": 2.5469999999986612,
+            "tts_seconds": 0.0940000000045984,
+            "motion_seconds": 42.2809999999954
+          }
+        }
+      ]
+    },
+    "upgrade-continuous-browser": {
+      "started": "2026-09-26T14:41:06.867Z",
+      "errors": [],
+      "first_playback_seconds": 9.2286645,
+      "pause": {
+        "before": [
+          0.371,
+          0.371
+        ],
+        "after": [
+          0.371,
+          0.371
+        ]
+      },
+      "lookahead_observed": true,
+      "audio_schedules": [
+        {
+          "when": 10.479999999999999,
+          "duration": 9.7,
+          "observedAt": 11732.39999999851
+        },
+        {
+          "when": 20.279999999999998,
+          "duration": 11.25,
+          "observedAt": 21995.69999999553
+        }
+      ],
+      "gaps_seconds": [
+        0.09999999999999964
+      ],
+      "outcome": "passed",
+      "completed": {
+        "metrics": {
+          "generated_seconds": 20.95,
+          "generation_seconds": 14.812999999994645,
+          "first_expression_seconds": 8.968999999997322,
+          "rtf": 0.7070644391405558,
+          "first_audio_seconds": 4.015999999995984,
+          "language_seconds": 3.7819999999992433,
+          "tts_seconds": 0.20300000000133878,
+          "motion_seconds": 5.640999999995984
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "请逐字说出下面这段话，不要删改或补充，说完等待：今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。"
+          },
+          {
+            "role": "assistant",
+            "content": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。"
+          }
+        ],
+        "status": "waiting"
+      },
+      "packets": [
+        {
+          "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。窗外的光线很柔和，让人想停下来休息片刻。",
+          "audio_seconds": 9.7,
+          "native_history_applied": false
+        },
+        {
+          "text": "你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。",
+          "audio_seconds": 11.25,
+          "native_history_applied": true
+        }
+      ],
+      "executed_bone_counts": [
+        51,
+        51
+      ]
+    },
+    "upgrade-continuous-final": {
+      "started": "2026-09-26T14:55:37.077Z",
+      "errors": [],
+      "first_playback_seconds": 7.2149881,
+      "pause": {
+        "before": [
+          0.371,
+          0.371
+        ],
+        "after": [
+          0.371,
+          0.371
+        ]
+      },
+      "lookahead_observed": true,
+      "audio_schedules": [
+        {
+          "when": 8.44,
+          "duration": 5.775,
+          "observedAt": 9802.80000000447
+        },
+        {
+          "when": 14.319999999999999,
+          "duration": 9.375,
+          "observedAt": 16133.80000000447
+        },
+        {
+          "when": 23.8,
+          "duration": 7.05,
+          "observedAt": 25609.60000000149
+        }
+      ],
+      "gaps_seconds": [
+        0.10499999999999865,
+        0.1050000000000022
+      ],
+      "outcome": "passed",
+      "completed": {
+        "metrics": {
+          "generated_seconds": 22.2,
+          "generation_seconds": 14.953999999997905,
+          "first_expression_seconds": 6.938000000001921,
+          "rtf": 0.6736036036035092,
+          "first_audio_seconds": 4.125,
+          "language_seconds": 4.015999999995984,
+          "tts_seconds": 0.18699999999807915,
+          "motion_seconds": 3.313000000001921
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "请逐字说出下面这段话，不要删改或补充，说完等待：今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。"
+          },
+          {
+            "role": "assistant",
+            "content": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。"
+          }
+        ],
+        "status": "waiting"
+      },
+      "packets": [
+        {
+          "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+          "audio_seconds": 5.775,
+          "native_history_applied": false
+        },
+        {
+          "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。",
+          "audio_seconds": 9.375,
+          "native_history_applied": true
+        },
+        {
+          "text": "如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。",
+          "audio_seconds": 7.05,
+          "native_history_applied": true
+        }
+      ],
+      "executed_bone_counts": [
+        51,
+        51,
+        51
+      ]
+    },
+    "upgrade-short-final": {
+      "started_at": "2026-09-26T15:00:11.131Z",
+      "errors": [],
+      "webgl": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 Laptop GPU (0x00002C58) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "outcome": "passed",
+      "first_response": {
+        "metrics": {
+          "generated_seconds": 2.85,
+          "generation_seconds": 4.73399999999674,
+          "first_expression_seconds": 4.73399999999674,
+          "rtf": 1.6610526315778036,
+          "first_audio_seconds": 3.186999999998079,
+          "language_seconds": 3.0780000000013388,
+          "tts_seconds": 0.10899999999674037,
+          "motion_seconds": 1.5469999999986612
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "只说一句：你好，很高兴见到你。说完请等待。"
+          },
+          {
+            "role": "assistant",
+            "content": "你好，很高兴见到你。"
+          }
+        ],
+        "status": "waiting"
+      },
+      "second_response": {
+        "metrics": {
+          "generated_seconds": 7.925000000000001,
+          "generation_seconds": 9.98399999999674,
+          "first_expression_seconds": 5.25,
+          "rtf": 1.259810725551639,
+          "first_audio_seconds": 2.735000000000582,
+          "language_seconds": 2.6569999999992433,
+          "tts_seconds": 0.07800000000133878,
+          "motion_seconds": 2.514999999999418
+        },
+        "history": [
+          {
+            "role": "user",
+            "content": "只说一句：你好，很高兴见到你。说完请等待。"
+          },
+          {
+            "role": "assistant",
+            "content": "你好，很高兴见到你。"
+          },
+          {
+            "role": "user",
+            "content": "请只说：我会继续留在这里，和你一起看看周围的世界。说完请等待。"
+          }
+        ],
+        "status": "awaiting_playback"
+      },
+      "packets": [],
+      "executed_bone_counts": [],
+      "samples": [
+        {
+          "seconds": 0.128,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11784, 13",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 1.19,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11731, 97",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 2.273,
+          "status": "thinking",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11723, 97",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": null,
+            "language_seconds": null,
+            "tts_seconds": null,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 3.37,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11749, 28",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 4.456,
+          "status": "generating",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11747, 42",
+          "metrics": {
+            "generated_seconds": 0,
+            "generation_seconds": 0,
+            "first_expression_seconds": null,
+            "rtf": null,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": null
+          }
+        },
+        {
+          "seconds": 5.539,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11779, 15",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 4.73399999999674,
+            "first_expression_seconds": 4.73399999999674,
+            "rtf": 1.6610526315778036,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": 1.5469999999986612
+          }
+        },
+        {
+          "seconds": 6.705,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11772, 14",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 4.73399999999674,
+            "first_expression_seconds": 4.73399999999674,
+            "rtf": 1.6610526315778036,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": 1.5469999999986612
+          }
+        },
+        {
+          "seconds": 7.801,
+          "status": "awaiting_playback",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11763, 14",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 4.73399999999674,
+            "first_expression_seconds": 4.73399999999674,
+            "rtf": 1.6610526315778036,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": 1.5469999999986612
+          }
+        },
+        {
+          "seconds": 8.902,
+          "status": "waiting",
+          "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU, 24463, 11759, 12",
+          "metrics": {
+            "generated_seconds": 2.85,
+            "generation_seconds": 4.73399999999674,
+            "first_expression_seconds": 4.73399999999674,
+            "rtf": 1.6610526315778036,
+            "first_audio_seconds": 3.186999999998079,
+            "language_seconds": 3.0780000000013388,
+            "tts_seconds": 0.10899999999674037,
+            "motion_seconds": 1.5469999999986612
+          }
+        }
+      ]
+    },
+    "upgrade-interrupt-final": {
+      "started": "2026-09-26T15:11:37.286Z",
+      "outcome": "failed",
+      "error": "TimeoutError: page.waitForFunction: Timeout 180000ms exceeded.",
+      "first_playback_seconds": 7.383798,
+      "gaps_seconds": [
+        0.10499999999999865,
+        0.10499999999999865
+      ],
+      "pause": {
+        "before": [
+          0.379,
+          0.379
+        ],
+        "after": [
+          0.379,
+          0.379
+        ]
+      },
+      "errors": [],
+      "metrics": {
+        "generated_seconds": 22.2,
+        "generation_seconds": 17.281000000002678,
+        "first_expression_seconds": 7.235000000000582,
+        "rtf": 0.7784234234235441,
+        "first_audio_seconds": 3.9530000000013388,
+        "language_seconds": 3.8439999999973224,
+        "tts_seconds": 0.0940000000045984,
+        "motion_seconds": 4.343000000000757
+      },
+      "note": "Retained failed diagnostic run before the complete interruption fix. The second run included cold reload and concurrent repository indexing; the missed buffer deadline is real."
+    },
+    "upgrade-interrupt-retested": {
+      "started": "2026-09-26T15:16:22.246Z",
+      "outcome": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: successor gaps: 0.8969999999999967,0.10500000000001108",
+      "first_playback_seconds": 48.903973400000005,
+      "gaps_seconds": [
+        0.8969999999999967,
+        0.10500000000001108
+      ],
+      "pause": {
+        "before": [
+          0.381,
+          0.381
+        ],
+        "after": [
+          0.381,
+          0.381
+        ]
+      },
+      "errors": [],
+      "metrics": {
+        "generated_seconds": 22.2,
+        "generation_seconds": 62.43800000000192,
+        "first_expression_seconds": 48.65600000000268,
+        "rtf": 2.812522522522609,
+        "first_audio_seconds": 3.5780000000013388,
+        "language_seconds": 3.5,
+        "tts_seconds": 0.09399999999732245,
+        "motion_seconds": 6.110000000000582
+      },
+      "note": "Retained failed diagnostic run before the complete interruption fix. The second run included cold reload and concurrent repository indexing; the missed buffer deadline is real."
+    },
+    "upgrade-continuity-accepted": {
+      "started": "2026-09-26T15:24:06.681Z",
+      "outcome": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: interruption must preserve a healthy warm worker",
+      "first_playback_seconds": 7.1839312,
+      "gaps_seconds": [
+        0.11299999999999955,
+        0.09699999999999953
+      ],
+      "pause": {
+        "before": [
+          0.368,
+          0.368
+        ],
+        "after": [
+          0.368,
+          0.368
+        ]
+      },
+      "errors": [],
+      "after_interrupt_metrics": {
+        "generated_seconds": 30.475,
+        "generation_seconds": 68.90600000000268,
+        "first_expression_seconds": 47.26499999999942,
+        "rtf": 2.261066447908209,
+        "first_audio_seconds": 2.827999999994063,
+        "language_seconds": 2.75,
+        "tts_seconds": 0.07799999999406282,
+        "motion_seconds": 44.437000000005355
+      },
+      "note": "Failed before enqueue ownership was moved earlier. The folder name is not an acceptance claim; use outcome."
+    },
+    "upgrade-final-e2e": {
+      "started": "2026-09-26T15:31:24.434Z",
+      "outcome": "passed",
+      "first_playback_seconds": 7.1127791,
+      "gaps_seconds": [
+        0.10500000000000043,
+        0.09700000000000131
+      ],
+      "pause": {
+        "before": [
+          0.371,
+          0.371
+        ],
+        "after": [
+          0.371,
+          0.371
+        ]
+      },
+      "errors": [],
+      "audio_schedules": [
+        {
+          "when": 8.479999999999999,
+          "duration": 5.775,
+          "observedAt": 9857.30000000447
+        },
+        {
+          "when": 14.36,
+          "duration": 9.375,
+          "observedAt": 16200.30000000447
+        },
+        {
+          "when": 23.832,
+          "duration": 7.05,
+          "observedAt": 25672.70000000298
+        }
+      ],
+      "lookahead_observed": true,
+      "metrics": {
+        "generated_seconds": 22.2,
+        "generation_seconds": 16.26600000000326,
+        "first_expression_seconds": 6.922000000005937,
+        "rtf": 0.7327027027028495,
+        "first_audio_seconds": 3.797000000005937,
+        "language_seconds": 3.7190000000045984,
+        "tts_seconds": 0.1569999999992433,
+        "motion_seconds": 3.9219999999986612
+      },
+      "after_interrupt_metrics": {
+        "generated_seconds": 30.475,
+        "generation_seconds": 28.31300000000192,
+        "first_expression_seconds": 4.8439999999973224,
+        "rtf": 0.9290566037736478,
+        "first_audio_seconds": 3.187999999994645,
+        "language_seconds": 3.125,
+        "tts_seconds": 0.0629999999946449,
+        "motion_seconds": 1.6560000000026776
+      },
+      "after_interrupt_native_history_applied": false,
+      "text_conserved": true,
+      "packets": [
+        {
+          "text": "今天我们可以慢慢聊一聊，不用急着把所有事情一次说完。",
+          "audio_seconds": 5.775,
+          "native_history_applied": false
+        },
+        {
+          "text": "窗外的光线很柔和，让人想停下来休息片刻。你可以先说说今天最在意的一件小事，我会认真听。",
+          "audio_seconds": 9.375,
+          "native_history_applied": true
+        },
+        {
+          "text": "如果暂时想不到也没关系，我们就一起看看周围，等你准备好了再继续。",
+          "audio_seconds": 7.05,
+          "native_history_applied": true
+        }
+      ],
+      "executed_bone_counts": [
+        51,
+        51,
+        51
+      ]
+    }
+  },
+  "limitations": [
+    "Small diagnostic set, no held-out language benchmark or MOS listening panel",
+    "Original missing-target grading correction is preserved alongside answers",
+    "GPU paired TTS samples exclude repeat 0 for steady-state summaries",
+    "Motion boundary angles precede VRM retargeting and renderer correction",
+    "Real browser cold start remains expensive; startup warmup moves this before readiness",
+    "No actual executed-pose conditioning or autoregressive planner history",
+    "Audio schedule gaps are not hardware loopback measurements"
+  ],
+  "checks": {
+    "control_plane_api_boundaries": "60 passed before bounded-discard addition, including 6 resident tests",
+    "resource_and_cancellation": "36 passed before bounded-discard addition",
+    "final_resident_cancellation_character": "62 passed, includes 8 resident and 40 character cases",
+    "web": "88 passed and production build passed",
+    "sentiavatar_runtime": "8 passed in model runtime",
+    "registered_runtimes": "9 passed",
+    "docs_and_runtime_registration": "15 passed",
+    "resident_attestation_and_forced_cancel": "23 passed before the additional enqueue regression case",
+    "final_core_api_cancellation": "78 passed, includes 10 resident cases",
+    "final_web": "88 passed; TypeScript and Vite build passed after busy-button fix",
+    "final_gpu_browser": "passed: long text, lookahead, shared clocks, pause, discard, warm continuation and cleanup",
+    "graph": {
+      "all": {
+        "summary": {
+          "changed_count": 173,
+          "affected_count": 65,
+          "changed_files": 51,
+          "risk_level": "critical"
+        },
+        "partial": false,
+        "truncated": false,
+        "listed_symbols": 173
+      },
+      "compare": {
+        "summary": {
+          "changed_count": 532,
+          "affected_count": 71,
+          "changed_files": 81,
+          "risk_level": "critical"
+        },
+        "partial": false,
+        "truncated": false,
+        "listed_symbols": 532
+      },
+      "index_coverage_note": "Global process extraction has budgets and cross-language/dynamic receiver limitations; this is not proof of complete call coverage. Changed-symbol listings above are complete for the indexed graph."
+    }
+  },
+  "regressions_found_and_fixed": [
+    {
+      "case": "empty_motion_intent",
+      "finding": "Valid language decisions could contain an empty motion_intent; motion request rejected it. Added the natural-speaking fallback."
+    },
+    {
+      "case": "immediate_send_after_interrupt",
+      "finding": "Submit could be ignored before the interrupt HTTP response cleared the busy flag. Buttons now reflect the busy state."
+    },
+    {
+      "case": "interrupt_during_resident_reattestation",
+      "finding": "Immediate discard can precede borrow registration, then race into STARTING_WORKER on the forced path. Resident ownership is now registered atomically at enqueue; pre-borrow and reattestation tests cover both windows."
+    }
+  ],
+  "source_sha256": {
+    "apps/api/src/virea_api/residency.py": "dda949d1cbd1e80485d8921329c5e05f20194a7d8ae01f3d3f5992dbed203f4e",
+    "apps/api/src/virea_api/routes/characters.py": "c0edb95d1585c52bf802f5c862272ef179b72a749e2e1d73096ca89e29773dc1",
+    "apps/api/src/virea_api/service.py": "117f8f15c6fbc71cacc55703e186eb8b17245a154f1f14f3aabf7f138ca3bf52",
+    "apps/web/src/character/continuity.ts": "78f462322367574fd3241bcdd4f180276a9f02e6994336928fe8c850c3566d8e",
+    "apps/web/src/character/contracts.ts": "a408021cc39f589b7fde119c498e9174c5db99de0fa99d42556ff489feed7d14",
+    "apps/web/src/character/page.ts": "cf1a7d595b30c983594c691470f102c9cbc655aaacc7543287f9267d6484691a",
+    "apps/web/src/character/stage.ts": "6827c4491c473f00d0c124c0aceb1dd43ac399eef3c7509a2ea8388f3d6f22c4",
+    "apps/web/tests/character-continuity.test.mjs": "f2789a5d56530ffe41d6696ba7b3d661b7477c8e6e60e13b318dbd44c4464b1b",
+    "plugins/models/sentiavatar-susu/manifest.yaml": "d75e7ea26d2e8b0dfde81c4339c6bc90f28cdd78f6a9dc4707f36577af9b11d8",
+    "plugins/models/sentiavatar-susu/runtime-cpu/pyproject.toml": "adaac7e4bbd21c72c41a8a030b78bc4b18b015aff5e1084aca8823a3331cbba2",
+    "plugins/models/sentiavatar-susu/runtime-cu128/pyproject.toml": "c52b041dd6252ca0ee6211fccc9e23d85cb50740e371859abf627b4ef1c5b1ee",
+    "plugins/models/sentiavatar-susu/runtime/pyproject.toml": "f9c571db45c12f2f2222eee322ae69b0c3b536003b7393ca800ab8c47065a879",
+    "plugins/models/sentiavatar-susu/runtime/src/virea_sentiavatar/backend.py": "8c3774ce48ba97b421b83195b2a165293f66aa25e10f9f2ecee3dda879e8c6d4",
+    "plugins/models/sentiavatar-susu/runtime/src/virea_sentiavatar/continuation.py": "c62807dd5280a16adaed4cfe5388d9fb210eaf225a67c62ae8c8b9021394631e",
+    "plugins/models/sentiavatar-susu/runtime/src/virea_sentiavatar/worker.py": "1579bcf6f2f00f8097e8c44d13dc2ab536d763000070e9ed8a5957891f3f44de",
+    "plugins/models/sentiavatar-susu/runtime/tests/test_continuation.py": "0f74611fdef925d5c29b0425f64e92e3768fd300b7fe2726ca9fa49c72f83c74",
+    "registries/runtimes/sentiavatar-susu-cpu.yaml": "e0ab967eccc9fff44557191695f9085109c5c96de91964f57377cc95052e8f7e",
+    "registries/runtimes/sentiavatar-susu-cu128.yaml": "14138749ff3ab37fb64b1b2a88d7fbf8b5d3e357959b84012ced5673bdad0c74",
+    "scripts/character/benchmarks/compare_language.py": "b4df7cadf91b7996a79cc903bcbec6564db0a221007a930a653e1e2633b5ab9f",
+    "scripts/character/benchmarks/evaluate_continuity.py": "287662b0218d4bf5d0182aa48d081b5f520a62958b9c3f162df3f5f51cd0b318",
+    "scripts/character/benchmarks/evaluate_language.py": "91ccba431eeddf761df8ae0055bead0e77dda74b3854f923daacdd29992b7040",
+    "scripts/character/benchmarks/evaluate_speech.py": "67ac60602de68d39f9bdc761062881eb99d09a4fe450ef5f06850d1fc6e19b12",
+    "scripts/character/continuous_e2e.mjs": "90ab597cc0aca1e618afafc5b9f7419361601a08fd32ce16252d0e347fbdcd09",
+    "scripts/character/serve_kokoro.py": "04d89d02b7c6995f50c5ef5787205551bb3301655993493caa5c5b7ffb7d31b7",
+    "scripts/character/serve_kokoro_cuda.py": "b4b16cb79da36bde2c82db867d1a67f918ff5c229931e6d03a26563ed3dcb3d9",
+    "scripts/character/start_gpu_stack.ps1": "48a13221ea10a7505d8613f62910f6a54f26ea5bcb6857e23a45af9cbbfffb2b",
+    "src/virea/character/audio.py": "e7f962e603c600e706a6c7adaf7e44d847142c54a5c7a2d9f38eea59a16d07de",
+    "src/virea/character/contracts.py": "f0709c13519ff5bac5612a6d60ebbe8ec5b21021427a76fdffba1bd8490f267e",
+    "src/virea/character/decision_schema.py": "08ab0511ccd95df672d3915f4f4845215d885b73ae61ca7eecafa341404ae8d6",
+    "src/virea/character/grounding.py": "8013b31c90050081ffbe024246f3623e4761a1665c3b93960e2d9382756c2320",
+    "src/virea/character/manager.py": "29b8b4565646fb104eaca0be428e846c8efe01b5d8ae55cf944c143430143953",
+    "src/virea/character/prompts.py": "a25aa67224769d5c448eec0ffe9f2b93f35dfbc06d99c494f079496628732e31",
+    "src/virea/character/providers/language.py": "7760664ad915f68a6fe02b045b3a84acec697a6a20f9d27b6d749a2a62642119",
+    "src/virea/character/providers/motion.py": "9cf815d37dcaf0256d0ef022887e8c383a3f47d54c9839bdd409a4884029ff01",
+    "src/virea/character/session.py": "f4350dbf6b1c0163c5909d8e4eb26715fa616d3bc1771c4f7efcc635f5dc4f47",
+    "tests/character/test_api.py": "917d742e639750cb1112ab734bbed286e5fa834f12b4bbb4d01f029ba187f82b",
+    "tests/character/test_grounding.py": "fe7b289e6f9e041d13b3daf9f529318a61646e3cd01089231fbba9e18919b1dd",
+    "tests/character/test_lookahead.py": "3e0a5cdfbe5f5812aa2ad0fb6c384532a737f3474548d8918860cff3d8dba152",
+    "tests/character/test_providers.py": "c263df8078380563712a14317cae0bf9c30681531576946177d6828b649657c5",
+    "tests/character/test_session.py": "aabae801e8eab03226cf36ad61929ce3d0d35a6bdf7d26bb3e84dbd46f4aab3f",
+    "tests/refactor/test_resident_workers.py": "b2ca712541b818755d9b78991d2527accfb915aee6cbbde7bcc866da2aa39f28"
+  }
+}
