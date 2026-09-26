@@ -25,12 +25,13 @@ final response; users never specify a response duration. Executed pose and world
 position survive response completion and interruption within the live API process.
 
 The page presents separate audio, motion and text sections, with pause, volume,
-audio replay, motion preview and synchronized replay. Its default **voice-first**
+audio replay, motion preview and synchronized replay. The optional **voice-first**
 mode displays finalized text and plays speech as soon as TTS is ready. Late motion
 is available for explicit preview; it is never automatically played with mismatched
 speech. Interim mouth movement is an amplitude-based approximation, not phoneme alignment.
-**Synchronized** mode waits for all resources and uses the audible audio clock for
-both tracks. Set `playback_mode` when creating a session; the API default remains
+**Synchronized** mode is the page default. It waits for all resources and displays
+one shared timeline, using the audible audio clock for motion, face and scene movement.
+Subtitles start and end with speech. Set `playback_mode` when creating a session; the API default remains
 `synchronized`. Replays do not trigger autonomous responses.
 
 ## Run locally

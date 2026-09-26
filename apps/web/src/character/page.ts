@@ -14,13 +14,14 @@ root.innerHTML = `
       <div class="session-heading"><h2>角色会话</h2><span id="status">未连接</span></div>
       <label class="file">载入 VRM 角色<input id="avatar" type="file" accept=".vrm,.glb"></label>
       <div class="buttons"><button id="start" disabled>开始会话</button><button id="sound">继续声音</button><button id="close" disabled>结束</button></div>
-      <label class="mode">播放方式<select id="playback-mode"><option value="voice_first">语音优先 · 动作稍后预览</option><option value="synchronized">严格同步 · 等待声音与动作</option></select></label>
+      <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">严格同步 · 统一时间轴</option><option value="voice_first">语音优先 · 动作稍后预览</option></select></label>
       <section class="expression-panel" aria-label="语音、动作与文本">
+        <div class="track"><strong>统一时间轴</strong><span id="timeline-state">等待资源就绪</span><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
         <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
         <div class="track"><strong>动作</strong><span id="motion-state">保留当前姿态</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
         <div class="buttons"><button id="pause" disabled>暂停</button><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>预览动作</button><button id="replay-sync" disabled>同步重播</button></div>
         <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
-        <p id="playback-note" class="hint">语音就绪即播放；晚到的动作不会追播错位口型。</p>
+        <p id="playback-note" class="hint">声音、动作和面部全部就绪后统一起播；字幕随语音显示。</p>
         <div class="text-heading"><strong>文本</strong><span id="text-state">等待回复</span></div><p id="response-text">回复生成后会先显示在这里。</p>
       </section>
       <div id="conversation" role="log" aria-label="对话记录"></div>
@@ -47,6 +48,11 @@ class RequestError extends Error {
 }
 
 function showProgress(value: PlaybackProgress): void {
+  const duration = Math.max(value.audioDuration, value.motionDuration);
+  const timeline = element<HTMLProgressElement>("#timeline-progress");
+  timeline.max = Math.max(duration, 0.001); timeline.value = Math.min(value.elapsed, duration);
+  element("#timeline-state").textContent = `${value.paused ? "已暂停 · " : ""}${timeline.value.toFixed(2)} / ${duration.toFixed(2)} 秒`;
+  if (value.elapsed >= value.audioDuration) element("#subtitle").textContent = "";
   for (const [name, duration] of [["audio", value.audioDuration], ["motion", value.motionDuration]] as const) {
     const elapsed = Math.min(value.elapsed, duration);
     const bar = element<HTMLProgressElement>(`#${name}-progress`);

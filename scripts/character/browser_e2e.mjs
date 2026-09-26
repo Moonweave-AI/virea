@@ -23,7 +23,7 @@ const report = { schema_version: "virea.character_browser_observation.v1", start
 try {
   await page.goto(`${base}/app/character.html`);
   await page.locator("#avatar").setInputFiles(resolve(avatar));
-  await page.locator("#playback-mode").selectOption("synchronized");
+  assert.equal(await page.locator("#playback-mode").inputValue(), "synchronized");
   await page.locator("#start").click({ timeout: 30_000 });
   await page.locator("#send").waitFor({ state: "visible" });
   // Derive the active session from the browser's regular polling response.

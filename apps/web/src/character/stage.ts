@@ -262,18 +262,18 @@ export class CharacterStage {
         this.gazePoint = target;
       } else {
         // Engine translation is deliberately exposed as movement, not synthesized walking.
-        let previous = performance.now();
+        let previous = this.audibleTime();
         while (current()) {
           if (this.audio.state !== "running") {
-            previous = performance.now();
+            previous = this.audibleTime();
             await new Promise<void>(resolve => setTimeout(resolve, 16));
             continue;
           }
           const root = this.rootPosition();
           const delta = new THREE.Vector3(target.x - root.x, 0, target.z - root.z);
           if (delta.length() < 0.01) break;
-          const now = performance.now();
-          delta.clampLength(0, Math.min((now - previous) / 1000, 0.1) * 0.7);
+          const now = this.audibleTime();
+          delta.clampLength(0, Math.min(Math.max(0, now - previous), 0.1) * 0.7);
           this.vrm.scene.position.add(delta);
           previous = now;
           await new Promise<void>(resolve => setTimeout(resolve, 16));
