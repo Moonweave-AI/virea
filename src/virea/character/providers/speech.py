@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import json
+
 import httpx
 
 from ..audio import pcm_wave
@@ -10,6 +13,34 @@ class SpeechProvider:
     def __init__(self, config: CharacterConfig, client: httpx.AsyncClient):
         self.config = config
         self.client = client
+
+    async def stream(self, text: str):
+        received = ""
+        async with self.client.stream(
+            "POST",
+            self.config.tts_url.rstrip("/") + "/audio/speech/stream",
+            json={"model": "kokoro", "input": text, "voice": self.config.tts_voice},
+            timeout=self.config.provider_timeout,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line:
+                    continue
+                item = json.loads(line)
+                audio, duration = pcm_wave(
+                    base64.b64decode(item["audio"], validate=True)
+                )
+                received += item["text"]
+                if not text.startswith(received):
+                    raise ValueError("speech stream changed the requested text")
+                yield {
+                    "audio": audio,
+                    "seconds": duration,
+                    "text": item["text"],
+                    "caption": item["caption"],
+                }
+        if received != text:
+            raise ValueError("speech stream ended before all text was synthesized")
 
     async def synthesize(self, final_text: str) -> tuple[bytes, float]:
         async with self.client.stream(

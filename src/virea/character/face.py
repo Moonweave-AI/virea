@@ -6,7 +6,70 @@ import numpy as np
 
 # Order verified against pinned upstream motion_generation/susu_face_speech_align.py.
 # VRM vowels and emotions are approximations, not a 1:1 ARKit representation.
-PRESETS = ("blinkLeft", "blinkRight", "aa", "oh", "ou", "happy", "sad")
+PRESETS = (
+    "blinkLeft",
+    "blinkRight",
+    "aa",
+    "oh",
+    "ou",
+    "happy",
+    "sad",
+    "angry",
+    "surprised",
+)
+ARKIT_NAMES = (
+    "browDownLeft",
+    "browDownRight",
+    "browInnerUp",
+    "browOuterUpLeft",
+    "browOuterUpRight",
+    "cheekPuff",
+    "cheekSquintLeft",
+    "cheekSquintRight",
+    "eyeBlinkLeft",
+    "eyeBlinkRight",
+    "eyeLookDownLeft",
+    "eyeLookDownRight",
+    "eyeLookInLeft",
+    "eyeLookInRight",
+    "eyeLookOutLeft",
+    "eyeLookOutRight",
+    "eyeLookUpLeft",
+    "eyeLookUpRight",
+    "eyeSquintLeft",
+    "eyeSquintRight",
+    "eyeWideLeft",
+    "eyeWideRight",
+    "jawForward",
+    "jawLeft",
+    "jawOpen",
+    "jawRight",
+    "mouthClose",
+    "mouthDimpleLeft",
+    "mouthDimpleRight",
+    "mouthFrownLeft",
+    "mouthFrownRight",
+    "mouthFunnel",
+    "mouthLeft",
+    "mouthLowerDownLeft",
+    "mouthLowerDownRight",
+    "mouthPressLeft",
+    "mouthPressRight",
+    "mouthPucker",
+    "mouthRight",
+    "mouthRollLower",
+    "mouthRollUpper",
+    "mouthShrugLower",
+    "mouthShrugUpper",
+    "mouthSmileLeft",
+    "mouthSmileRight",
+    "mouthStretchLeft",
+    "mouthStretchRight",
+    "mouthUpperUpLeft",
+    "mouthUpperUpRight",
+    "noseSneerLeft",
+    "noseSneerRight",
+)
 
 
 def vrm_face_track(values, fps: float) -> dict:
@@ -25,6 +88,8 @@ def vrm_face_track(values, fps: float) -> dict:
             source[:, 37],
             (source[:, 43] + source[:, 44]) / 2,
             (source[:, 29] + source[:, 30]) / 2,
+            np.maximum(0, (source[:, 0] + source[:, 1]) / 2 - source[:, 2]),
+            (source[:, 20] + source[:, 21]) / 2,
         )
     )
     return {
@@ -34,4 +99,5 @@ def vrm_face_track(values, fps: float) -> dict:
         "values": mapped.tolist(),
         "lossy": True,
         "source_representation": "arkit.blendshape51.v1",
+        "arkit": {"names": ARKIT_NAMES, "values": source.tolist()},
     }

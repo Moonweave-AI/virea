@@ -8,6 +8,7 @@ from ..contracts import CharacterConfig, Decision
 from ..decision_schema import decision_schema
 from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
+from ..streaming import LanguageUpdate, partial_decision
 
 
 class LanguageProvider:
@@ -16,6 +17,12 @@ class LanguageProvider:
         self.client = client
 
     async def decide(self, history: list[dict], context: dict) -> Decision:
+        async for update in self.stream(history, context):
+            if update.final:
+                return update.decision
+        raise ValueError("language stream ended without a decision")
+
+    async def stream(self, history: list[dict], context: dict):
         thinking = (
             self.config.llm_thinking and context.get("trigger") != "behavior_completed"
         )
@@ -31,7 +38,7 @@ class LanguageProvider:
                 },
                 *history,
             ],
-            "stream": False,
+            "stream": True,
         }
         if self.config.llm_api == "ollama":
             endpoint = "/api/chat"
@@ -69,14 +76,40 @@ class LanguageProvider:
                     },
                 }
             )
-        response = await self.client.post(
+        content, published, finish = "", "", None
+        async with self.client.stream(
+            "POST",
             self.config.llm_url.rstrip("/") + endpoint,
             json=payload,
             timeout=self.config.provider_timeout,
-        )
-        response.raise_for_status()
-        result = response.json()
-        choice = result if self.config.llm_api == "ollama" else result["choices"][0]
-        if choice.get("done_reason", choice.get("finish_reason")) != "stop":
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line or line.startswith(":"):
+                    continue
+                if self.config.llm_api == "openai":
+                    if not line.startswith("data: "):
+                        continue
+                    line = line[6:]
+                    if line == "[DONE]":
+                        break
+                result = json.loads(line)
+                if self.config.llm_api == "ollama":
+                    content += result.get("message", {}).get("content", "")
+                    finish = result.get("done_reason") or finish
+                elif result.get("choices"):
+                    choice = result["choices"][0]
+                    content += choice.get("delta", {}).get("content") or ""
+                    finish = choice.get("finish_reason") or finish
+                current = partial_decision(content)
+                if current and current.text != published:
+                    if not current.text.startswith(published):
+                        raise ValueError("language stream rewrote published text")
+                    published = current.text
+                    yield LanguageUpdate(current)
+        if finish != "stop":
             raise ValueError("language response did not finish naturally")
-        return Decision.model_validate_json(choice["message"]["content"])
+        final = Decision.model_validate_json(content)
+        if not final.text.startswith(published):
+            raise ValueError("final text disagrees with language stream")
+        yield LanguageUpdate(final, final=True)

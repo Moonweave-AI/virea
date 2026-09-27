@@ -47,6 +47,10 @@ def decision_schema(
     variants = []
     for mode in ("SPEAK", "ACT_SILENTLY", "WAIT"):
         properties = deepcopy(schema["properties"])
+        # Control fields are complete before streamed speech is released.
+        properties = {
+            key: properties[key] for key in ("mode", "motion_intent", "actions", "text")
+        }
         properties["mode"] = {"const": mode, "type": "string"}
         if mode == "SPEAK":
             properties["text"]["minLength"] = 1
@@ -60,7 +64,7 @@ def decision_schema(
             {
                 "type": "object",
                 "properties": properties,
-                "required": ["mode", "text", "actions"],
+                "required": ["mode", "motion_intent", "actions", "text"],
                 "additionalProperties": False,
             }
         )

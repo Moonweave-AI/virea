@@ -51,5 +51,5 @@ export class PoseRecovery {
 /** Blink and visemes release promptly; affect relaxes over the longer body recovery. */
 export function faceRelease(name: string, seconds: number, duration: number): number {
   return 1 - THREE.MathUtils.smootherstep(seconds, 0,
-    /^(blink|aa$|ih$|ou$|ee$|oh$)/.test(name) ? 0.18 : duration);
+    /^(blink|eyeBlink|jawOpen|mouth(?!Smile|Frown|Dimple|Stretch)|aa$|ih$|ou$|ee$|oh$)/.test(name) ? 0.18 : duration);
 }

@@ -29,7 +29,7 @@ root.innerHTML = `
             </div></details>
           </section>
           <details class="history"><summary>对话记录</summary><div id="conversation" role="log" aria-label="对话记录"></div></details>
-          <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output><p>每段动作平滑回到自然姿态，下一段从该实际姿态开始。收势后的姿态无法反向编码为模型历史，因此不沿用前段动作尾码。手指使用上游固定资源，面部映射为近似转换。</p></details>
+          <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output><p>讲话期间动作连续衔接，表达结束后放松收势。手指使用上游固定资源，标准 VRM 的面部映射为近似转换。</p></details>
         </div>
         <form><label class="sr-only" for="message">对角色说</label><textarea id="message" rows="2" maxlength="4000" placeholder="说点什么，让对话继续…" required></textarea>
           <div class="composer-actions"><button type="button" id="interrupt" title="打断并保留当前姿态" disabled>打断</button><button type="submit" id="send" class="primary" disabled>发送 <span aria-hidden="true">↗</span></button></div></form>
@@ -98,9 +98,9 @@ function renderState(value: Session): void {
   const labels: Record<string, string> = { waiting: "正在等待", thinking: "正在思考", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "正在表达", error: "需要处理", closed: "已结束" };
   element("#status").textContent = labels[value.status] ?? value.status;
   const seconds = (value: number | null) => value?.toFixed(2) ?? "—";
-  element("#metrics").textContent = `语言 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 完整表达 ${seconds(value.metrics.first_expression_seconds)}s · RTF ${seconds(value.metrics.rtf)}`;
+  element("#metrics").textContent = `语言流水线 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 首包就绪 ${seconds(value.metrics.first_expression_seconds)}s · ${value.playback_mode === "synchronized" ? "动作" : "生成"} RTF ${seconds(value.metrics.rtf)}`;
   element("#response-text").textContent = value.draft_text || (value.status === "thinking" ? "正在准备回复…" : "此刻没有需要说出的文本。");
-  element("#text-state").textContent = value.draft_text ? "完整文本已就绪" : "尚未生成";
+  element("#text-state").textContent = value.draft_text ? "实时回复" : "尚未生成";
   const idle = !playing && !previewing && ["waiting", "error"].includes(value.status);
   const latest = value.latest_expression;
   element<HTMLButtonElement>("#replay-audio").disabled = !idle || !latest?.audio_url;
@@ -130,23 +130,31 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   const generation = playbackGeneration;
   element<HTMLButtonElement>("#pause").disabled = false;
   element("#playback-note").textContent = packet.motion
-    ? "每段动作结束后平滑回到自然姿态，再开始下一段；语音、动作与字幕使用同一播放时钟。"
+    ? "动作在讲话期间持续衔接，结束后自然收势；语音、动作与字幕共用时间轴。"
     : "优先播放语音与字幕，口型按音量近似驱动；生成动作可稍后预览或同步重播。";
   let status = "completed";
   let message = "";
   let durations = { audio_seconds: 0, motion_seconds: 0 };
   try {
-    durations = await stage.perform(packet, () => { element("#subtitle").textContent = packet.text; }, showProgress);
+    durations = await stage.perform(packet, () => { element("#subtitle").textContent = packet.caption ?? packet.text; }, showProgress);
   } catch (error) {
     status = error instanceof DOMException && error.name === "AbortError" ? "interrupted" : "failed";
     message = error instanceof Error ? error.message : String(error);
     if (status === "failed") { stage.stop(); showError(error); }
   }
   if (generation === playbackGeneration && session?.id === sessionId && !closing) {
-    try {
-      await request(`/${sessionId}/feedback`, "POST", { packet_id: packet.id, epoch: packet.epoch,
-        status, body: stage.state(), message, ...durations });
-    } catch (error) { showError(error); }
+    const acknowledged = request(`/${sessionId}/feedback`, "POST", { packet_id: packet.id, epoch: packet.epoch,
+      status, body: stage.state(), message, ...durations });
+    const successor = status === "completed" && !mutating
+      ? session.ready?.find(value => value.parent_id === packet.id && !handled.has(value.id)) : null;
+    if (successor) {
+      // Its audio is already scheduled. Render its first frame without an HTTP gap.
+      const continuation = play(successor, sessionId);
+      try { await acknowledged; } catch (error) { stage.stop(); showError(error); }
+      await continuation;
+      return;
+    }
+    try { await acknowledged; } catch (error) { stage.stop(); showError(error); }
     playing = null;
     element<HTMLButtonElement>("#pause").disabled = true;
     element("#subtitle").textContent = "";
@@ -282,10 +290,13 @@ async function poll(): Promise<void> {
             element<HTMLButtonElement>("#pause").disabled = true;
             element("#subtitle").textContent = "";
           }
-          if (value.buffered) void stage.preload(value.buffered).catch(error => {
+          for (const packet of value.ready?.length ? value.ready : value.buffered ? [value.buffered] : []) void stage.preload(packet).catch(error => {
             if (generation === playbackGeneration && session?.id === id && !mutating) showError(error);
           });
-          if (value.pending && !playing && !handled.has(value.pending.id)) void play(value.pending, id);
+          const fastEnough = value.pending && value.metrics.motion_seconds !== null
+            && value.metrics.motion_seconds < value.pending.audio_seconds * 0.7;
+          const bufferedStart = !value.pending?.stream_id || !value.pending.continues || fastEnough || (value.ready?.length ?? 0) >= 2;
+          if (value.pending && !playing && !handled.has(value.pending.id) && bufferedStart) void play(value.pending, id);
         }
       } catch (error) {
         if (error instanceof RequestError && error.status === 404 && session?.id === id) {

@@ -117,7 +117,13 @@ def _task_inputs(
         dialogue = _text(values.get("dialogue_text"), name="input.dialogue_text")
         tags_raw = values.get("action_and_expression_tags", "动作：说话")
         tags = _text(tags_raw, name="input.action_and_expression_tags")
-        return (audio,), (f"{tags}{dialogue}",)
+        # The released planner is trained on action descriptions + audio tokens.
+        # Dialogue remains part of the request provenance, not an untrained suffix.
+        return (audio,), (
+            tags
+            if request.request.parameters.get("planner_action_only")
+            else f"{tags}{dialogue}",
+        )
     if request.request.task == "streaming_dialogue_avatar_motion":
         audio_values = _sequence(values.get("audio_chunks"), name="input.audio_chunks")
         turn_values = _sequence(
@@ -231,6 +237,8 @@ class SentiAvatarPlugin:
                 max_new_tokens=max_new_tokens,
                 generate_face=generate_face,
                 prefix=request.request.parameters.get("motion_prefix"),
+                planner_history=request.request.parameters.get("planner_history"),
+                planner_url=request.request.parameters.get("planner_url"),
             )
         except WorkerFailure:
             raise
@@ -281,6 +289,11 @@ class SentiAvatarPlugin:
                 "chunk_count": generated.chunk_count,
                 "motion_tail": generated.motion_tail,
                 "native_history_applied": generated.native_history_applied,
+                "planner_history": generated.planner_history,
+                "planner_history_applied": generated.planner_history_applied,
+                "planner_backend": "llama.cpp"
+                if parameters.get("planner_url")
+                else "transformers",
                 "output": {
                     "frame_count": frame_count,
                     "fps": FPS,
@@ -360,6 +373,11 @@ class SentiAvatarPlugin:
                 "chunk_count": generated.chunk_count,
                 "motion_tail": generated.motion_tail,
                 "native_history_applied": generated.native_history_applied,
+                "planner_history": generated.planner_history,
+                "planner_history_applied": generated.planner_history_applied,
+                "planner_backend": "llama.cpp"
+                if parameters.get("planner_url")
+                else "transformers",
                 "hands_are_denormalized": True,
             },
             sources=(

@@ -98,6 +98,7 @@ class CharacterConfig(Contract):
     llm_thinking: bool = False
     tts_url: str = "http://127.0.0.1:8081/v1"
     tts_voice: str = "zf_001"
+    motion_planner_url: str | None = None
     persona: str = "你是生活在三维空间中的角色，简洁自然地用中文交流。"
     provider_timeout: float = Field(default=120, gt=0, le=600)
     motion_timeout: float = Field(default=600, gt=0, le=3600)

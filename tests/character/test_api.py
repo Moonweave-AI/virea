@@ -13,10 +13,13 @@ def test_character_routes_lifecycle_and_native_history_gate(tmp_path):
         create_app(virea_home=tmp_path, include_legacy_preview=False)
     ) as client:
         capabilities = client.get("/api/v1/characters/capabilities").json()
-        assert capabilities["native_history"] is False
+        assert capabilities["native_history"] is True
         assert capabilities["model_native_history"] is True
-        assert capabilities["playback_continuity"] == "recover_to_rest_each_segment"
-        assert capabilities["planner_history"] is False
+        assert (
+            capabilities["playback_continuity"]
+            == "continuous_windows_then_relaxed_idle"
+        )
+        assert capabilities["planner_history"] is True
         assert capabilities["executed_pose_conditioning"] is False
         assert (
             client.post(
@@ -25,12 +28,9 @@ def test_character_routes_lifecycle_and_native_history_gate(tmp_path):
             ).status_code
             == 409
         )
-        rejected = client.post(
+        created = client.post(
             "/api/v1/characters", json={"require_native_history": True}
         )
-        assert rejected.status_code == 409
-        assert "per-segment recovery" in rejected.json()["detail"]
-        created = client.post("/api/v1/characters", json={})
         assert created.status_code == 201
         session_id = created.json()["id"]
         assert (

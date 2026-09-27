@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory)][string]$LlamaServer,
     [Parameter(Mandatory)][string]$ModelFile,
     [Parameter(Mandatory)][string]$HfHome,
+    [string]$MotionPlannerFile,
     [switch]$SkipWarmup
 )
 $ErrorActionPreference = 'Stop'
@@ -45,6 +46,17 @@ if (!(Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyCo
 }
 $models = Wait-Endpoint 'http://127.0.0.1:8080/v1/models'
 if ('qwen3.5:9b' -notin $models.data.id) { throw 'Port 8080 must serve qwen3.5:9b.' }
+if (!$MotionPlannerFile) { $MotionPlannerFile = Join-Path (Split-Path $ModelFile) 'sentiavatar-planner-f16.gguf' }
+if (!(Test-Path -LiteralPath $MotionPlannerFile -PathType Leaf)) {
+    throw 'Prepare the motion planner with scripts/character/build_motion_planner.py first.'
+}
+if (!(Get-NetTCPConnection -LocalPort 8084 -State Listen -ErrorAction SilentlyContinue)) {
+    $started += Start-Helper 'motion-planner' $LlamaServer @('-m', $MotionPlannerFile,
+        '--alias', 'sentiavatar-planner', '--host', '127.0.0.1', '--port', '8084',
+        '-ngl', '99', '-c', '4096', '-np', '1', '-fa', 'on', '-t', '4', '--no-webui')
+}
+$plannerModels = Wait-Endpoint 'http://127.0.0.1:8084/v1/models'
+if ('sentiavatar-planner' -notin $plannerModels.data.id) { throw 'Port 8084 must serve sentiavatar-planner.' }
 $env:HF_HOME = $HfHome
 if (!(Get-NetTCPConnection -LocalPort 8083 -State Listen -ErrorAction SilentlyContinue)) {
     $started += Start-Helper 'speech' (Get-Command uv).Source @('run', '--locked', '--script',
@@ -55,6 +67,8 @@ if ($speech.device -ne 'cuda' -or $speech.precision -ne 'auto') { throw 'Port 80
 $env:VIREA_HOME = $VireaHome
 $env:VIREA_CHARACTER_CONFIG = Join-Path $repo 'configs/character/rtx5090.json'
 $env:PYTHONIOENCODING = 'utf-8'
+& $python (Join-Path $PSScriptRoot 'build_neutral_pose.py') --home $VireaHome
+if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the licensed neutral pose reference.' }
 $started += Start-Helper 'api' $python @('-m', 'uvicorn', 'virea_api.app:app', '--host', '127.0.0.1', '--port', '8000', '--log-level', 'warning')
 $started | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $logs 'started-processes.json') -Encoding utf8
 Wait-Endpoint 'http://127.0.0.1:8000/api/v1/health' | Out-Null

@@ -23,14 +23,21 @@ def test_language_preserves_input_roles_and_disables_thinking():
         assert len(payload["messages"]) == 2
         return httpx.Response(
             200,
-            json={
-                "choices": [
-                    {
-                        "finish_reason": "stop",
-                        "message": {"content": Decision(mode="WAIT").model_dump_json()},
-                    }
-                ]
-            },
+            text="data: "
+            + json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "delta": {
+                                "content": Decision(mode="WAIT").model_dump_json()
+                            },
+                        }
+                    ]
+                }
+            )
+            + "\n\ndata: [DONE]\n\n",
+            headers={"content-type": "text/event-stream"},
         )
 
     async def run():

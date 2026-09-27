@@ -7,6 +7,8 @@ import { assertFiniteClip, ensureVRMLookAtQuaternionProxy } from "../viewer-comp
 import { anchorClip, sceneDestination, sampleClip } from "./motion";
 import { RotationBridge, rotationVector } from "./continuity";
 import { PoseRecovery, faceRelease, type PoseSample } from "./recovery";
+import { RelaxedIdle } from "./idle";
+import { ExpressionTimeline } from "./timeline";
 import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
@@ -18,6 +20,8 @@ export class CharacterStage {
   private readonly audio = new AudioContext();
   private readonly gain = this.audio.createGain();
   private readonly analyser = this.audio.createAnalyser();
+  private readonly timeline = new ExpressionTimeline(this.audio, this.analyser);
+  private idle: RelaxedIdle | null = null;
   private readonly waveform = new Float32Array(256);
   private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
   private poseHistory = new Map<THREE.Object3D, { q: THREE.Quaternion; velocity: THREE.Vector3 }>();
@@ -30,6 +34,7 @@ export class CharacterStage {
   private frame = 0;
   private epoch = 0;
   private disposed = false;
+  private sceneActions: Promise<void> = Promise.resolve();
   private gaze: string | null = null;
   private gazePoint: THREE.Vector3 | null = null;
   private lastFrame = performance.now();
@@ -109,23 +114,18 @@ export class CharacterStage {
         if (!vrm) throw new Error("请选择包含 humanoid 的 VRM 文件");
         return;
       }
+      const reference = await fetch("/api/v1/characters/neutral-pose");
+      if (!reference.ok) {
+        VRMUtils.deepDispose(vrm.scene);
+        throw new Error("自然站姿资源未就绪，请运行角色环境初始化。");
+      }
+      const pose = await reference.json() as { rotations: Record<string, number[]> };
+      if (epoch !== this.epoch || this.disposed) { VRMUtils.deepDispose(vrm.scene); return; }
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
-      // Establish a relaxed initial pose once; later responses retain executed bones.
-      for (const [name, angle] of [["leftUpperArm", -1.35], ["rightUpperArm", 1.35]] as const) {
-        vrm.humanoid.getNormalizedBoneNode(name)?.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
-      }
-      for (const [name, angle] of [["leftLowerArm", -0.12], ["rightLowerArm", 0.12]] as const) {
-        vrm.humanoid.getNormalizedBoneNode(name)?.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-      }
+      this.idle = new RelaxedIdle(vrm, pose.rotations);
       this.rest = this.poseSample();
-      // Retain the model's hand shape instead of straightening every finger on release.
-      for (const name of Object.keys(vrm.humanoid.humanBones)) {
-        if (/(Thumb|Index|Middle|Ring|Little)/.test(name)) {
-          const bone = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
-          if (bone) this.rest.rotations.delete(bone);
-        }
-      }
+      this.idle.start(this.rest);
       this.poseHistory.clear();
       VRMUtils.rotateVRM0(vrm);
       ensureVRMLookAtQuaternionProxy(vrm);
@@ -147,6 +147,8 @@ export class CharacterStage {
 
   stop(): BodyState {
     this.epoch++;
+    this.timeline.stop();
+    this.idle?.stop();
     if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
     if (this.action) this.action.paused = true;
     return this.state();
@@ -171,13 +173,17 @@ export class CharacterStage {
     return `${packet.id}|${packet.audio_url}|${packet.motion?.result_id}`;
   }
 
-  preload(packet: Expression): Promise<unknown> {
+  preload(packet: Expression): ReturnType<CharacterStage["prepare"]> {
     const key = this.resourceKey(packet);
     let value = this.prepared.get(key);
     if (!value) {
       value = this.prepare(packet);
       this.prepared.set(key, value);
-      while (this.prepared.size > 3) this.prepared.delete(this.prepared.keys().next().value!);
+      while (this.prepared.size > 6) this.prepared.delete(this.prepared.keys().next().value!);
+      const epoch = this.epoch;
+      void value.then(([, audio]) => {
+        if (epoch === this.epoch && !this.disposed) this.timeline.register(packet, audio);
+      }).catch(() => {});
       void value.catch(() => { this.prepared.delete(key); });
     }
     return value;
@@ -188,9 +194,15 @@ export class CharacterStage {
     if (!this.vrm) throw new Error("请先载入 VRM");
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
-    const [gltf, audio, face] = await (this.prepared.get(this.resourceKey(packet)) ?? this.prepare(packet));
+    const [gltf, audio, face] = await this.preload(packet);
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     if (audio && this.audio.state !== "running") throw new Error("音频暂停，请点击继续声音后重试");
+    this.idle?.stop();
+    const manager = this.vrm.expressionManager;
+    const native = face?.arkit;
+    const faceTrack = native && native.names.filter(name => manager?.getExpression(name)).length >= 40
+      ? { ...face!, names: native.names, values: native.values } : face;
+    const heldFace = new Map(faceTrack?.names.map(name => [name, manager?.getValue(name) ?? 0]) ?? []);
     let duration = 0;
     let motionScale = 1;
     let held: Map<THREE.Object3D, THREE.Quaternion> = new Map();
@@ -240,7 +252,7 @@ export class CharacterStage {
       const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips");
       if (hips && heldHips) hips.position.lerpVectors(heldHips, hips.position.clone(), THREE.MathUtils.smoothstep(elapsed, 0, 0.2));
     };
-    if (gltf && this.rest && duration > 0) {
+    if (gltf && this.rest && duration > 0 && !packet.continues) {
       const dt = Math.min(1 / 120, duration);
       sampleMotion(duration - dt);
       const before = this.poseSample();
@@ -250,8 +262,13 @@ export class CharacterStage {
       for (const [bone, q] of held) bone.quaternion.copy(q);
       if (heldHips) this.vrm.humanoid.getNormalizedBoneNode("hips")?.position.copy(heldHips);
     }
-    const start = this.audio.currentTime + 0.04;
-    if (audio) {
+    let start = this.audio.currentTime + 0.04;
+    if (audio && packet.stream_id) {
+      const scheduled = this.timeline.begin(packet, audio);
+      this.source = scheduled.source;
+      start = scheduled.start;
+      this.canvas.dataset.streamUnderruns = String(this.timeline.underruns);
+    } else if (audio) {
       this.source = this.audio.createBufferSource();
       this.source.buffer = audio;
       this.source.connect(this.analyser);
@@ -260,7 +277,9 @@ export class CharacterStage {
     while (current() && this.audibleTime() < start) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
-    const actions = this.executeActions(packet.actions, current);
+    if (packet.actions.length) this.sceneActions = this.executeActions(packet.actions, current);
+    const actions = this.sceneActions;
+    void actions.catch(() => {}); // Terminal feedback owns errors; internal windows keep advancing.
     const motionDuration = duration + (recovery?.duration ?? 0);
     const end = Math.max(motionDuration, audio?.duration ?? 0);
     const sample = (elapsed: number) => {
@@ -268,10 +287,14 @@ export class CharacterStage {
       const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips");
       if (recovery && hips && elapsed >= duration) recovery.apply(tail);
       else sampleMotion(Math.min(elapsed, duration));
-      if (face) {
+      if (faceTrack) {
         const time = Math.min(elapsed, duration);
-        this.applyFace(face, audio ? time * Math.max(0, face.values.length - 1) / (face.fps * audio.duration) : time);
-        if (recovery && elapsed >= duration) for (const name of face.names) {
+        this.applyFace(faceTrack, audio ? time * Math.max(0, faceTrack.values.length - 1) / (faceTrack.fps * audio.duration) : time);
+        if (elapsed < 0.1) for (const [name, value] of heldFace) {
+          if (manager?.getExpression(name)) manager.setValue(name,
+            THREE.MathUtils.lerp(value, manager.getValue(name) ?? 0, THREE.MathUtils.smootherstep(elapsed, 0, 0.1)));
+        }
+        if (recovery && elapsed >= duration) for (const name of faceTrack.names) {
           const manager = this.vrm!.expressionManager;
           manager?.setValue(name, (manager.getValue(name) ?? 0) * faceRelease(name, tail, recovery.duration));
         }
@@ -291,7 +314,7 @@ export class CharacterStage {
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
       if (current()) sample(end);
-      await actions;
+      if (!packet.continues) await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
       onProgress({ elapsed: end, audioDuration: audio?.duration ?? 0, motionDuration, paused: false });
       return { audio_seconds: audio?.duration ?? 0, motion_seconds: motionDuration };
@@ -300,6 +323,8 @@ export class CharacterStage {
         if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
         if (this.action) this.action.paused = true;
         if (!face) for (const name of ["aa", "oh", "ou"]) this.vrm?.expressionManager?.setValue(name, 0);
+        this.timeline.complete(packet.id);
+        if (recovery) this.idle?.start(this.poseSample());
       }
     }
   }
@@ -332,8 +357,11 @@ export class CharacterStage {
   private applyFace(face: FaceTrack, seconds: number): void {
     const cursor = Math.min(face.values.length - 1, Math.max(0, seconds * face.fps));
     const lower = Math.floor(cursor), upper = Math.min(lower + 1, face.values.length - 1);
-    face.names.forEach((name, index) => this.vrm?.expressionManager?.setValue(name,
-      THREE.MathUtils.lerp(face.values[lower]?.[index] ?? 0, face.values[upper]?.[index] ?? 0, cursor - lower)));
+    face.names.forEach((name, index) => {
+      const manager = this.vrm?.expressionManager;
+      if (manager?.getExpression(name)) manager.setValue(name,
+        THREE.MathUtils.lerp(face.values[lower]?.[index] ?? 0, face.values[upper]?.[index] ?? 0, cursor - lower));
+    });
   }
 
   private async executeActions(actions: SceneAction[], current: () => boolean): Promise<void> {
@@ -373,6 +401,7 @@ export class CharacterStage {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     if (this.vrm) {
+      this.idle?.update(dt);
       if (dt > 0 && this.audio.state === "running") for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (!bone) continue;

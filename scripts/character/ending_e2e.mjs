@@ -40,6 +40,7 @@ try {
         },
         async play(packet) {
           this.frames = []; this.done = false; this.progress = null;
+          await stage.preload(packet);
           this.initial = stage.state();
           const durations = await stage.perform(packet, () => { this.entry = stage.state(); }, progress => {
             this.progress = progress;
@@ -91,8 +92,8 @@ try {
         assert.ok(response.ok()); await writeFile(resolve(directory, name), await response.body());
       }
     }
-    // Exercise internal and final windows, including old captures without this field.
-    packet.continues = index + 1 < prompts.length;
+    // Three complete expressions must each recover, independently of bind pose.
+    packet.continues = false;
     const playback = page.evaluate(packet => window.probe.play(packet), packet);
     lastPacket = packet;
     let nearEnd = false, voiceEnd = false;
@@ -116,7 +117,7 @@ try {
     const restingBones = Object.keys(observation.rest.pose).filter(name =>
       /^(spine|chest|upperChest|neck|head)$|Shoulder|Arm|Leg|Foot/.test(name));
     const naturalError = poseError(result.body, observation.rest, restingBones);
-    const entryError = previousEnd ? poseError(observation.entry, previousEnd) : poseError(observation.entry, observation.initial);
+    const entryError = poseError(observation.entry, observation.initial);
     assert.ok(naturalError < 1e-6, "every segment ends in the natural body pose");
     assert.ok(entryError < 1e-6, "the next segment begins at the preceding recovered pose");
     if (previousEnd) assert.deepEqual(observation.entry.position, previousEnd.position);
@@ -127,7 +128,7 @@ try {
     if (captured) {
       assert.ok(result.durations.motion_seconds > result.durations.audio_seconds + 0.6);
       assert.ok(Object.values(result.face).every(value => Math.abs(value ?? 0) < 1e-6), "facial tracks release at the end");
-      assert.deepEqual(observation.held, result.body, "settled pose remains the executed pose");
+      assert.ok(poseError(observation.held, result.body) < 0.015, "idle remains close to the relaxed stance");
     }
     console.log(JSON.stringify({ trial: index + 1, ...result.durations, frames: observation.frames.length }));
     if (sessionId) {
@@ -137,9 +138,9 @@ try {
     }
   }
   if (captured) {
-    // Text continuation does not bypass recovery at an internal boundary.
+    // Internal inference windows continue directly; only an expression end recovers.
     const continued = await page.evaluate(packet => window.probe.play({ ...packet, continues: true }), lastPacket);
-    assert.ok(continued.durations.motion_seconds > continued.durations.audio_seconds + 0.6);
+    assert.equal(continued.durations.motion_seconds, continued.durations.audio_seconds);
     report.continuing_packet = continued.durations;
 
     const playback = page.evaluate(packet => window.probe.play(packet), lastPacket);

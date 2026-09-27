@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import secrets
 from pathlib import Path
 from urllib.parse import quote
 
@@ -14,15 +15,16 @@ from ..contracts import CharacterConfig
 
 CAPABILITIES = {
     "body_and_face": True,
-    "native_history": False,
-    "native_history_mode": "disabled_for_segment_recovery",
+    "native_history": True,
+    "native_history_mode": "within_continuous_expression",
     "model_native_history": True,
-    "planner_history": False,
+    "planner_history": True,
     "executed_pose_conditioning": False,
     "online_worker_streaming": False,
+    "pipeline_streaming": "bounded_audio_windows_with_planner_and_rvq_history",
     "generative_fingers": False,
     "silent_generative_motion": False,
-    "playback_continuity": "recover_to_rest_each_segment",
+    "playback_continuity": "continuous_windows_then_relaxed_idle",
     "scene_actions": ["look_at", "move_to", "stop"],
 }
 
@@ -40,6 +42,7 @@ class MotionProvider:
         avatar_id: str | None,
         *,
         motion_prefix: list | None = None,
+        planner_history: list | None = None,
     ) -> dict:
         request = JobRequest(
             model_id="sentiavatar-susu",
@@ -50,7 +53,16 @@ class MotionProvider:
                 "dialogue_text": text,
                 "action_and_expression_tags": intent.strip() or "动作：自然说话",
             },
-            parameters={"generate_face": True, "motion_prefix": motion_prefix},
+            parameters={
+                "generate_face": True,
+                "motion_prefix": motion_prefix,
+                "planner_history": planner_history,
+                "planner_action_only": True,
+                "planner_url": self.config.motion_planner_url,
+                "seed": secrets.randbelow(2_147_483_583),
+                "temperature": 0.5,
+                "top_p": 0.7,
+            },
             avatar_id=avatar_id,
             execution_target=self.config.execution_target,
         )
@@ -102,7 +114,12 @@ class MotionProvider:
                         "native_history_applied", False
                     ),
                     "motion_tail": generation.get("motion_tail", []),
+                    "planner_history": generation.get("planner_history", []),
+                    "planner_history_applied": generation.get(
+                        "planner_history_applied", False
+                    ),
                     "executed_pose_conditioning": False,
+                    "planner_backend": generation.get("planner_backend", "transformers"),
                 }
             if job["state"] in {"FAILED", "REJECTED", "TIMED_OUT", "CANCELLED"}:
                 raise RuntimeError(f"motion job {job_id}: {job['state']}")

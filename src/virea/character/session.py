@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from .audio import speech_windows, text_chunks
 from .contracts import BodyState, CharacterConfig, EnvironmentEvent, PlaybackFeedback
+from .expression_stream import ExpressionStream
 from .providers.motion import CAPABILITIES
 
 
@@ -47,6 +48,9 @@ class CharacterSession:
         self.status = "waiting"
         self.pending: dict | None = None
         self.buffered: dict | None = None
+        self.ready: dict[str, dict] = {}
+        self._stream_feedback: dict[str, asyncio.Future] = {}
+        self._spoken_stream: str | None = None
         self.last_seen = monotonic()
         self.metrics = {
             "generated_seconds": 0.0,
@@ -80,6 +84,7 @@ class CharacterSession:
             "targets": self.targets,
             "pending": self.pending,
             "buffered": self.buffered,
+            "ready": list(self.ready.values()),
             "playback_mode": self.playback_mode,
             "draft_text": self.draft_text,
             "latest_expression": self.latest_expression,
@@ -131,6 +136,29 @@ class CharacterSession:
             self.record("interrupted")
 
     def acknowledge(self, feedback: PlaybackFeedback) -> bool:
+        if self.ready:
+            first = next(iter(self.ready.values()))
+            future = self._stream_feedback.get(feedback.packet_id)
+            if (
+                self._closed
+                or feedback.epoch != self.epoch
+                or feedback.packet_id != first["id"]
+                or future is None
+                or future.done()
+            ):
+                return False
+            self.body = feedback.body
+            if feedback.status == "completed" and first["text"]:
+                if self._spoken_stream != first["stream_id"]:
+                    self.history.append({"role": "assistant", "content": ""})
+                    self._spoken_stream = first["stream_id"]
+                self.history[-1]["content"] += first["text"]
+            self.record("playback_feedback", feedback=feedback.model_dump())
+            self.ready.pop(feedback.packet_id)
+            self._stream_feedback.pop(feedback.packet_id)
+            self._stream_head()
+            future.set_result(feedback)
+            return True
         if (
             self._closed
             or not self.pending
@@ -144,6 +172,35 @@ class CharacterSession:
         self.record("playback_feedback", feedback=feedback.model_dump())
         self._feedback.set_result(feedback)
         return True
+
+    def _stream_head(self):
+        packets = list(self.ready.values())
+        self.pending = packets[0] if packets else None
+        self.buffered = packets[1] if len(packets) > 1 else None
+
+    def _publish(self, packet):
+        future = asyncio.get_running_loop().create_future()
+        self.ready[packet["id"]] = packet
+        self._stream_feedback[packet["id"]] = future
+        self.latest_expression = packet
+        self._stream_head()
+        self.status = "awaiting_playback"
+        self.record(
+            "expression_ready",
+            packet_id=packet["id"],
+            window_sequence=packet["sequence"],
+            stream_id=packet["stream_id"],
+        )
+        return future
+
+    def _clear_stream(self):
+        for packet_id, future in self._stream_feedback.items():
+            if not future.done():
+                future.cancel()
+            (self.directory / f"{packet_id}.wav").unlink(missing_ok=True)
+        self.ready.clear()
+        self._stream_feedback.clear()
+        self.pending = self.buffered = None
 
     async def close(self) -> None:
         async with self._lock:
@@ -180,6 +237,7 @@ class CharacterSession:
         self._task = None
         self.pending = None
         self._feedback = None
+        self._clear_stream()
 
     def _context(self, trigger: str) -> dict:
         semantic_body = self.body.model_dump(exclude={"pose"})
@@ -207,6 +265,23 @@ class CharacterSession:
     async def _run(self, trigger: str, epoch: int) -> None:
         started = monotonic()
         try:
+            if (
+                trigger == "user_message"
+                and self.playback_mode == "synchronized"
+                and hasattr(self.language, "stream")
+            ):
+                decision = await ExpressionStream(self, epoch, started).run(trigger)
+                completed = True
+                if decision.mode == "ACT_SILENTLY":
+                    feedback = await self._deliver(
+                        epoch, "", self._actions(decision.actions), None, None
+                    )
+                    completed = feedback.status == "completed"
+                self.status = "waiting"
+                self.record("response_finished", interrupted=not completed)
+                if completed and decision.mode != "WAIT":
+                    self._start_internal("behavior_completed")
+                return
             async with self.generation_slot:
                 decision = await self.language.decide(
                     list(self.history), self._context(trigger)
@@ -241,9 +316,13 @@ class CharacterSession:
                 feedback = await self._deliver(epoch, "", actions, None, None)
                 completed = feedback.status == "completed"
             elif self.playback_mode == "synchronized":
-                completed = await self._synchronized_speech(
-                    epoch, decision, actions, started, reasoning_seconds
-                )
+                if hasattr(self.speech, "stream"):
+                    await ExpressionStream(self, epoch, started, decision).run(trigger)
+                    completed = True
+                else:
+                    completed = await self._synchronized_speech(
+                        epoch, decision, actions, started, reasoning_seconds
+                    )
             else:
                 completed = True
                 spoken_entry = {"role": "assistant", "content": ""}

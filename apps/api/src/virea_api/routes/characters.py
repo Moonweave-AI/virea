@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
@@ -25,6 +27,17 @@ def session(request: Request, session_id: str):
 @router.get("/capabilities")
 async def capabilities() -> dict:
     return CAPABILITIES
+
+
+@router.get("/neutral-pose")
+async def neutral_pose(request: Request) -> dict:
+    path = request.app.state.characters.directory / "neutral-pose.json"
+    if not path.is_file():
+        raise HTTPException(
+            503,
+            "Prepare the installed idle capture with scripts/character/build_neutral_pose.py",
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @router.post("", status_code=201)
@@ -85,7 +98,7 @@ async def character_audio(
     packet = next(
         (
             p
-            for p in (current.pending, current.buffered)
+            for p in (*current.ready.values(), current.pending, current.buffered)
             if p and p["id"] == packet_id and p["audio_url"]
         ),
         None,

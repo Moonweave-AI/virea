@@ -8,7 +8,9 @@ const [avatar, output, base = "http://127.0.0.1:8000"] = process.argv.slice(2);
 if (!avatar || !output) throw new Error("usage: node continuous_e2e.mjs AVATAR.vrm OUTPUT_DIR [API]");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1080 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1080 },
+  recordVideo: { dir: resolve(output, "video"), size: { width: 1440, height: 1080 } } });
+const page = await context.newPage();
 const report = { started: new Date().toISOString(), errors: [], feedback: [], packets: [] };
 page.on("pageerror", error => report.errors.push(String(error)));
 page.on("request", request => {
@@ -27,6 +29,9 @@ const state = async () => (await page.request.get(`${base}/api/v1/characters/${i
 try {
   await page.goto(`${base}/app/character.html`);
   await page.locator("#avatar").setInputFiles(resolve(avatar));
+  await page.waitForFunction(() => !document.querySelector("#start").disabled || document.querySelector("#error").textContent);
+  assert.equal(await page.locator("#error").textContent(), "");
+  await page.screenshot({ path: resolve(output, "neutral.png") });
   const created = page.waitForResponse(r => r.request().method() === "POST" && r.url().endsWith("/characters"));
   await page.locator("#start").click();
   id = (await (await created).json()).id;
@@ -35,7 +40,8 @@ try {
   await page.locator("#message").fill(`请逐字说出下面这段话，不要删改或补充，说完等待：${text}`);
   const started = performance.now();
   await page.locator("#send").click();
-  await page.waitForFunction(() => document.querySelector("#subtitle").textContent, {}, { timeout: 180_000 });
+  await page.waitForFunction(() => document.querySelector("#subtitle").textContent || document.querySelector("#error").textContent, {}, { timeout: 180_000 });
+  assert.equal(await page.locator("#error").textContent(), "");
   report.first_playback_seconds = (performance.now() - started) / 1000;
   await page.waitForFunction(() => Number(document.querySelector("#audio-progress").dataset.seconds) > 0.3);
   await page.locator("#pause").click();
@@ -69,18 +75,21 @@ try {
   report.completed = completed;
   assert.equal(completed.history.at(-1).content, text);
   assert.ok(report.packets.length >= 2 && report.lookahead_observed);
-  assert.ok(report.packets.every(p => !p.motion.native_history_applied), "pre-recovery tails are not the next motion's initial state");
+  assert.equal(report.packets[0].motion.native_history_applied, false);
+  assert.ok(report.packets.slice(1).every(p => p.motion.native_history_applied && p.motion.planner_history_applied),
+    "successors condition both planner and infill on their predecessor");
   assert.ok(report.feedback.every(f => f.status === "completed"));
   assert.ok(report.packets.slice(0, -1).every(p => p.continues === true));
   assert.equal(report.packets.at(-1).continues, false);
-  assert.ok(report.feedback.every(f => f.motion_seconds > f.audio_seconds + 0.6),
-    "every acknowledgment waits for recovery, including internal windows");
+  assert.ok(report.feedback.slice(0, -1).every(f => Math.abs(f.motion_seconds - f.audio_seconds) < 1e-5),
+    "internal windows have no artificial recovery pause");
+  assert.ok(report.feedback.at(-1).motion_seconds > report.feedback.at(-1).audio_seconds + 0.6);
   report.audio_schedules = await page.evaluate(() => window.audioSchedules);
   report.gaps_seconds = report.audio_schedules.slice(1).map((value, index) => value.when - report.audio_schedules[index].when - report.audio_schedules[index].duration);
   report.recovery_seconds = report.feedback.map(f => f.motion_seconds - f.audio_seconds);
-  report.handoff_gaps_seconds = report.gaps_seconds.map((gap, index) => gap - report.recovery_seconds[index]);
-  assert.ok(report.handoff_gaps_seconds.every(gap => gap >= -0.02 && gap < 0.25),
-    `handoff gaps after deliberate recovery: ${report.handoff_gaps_seconds}`);
+  report.underruns = await page.locator("canvas").getAttribute("data-stream-underruns");
+  assert.ok(report.gaps_seconds.every(gap => Math.abs(gap) < 0.002),
+    `audio must be scheduled contiguously: ${report.gaps_seconds}`);
   await page.screenshot({ path: resolve(output, "complete.png") });
   await page.locator("#message").fill(`请原样说出这段话：${text}`);
   await page.locator("#send").click();
@@ -106,6 +115,7 @@ try {
 } finally {
   if (id) await page.request.delete(`${base}/api/v1/characters/${id}`).catch(() => {});
   await writeFile(resolve(output, "observation.json"), JSON.stringify(report, null, 2));
+  await context.close();
   await browser.close();
   console.log(JSON.stringify({ outcome: report.outcome, error: report.error, first_playback_seconds: report.first_playback_seconds, gaps: report.gaps_seconds }));
 }

@@ -1,14 +1,36 @@
-"""Bounded native RVQ history for infill conditioning and decoder overlap.
+"""Explicit, bounded planner and RVQ history; no shared per-user worker state.
 
-This is not the paper's autoregressive planner continuation. The caller supplies
-only an acknowledged tail, or a speculative tail whose parent must finish first.
-There is no shared per-user state inside a resident model.
+Generated parent tails may condition queued successors within an uninterrupted
+expression. Interruptions and terminal recovery invalidate that continuation.
 """
 
 import numpy as np
 from virea_model_sdk.worker import WorkerFailure
 
 HISTORY_TOKENS = 8  # 0.8 seconds at the native 10 Hz code rate.
+
+
+def planner_prefix(value) -> str:
+    """Paper Appendix B: last two aligned audio/keyframe pairs before new intent."""
+    if value is None or value == []:
+        return ""
+    if not isinstance(value, list) or not 1 <= len(value) <= 2:
+        raise WorkerFailure(
+            "INVALID_REQUEST", "planner_history requires at most two pairs"
+        )
+    audio, motion = [], []
+    for pair in value:
+        if not isinstance(pair, dict) or set(pair) != {"audio", "motion"}:
+            raise WorkerFailure("INVALID_REQUEST", "invalid planner_history pair")
+        token = pair["audio"]
+        if type(token) is not int or not 0 <= token < 500:
+            raise WorkerFailure(
+                "INVALID_REQUEST", "invalid planner_history audio token"
+            )
+        row = motion_prefix([pair["motion"]])[0]
+        audio.append(f"[audio_{token}]")
+        motion.extend(f"[res_{level}_{code}]" for level, code in enumerate(row, 1))
+    return "".join(audio + motion)
 
 
 def motion_prefix(value) -> list[list[int]]:

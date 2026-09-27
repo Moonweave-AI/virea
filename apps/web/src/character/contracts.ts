@@ -19,10 +19,16 @@ export interface Expression {
   audio_url: string | null;
   audio_seconds: number;
   motion: { vrma_url: string; result_id: string } | null;
-  /** More text windows follow; every motion window still recovers to rest. */
+  /** Internal windows continue on one clock; only the final window retracts. */
   continues?: boolean;
+  stream_id?: string;
+  sequence?: number;
+  offset_seconds?: number;
+  parent_id?: string | null;
+  caption?: string;
 }
-export interface FaceTrack { fps: number; names: string[]; values: number[][] }
+export interface FaceTrack { fps: number; names: string[]; values: number[][];
+  arkit?: { names: string[]; values: number[][] } }
 export interface PlaybackProgress {
   elapsed: number; audioDuration: number; motionDuration: number; paused: boolean;
 }
@@ -33,6 +39,7 @@ export interface Session {
   body: BodyState;
   pending: Expression | null;
   buffered: Expression | null;
+  ready?: Expression[];
   latest_expression: Expression | null;
   draft_text: string;
   playback_mode: "voice_first" | "synchronized";

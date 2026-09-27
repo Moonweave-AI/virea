@@ -23,7 +23,8 @@ from virea_model_sdk.upstream_runtime import (
 )
 from virea_model_sdk.worker import WorkerFailure
 
-from .continuation import HISTORY_TOKENS, motion_prefix
+from .continuation import HISTORY_TOKENS, motion_prefix, planner_prefix
+from .planner import LocalPlanner
 
 SOURCE_REVISION = "71c61b05a0609a41c17aa146c9f4ee7778ebc649"
 CHECKPOINT_REVISION = "242b2031a913dd1b25f43fe1f3e112611864c9cc"
@@ -86,6 +87,8 @@ class SentiAvatarGeneration:
     chunk_count: int
     motion_tail: tuple[tuple[int, ...], ...] = ()
     native_history_applied: bool = False
+    planner_history: tuple = ()
+    planner_history_applied: bool = False
 
 
 def _safe_artifact_child(root: Path, relative: str) -> Path:
@@ -649,22 +652,32 @@ class SentiAvatarBackend:
     ) -> dict[str, list[int]]:
         pipeline = self._pipeline
         formatted = f"Human: {prompt}<|im_end|>\nAssistant:"
-        encoded = self._tokenizer(formatted, return_tensors="pt")
-        encoded = {key: value.to(self._device) for key, value in encoded.items()}
-        stop_id = self._tokenizer.convert_tokens_to_ids("<|im_end|>")
-        with self._torch.inference_mode():
-            generated = self._planner.generate(
-                **encoded,
-                do_sample=True,
+        if getattr(self, "_planner_url", None):
+            raw = LocalPlanner(self._planner_url).generate(
+                self._tokenizer,
+                formatted,
                 temperature=temperature,
                 top_p=top_p,
                 max_new_tokens=max_new_tokens,
-                eos_token_id=stop_id,
-                pad_token_id=self._tokenizer.eos_token_id,
-                use_cache=True,
+                seed=self._generation_seed,
             )
-        suffix = generated[0, encoded["input_ids"].shape[1] :]
-        raw = self._tokenizer.decode(suffix, skip_special_tokens=False)
+        else:
+            encoded = self._tokenizer(formatted, return_tensors="pt")
+            encoded = {key: value.to(self._device) for key, value in encoded.items()}
+            stop_id = self._tokenizer.convert_tokens_to_ids("<|im_end|>")
+            with self._torch.inference_mode():
+                generated = self._planner.generate(
+                    **encoded,
+                    do_sample=True,
+                    temperature=temperature,
+                    top_p=top_p,
+                    max_new_tokens=max_new_tokens,
+                    eos_token_id=stop_id,
+                    pad_token_id=self._tokenizer.eos_token_id,
+                    use_cache=True,
+                )
+            suffix = generated[0, encoded["input_ids"].shape[1] :]
+            raw = self._tokenizer.decode(suffix, skip_special_tokens=False)
         cleaned = raw.split("<|im_end|>", 1)[0].replace("<unk>", "").replace(" ", "")
         motion_clean = cleaned.replace("[res_", "[res")
         selected = motion_clean
@@ -768,8 +781,10 @@ class SentiAvatarBackend:
         max_new_tokens: int,
         generate_face: bool,
         prefix: list[list[int]] | None = None,
-    ) -> tuple[np.ndarray, np.ndarray | None, list[list[int]]]:
+        planner_history: list | None = None,
+    ) -> tuple[np.ndarray, np.ndarray | None, list[list[int]], list[dict]]:
         self._seed(seed)
+        self._generation_seed = seed
         waveform = _read_audio(audio_reference, self.roots)
         features, last_hidden = self._audio_features(waveform)
         audio_tokens = self._audio_tokens(features)
@@ -777,14 +792,15 @@ class SentiAvatarBackend:
             action_text, audio_tokens, offset=0, step=4
         )
         sparse = self._planner_tokens(
-            planner_prompt,
+            planner_prefix(planner_history) + planner_prompt,
             temperature=temperature,
             top_p=top_p,
             max_new_tokens=max_new_tokens,
         )
         keyframes = self._pipeline.sparse_to_keyframes(sparse)
         if prefix:
-            # Infill sees the previous executed code as its first boundary condition.
+            # Infill sees the preceding generated window's final code, before any
+            # terminal renderer recovery. The caller resets history on interruption.
             keyframes[0] = prefix[-1]
         dense = self._pipeline.interpolate_sequence(
             self._mask_model,
@@ -807,7 +823,11 @@ class SentiAvatarBackend:
         history = prefix or []
         body = self._decode_body(history + dense)[len(history) * 2 :]
         face = self._face(last_hidden, body.shape[0]) if generate_face else None
-        return body, face, dense[-HISTORY_TOKENS:]
+        indices = list(range(0, min(len(dense), len(audio_tokens)), 4))[-2:]
+        history = [
+            {"audio": int(audio_tokens[i]), "motion": list(dense[i])} for i in indices
+        ]
+        return body, face, dense[-HISTORY_TOKENS:], history
 
     def generate(
         self,
@@ -821,7 +841,10 @@ class SentiAvatarBackend:
         max_new_tokens: int,
         generate_face: bool,
         prefix: list[list[int]] | None = None,
+        planner_history: list | None = None,
+        planner_url: str | None = None,
     ) -> SentiAvatarGeneration:
+        self._planner_url = planner_url
         required = (
             self._planner,
             self._tokenizer,
@@ -842,6 +865,8 @@ class SentiAvatarBackend:
             )
         self._seed(seed)
         tail = motion_prefix(prefix)
+        planner_prefix(planner_history)
+        planner_applied = bool(planner_history)
         history_applied = bool(tail)
         bodies: list[np.ndarray] = []
         faces: list[np.ndarray] = []
@@ -849,7 +874,7 @@ class SentiAvatarBackend:
             for index, (audio, action) in enumerate(
                 zip(audio_references, action_texts, strict=True)
             ):
-                body, face, tail = self._generate_chunk(
+                body, face, tail, planner_history = self._generate_chunk(
                     audio,
                     action,
                     seed=seed + index,
@@ -859,6 +884,7 @@ class SentiAvatarBackend:
                     max_new_tokens=max_new_tokens,
                     generate_face=generate_face,
                     prefix=tail,
+                    planner_history=planner_history,
                 )
                 bodies.append(body)
                 if face is not None:
@@ -895,4 +921,6 @@ class SentiAvatarBackend:
             chunk_count=len(bodies),
             motion_tail=tuple(tuple(row) for row in tail),
             native_history_applied=history_applied or len(bodies) > 1,
+            planner_history=tuple(planner_history or []),
+            planner_history_applied=planner_applied or len(bodies) > 1,
         )

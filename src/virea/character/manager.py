@@ -41,10 +41,7 @@ class CharacterManager:
             not CAPABILITIES["native_history"]
             or request.playback_mode != "synchronized"
         ):
-            raise ValueError(
-                "native motion history is unavailable for this playback policy; "
-                "per-segment recovery cannot be encoded into model history"
-            )
+            raise ValueError("native motion history requires synchronized playback")
         if len(self.sessions) >= self.config.max_sessions:
             raise ValueError(
                 "active character session limit reached; close an existing session"
