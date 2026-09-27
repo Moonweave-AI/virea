@@ -17,6 +17,12 @@ superseded_by: []
 
 # Persistent character sessions (experimental)
 
+The latest [semantic streaming and ARDY spatial-control record](semantic-spatial-upgrade.zh-CN.md)
+documents single-response generation, batched SentiAvatar infill, the resident NF4 text encoder,
+native eight-frame spatial windows, installation and verified limitations. Install the optional
+spatial worker with `scripts/character/install_spatial.ps1 -DataRoot <DATA_ROOT>` before using
+the updated RTX 5090 stack. This kinematic integration does not provide universal terrain or fluid physics.
+
 [中文：完整架构、接口和部署说明](README.zh-CN.md)
 
 [Continuous generation, natural stance and measured results (Chinese)](streaming-upgrade.zh-CN.md)

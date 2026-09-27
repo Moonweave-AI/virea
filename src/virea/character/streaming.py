@@ -5,14 +5,20 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .contracts import Decision
+
+if TYPE_CHECKING:
+    from .utterances import SpeechBeat
 
 
 @dataclass(frozen=True)
 class LanguageUpdate:
     decision: Decision
     final: bool = False
+    # A complete semantic beat from the same response, never a second LLM call.
+    beat: SpeechBeat | None = None
 
 
 def partial_decision(source: str) -> Decision | None:

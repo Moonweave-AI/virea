@@ -29,7 +29,7 @@ class PCMWindows:
     def take(self, final=False):
         windows = []
         while self.frames:
-            target = 76_800 if self.first else 115_200
+            target = 57_600 if self.first else 115_200
             if not final and self.frames < target + 14_400:
                 break
             count = min(target, self.frames)
@@ -37,9 +37,12 @@ class PCMWindows:
                 count = self.frames
             remaining, chunks, texts, captions = count, [], [], []
             decision = self.parts[0].get("decision")
+            dominant_frames = 0
             while remaining:
                 part = self.parts[0]
                 size = min(remaining, len(part["pcm"]) // 2)
+                if size > dominant_frames:
+                    decision, dominant_frames = part.get("decision"), size
                 end = round(len(part["text"]) * size * 2 / len(part["pcm"]))
                 chunks.append(part["pcm"][: size * 2])
                 texts.append(part["text"][:end])
@@ -60,6 +63,7 @@ class PCMWindows:
                     text="".join(texts),
                     caption="".join(captions),
                     decision=decision,
+                    continues=not (final and count == self.frames),
                 )
             )
             self.frames -= count

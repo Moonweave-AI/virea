@@ -105,7 +105,7 @@ def test_autonomous_repeat_is_stopped_when_only_gesture_intent_changes(
             tmp_path,
             Decision(mode="SPEAK", text="你好。", motion_intent="微笑"),
             Decision(
-                mode="SPEAK", text="你好。", motion_intent="看向用户", actions=actions
+                mode="SPEAK", text="你好呀，再介绍一下自己。", motion_intent="看向用户", actions=actions
             ),
         )
         await session.message("你好")
@@ -113,7 +113,8 @@ def test_autonomous_repeat_is_stopped_when_only_gesture_intent_changes(
         session.acknowledge(feedback(session))
         await until(lambda: session.status == "waiting")
         assert session.speech.texts == ["你好。"]
-        assert session.events[-1]["kind"] == "repetition_stopped"
+        assert len(session.language.contexts) == 1
+        assert session.events[-1]["kind"] == "response_finished"
         await session.close()
 
     asyncio.run(run())

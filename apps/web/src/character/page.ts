@@ -136,7 +136,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   let message = "";
   let durations = { audio_seconds: 0, motion_seconds: 0 };
   try {
-    durations = await stage.perform(packet, () => { element("#subtitle").textContent = packet.caption ?? packet.text; }, showProgress);
+    durations = await stage.perform({ ...packet, session_id: sessionId }, () => { element("#subtitle").textContent = packet.caption ?? packet.text; }, showProgress);
   } catch (error) {
     status = error instanceof DOMException && error.name === "AbortError" ? "interrupted" : "failed";
     message = error instanceof Error ? error.message : String(error);
@@ -196,8 +196,8 @@ element("#start").onclick = async () => {
     session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value });
     element<HTMLSelectElement>("#playback-mode").disabled = true;
     await request(`/${session.id}/environment`, "POST", { kind: "context", silent: true,
-      summary: "用户在正前方，杯子在角色左侧。move_to 是平移，无生成式步态。",
-      targets: { user: { x: 0, y: 1.5, z: 3 }, cup: { x: 1, y: 0.9, z: 0.4 } } });
+      summary: "平坦地面 y=0。用户在正前方；杯子在左侧小圆台上，cup 是接触点，cup_side 是杯子旁的地面站位。move_to 只能选择地面站位；reach 选择杯子接触点。",
+      targets: { user: { x: 0, y: 1.5, z: 3 }, cup: { x: 1, y: 0.98, z: 0.4 }, cup_side: { x: 1.3, y: 0, z: .35 }, center: { x: 0, y: 0, z: 0 } } });
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = false;
     element<HTMLInputElement>("#avatar").disabled = true;
     element<HTMLButtonElement>("#start").disabled = true;

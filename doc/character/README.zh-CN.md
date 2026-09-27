@@ -19,7 +19,7 @@ superseded_by: []
 
 [English](README.en.md)
 
-[连续生成、自然姿态与最新实测](streaming-upgrade.zh-CN.md) · [此前 GPU 优化](performance-upgrade.zh-CN.md)
+[单次语义流与 ARDY 空间控制](semantic-spatial-upgrade.zh-CN.md) · [连续生成与自然姿态](streaming-upgrade.zh-CN.md) · [此前 GPU 优化](performance-upgrade.zh-CN.md)
 
 打开 `/app/character.html`，载入 VRM，点击「开始会话」，输入文本。
 角色依据用户消息或显式环境事件选择 `SPEAK`、`ACT_SILENTLY`、`WAIT`。
@@ -45,7 +45,8 @@ superseded_by: []
 SentiAvatar 源代码和权重采用上游非商业许可证，安装流程保留许可确认与真实验收。
 
 本轮在 RTX 5090 Laptop 上验证的配置是 `configs/character/rtx5090.json`：
-Qwen3.5-9B Q4_K_M（llama.cpp CUDA）、CUDA Kokoro 和 SentiAvatar 0.3.0 常驻 Worker。
+Qwen3.5-9B Q4_K_M（llama.cpp CUDA）、CUDA Kokoro、SentiAvatar 0.3.0 常驻 Worker，
+以及 ARDY 原生空间动作 Worker（NF4 文本编码器）。首次使用空间控制，先按[部署说明](semantic-spatial-upgrade.zh-CN.md#部署与检查)运行 `install_spatial.ps1`。
 按[升级记录中的启动命令](performance-upgrade.zh-CN.md#部署与复现)准备模型后，
 按[当前部署说明](streaming-upgrade.zh-CN.md#部署与复现)准备本机动作规划器 GGUF 后，
 `scripts/character/start_gpu_stack.ps1` 会启动动作规划服务、准备自然姿态并预热，再报告页面就绪。
@@ -94,6 +95,7 @@ src/virea/character/
   session.py                单会话事件状态机、取消、预算、有限历史
   expression_stream.py      语言→语音→上下文动作→回执的有界流水线
   streaming.py              增量 JSON 文本与分句
+  utterances.py             一次语言流的语义单元和上游动作文本契约
   audio_stream.py           跨分句的连续 PCM 窗口，不重复或丢失采样
   manager.py                会话租期、生命周期、全局生成并发控制
   audio.py                  保持文本一致的分段与 WAV 验证
@@ -105,16 +107,21 @@ src/virea/character/
 apps/api/src/virea_api/routes/
   characters.py             会话与回执接口
   character_face.py         从原生 Motion IR 读取面部轨道
+  character_spatial.py      空间动作流、单次执行租约与 epoch 取消
 apps/web/src/character/
   contracts.ts              渲染边界类型
   motion.ts                 实际根位置对齐
   continuity.ts             从实际姿态和角速度接续新片段
   stage.ts                  VRM、音频时钟、面部、场景动作
+  spatial.ts                ARDY 短窗口播放、身体分层、根位置与比例转换
+  interaction.ts            末端接触修正与可达误差
   page.ts                   会话 UI、输入、中断、回执
 scripts/character/
   serve_kokoro.py            独立 CPU TTS 服务
   serve_kokoro_cuda.py       独立 CUDA TTS，自适应 FP32 / FP16
   start_gpu_stack.ps1        GPU 服务启动、预热和进程记录
+  spatial/                  ARDY 模型、约束、流式服务与固定版本清单
+  install_spatial.ps1        独立空间模型与原生求解器安装
   benchmarks/               语言决策与原生动作连续性实测
   measure.py                 同机 GPU 与完整表达包观测
 ```

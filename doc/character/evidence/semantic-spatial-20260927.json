@@ -1,0 +1,129 @@
+{
+  "schema": "virea.character.semantic-spatial-evidence.v1",
+  "date": "2026-09-27",
+  "base_commit": "a3d67301449312693f5ca866b3444b00ddd8474e",
+  "device": "RTX 5090 Laptop GPU",
+  "vram_total_mib": 24463,
+  "resident_stack_vram_observed_mib": 19028,
+  "tests": {
+    "character_pytest": 58,
+    "sentiavatar_runtime_pytest": 21,
+    "web_node_tests": 97,
+    "typescript_and_vite_build": "passed",
+    "native_constraint_encoding": [
+      "move_to",
+      "reach",
+      "sit"
+    ],
+    "powershell_parse_errors": 0,
+    "public_contract_regressions": 83
+  },
+  "infill_same_input_comparison": {
+    "runs": [
+      {
+        "mode": "serial",
+        "repeat": 0,
+        "seconds": 0.2124736000005214
+      },
+      {
+        "mode": "batched",
+        "repeat": 0,
+        "seconds": 0.10810179999862157
+      },
+      {
+        "mode": "serial",
+        "repeat": 1,
+        "seconds": 0.12222189999920374
+      },
+      {
+        "mode": "batched",
+        "repeat": 1,
+        "seconds": 0.01767420000032871
+      },
+      {
+        "mode": "serial",
+        "repeat": 2,
+        "seconds": 0.11857259999851522
+      },
+      {
+        "mode": "batched",
+        "repeat": 2,
+        "seconds": 0.01523530000122264
+      }
+    ],
+    "keyframes": 7,
+    "audio_frames": 28,
+    "exact_token_agreement": 1.0,
+    "preserved_keyframes": true
+  },
+  "native_spatial_walk_sample": {
+    "duration_seconds": 4.8,
+    "end_root": [
+      0.016571434946714533,
+      0.9810744604770832,
+      1.9615047947543085
+    ],
+    "planar_goal_error_m": 0.041910539045699545,
+    "maximum_packet_root_seam_m": 0.0,
+    "wall_seconds": 2.592,
+    "note": "Earlier two-metre constrained GPU sample; not a terrain/physics acceptance or controlled sampling ablation."
+  },
+  "final_browser": {
+    "avatar": "Seed-san.vrm",
+    "session_id": "aace4e3d12b84505bf7214d339e3e697",
+    "url": "http://127.0.0.1:8000/app/character.html?ui=semantic-spatial-20260927",
+    "status": "waiting",
+    "user_turns": 3,
+    "decisions": 3,
+    "speech_metrics": {
+      "generated_seconds": 8.1,
+      "generation_seconds": 3.5939999999973224,
+      "first_expression_seconds": 6.296999999998661,
+      "rtf": 0.44370370370337314,
+      "first_audio_seconds": 4.014999999999418,
+      "language_seconds": 6.342999999997119,
+      "tts_seconds": 0.21900000000096043,
+      "motion_seconds": 0.9059999999990396
+    },
+    "audio_windows_seconds": [
+      2.4,
+      4.8,
+      0.9
+    ],
+    "speech_buffer_underruns": 0,
+    "spatial_buffer_underruns": 0,
+    "close_contact_errors_m": [
+      0.00046830597931337743,
+      0.012154265776672118
+    ],
+    "pause_resume": "paused at 4.462632656 seconds; resumed and completed",
+    "contact_screenshot": "D:\\AI-Program-Project\\VIREA-Data\\evidence\\character-routing-20260927\\contact-paused.png"
+  },
+  "limitations": [
+    "No arbitrary-terrain navigation, obstacle collision, fluid simulation, or object grasping physics.",
+    "Close reach keeps the standing support pose; model torso contribution is restricted to 12 percent.",
+    "Standard VRM facial conversion and Kokoro neutral speech do not reproduce SuSu demo expression fidelity.",
+    "The story smoke test answered below its requested word count; no language-quality or subjective naturalness pass is claimed.",
+    "Warm first-expression latency is still about six seconds. A cold load took 43.641 seconds in one run.",
+    "Motion model remains FP32 at ten steps; NF4 is used for the spatial text encoder only.",
+    "Sitting, standing and free-action routing are implemented but not broadly visually certified.",
+    "ARDY is an experimental independent worker outside ModelPool GPU reservation."
+  ],
+  "external_evidence_directory": "D:\\AI-Program-Project\\VIREA-Data\\evidence\\character-routing-20260927",
+  "graph_analysis": {
+    "scope_all": {
+      "changed_symbols": 180,
+      "affected_processes": 49,
+      "changed_files": 44,
+      "risk": "critical"
+    },
+    "scope_compare_main": {
+      "changed_symbols": 880,
+      "affected_processes": 108,
+      "changed_files": 125,
+      "risk": "critical"
+    },
+    "query_partial_or_truncated_flags": false,
+    "index_limitations": "Process discovery and dynamic/cross-language resolution have known caps; not a whole-program proof."
+  }
+}

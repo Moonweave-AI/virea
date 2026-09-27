@@ -7,12 +7,14 @@ export interface BodyState {
   behavior: string;
 }
 export interface SceneAction {
-  kind: "look_at" | "move_to" | "stop";
+  kind: "look_at" | "move_to" | "reach" | "sit" | "stand" | "perform" | "stop";
   target_id: string | null;
   position: Position | null;
+  description?: string | null;
 }
 export interface Expression {
   id: string;
+  session_id?: string;
   epoch: number;
   text: string;
   actions: SceneAction[];

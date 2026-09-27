@@ -96,8 +96,9 @@ def test_text_audio_motion_agree_and_real_body_survives_response(tmp_path: Path)
         assert session.speech.texts == played
         assert [item[1] for item in session.motion.inputs] == played
         assert session.body.position.x == 1.5
-        assert session.language.contexts[-1][1]["body"]["behavior"] == "hand held"
-        assert "pose" not in session.language.contexts[-1][1]["body"]
+        assert len(session.language.contexts) == 1
+        assert session._context("target_changed")["body"]["behavior"] == "hand held"
+        assert "pose" not in session._context("target_changed")["body"]
         assert session.history[-1]["content"] == "".join(played)
         assert list(session.directory.iterdir()) == []
         await session.close()
@@ -193,8 +194,13 @@ def test_autonomous_repetition_and_budget_are_bounded(tmp_path):
         await until(lambda: session.pending is not None)
         session.acknowledge(feedback(session))
         await until(lambda: session.status == "waiting")
-        assert len(session.language.contexts) == 2
-        assert any(event["kind"] == "repetition_stopped" for event in session.events)
+        assert len(session.language.contexts) == 1
+        assert session.events[-1]["kind"] == "response_finished"
+        # A new environment event still has independent authority to act.
+        await session.environment_event(EnvironmentEvent(kind="target_changed", silent=False))
+        await until(lambda: len(session.language.contexts) == 2)
+        await until(lambda: session.status == "waiting")
+        assert session.events[-1]["kind"] == "repetition_stopped"
         await session.close()
 
     asyncio.run(run())

@@ -88,7 +88,7 @@ class ContextualMotion:
 
 def session_fixture(tmp_path):
     return CharacterSession(
-        config=CharacterConfig(max_autonomous_decisions=0),
+        config=CharacterConfig(max_autonomous_decisions=3),
         directory=tmp_path,
         language=IncrementalLanguage(),
         speech=IncrementalSpeech(),
@@ -132,6 +132,10 @@ def test_pipeline_publishes_before_language_eof_and_bounds_unplayed_work(tmp_pat
                 assert session.acknowledge(acknowledge(session))
             await asyncio.sleep(0.001)
         assert session.history[-1]["content"] == session.language.text
+        await asyncio.sleep(0.02)
+        assert session.status == "waiting"
+        assert len([e for e in session.events if e["kind"] == "decision"]) == 1
+        assert session._task.done()
         assert (
             all(p["continues"] for p in packets[:-1]) and not packets[-1]["continues"]
         )
@@ -158,12 +162,36 @@ def test_pcm_windows_conserve_samples_and_text_across_clause_boundaries():
             "".join(item["text"] for item in output)
             == "一二三四五六七八九十甲乙丙丁戊己庚辛壬癸"
         )
-        assert [item["seconds"] for item in output] == [3.2, 4.8, 4.0]
+        assert [item["seconds"] for item in output] == [2.4, 4.8, 4.8]
+        assert [item["continues"] for item in output] == [True, True, False]
         pcm = []
         for item in output:
             with wave.open(io.BytesIO(item["audio"]), "rb") as stream:
                 pcm.append(stream.readframes(stream.getnframes()))
         assert b"".join(pcm) == b"\x01\x00" * (14400 * 20)
+
+    asyncio.run(run())
+
+
+def test_first_window_does_not_wait_for_successor_synthesis(tmp_path):
+    class PausedSpeech(IncrementalSpeech):
+        async def stream(self, text):
+            count = 0
+            async for unit in super().stream(text):
+                yield unit
+                count += 1
+                if count == 5:
+                    await asyncio.Event().wait()
+
+    async def run():
+        session = session_fixture(tmp_path)
+        session.speech = PausedSpeech()
+        await session.message("开始")
+        await until(lambda: session.pending is not None)
+        assert session.pending["audio_seconds"] == 2.4
+        assert session.pending["continues"] is True
+        assert len(session.motion.inputs) == 1
+        await session.close()
 
     asyncio.run(run())
 

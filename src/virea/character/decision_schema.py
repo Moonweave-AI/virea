@@ -12,8 +12,8 @@ def decision_schema(
 ) -> dict:
     schema = Decision.model_json_schema()
     actions = []
-    for kind in ("stop", "look_at", "move_to"):
-        for destination in (None,) if kind == "stop" else ("target_id", "position"):
+    for kind in ("stop", "look_at", "move_to", "reach", "sit", "stand", "perform"):
+        for destination in (None,) if kind in {"stop", "stand", "perform"} else ("target_id", "position"):
             if destination == "target_id" and targets == []:
                 continue
             if destination == "position" and positions == []:
@@ -24,6 +24,9 @@ def decision_schema(
                 "position": {"type": "null"},
             }
             required = ["kind"]
+            if kind == "perform":
+                properties["description"] = {"type": "string", "minLength": 1, "maxLength": 160}
+                required.append("description")
             if destination:
                 properties[destination] = (
                     {"type": "string", "minLength": 1, "maxLength": 80}

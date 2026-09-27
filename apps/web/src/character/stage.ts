@@ -9,6 +9,7 @@ import { RotationBridge, rotationVector } from "./continuity";
 import { PoseRecovery, faceRelease, type PoseSample } from "./recovery";
 import { RelaxedIdle } from "./idle";
 import { ExpressionTimeline } from "./timeline";
+import { SpatialPlayer } from "./spatial";
 import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
@@ -38,6 +39,9 @@ export class CharacterStage {
   private gaze: string | null = null;
   private gazePoint: THREE.Vector3 | null = null;
   private lastFrame = performance.now();
+  private spatial: SpatialPlayer | null = null;
+  private hipHeight = 1;
+  private cameraRoot = new THREE.Vector3();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.gain.connect(this.audio.destination);
@@ -123,6 +127,7 @@ export class CharacterStage {
       if (epoch !== this.epoch || this.disposed) { VRMUtils.deepDispose(vrm.scene); return; }
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
+      this.spatial = new SpatialPlayer(vrm, () => this.audibleTime());
       this.idle = new RelaxedIdle(vrm, pose.rotations);
       this.rest = this.poseSample();
       this.idle.start(this.rest);
@@ -130,6 +135,11 @@ export class CharacterStage {
       VRMUtils.rotateVRM0(vrm);
       ensureVRMLookAtQuaternionProxy(vrm);
       this.scene.add(vrm.scene);
+      this.hipHeight = this.rootPosition().y;
+      const root = this.rootPosition();
+      const offset = root.clone().sub(this.cameraRoot); offset.y = 0;
+      this.camera.position.add(offset); this.controls.target.add(offset);
+      this.cameraRoot.copy(root);
     } finally { URL.revokeObjectURL(url); }
   }
 
@@ -141,13 +151,15 @@ export class CharacterStage {
       if (node) pose[name] = node.quaternion.toArray();
     }
     const root = this.rootPosition();
-    return { position: { x: root.x, y: 0, z: root.z }, yaw: vrm?.scene.rotation.y ?? 0,
+    if (vrm?.meta.metaVersion === "0") for (const q of Object.values(pose)) { q[0] *= -1; q[2] *= -1; }
+    return { position: { x: root.x, y: vrm?.scene.position.y ?? 0, z: root.z }, yaw: (vrm?.scene.rotation.y ?? 0) - (vrm?.meta.metaVersion === "0" ? Math.PI : 0),
       pose, gaze_target: this.gaze, behavior: this.source ? "speaking" : "holding_pose" };
   }
 
   stop(): BodyState {
     this.epoch++;
     this.timeline.stop();
+    this.spatial?.stop();
     this.idle?.stop();
     if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
     if (this.action) this.action.paused = true;
@@ -277,7 +289,12 @@ export class CharacterStage {
     while (current() && this.audibleTime() < start) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
-    if (packet.actions.length) this.sceneActions = this.executeActions(packet.actions, current);
+    let spatialDuration = 0;
+    if (packet.actions.length) this.sceneActions = this.executeActions(packet, current, (elapsed, total) => {
+      if (audio) return;
+      spatialDuration = total;
+      onProgress({ elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
+    });
     const actions = this.sceneActions;
     void actions.catch(() => {}); // Terminal feedback owns errors; internal windows keep advancing.
     const motionDuration = duration + (recovery?.duration ?? 0);
@@ -316,8 +333,9 @@ export class CharacterStage {
       if (current()) sample(end);
       if (!packet.continues) await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
-      onProgress({ elapsed: end, audioDuration: audio?.duration ?? 0, motionDuration, paused: false });
-      return { audio_seconds: audio?.duration ?? 0, motion_seconds: motionDuration };
+      const finalDuration = Math.max(motionDuration, spatialDuration);
+      onProgress({ elapsed: Math.max(end, spatialDuration), audioDuration: audio?.duration ?? 0, motionDuration: finalDuration, paused: false });
+      return { audio_seconds: audio?.duration ?? 0, motion_seconds: finalDuration };
     } finally {
       if (current()) {
         if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
@@ -364,32 +382,48 @@ export class CharacterStage {
     });
   }
 
-  private async executeActions(actions: SceneAction[], current: () => boolean): Promise<void> {
-    for (const action of actions) {
+  private async executeActions(packet: Expression, current: () => boolean,
+    onProgress: (elapsed: number, duration: number) => void): Promise<void> {
+    let offset = 0;
+    for (const [index, action] of packet.actions.entries()) {
       if (!current() || !this.vrm) return;
-      if (action.kind === "stop") { this.gaze = null; this.gazePoint = null; continue; }
-      if (!action.position) throw new Error("场景动作缺少目标位置");
-      const target = sceneDestination(action.position);
+      if (action.kind === "stop") { this.spatial?.stop(); this.gaze = null; this.gazePoint = null; continue; }
       if (action.kind === "look_at") {
+        if (!action.position) throw new Error("场景动作缺少目标位置");
         this.gaze = action.target_id;
-        this.gazePoint = target;
+        this.gazePoint = sceneDestination(action.position);
       } else {
-        // Engine translation is deliberately exposed as movement, not synthesized walking.
-        let previous = this.audibleTime();
-        while (current()) {
-          if (this.audio.state !== "running") {
-            previous = this.audibleTime();
-            await new Promise<void>(resolve => setTimeout(resolve, 16));
-            continue;
+        this.idle?.stop();
+        let duration = 0;
+        try {
+          await this.spatial!.run(packet, index, this.state(), this.hipHeight, (elapsed, total) => {
+            duration = total; onProgress(offset + elapsed, offset + total);
+          });
+        } finally {
+          this.canvas.dataset.spatialUnderruns = String(this.spatial!.underruns);
+          this.canvas.dataset.spatialAction = action.kind;
+          this.canvas.dataset.contactError = String(this.spatial!.contactError ?? "");
+          this.canvas.dataset.contactState = JSON.stringify(this.spatial!.contactState);
+          if (action.kind !== "sit" && !this.source && this.rest && current()) {
+            const pose = this.poseSample();
+            const hips = this.vrm.humanoid.getNormalizedBoneNode("hips")!;
+            const before = { ...pose, rotations: new Map([...pose.rotations].map(([bone, q]) => {
+              const velocity = this.poseHistory.get(bone)?.velocity.clone() ?? new THREE.Vector3();
+              const speed = velocity.length();
+              const previous = speed > 0 ? new THREE.Quaternion().setFromAxisAngle(velocity.divideScalar(speed), -speed / 60).multiply(q) : q.clone();
+              return [bone, previous];
+            })) };
+            const recovery = new PoseRecovery(hips, before, pose, this.rest, 1 / 60);
+            const start = this.audibleTime();
+            while (current() && this.audibleTime() - start < recovery.duration) {
+              recovery.apply(this.audibleTime() - start);
+              onProgress(offset + duration + this.audibleTime() - start, offset + duration + recovery.duration);
+              await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            }
+            if (current()) { recovery.apply(recovery.duration); this.idle?.start(this.poseSample()); }
+            duration += recovery.duration;
           }
-          const root = this.rootPosition();
-          const delta = new THREE.Vector3(target.x - root.x, 0, target.z - root.z);
-          if (delta.length() < 0.01) break;
-          const now = this.audibleTime();
-          delta.clampLength(0, Math.min(Math.max(0, now - previous), 0.1) * 0.7);
-          this.vrm.scene.position.add(delta);
-          previous = now;
-          await new Promise<void>(resolve => setTimeout(resolve, 16));
+          offset += duration;
         }
       }
     }
@@ -401,7 +435,8 @@ export class CharacterStage {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     if (this.vrm) {
-      this.idle?.update(dt);
+      if (!this.spatial?.active) this.idle?.update(dt);
+      this.spatial?.update(Boolean(this.source));
       if (dt > 0 && this.audio.state === "running") for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (!bone) continue;
@@ -411,6 +446,10 @@ export class CharacterStage {
       }
       if (this.gazePoint) this.vrm.lookAt?.lookAt(this.gazePoint);
       this.vrm.update(dt);
+      const root = this.rootPosition();
+      const follow = root.clone().sub(this.cameraRoot); follow.y = 0;
+      this.camera.position.add(follow); this.controls.target.add(follow);
+      this.cameraRoot.copy(root);
     }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);

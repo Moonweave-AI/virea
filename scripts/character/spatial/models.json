@@ -1,0 +1,24 @@
+{
+  "schema": "virea.spatial.runtime.v1",
+  "source": {
+    "url": "https://github.com/nv-tlabs/ardy",
+    "revision": "693f74d13b3d04a0a22ce127ee79c929dd89756b",
+    "license": "Apache-2.0"
+  },
+  "motion": {
+    "repository": "nvidia/ARDY-Core-RP-20FPS-Horizon8",
+    "revision": "257a0843a10bf5201065963d7bca2791e9393a7a",
+    "license": "NVIDIA Open Model License",
+    "precision": "float32",
+    "fps": 20,
+    "generation_frames": 8,
+    "history_frames": 40
+  },
+  "text": {
+    "repository": "voxta/Llama-3-8B-LLM2Vec-ARDY-NF4",
+    "revision": "f746923e9e7edb3b6fc54aae7dfd8cecb0f52a8f",
+    "license": "Meta Llama 3 Community License",
+    "precision": "NF4",
+    "provenance": "Third-party build: merge original Llama 3 and both McGill LLM2Vec adapters before quantization. Built with Meta Llama 3."
+  }
+}

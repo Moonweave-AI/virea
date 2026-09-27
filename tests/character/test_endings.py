@@ -39,7 +39,8 @@ def test_buffered_and_pending_windows_mark_only_the_last_as_terminal(tmp_path):
         assert not packets[-1]["continues"]
         assert session.history[-1]["content"] == text
         assert session.body.position.x == 3
-        assert session.language.contexts[-1][1]["body"]["behavior"] == "relaxed"
+        assert len(session.language.contexts) == 1
+        assert session._context("target_changed")["body"]["behavior"] == "relaxed"
         await session.close()
 
     asyncio.run(run())

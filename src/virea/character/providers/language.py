@@ -5,10 +5,10 @@ import json
 import httpx
 
 from ..contracts import CharacterConfig, Decision
-from ..decision_schema import decision_schema
 from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
 from ..streaming import LanguageUpdate, partial_decision
+from ..utterances import SpeechBeat, beat_decision, decode_beats, utterance_schema
 
 
 class LanguageProvider:
@@ -46,7 +46,7 @@ class LanguageProvider:
                 {
                     "think": thinking,
                     "keep_alive": "15m",
-                    "format": decision_schema(
+                    "format": utterance_schema(
                         list(context.get("targets", {})), explicit_positions(history)
                     ),
                     "options": {
@@ -68,7 +68,7 @@ class LanguageProvider:
                         "json_schema": {
                             "name": "character_decision",
                             "strict": True,
-                            "schema": decision_schema(
+                            "schema": utterance_schema(
                                 list(context.get("targets", {})),
                                 explicit_positions(history),
                             ),
@@ -77,6 +77,7 @@ class LanguageProvider:
                 }
             )
         content, published, finish = "", "", None
+        emitted_beats = []
         async with self.client.stream(
             "POST",
             self.config.llm_url.rstrip("/") + endpoint,
@@ -101,6 +102,17 @@ class LanguageProvider:
                     choice = result["choices"][0]
                     content += choice.get("delta", {}).get("content") or ""
                     finish = choice.get("finish_reason") or finish
+                parsed = decode_beats(content)
+                if parsed is not None:
+                    control, beats = parsed
+                    if beats[: len(emitted_beats)] != emitted_beats:
+                        raise ValueError("language stream rewrote published beats")
+                    for index in range(len(emitted_beats), len(beats)):
+                        current = beat_decision(control, beats[: index + 1])
+                        published = current.text
+                        yield LanguageUpdate(current, beat=beats[index])
+                    emitted_beats = beats
+                    continue
                 current = partial_decision(content)
                 if current and current.text != published:
                     if not current.text.startswith(published):
@@ -109,7 +121,14 @@ class LanguageProvider:
                     yield LanguageUpdate(current)
         if finish != "stop":
             raise ValueError("language response did not finish naturally")
-        final = Decision.model_validate_json(content)
+        value = json.loads(content)
+        if "beats" in value:
+            if set(value) != {"mode", "actions", "beats"}:
+                raise ValueError("unexpected speech stream fields")
+            beats = [SpeechBeat.model_validate(beat) for beat in value.pop("beats")]
+            final = beat_decision(value, beats)
+        else:
+            final = Decision.model_validate(value)
         if not final.text.startswith(published):
             raise ValueError("final text disagrees with language stream")
         yield LanguageUpdate(final, final=True)

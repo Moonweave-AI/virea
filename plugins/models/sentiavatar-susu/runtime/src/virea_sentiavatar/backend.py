@@ -24,6 +24,7 @@ from virea_model_sdk.upstream_runtime import (
 from virea_model_sdk.worker import WorkerFailure
 
 from .continuation import HISTORY_TOKENS, motion_prefix, planner_prefix
+from .infill import interpolate_batched
 from .planner import LocalPlanner
 
 SOURCE_REVISION = "71c61b05a0609a41c17aa146c9f4ee7778ebc649"
@@ -791,18 +792,28 @@ class SentiAvatarBackend:
         planner_prompt, _ = self._pipeline.construct_llm_prompt(
             action_text, audio_tokens, offset=0, step=4
         )
-        sparse = self._planner_tokens(
-            planner_prefix(planner_history) + planner_prompt,
-            temperature=temperature,
-            top_p=top_p,
-            max_new_tokens=max_new_tokens,
-        )
+        for attempt in range(2):
+            try:
+                sparse = self._planner_tokens(
+                    planner_prefix(planner_history) + planner_prompt,
+                    temperature=temperature if attempt == 0 else min(temperature, 0.2),
+                    top_p=top_p,
+                    max_new_tokens=max_new_tokens,
+                )
+                break
+            except WorkerFailure as exc:
+                if attempt or exc.code != "PLANNER_OUTPUT_INVALID" or not exc.retryable:
+                    raise
+                # A sampled early EOS is a malformed plan, not a motion frame.
+                # Retry once with the same audio/history and a fresh sample.
+                self._generation_seed = (seed + 1) % 2_147_483_583
+                self._seed(self._generation_seed)
         keyframes = self._pipeline.sparse_to_keyframes(sparse)
         if prefix:
             # Infill sees the preceding generated window's final code, before any
             # terminal renderer recovery. The caller resets history on interruption.
             keyframes[0] = prefix[-1]
-        dense = self._pipeline.interpolate_sequence(
+        dense = interpolate_batched(
             self._mask_model,
             keyframes,
             features,

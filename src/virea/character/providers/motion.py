@@ -12,6 +12,7 @@ from urllib.parse import quote
 from virea_contracts.job import JobRequest
 
 from ..contracts import CharacterConfig
+from ..utterances import planner_action
 
 CAPABILITIES = {
     "body_and_face": True,
@@ -25,7 +26,10 @@ CAPABILITIES = {
     "generative_fingers": False,
     "silent_generative_motion": False,
     "playback_continuity": "continuous_windows_then_relaxed_idle",
-    "scene_actions": ["look_at", "move_to", "stop"],
+    "scene_actions": ["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"],
+    "spatial_model": "ARDY-Core-RP-20FPS-Horizon8 (optional resident worker)",
+    "spatial_physics": False,
+    "body_routing": "stationary: SentiAvatar; locomotion: ARDY + upper-body speech; interaction: ARDY + speech face",
 }
 
 
@@ -51,7 +55,7 @@ class MotionProvider:
                 "audio": "data:audio/wav;base64,"
                 + base64.b64encode(audio).decode("ascii"),
                 "dialogue_text": text,
-                "action_and_expression_tags": intent.strip() or "动作：自然说话",
+                "action_and_expression_tags": planner_action(intent),
             },
             parameters={
                 "generate_face": True,

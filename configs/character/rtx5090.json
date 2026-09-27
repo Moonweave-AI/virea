@@ -6,6 +6,7 @@
   "tts_url": "http://127.0.0.1:8083/v1",
   "tts_voice": "zf_001",
   "motion_planner_url": "http://127.0.0.1:8084",
+  "spatial_url": "http://127.0.0.1:8085",
   "max_autonomous_decisions": 3,
   "execution_target": {
     "execution_domain_id": "windows-native",

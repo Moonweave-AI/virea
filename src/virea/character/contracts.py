@@ -18,16 +18,19 @@ class Position(Contract):
 
 
 class SceneAction(Contract):
-    kind: Literal["look_at", "move_to", "stop"]
+    kind: Literal["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"]
     target_id: str | None = Field(default=None, max_length=80)
     position: Position | None = None
+    description: str | None = Field(default=None, max_length=160)
 
     @model_validator(mode="after")
     def destination(self):
-        if self.kind != "stop" and (self.target_id is None) == (self.position is None):
-            raise ValueError("look_at/move_to require exactly one target or position")
-        if self.kind == "stop" and (self.target_id or self.position):
-            raise ValueError("stop has no destination")
+        if self.kind in {"look_at", "move_to", "reach", "sit"} and (self.target_id is None) == (self.position is None):
+            raise ValueError("spatial actions require exactly one target or position")
+        if self.kind in {"stop", "stand", "perform"} and (self.target_id or self.position):
+            raise ValueError("this action has no destination")
+        if self.kind == "perform" and not self.description:
+            raise ValueError("perform requires an English motion description")
         return self
 
 
@@ -99,6 +102,7 @@ class CharacterConfig(Contract):
     tts_url: str = "http://127.0.0.1:8081/v1"
     tts_voice: str = "zf_001"
     motion_planner_url: str | None = None
+    spatial_url: str | None = None
     persona: str = "你是生活在三维空间中的角色，简洁自然地用中文交流。"
     provider_timeout: float = Field(default=120, gt=0, le=600)
     motion_timeout: float = Field(default=600, gt=0, le=3600)

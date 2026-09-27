@@ -38,10 +38,14 @@ class ExpressionStream:
     async def language(self, trigger):
         session = self.session
         buffer = ClauseBuffer()
+        semantic = False
         async for update in self._updates(trigger):
             decision = update.decision
             session.draft_text = decision.text
-            if decision.mode == "SPEAK":
+            if update.beat is not None:
+                semantic = True
+                await self.clauses.put((update.beat.text, decision))
+            elif decision.mode == "SPEAK" and not semantic:
                 for text in buffer.take(decision.text, final=update.final):
                     await self.clauses.put((text, decision))
             if update.final:
@@ -80,24 +84,18 @@ class ExpressionStream:
             started = monotonic()
             if not session.pending:
                 session.status = "generating"
-            # Determine the terminal flag concurrently, not before starting inference.
-            lookahead = asyncio.create_task(self.audio.get())
-            try:
-                async with session.generation_slot:
-                    motion = await session.motion.generate(
-                        unit["audio"],
-                        unit["text"] or unit["caption"],
-                        unit["decision"].motion_intent,
-                        session.avatar_id,
-                        motion_prefix=previous["motion"].get("motion_tail") if previous else None,
-                        planner_history=previous["motion"].get("planner_history") if previous else None,
-                    )
-                elapsed = monotonic() - started
-                following = await lookahead
-            finally:
-                if not lookahead.done():
-                    lookahead.cancel()
-                await asyncio.gather(lookahead, return_exceptions=True)
+            # PCMWindows retains a tail until EOF, so it already knows whether
+            # another window exists. Publishing never waits for that window's TTS.
+            async with session.generation_slot:
+                motion = await session.motion.generate(
+                    unit["audio"],
+                    unit["text"] or unit["caption"],
+                    unit["decision"].motion_intent,
+                    session.avatar_id,
+                    motion_prefix=previous["motion"].get("motion_tail") if previous else None,
+                    planner_history=previous["motion"].get("planner_history") if previous else None,
+                )
+            elapsed = monotonic() - started
             session.metrics["motion_seconds"] = elapsed
             session.metrics["generation_seconds"] += elapsed
             session.metrics["generated_seconds"] += unit["seconds"]
@@ -119,15 +117,16 @@ class ExpressionStream:
                 sequence=sequence,
                 offset_seconds=offset,
                 caption=unit["caption"],
-                continues=following is not None,
+                continues=unit["continues"],
                 parent_id=previous["id"] if previous else None,
             )
             self.files.add(packet["id"])
             future = session._publish(packet)
             await self.published.put((packet, future))
-            previous, unit = packet, following
+            previous = packet
             offset += packet["audio_seconds"]
             sequence += 1
+            unit = await self.audio.get()
         await self.published.put(None)
 
     async def playback(self):

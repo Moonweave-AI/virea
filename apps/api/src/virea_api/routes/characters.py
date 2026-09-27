@@ -14,7 +14,10 @@ from virea.character.contracts import (
 )
 from virea.character.providers.motion import CAPABILITIES
 
+from .character_spatial import router as spatial_router
+
 router = APIRouter(prefix="/characters", tags=["characters"])
+router.include_router(spatial_router)
 
 
 def session(request: Request, session_id: str):

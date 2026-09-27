@@ -1,4 +1,4 @@
-"""An event-driven actor with one outstanding expression and explicit acknowledgments."""
+"""One cancellable response stream per input, with explicit playback acknowledgments."""
 
 from __future__ import annotations
 
@@ -89,6 +89,7 @@ class CharacterSession:
             "draft_text": self.draft_text,
             "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
+            "spatial_available": bool(self.config.spatial_url),
             "metrics": self.metrics,
             "history": list(self.history),
             "events": list(self.events),
@@ -247,6 +248,7 @@ class CharacterSession:
             "environment": self.environment,
             "targets": self.targets,
             "capabilities": CAPABILITIES,
+            "spatial_available": bool(self.config.spatial_url),
             "autonomous_decisions_remaining": self.config.max_autonomous_decisions
             - self._autonomous,
         }
@@ -279,8 +281,8 @@ class CharacterSession:
                     completed = feedback.status == "completed"
                 self.status = "waiting"
                 self.record("response_finished", interrupted=not completed)
-                if completed and decision.mode != "WAIT":
-                    self._start_internal("behavior_completed")
+                # Playback is a receipt, not a new intention. Re-entering the LLM
+                # here reanswers the last user turn (often with a paraphrase).
                 return
             async with self.generation_slot:
                 decision = await self.language.decide(
@@ -340,8 +342,6 @@ class CharacterSession:
                         break
             self.status = "waiting"
             self.record("response_finished", interrupted=not completed)
-            if completed:
-                self._start_internal("behavior_completed")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
