@@ -4,32 +4,38 @@ import type { Expression, Session, PlaybackProgress } from "./contracts";
 
 const root = document.querySelector<HTMLDivElement>("#character")!;
 root.innerHTML = `
-  <header><a href="./">VIREA</a><span>持续角色 · 实验预览</span><a href="./">返回动作工作室 ↗</a></header>
+  <header><a href="./">VIREA<span class="brand-dot">.</span></a><span>持续角色 / LIVE SPACE</span><a href="./">动作工作室 ↗</a></header>
   <main>
     <section class="stage"><canvas aria-label="持续角色三维场景"></canvas>
-      <div class="stage-title"><small>CHARACTER / LIVE SPACE</small><h1>在这里，继续对话。</h1><p>话语会结束，角色留在原地。</p></div>
+      <div class="stage-title"><small><i></i> CHARACTER SPACE</small><h1>在这里，继续对话。</h1><p>说话、倾听，自然相伴。</p></div>
       <div id="subtitle" aria-live="polite"></div><div class="stage-note">拖动旋转 · 滚轮缩放</div>
+      <aside aria-label="角色聊天">
+        <div class="session-heading"><div><small>CONVERSATION</small><h2>和角色聊聊</h2></div><div class="session-actions"><span id="status" role="status">未连接</span><button id="close" aria-label="结束会话" title="结束会话" disabled>×</button></div></div>
+        <div class="chat-content">
+          <details id="session-tools" class="settings" open><summary>角色与会话</summary><div class="settings-content">
+            <label class="file">载入 VRM 角色<input id="avatar" type="file" accept=".vrm,.glb"></label>
+            <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">严格同步 · 统一时间轴</option><option value="voice_first">语音优先 · 动作稍后预览</option></select></label>
+            <div class="buttons"><button id="start" class="primary" disabled>开始会话</button><button id="sound">继续声音</button></div>
+          </div></details>
+          <section class="latest-reply" aria-label="角色回复"><div class="text-heading"><strong>角色</strong><span id="text-state">等待回复</span></div><p id="response-text">载入角色，开始一段对话。</p></section>
+          <section class="expression-panel" aria-label="语音、动作与文本">
+            <div class="track timeline"><strong>统一时间轴</strong><span id="timeline-state">等待资源就绪</span><button id="pause" disabled>暂停</button><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
+            <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
+            <div class="track"><strong>动作</strong><span id="motion-state">保留当前姿态</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
+            <details class="playback-tools"><summary>音量与重播</summary><div class="settings-content">
+              <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
+              <div class="buttons"><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>预览动作</button><button id="replay-sync" disabled>同步重播</button></div>
+              <p id="playback-note" class="hint">声音、动作和面部全部就绪后统一起播；字幕随语音显示。</p>
+            </div></details>
+          </section>
+          <details class="history"><summary>对话记录</summary><div id="conversation" role="log" aria-label="对话记录"></div></details>
+          <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output><p>每段动作平滑回到自然姿态，下一段从该实际姿态开始。收势后的姿态无法反向编码为模型历史，因此不沿用前段动作尾码。手指使用上游固定资源，面部映射为近似转换。</p></details>
+        </div>
+        <form><label class="sr-only" for="message">对角色说</label><textarea id="message" rows="2" maxlength="4000" placeholder="说点什么，让对话继续…" required></textarea>
+          <div class="composer-actions"><button type="button" id="interrupt" title="打断并保留当前姿态" disabled>打断</button><button type="submit" id="send" class="primary" disabled>发送 <span aria-hidden="true">↗</span></button></div></form>
+        <div id="error" role="alert"></div>
+      </aside>
     </section>
-    <aside>
-      <div class="session-heading"><h2>角色会话</h2><span id="status">未连接</span></div>
-      <label class="file">载入 VRM 角色<input id="avatar" type="file" accept=".vrm,.glb"></label>
-      <div class="buttons"><button id="start" disabled>开始会话</button><button id="sound">继续声音</button><button id="close" disabled>结束</button></div>
-      <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">严格同步 · 统一时间轴</option><option value="voice_first">语音优先 · 动作稍后预览</option></select></label>
-      <section class="expression-panel" aria-label="语音、动作与文本">
-        <div class="track"><strong>统一时间轴</strong><span id="timeline-state">等待资源就绪</span><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
-        <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
-        <div class="track"><strong>动作</strong><span id="motion-state">保留当前姿态</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
-        <div class="buttons"><button id="pause" disabled>暂停</button><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>预览动作</button><button id="replay-sync" disabled>同步重播</button></div>
-        <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
-        <p id="playback-note" class="hint">声音、动作和面部全部就绪后统一起播；字幕随语音显示。</p>
-        <div class="text-heading"><strong>文本</strong><span id="text-state">等待回复</span></div><p id="response-text">回复生成后会先显示在这里。</p>
-      </section>
-      <div id="conversation" role="log" aria-label="对话记录"></div>
-      <form><label for="message">对角色说</label><textarea id="message" rows="3" maxlength="4000" placeholder="你好，看看你左边的杯子。" required></textarea>
-        <div class="buttons"><button type="submit" id="send" disabled>发送</button><button type="button" id="interrupt" disabled>打断并留在此刻</button></div></form>
-      <div id="error" role="alert"></div>
-      <details><summary>运行状态与能力边界</summary><p>每段动作平滑回到自然姿态，下一段从该实际姿态开始。收势后的姿态无法反向编码为模型历史，因此不沿用前段动作尾码。手指使用上游固定资源，面部映射为近似转换。</p><output id="metrics">尚无测量</output></details>
-    </aside>
   </main>`;
 
 function element<T extends HTMLElement>(selector: string): T { return root.querySelector<T>(selector)!; }
@@ -187,6 +193,7 @@ element("#start").onclick = async () => {
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = false;
     element<HTMLInputElement>("#avatar").disabled = true;
     element<HTMLButtonElement>("#start").disabled = true;
+    element<HTMLDetailsElement>("#session-tools").open = false;
     element("#error").textContent = "";
     renderState(session);
   } catch (error) { showError(error); }
