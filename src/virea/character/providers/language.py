@@ -9,6 +9,7 @@ from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
 from ..streaming import LanguageUpdate, partial_decision
 from ..utterances import SpeechBeat, beat_decision, decode_beats, utterance_schema
+from .performance import plan_performance
 from .routing import compile_motion, plan_reply, select_route
 
 
@@ -28,6 +29,9 @@ class LanguageProvider:
             self.config, self.client, history, context, preference
         )
 
+    async def plan(self, history, context):
+        return await plan_performance(self.config, self.client, history, context)
+
     async def stream(self, history: list[dict], context: dict):
         if (context.get("route") or {}).get("engine") == "ardy":
             yield LanguageUpdate(
@@ -46,7 +50,7 @@ class LanguageProvider:
         schema = utterance_schema(
             list(context.get("targets", {})),
             explicit_positions(history),
-            speech_only=(context.get("route") or {}).get("engine") == "sentiavatar",
+            speech_only=(context.get("route") or {}).get("engine") in {"sentiavatar", "hybrid"},
             max_beats=self.config.max_speech_beats,
         )
         payload = {

@@ -17,13 +17,28 @@ class Position(Contract):
     z: float = Field(default=0, ge=-20, le=20)
 
 
+class GestureWeights(Contract):
+    head: float = Field(default=0.5, ge=0, le=1)
+    torso: float = Field(default=0.25, ge=0, le=1)
+    left_arm: float = Field(default=0.65, ge=0, le=1)
+    right_arm: float = Field(default=0.65, ge=0, le=1)
+    hands: float = Field(default=1, ge=0, le=1)
+
+
 class SceneAction(Contract):
     kind: Literal["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"]
     target_id: str | None = Field(default=None, max_length=80)
     position: Position | None = None
     description: str | None = Field(default=None, max_length=320)
     label: str | None = Field(default=None, max_length=80)
-    duration_seconds: float | None = Field(default=None, ge=0.8, le=60)
+    duration_seconds: float | None = Field(default=None, ge=0.8, le=180)
+    transition_description: str | None = Field(default=None, max_length=320)
+    continuation_description: str | None = Field(
+        default=None,
+        max_length=320,
+        description="English caption for the ongoing middle of this phase, after entry has already happened. Used by all later native windows.",
+    )
+    gesture_weights: GestureWeights = Field(default_factory=GestureWeights)
 
     @model_validator(mode="after")
     def destination(self):
@@ -62,6 +77,13 @@ class Decision(Contract):
         return self
 
 
+class BodySample(Contract):
+    position: Position
+    pelvis_height: float | None = Field(default=None, ge=-2, le=5)
+    yaw: float = Field(default=0, ge=-1000, le=1000)
+    pose: dict[str, tuple[float, float, float, float]] = Field(max_length=80)
+
+
 class BodyState(Contract):
     """Measured by the renderer, never inferred from generated/planned motion."""
 
@@ -73,6 +95,7 @@ class BodyState(Contract):
     )
     gaze_target: str | None = Field(default=None, max_length=80)
     behavior: str = Field(default="waiting", max_length=200)
+    history: list[BodySample] = Field(default_factory=list, max_length=40)
 
 
 class EnvironmentEvent(Contract):
@@ -99,6 +122,7 @@ class UserMessage(Contract):
     engine: Literal["auto", "sentiavatar", "ardy"] = "auto"
     voice: str | None = Field(default=None, min_length=1, max_length=80)
     persona: str | None = Field(default=None, max_length=4000)
+    body: BodyState | None = None
 
 
 class PlaybackControl(Contract):

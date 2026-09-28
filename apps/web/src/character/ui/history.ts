@@ -109,7 +109,7 @@ export class StudioHistory {
       article.append(prompt);
       if (turn.route) {
         const badge = document.createElement("small"); badge.className = "history-route";
-        badge.textContent = `${turn.route.engine === "ardy" ? "ARDY · 动作" : "SentiAvatar · 对话"} / ${turn.route.reason}`;
+        badge.textContent = `${turn.route.engine === "hybrid" ? "混合表达" : turn.route.engine === "ardy" ? "ARDY · 动作" : "SentiAvatar · 对话"} / ${turn.route.reason}`;
         article.append(badge);
       }
       if (turn.response) { const p = document.createElement("p"); p.textContent = turn.response; article.append(p); }

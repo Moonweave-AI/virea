@@ -67,7 +67,7 @@ async def plan_reply(config, client, history, context):
 
 
 async def structured_completion(
-    config, client, history, context, rules, schema, *, tokens
+    config, client, history, context, rules, schema, *, tokens, thinking=False
 ):
     payload = {
         "model": config.llm_model,
@@ -87,7 +87,7 @@ async def structured_completion(
     if config.llm_api == "ollama":
         endpoint = "/api/chat"
         payload.update(
-            think=False,
+            think=thinking,
             keep_alive="15m",
             format=schema,
             options={
@@ -101,7 +101,7 @@ async def structured_completion(
         payload.update(
             temperature=config.planning_temperature,
             max_tokens=tokens,
-            chat_template_kwargs={"enable_thinking": False},
+            chat_template_kwargs={"enable_thinking": thinking},
             response_format={
                 "type": "json_schema",
                 "json_schema": {

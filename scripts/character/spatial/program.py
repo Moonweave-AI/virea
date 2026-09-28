@@ -2,7 +2,10 @@
 
 import asyncio
 
+import numpy as np
+
 from .plan import SpatialPlan
+from .trajectory import waypoint_velocity
 
 
 async def generate_program(
@@ -32,13 +35,18 @@ async def generate_program(
     total_frames = sum(frames for _, frames in phases)
     async with lock:
         height = body.get("pelvis_height")
-        history = await asyncio.to_thread(
-            engine.initial_history,
-            body["pose"],
-            [v / scale for v in origin],
-            body.get("yaw", 0),
-            height / scale if height is not None else None,
-        )
+        if body.get("history"):
+            history = await asyncio.to_thread(
+                engine.observed_history, body["history"], scale
+            )
+        else:
+            history = await asyncio.to_thread(
+                engine.initial_history,
+                body["pose"],
+                [v / scale for v in origin],
+                body.get("yaw", 0),
+                height / scale if height is not None else None,
+            )
         history = history[:, -history_frames:]
     offset = 0
     sequence = 0
@@ -55,6 +63,30 @@ async def generate_program(
         phase_origin = [root[0] * scale, origin[1], root[2] * scale]
         plan = SpatialPlan(engine, action, phase_origin, scale=scale)
         plan.frames = frames
+        roots = (
+            engine.model.motion_rep.inverse(history[:, -4:], is_normalized=True)[
+                "root_positions"
+            ][0]
+            .cpu()
+            .numpy()
+        )
+        if len(roots) > 1:
+            plan.entry_velocity = (roots[-1] - roots[0]) * engine.fps / (len(roots) - 1)
+            plan.entry_velocity[1] = 0
+        if action["kind"] == "move_to" and phase_index + 1 < len(phases):
+            following, following_frames = phases[phase_index + 1]
+            if following["kind"] == "move_to":
+                destination = (
+                    np.array([following["position"][axis] for axis in ("x", "y", "z")])
+                    / scale
+                )
+                plan.exit_velocity = waypoint_velocity(
+                    plan.origin,
+                    plan.target,
+                    destination,
+                    frames / engine.fps,
+                    following_frames / engine.fps,
+                )
         # Embedding compilation is cached; it happens once per phase, never once
         # per frame. Read-ahead playback hides later prompt encoding latency.
         for generated in range(0, frames, engine.horizon):
@@ -62,10 +94,20 @@ async def generate_program(
                 return
             async with lock:
                 constraints = plan.constraints(generated, history)
+                prompt = (
+                    (
+                        action.get("transition_description")
+                        if phase_index + 1 < len(phases)
+                        and generated + engine.horizon >= frames
+                        else None
+                    )
+                    or (action.get("continuation_description") if generated else None)
+                    or plan.prompt
+                )
                 history, packet = await asyncio.to_thread(
                     engine.step,
                     history,
-                    plan.prompt,
+                    prompt,
                     constraints,
                     steps=steps,
                     guidance=guidance,
@@ -83,7 +125,8 @@ async def generate_program(
                 phase_kind=action["kind"],
                 phase_seconds=frames / engine.fps,
                 phase_offset=offset / engine.fps,
-                prompt=plan.prompt,
+                prompt=prompt,
+                gesture_weights=action.get("gesture_weights"),
                 target=action.get("position"),
                 continues=frame + round(packet["seconds"] * engine.fps) < total_frames,
             )

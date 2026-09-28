@@ -42,6 +42,7 @@ class CharacterSession:
         self.route_preference = "auto"
         self.motion_plan = []
         self.motion_ending = "relaxed"
+        self.body_program: dict | None = None
         self.latest_expression: dict | None = None
         self.body = BodyState()
         self.targets = {}
@@ -97,6 +98,7 @@ class CharacterSession:
             "draft_text": self.draft_text,
             "route": self.route,
             "motion_plan": self.motion_plan,
+            "body_program": self.body_program,
             "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
             "spatial_available": bool(self.config.spatial_url),
@@ -112,10 +114,13 @@ class CharacterSession:
         *,
         voice: str | None = None,
         persona: str | None = None,
+        body: BodyState | None = None,
     ) -> None:
         async with self._lock:
             self._ensure_open()
             await self._cancel()
+            if body is not None:
+                self.body = body
             if voice is not None:
                 self.config.tts_voice = voice
             if persona is not None:
@@ -154,6 +159,7 @@ class CharacterSession:
         async with self._lock:
             self._ensure_open()
             await self._cancel()
+            self.body_program = None
             self.body = body
             self.status = "waiting"
             self.record("interrupted")
@@ -230,6 +236,7 @@ class CharacterSession:
             if self._closed:
                 return
             await self._cancel()
+            self.body_program = None
             self._closed = True
             self.status = "closed"
             self.record("closed")
@@ -264,12 +271,13 @@ class CharacterSession:
         self._clear_stream()
 
     def _context(self, trigger: str) -> dict:
-        semantic_body = self.body.model_dump(exclude={"pose"})
+        semantic_body = self.body.model_dump(exclude={"pose", "history"})
         return {
             "trigger": trigger,
             "persona": self.config.persona,
             "route": self.route,
             "body": semantic_body,
+            "body_program": self.body_program,
             "environment": self.environment,
             "targets": self.targets,
             "capabilities": CAPABILITIES,
@@ -292,7 +300,31 @@ class CharacterSession:
     async def _run(self, trigger: str, epoch: int) -> None:
         started = monotonic()
         try:
-            if hasattr(self.language, "route"):
+            if hasattr(self.language, "plan"):
+                plan = await self.language.plan(
+                    list(self.history), self._context(trigger)
+                )
+                self.route = {
+                    "engine": "hybrid",
+                    "reason": plan.intent,
+                    "spoken_request": plan.spoken_content,
+                }
+                if plan.body.operation == "replace":
+                    self.motion_plan = self._actions(plan.body.actions)
+                    self.body_program = {
+                        "id": uuid4().hex,
+                        "actions": self.motion_plan,
+                        "end_state": plan.body.end_state,
+                        "status": "ready",
+                    }
+                elif plan.body.operation == "stop":
+                    self.body_program = None
+                self.record("performance_planned", plan=plan.model_dump())
+                if plan.spoken_content is None:
+                    self.status = "waiting"
+                    self.record("response_finished", interrupted=False)
+                    return
+            elif hasattr(self.language, "route"):
                 self.status = "routing"
                 route = await self.language.route(
                     list(self.history), self._context(trigger), self.route_preference

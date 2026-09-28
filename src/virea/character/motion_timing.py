@@ -11,15 +11,15 @@ def fit_program_duration(actions, seconds: float | None):
         raise ValueError("单次动作程序时长须在 0.8 至 180 秒内")
     budget = math.ceil(seconds / 0.4 - 1e-9)
     minimum = [6 if a["kind"] == "reach" else 2 for a in actions]
-    if not sum(minimum) <= budget <= 150 * len(actions):
+    if budget < sum(minimum):
         raise ValueError("动作阶段数量与指定总时长不匹配，请减少阶段或调整时长")
-    weights = [a["duration_seconds"] for a in actions]
+    weights = [a.get("duration_seconds") or 1 for a in actions]
     ideal = [budget * w / sum(weights) for w in weights]
-    units = [max(low, min(150, math.floor(w))) for low, w in zip(minimum, ideal)]
+    units = [max(low, math.floor(w)) for low, w in zip(minimum, ideal)]
     while sum(units) != budget:
         add = sum(units) < budget
         candidates = (
-            [i for i in range(len(units)) if units[i] < 150]
+            [i for i in range(len(units)) if units[i] < budget]
             if add
             else [i for i in range(len(units)) if units[i] > minimum[i]]
         )

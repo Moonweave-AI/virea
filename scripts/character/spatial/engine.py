@@ -85,6 +85,19 @@ class SpatialEngine:
     @torch.inference_mode()
     def initial_history(self, pose, position, yaw=0, pelvis_height=None):
         """Encode the actually rendered normalized pose, not a new model T-pose."""
+        return self.observed_history(
+            [
+                dict(
+                    pose=pose,
+                    position=dict(zip(("x", "y", "z"), position)),
+                    yaw=yaw,
+                    pelvis_height=pelvis_height,
+                )
+            ]
+            * 8
+        )
+
+    def _observed_pose(self, pose, yaw):
         skel = self.model.skeleton
         global_vrm = {}
         for name, (_, parent) in VRM_CORE.items():
@@ -109,18 +122,29 @@ class SpatialEngine:
                 local[index] = (
                     global_core[skel.bone_index[parent]].T @ global_core[index]
                 )
-        matrices = torch.as_tensor(local, device="cuda", dtype=torch.float32)[
-            None
-        ].repeat(8, 1, 1, 1)
-        roots = torch.tensor(
-            [
-                position[0],
-                position[1]
-                + (self.hip_height if pelvis_height is None else pelvis_height),
-                position[2],
-            ],
+        return local
+
+    @torch.inference_mode()
+    def observed_history(self, samples, scale=1):
+        """20 Hz executed observations retain velocity across program replacement."""
+        samples = samples[-40:]
+        samples = [samples[0]] * (
+            max(8, (len(samples) + 3) // 4 * 4) - len(samples)
+        ) + samples
+        matrices = torch.as_tensor(
+            np.stack(
+                [self._observed_pose(s["pose"], s.get("yaw", 0)) for s in samples]
+            ),
             device="cuda",
-        )[None].repeat(8, 1)
+            dtype=torch.float32,
+        )
+        roots = []
+        for sample in samples:
+            root = [sample["position"][axis] / scale for axis in ("x", "y", "z")]
+            height = sample.get("pelvis_height")
+            root[1] += self.hip_height if height is None else height / scale
+            roots.append(root)
+        roots = torch.tensor(roots, device="cuda", dtype=torch.float32)
         return self.model.motion_rep(matrices, roots, to_normalize=True).unsqueeze(0)
 
     @torch.inference_mode()

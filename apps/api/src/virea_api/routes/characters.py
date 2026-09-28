@@ -96,7 +96,7 @@ async def character_message(
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
     await current.message(
-        body.text, body.engine, voice=body.voice, persona=body.persona
+        body.text, body.engine, voice=body.voice, persona=body.persona, body=body.body
     )
     return current.snapshot()
 
@@ -134,7 +134,7 @@ async def character_playback_control(
     session_id: str, body: PlaybackControl, request: Request
 ) -> dict:
     current = session(request, session_id)
-    if body.epoch != current.epoch or not current.pending:
+    if body.epoch != current.epoch or not (current.pending or current.body_program):
         raise HTTPException(409, "stale playback control")
     current.playback_clock.set_paused(body.paused)
     return {"paused": body.paused}

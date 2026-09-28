@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from ardy.constraints import Root2DConstraintSet
 
+from .trajectory import hermite_path
+
 
 class PointConstraints:
     def __init__(self, indices, *, root_y):
@@ -64,6 +66,8 @@ class SpatialPlan:
             else self.origin.copy()
         )
         self.kind = action["kind"]
+        self.entry_velocity = np.zeros(3)
+        self.exit_velocity = np.zeros(3)
         delta = self.target[[0, 2]] - self.origin[[0, 2]]
         distance = float(np.linalg.norm(delta))
         self.duration = action.get("duration_seconds") or (
@@ -88,11 +92,15 @@ class SpatialPlan:
         if self.kind == "move_to":
             # Native root constraints guide leg motion. Never slide the rendered
             # actor on a separate engine translation clock.
-            total = max(1, self.frames - 20)
-            progress = np.clip((np.arange(3, horizon, 4) + generated) / total, 0, 1)
-            # Ease departure/arrival without restarting at each inference window.
-            u = progress * progress * (3 - 2 * progress)
-            path = self.origin[None] + (self.target - self.origin)[None] * u[:, None]
+            progress = (np.arange(3, horizon, 4) + generated + 1) / self.frames
+            path = hermite_path(
+                self.origin,
+                self.target,
+                self.entry_velocity,
+                self.exit_velocity,
+                self.frames / self.engine.fps,
+                progress,
+            )
             return [
                 Root2DConstraintSet(
                     skel,

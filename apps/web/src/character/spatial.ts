@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
-import type { BodyState, Expression, SceneAction } from "./contracts";
+import type { BodyState, Expression, SceneAction, GestureWeights } from "./contracts";
 import { RotationBridge } from "./continuity";
 import { contactIK } from "./interaction";
 import { samplePosition, sampleRotation } from "./motion_sampling";
@@ -14,6 +14,7 @@ export interface SpatialWindow {
   phase_index?: number; phase_label?: string; phase_kind?: SceneAction["kind"];
   phase_seconds?: number; phase_offset?: number; prompt?: string;
   target?: { x: number; y: number; z: number } | null;
+  gesture_weights?: GestureWeights | null;
 }
 
 /** A single rolling program owns the whole body, across every prompt transition. */
@@ -50,6 +51,13 @@ export class SpatialPlayer {
 
   export(): SpatialWindow[] { return this.recording?.windows ?? []; }
 
+  get gestureWeights(): GestureWeights | null | undefined { return this.active ? this.current?.gesture_weights : null; }
+  get protectedBones(): ReadonlySet<string> {
+    return this.active && this.current?.phase_kind === "reach"
+      ? new Set(["spine", "chest", "upperChest", "rightShoulder", "rightUpperArm", "rightLowerArm", "rightHand"])
+      : new Set();
+  }
+
   async run(packet: Expression, body: BodyState, hipHeight: number,
     onProgress: (elapsed: number, duration: number) => void = () => {}): Promise<void> {
     this.stop();
@@ -68,10 +76,11 @@ export class SpatialPlayer {
       }
       if (!packet.session_id) throw new Error("空间动作缺少所属会话");
       const index = packet.actions.findIndex(a => !["look_at", "stop"].includes(a.kind));
-      const response = await fetch(`/api/v1/characters/${encodeURIComponent(packet.session_id)}/spatial`, {
+      const endpoint = packet.body_program_id ? `body/${encodeURIComponent(packet.body_program_id)}` : "spatial";
+      const response = await fetch(`/api/v1/characters/${encodeURIComponent(packet.session_id)}/${endpoint}`, {
         method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal,
-        body: JSON.stringify({ packet_id: packet.id, epoch: packet.epoch, action_index: index,
-          full_program: true, body, hip_height: hipHeight }),
+        body: JSON.stringify(packet.body_program_id ? { body, hip_height: hipHeight }
+          : { packet_id: packet.id, epoch: packet.epoch, action_index: index, full_program: true, body, hip_height: hipHeight }),
       });
       if (!response.ok || !response.body) throw new Error(`空间动作服务失败 (${response.status})`);
       const reader = response.body.getReader(), decoder = new TextDecoder();

@@ -11,6 +11,87 @@ from virea.character.contracts import BodyState, Contract
 router = APIRouter()
 
 
+class BodyPlaybackRequest(Contract):
+    body: BodyState
+    hip_height: float = Field(gt=0.2, lt=3)
+
+
+class BodyReceipt(Contract):
+    body: BodyState
+    status: str = Field(pattern="^(completed|interrupted|failed)$")
+    message: str = Field(default="", max_length=500)
+
+
+def body_program(request, session_id, program_id):
+    try:
+        current = request.app.state.characters.get(session_id)
+    except KeyError as exc:
+        raise HTTPException(404, "character session not found") from exc
+    program = current.body_program
+    if not program or program["id"] != program_id:
+        raise HTTPException(409, "stale body program")
+    return current, program
+
+
+@router.post("/{session_id}/body/{program_id}/feedback")
+async def body_feedback(
+    session_id: str, program_id: str, body: BodyReceipt, request: Request
+):
+    current, program = body_program(request, session_id, program_id)
+    if program["status"] not in {"ready", "playing"}:
+        raise HTTPException(409, "duplicate body feedback")
+    program["status"] = body.status
+    current.body = body.body
+    current.record(
+        "body_feedback", program_id=program_id, **body.model_dump(exclude={"body"})
+    )
+    return {"accepted": True}
+
+
+@router.post("/{session_id}/body/{program_id}")
+async def body_motion(
+    session_id: str, program_id: str, body: BodyPlaybackRequest, request: Request
+):
+    current, program = body_program(request, session_id, program_id)
+    manager = request.app.state.characters
+    if not manager.config.spatial_url:
+        raise HTTPException(503, "Start the resident ARDY worker")
+    if program["status"] != "ready":
+        raise HTTPException(409, "body program has already started")
+    program["status"] = "playing"
+
+    async def stream():
+        try:
+            async with manager.client.stream(
+                "POST",
+                manager.config.spatial_url.rstrip("/") + "/generate",
+                json={
+                    "actions": program["actions"],
+                    "end_state": program["end_state"],
+                    "body": body.body.model_dump(),
+                    "hip_height": body.hip_height,
+                    "history_frames": current.config.spatial_history_frames,
+                },
+                timeout=60,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if (
+                        current.body_program is not program
+                        or await request.is_disconnected()
+                    ):
+                        return
+                    if line:
+                        yield line + "\n"
+        except Exception as exc:
+            yield (
+                json.dumps({"error": f"Spatial worker: {type(exc).__name__}: {exc}"})
+                + "\n"
+            )
+
+    return StreamingResponse(stream(), media_type="application/x-ndjson")
+
+
 class SpatialPlaybackRequest(Contract):
     packet_id: str = Field(min_length=1, max_length=100)
     action_index: int = Field(default=0, ge=0, le=11)
