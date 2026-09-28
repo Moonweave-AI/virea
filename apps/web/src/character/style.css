@@ -101,6 +101,10 @@ textarea::placeholder { color: #a1a7b2; }
 #error { color: #b86359; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; max-height: 75px; overflow: auto; }
 #error:not(:empty) { padding: 0 18px 12px; }
 #settings-error { color: #b86359; font-size: 12px; line-height: 1.6; }
+.export-actions { display: flex; gap: 8px; align-items: center; }
+.export-actions a { text-decoration: none; background: #272d38; color: white; border-radius: 8px; padding: 9px 12px; font-size: 12px; }
+.export-preview { margin-top: 20px; }
+.export-preview textarea { height: 180px; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: 10px/1.5 ui-monospace, monospace; }
 .history-drawer { position: fixed; left: 60px; top: 0; bottom: 0; width: 310px; z-index: 12; background: #fbfbfc; border-right: 1px solid #e1e4e9; box-shadow: 16px 0 40px #2530470a; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .drawer-heading, .dialog-heading { display: flex; align-items: center; justify-content: space-between; }
 h2 { font-size: 16px; font-weight: 600; margin: 0; }

@@ -29,9 +29,25 @@ export function updateRecord(record: ConversationRecord, value: Session): void {
 }
 
 export function downloadJSON(name: string, value: unknown): void {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
-  const link = document.createElement("a"); link.href = url; link.download = name; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const text = JSON.stringify(value, null, 2), blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob), dialog = document.createElement("dialog");
+  const title = document.createElement("h2"), info = document.createElement("p"), actions = document.createElement("div");
+  const link = document.createElement("a"), copy = document.createElement("button"), close = document.createElement("button");
+  const preview = document.createElement("details"), summary = document.createElement("summary"), content = document.createElement("textarea");
+  dialog.setAttribute("aria-label", "导出 JSON"); title.textContent = "导出 JSON";
+  info.textContent = `${name} · ${(blob.size / 1024).toFixed(1)} KB`;
+  link.href = url; link.download = name; link.textContent = "保存文件";
+  copy.textContent = "复制 JSON"; close.textContent = "关闭"; close.onclick = () => dialog.close();
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(text); copy.textContent = "已复制"; }
+    catch { preview.open = true; content.select(); info.textContent = "请在下方 JSON 内容中手动复制。"; }
+  };
+  actions.className = "export-actions"; actions.append(link, copy, close);
+  preview.className = "export-preview"; summary.textContent = "查看 JSON";
+  content.readOnly = true; content.value = text; content.setAttribute("aria-label", "JSON 内容");
+  preview.append(summary, content); dialog.append(title, info, actions, preview);
+  dialog.onclose = () => { dialog.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+  document.body.append(dialog); dialog.showModal();
 }
 
 export class StudioHistory {
