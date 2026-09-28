@@ -1,6 +1,7 @@
 import "./style.css";
 import { studioShell } from "./ui/shell";
 import { StudioHistory, downloadJSON } from "./ui/history";
+import { StudioPreferences } from "./ui/preferences";
 import { CharacterStage } from "./stage";
 import type { Expression, Session, PlaybackProgress } from "./contracts";
 
@@ -10,6 +11,7 @@ root.innerHTML = studioShell;
 function element<T extends HTMLElement>(selector: string): T { return root.querySelector<T>(selector)!; }
 const stage = new CharacterStage(element("canvas"));
 const history = new StudioHistory(root);
+const preferences = new StudioPreferences(root, showError);
 let session: Session | null = null;
 let playing: string | null = null;
 let handled = new Set<string>();
@@ -181,7 +183,8 @@ element("#start").onclick = async () => {
   setMutating(true);
   try {
     await stage.unlockAudio();
-    session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value });
+    await preferences.ready;
+    session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value, ...preferences.values() });
     element<HTMLSelectElement>("#playback-mode").disabled = true;
     await request(`/${session.id}/environment`, "POST", { kind: "context", silent: true,
       summary: "平坦地面 y=0。用户在正前方；杯子在左侧小圆台上，cup 是接触点，cup_side 是杯子旁的地面站位。move_to 只能选择地面站位；reach 选择杯子接触点。",
@@ -206,7 +209,7 @@ element<HTMLFormElement>("form").onsubmit = async (event) => {
   try {
     await stage.unlockAudio();
     await interrupt();
-    session = await request(`/${session!.id}/messages`, "POST", { text, engine: element<HTMLSelectElement>("#engine").value });
+    session = await request(`/${session!.id}/messages`, "POST", { text, engine: element<HTMLSelectElement>("#engine").value, ...preferences.values() });
     element<HTMLTextAreaElement>("#message").value = "";
     element("#error").textContent = "";
     element("#settings-error").textContent = "";

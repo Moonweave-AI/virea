@@ -72,19 +72,12 @@ class SpatialPlan:
         if self.kind == "reach":
             self.duration = max(2.4, self.duration)
         self.frames = (
-            math.ceil(self.duration * engine.fps / engine.horizon - 1e-9)
-            * engine.horizon
+            math.ceil(self.duration * engine.fps / engine.token_frames - 1e-9)
+            * engine.token_frames
         )
-        self.prompt = (
-            action.get("description")
-            or {
-                "move_to": "A person walks naturally toward a destination, then slows down and stands relaxed.",
-                "reach": "A person gently reaches forward with their right hand to touch an object.",
-                "sit": "A person bends their knees and sits down naturally on a chair.",
-                "stand": "A person stands up from a chair and stands relaxed.",
-                "perform": action.get("description") or "A person stands relaxed.",
-            }[self.kind]
-        )
+        self.prompt = action.get("description", "")
+        if not self.prompt.strip():
+            raise ValueError("A native motion phase needs a model-authored description")
 
     def constraints(self, generated, history):
         history_frames = history.shape[1]

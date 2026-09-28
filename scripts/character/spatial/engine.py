@@ -41,11 +41,12 @@ VRM_CORE = {
 
 
 class SpatialEngine:
-    def __init__(self, model_dir: Path, text_dir: Path, *, steps=10):
+    def __init__(self, model_dir: Path, text_dir: Path, *, steps=10, model_id=None):
         from ardy.model.llm2vec import LLM2Vec
         from ardy.model.load_model import load_model
 
         self.steps = steps
+        self.model_id = model_id or model_dir.name
         self.model = load_model(
             model_dir.name,
             checkpoints_dir=str(model_dir.parent),
@@ -61,9 +62,9 @@ class SpatialEngine:
         self.embeddings = OrderedDict()
         self.fps = self.model.motion_rep.fps
         self.horizon = self.model.gen_horizon_len
-        # Match the interactive demo's one-token context. Long histories can
-        # suppress a new prompt after a stationary ending (see seeded ablation).
-        self.history_frames = 4
+        self.token_frames = self.model.num_frames_per_token
+        # Rolling kinematic context; callers may tune this per deployment.
+        self.history_frames = 40
         joints = self.model.skeleton.neutral_joints.cpu().numpy()
         self.hip_height = float(-joints[:, 1].min())
 
@@ -133,6 +134,7 @@ class SpatialEngine:
         guidance=2.0,
         history_frames=None,
         foot_correction=False,
+        output_frames=None,
     ):
         started = perf_counter()
         m = self.model
@@ -185,10 +187,13 @@ class SpatialEngine:
             generated = motion[:, -self.horizon :]
         # Decoding a longer token sequence also reconstructs the prefix. It must
         # not silently rewrite the already executed poses used as future history.
+        generated = (
+            generated[:, :output_frames] if output_frames is not None else generated
+        )
         motion = torch.cat((history, generated), dim=1)
         # Keep the last observed sample in the packet for interpolation across a
         # boundary. History is never stretched to the wall-clock generation time.
-        sample = torch.cat((history[:, -1:], motion[:, -self.horizon :]), dim=1)
+        sample = torch.cat((history[:, -1:], generated), dim=1)
         output = m.motion_rep.inverse(sample, is_normalized=True)
         global_mats = output["global_rot_mats"][0].float().cpu().numpy()
         rotations = {}
@@ -204,7 +209,7 @@ class SpatialEngine:
             raise ValueError("non-finite spatial motion")
         return motion[:, -history_frames:], {
             "fps": self.fps,
-            "seconds": self.horizon / self.fps,
+            "seconds": generated.shape[1] / self.fps,
             "root": root.tolist(),
             "rotations": rotations,
             "contacts": contacts.tolist(),

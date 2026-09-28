@@ -94,6 +94,7 @@ async def spatial_motion(
                     ),
                     "body": body.body.model_dump(),
                     "hip_height": body.hip_height,
+                    "history_frames": current.config.spatial_history_frames,
                 },
                 timeout=60,
             ) as response:

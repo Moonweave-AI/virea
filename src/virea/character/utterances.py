@@ -14,7 +14,7 @@ class SpeechBeat(Contract):
     text: str = Field(min_length=1, max_length=120)
 
 
-def utterance_schema(targets=None, positions=None, *, speech_only=False):
+def utterance_schema(targets=None, positions=None, *, speech_only=False, max_beats=64):
     schema = decision_schema(targets, positions)
     schema["$defs"]["SpeechBeat"] = SpeechBeat.model_json_schema()
     for variant in schema["oneOf"]:
@@ -27,7 +27,7 @@ def utterance_schema(targets=None, positions=None, *, speech_only=False):
                 "type": "array",
                 "items": {"$ref": "#/$defs/SpeechBeat"},
                 "minItems": 1 if mode == "SPEAK" else 0,
-                "maxItems": 24 if mode == "SPEAK" else 0,
+                "maxItems": max_beats if mode == "SPEAK" else 0,
             },
         }
         variant["required"] = ["mode", "actions", "beats"]

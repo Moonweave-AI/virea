@@ -9,7 +9,7 @@ from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
 from ..streaming import LanguageUpdate, partial_decision
 from ..utterances import SpeechBeat, beat_decision, decode_beats, utterance_schema
-from .routing import compile_motion, select_route
+from .routing import compile_motion, plan_reply, select_route
 
 
 class LanguageProvider:
@@ -35,18 +35,28 @@ class LanguageProvider:
                 final=True,
             )
             return
+        route = context.get("route")
+        if route and not route.get("reply_plan"):
+            plan = await plan_reply(self.config, self.client, history, context)
+            context = {**context, "route": {**route, "reply_plan": plan.model_dump()}}
         thinking = (
             self.config.llm_thinking and context.get("trigger") != "behavior_completed"
         )
-        rules = self.config.persona + "\n" + DECISION_RULES
-        if (context.get("route") or {}).get("engine") == "sentiavatar":
-            rules += "\n本轮已路由到 SentiAvatar 对话表达。actions=[]，只生成自然台词与语义手势，不发起 ARDY 全身动作。"
+        rules = context.get("persona", self.config.persona) + "\n" + DECISION_RULES
+        schema = utterance_schema(
+            list(context.get("targets", {})),
+            explicit_positions(history),
+            speech_only=(context.get("route") or {}).get("engine") == "sentiavatar",
+            max_beats=self.config.max_speech_beats,
+        )
         payload = {
             "model": self.config.llm_model,
             "messages": [
                 {
                     "role": "system",
                     "content": rules
+                    + "\nOutput contract: "
+                    + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
                     + "\nCurrent state: "
                     + json.dumps(context, ensure_ascii=False),
                 },
@@ -60,15 +70,10 @@ class LanguageProvider:
                 {
                     "think": thinking,
                     "keep_alive": "15m",
-                    "format": utterance_schema(
-                        list(context.get("targets", {})),
-                        explicit_positions(history),
-                        speech_only=(context.get("route") or {}).get("engine")
-                        == "sentiavatar",
-                    ),
+                    "format": schema,
                     "options": {
-                        "temperature": 0.6,
-                        "num_predict": 1024,
+                        "temperature": self.config.temperature,
+                        "num_predict": self.config.language_max_tokens,
                         "num_ctx": 8192,
                     },
                 }
@@ -77,20 +82,15 @@ class LanguageProvider:
             endpoint = "/chat/completions"
             payload.update(
                 {
-                    "temperature": 0.6,
-                    "max_tokens": 1024,
+                    "temperature": self.config.temperature,
+                    "max_tokens": self.config.language_max_tokens,
                     "chat_template_kwargs": {"enable_thinking": thinking},
                     "response_format": {
                         "type": "json_schema",
                         "json_schema": {
                             "name": "character_decision",
                             "strict": True,
-                            "schema": utterance_schema(
-                                list(context.get("targets", {})),
-                                explicit_positions(history),
-                                speech_only=(context.get("route") or {}).get("engine")
-                                == "sentiavatar",
-                            ),
+                            "schema": schema,
                         },
                     },
                 }

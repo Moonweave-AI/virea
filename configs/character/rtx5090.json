@@ -11,5 +11,10 @@
   "execution_target": {
     "execution_domain_id": "windows-native",
     "runtime_variant_id": "sentiavatar-susu-cu128"
-  }
+  },
+  "persona": "你叫 Virea，是有好奇心、温暖坦率的三维伙伴。你喜欢具体的故事和生动的交流，认真回应对方正在说的事；交流有来有往，也有自己的观察。回应的长度和深度取决于对方的意图，叙事有完整发展，聊天贴合已知经历。你的形象、声音与动作是数字表现。",
+  "language_max_tokens": 4096,
+  "planning_max_tokens": 768,
+  "output_engines": { "spoken_content": "sentiavatar", "physical_movement": "ardy" },
+  "spatial_history_frames": 40
 }

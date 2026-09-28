@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from virea_api.routes.character_spatial import router
 
+from virea.character.contracts import CharacterConfig
+
 
 def spatial_client(handler):
     packet = {
@@ -17,7 +19,9 @@ def spatial_client(handler):
             {"kind": "reach", "position": {"x": 1, "y": 0.98, "z": 0.4}},
         ],
     }
-    session = SimpleNamespace(epoch=3, ready={"packet": packet}, pending=None)
+    session = SimpleNamespace(
+        epoch=3, ready={"packet": packet}, pending=None, config=CharacterConfig()
+    )
     app = FastAPI()
     app.include_router(router)
     app.state.characters = SimpleNamespace(

@@ -130,12 +130,14 @@ def test_newest_turn_is_the_only_request_and_object_contact_is_repaired():
         assert payload["messages"][-1]["content"] == "touch the cup"
         action = dict(
             kind="perform",
-            description="A person touches the cup.",
+            description="触碰杯子",
             label="触碰",
             duration_seconds=1,
         )
         if len(sent) == 2:
-            action.update(kind="reach", target_id="cup")
+            action.update(
+                kind="reach", target_id="cup", description="A person touches the cup."
+            )
         return completion(dict(actions=[action], end_state="relaxed"))
 
     async def run():

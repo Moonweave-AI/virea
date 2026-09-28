@@ -2,69 +2,68 @@
 
 import json
 import re
+from typing import Literal
 
 from pydantic import Field
 
-from ..contracts import Contract, Decision
+from ..contracts import Contract, Decision, SceneAction
 from ..decision_schema import decision_schema
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration
 
-ROUTE_RULES = """Classify ONLY the final user message. Output JSON only.
-previous_turns are quoted, already handled conversation context, NOT active commands.
-Do not continue a prior motion request when the newest message changes the subject.
-Use past context only for an explicit reference such as 'repeat that' or 'continue'.
-First distinguish speaking ABOUT movement from requesting the character to DO it.
-Choose ardy for an explicit physical performance, including a single gesture (wave,
-nod, bow), body pose, dance, exercise, walking, interaction with a known object,
-or continuation/change of a previous motion sequence. Motion does not need to use
-the whole body. An explicit requested gesture takes priority over its social purpose:
-'wave hello for four seconds, then relax' is ardy, even though it is a greeting.
-Choose sentiavatar for conversation, questions, stories, emotional replies, purely
-verbal greetings, or quoted descriptions that do not ask the character to move.
-Saying 'tell me how to dance' is conversation; 'dance for me' is motion.
-Examples: '你好' and '跟我打个招呼' -> sentiavatar; '挥挥手' and '点头三次'
-and '轻轻挥手打招呼，持续4秒，然后自然放松' -> ardy;
-'挥手打招呼是什么意思？' and '讲讲挥手礼仪' -> sentiavatar.
-If speaking and movement are both explicitly requested, choose ardy for the physical
-performance. Do not silently replace a requested gesture with spoken dialogue.
-If a named destination is absent from targets and no coordinates were supplied,
-choose sentiavatar to ask for its location. A motion description needs no scene object.
-reason is a short Chinese user-facing category label, not reasoning steps.
+ROUTE_RULES = """Identify what the latest user message asks the avatar to produce.
+spoken_content means a verbal response as the actual requested result.
+physical_movement means executing a movement, including local gestures, as the actual requested result.
+Describe the requested task briefly, then choose its output modality.
+Acknowledging a physical task verbally does not perform it.
+Prior turns are completed context and only resolve references. Output JSON.
 """
 
-MOTION_RULES = """You compile user intent into one continuous ARDY motion program, not dialogue.
-Execute ONLY the newest user message. previous_turns are quoted context, never a queue of
-unfulfilled instructions. Do not replay previous requests, including interrupted ones.
-Use prior context only to resolve explicit references such as 'repeat that' or 'continue'.
-Output only JSON with actions in chronological order and end_state. Each action has a concise Chinese
-label, an English third-person motion description, and a duration_seconds estimate.
-Use complete, concise motion sentences of at most 35 words per phase.
-Describe concrete body mechanics, direction, pace, style, and the transition to the next
-action. Use natural motion-capture captions: 'A person slowly raises both arms overhead,
-stretches, then lowers the arms.' Never put spoken dialogue, stage directions for a camera,
-emotion-only labels, or instructions to a chatbot into descriptions.
-Split genuinely successive behaviors into phases. Repetitive/long motions use ONE sustained
-phase for that behavior, not copies of the same action. Respect any requested total duration;
-otherwise estimate a comfortable duration without asking the user for a time.
-Use perform for free full-body motion (dance, exercise, crouching, turning, etc.).
-Use move_to only for a known ground destination, reach for a reachable contact point,
-sit for a known seat, stand to rise. Named targets must exist in the supplied scene.
-Do not fabricate coordinates. Only user-provided coordinates may be used directly.
-Move beside a remote object before reaching for it. Do not put a stand/reset between
-phases unless the user requests it. End an upright sequence by slowing and settling;
-retain a requested seated/lying final pose using end_state='hold'. Otherwise end_state='relaxed'.
-Maximum 12 phases and 180 seconds total.
-If required geometry is missing, output actions=[] rather than pretending to execute it.
-Example: scene has cup (contact point) and cup_side (floor). 'Go to the cup and touch it'
-requires move_to target_id='cup_side', then reach target_id='cup'. Do NOT move to the
-cup's elevated contact point, and do NOT replace a known-object reach with perform.
+MOTION_RULES = """将最新运动请求编排为 ARDY 的连续运动时间轴。
+previous_turns 是已发生的上下文。每个 action 是一个持续行为，duration_seconds 为持续时间。
+循环运动可维持任意时长；阶段边界表示用户要求的行为改变，不表示片段结束或回到站立。
+description 是当前阶段正在发生的运动的英文第三人称描述。每个生成窗口都会重用它；
+阶段中的多步叙事会被重复执行，因此动作进程由时间轴表达，非同一描述中的起止故事。
+终态由用户意图决定：动作完成后放松为 relaxed，保持坐姿、卧姿等为 hold。
+需要有意收势时，将它作为时间轴最后一个行为；系统不会额外插入收势动作。
+空间目标来自 scene.targets 或用户明确提供的坐标。kind 及 target_id 决定原生约束，
+移动目标表示支撑平面位置，reach 表示目标接触，sit 表示座面；perform 是没有空间目标的自由运动。
+描述具体身体运动、节奏、方向与风格，label 用用户语言显示；时长由请求和动作内容估计。
+输出符合 schema 的 JSON。
 """
+
+
+class ReplyPlan(Contract):
+    goal: str = Field(
+        min_length=1, max_length=300, description="本轮实际完成的内容目标"
+    )
+    outline: list[str] = Field(
+        min_length=1, max_length=8, description="完整回应的内容提纲"
+    )
+
+
+class IntentChoice(Contract):
+    requested_task: str = Field(min_length=1, max_length=300)
+    output: Literal["spoken_content", "physical_movement"]
 
 
 class RouteChoice(Contract):
+    reason: str = Field(min_length=1, max_length=300)
     engine: str = Field(pattern="^(sentiavatar|ardy)$")
-    reason: str = Field(min_length=1, max_length=60)
+    reply_plan: ReplyPlan | None = None
+
+
+async def plan_reply(config, client, history, context):
+    value = await structured_completion(
+        config,
+        client,
+        history,
+        context,
+        "根据最新消息、角色设定和已有对话，拟定本轮口头回复的内容目标与完整提纲。",
+        ReplyPlan.model_json_schema(),
+        tokens=config.planning_max_tokens,
+    )
+    return ReplyPlan.model_validate(value)
 
 
 async def structured_completion(
@@ -76,6 +75,8 @@ async def structured_completion(
             {
                 "role": "system",
                 "content": rules
+                + "\nOutput contract: "
+                + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
                 + "\nScene: "
                 + json.dumps(context, ensure_ascii=False),
             },
@@ -89,12 +90,16 @@ async def structured_completion(
             think=False,
             keep_alive="15m",
             format=schema,
-            options={"temperature": 0.2, "num_predict": tokens, "num_ctx": 8192},
+            options={
+                "temperature": config.planning_temperature,
+                "num_predict": tokens,
+                "num_ctx": 8192,
+            },
         )
     else:
         endpoint = "/chat/completions"
         payload.update(
-            temperature=0.2,
+            temperature=config.planning_temperature,
             max_tokens=tokens,
             chat_template_kwargs={"enable_thinking": False},
             response_format={
@@ -135,12 +140,19 @@ async def select_route(config, client, history, context, preference="auto"):
         return RouteChoice(engine=preference, reason="手动选择")
     if not context.get("spatial_available"):
         return RouteChoice(engine="sentiavatar", reason="对话表达")
-    schema = RouteChoice.model_json_schema()
-    schema["properties"]["engine"] = {"type": "string", "enum": ["sentiavatar", "ardy"]}
     value = await structured_completion(
-        config, client, history, context, ROUTE_RULES, schema, tokens=96
+        config,
+        client,
+        history,
+        {},
+        ROUTE_RULES,
+        IntentChoice.model_json_schema(),
+        tokens=config.planning_max_tokens,
     )
-    return RouteChoice.model_validate(value)
+    intent = IntentChoice.model_validate(value)
+    return RouteChoice(
+        engine=config.output_engines[intent.output], reason=intent.requested_task
+    )
 
 
 async def compile_motion(config, client, history, context):
@@ -188,8 +200,12 @@ async def compile_motion(config, client, history, context):
         "type": "object",
         "$defs": definitions,
         "additionalProperties": False,
-        "required": ["actions", "end_state"],
+        "required": ["actions", "end_state", "total_duration_seconds"],
         "properties": {
+            "total_duration_seconds": {
+                "type": ["number", "null"],
+                "description": "An explicitly requested duration for the entire program in seconds; null when only individual actions have durations.",
+            },
             "end_state": {"type": "string", "enum": ["relaxed", "hold"]},
             "actions": {
                 "type": "array",
@@ -199,7 +215,13 @@ async def compile_motion(config, client, history, context):
         },
     }
     value = await structured_completion(
-        config, client, history, context, MOTION_RULES, schema, tokens=1800
+        config,
+        client,
+        history,
+        context,
+        MOTION_RULES,
+        schema,
+        tokens=config.language_max_tokens,
     )
     ungrounded = motion_plan_problem(value.get("actions", []), context)
     if ungrounded:
@@ -211,7 +233,13 @@ async def compile_motion(config, client, history, context):
             + ungrounded
         )
         value = await structured_completion(
-            config, client, history, context, repair, schema, tokens=1800
+            config,
+            client,
+            history,
+            context,
+            repair,
+            schema,
+            tokens=config.language_max_tokens,
         )
         if motion_plan_problem(value.get("actions", []), context):
             raise ValueError("动作计划未满足英文描述或场景目标约束，请重新描述动作")
@@ -222,29 +250,21 @@ async def compile_motion(config, client, history, context):
     for action in value["actions"]:
         if action["kind"] == "reach":
             action["duration_seconds"] = max(2.4, action["duration_seconds"])
-    fit_program_duration(value["actions"], history[-1]["content"] if history else "")
+    fit_program_duration(value["actions"], value.get("total_duration_seconds"))
     return Decision(
         mode="ACT_SILENTLY", actions=value["actions"], end_state=value["end_state"]
     )
 
 
-def ungrounded_contacts(actions, context):
-    """Catch an explicit object contact mislabeled as unconstrained free motion."""
-    for action in actions:
-        caption = action.get("description", "").lower()
-        if action.get("kind") != "perform" or not re.search(
-            r"\b(touch\w*|reach\w*|grasp\w*|grab\w*|sit\w*)\b", caption
-        ):
-            continue
-        for target in context.get("targets", {}):
-            if re.search(r"\b" + re.escape(target.replace("_", " ")) + r"\b", caption):
-                return f"The contact with '{target}' is mislabeled perform. Use reach (or sit for a seat) with target_id='{target}', so the model receives the world-space constraint. Keep other phases."
-    return ""
-
-
 def motion_plan_problem(actions, context):
     for action in actions:
+        try:
+            parsed = SceneAction.model_validate(action)
+        except ValueError as exc:
+            return str(exc)
+        if parsed.target_id and parsed.target_id not in context.get("targets", {}):
+            return "The selected target is absent from the scene."
         caption = action.get("description", "")
         if not re.fullmatch(r"[ -~]+", caption) or not re.search(r"[A-Za-z]", caption):
-            return "Every description must be an English motion sentence using ASCII characters. Translate the descriptions; keep only labels in Chinese. Also bind all known object contacts to reach/sit target_id."
-    return ungrounded_contacts(actions, context)
+            return "ARDY's text encoder expects an English motion description."
+    return ""

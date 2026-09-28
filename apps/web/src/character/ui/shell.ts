@@ -69,6 +69,10 @@ export const studioShell = `
     <section id="session-tools" class="settings">
       <label class="file"><span class="file-icon">${icon("body")}</span><strong>选择 VRM 角色</strong><span>在本地载入，保留你的角色形象</span><input id="avatar" type="file" accept=".vrm,.glb"></label>
       <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">严格同步 · 统一时间轴</option></select></label>
+      <label class="mode">声线<select id="voice" disabled aria-label="声线"></select></label>
+      <div class="voice-preview"><input id="voice-sample" aria-label="试听文本" maxlength="120" value="你好，很高兴见到你。今天有什么想和我聊的吗？"><button id="voice-preview">试听</button></div>
+      <audio id="voice-player" controls hidden aria-label="声线试听"></audio>
+      <label class="persona-label">角色设定<textarea id="persona" aria-label="角色设定" maxlength="4000"></textarea><small>声线与设定从下一次回复开始生效。</small></label>
       <div class="buttons"><button id="start" class="primary" disabled>开始会话</button><button id="sound">继续声音</button></div>
     </section>
     <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output></details>

@@ -18,8 +18,8 @@ uv pip install --python $python -r (Join-Path $PSScriptRoot 'spatial/requirement
 if ($LASTEXITCODE -ne 0) { throw 'Spatial dependencies failed' }
 uv pip install --python $python --no-deps $source
 if ($LASTEXITCODE -ne 0) { throw 'ARDY native contact solver build failed; install CMake and MSVC C++ tools' }
-foreach ($item in @(@($spec.motion, 'ardy-core-20fps-h8'), @($spec.text, 'ardy-text-nf4'))) {
-    hf download $item[0].repository --revision $item[0].revision --local-dir (Join-Path $DataRoot "models/$($item[1])")
+foreach ($item in @($spec.motion, $spec.text)) {
+    hf download $item.repository --revision $item.revision --local-dir (Join-Path $DataRoot "models/$($item.directory)")
     if ($LASTEXITCODE -ne 0) { throw 'Pinned model download failed' }
 }
 Write-Output "Installed spatial runtime under $runtime"

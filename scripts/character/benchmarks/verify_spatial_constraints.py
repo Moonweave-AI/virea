@@ -25,6 +25,7 @@ def main():
         model=SimpleNamespace(skeleton=skeleton, motion_rep=motion),
         fps=20,
         horizon=8,
+        token_frames=4,
         hip_height=1.0,
     )
     for kind, position in [
@@ -32,7 +33,15 @@ def main():
         ("reach", {"z": 0.4, "x": 1.0, "y": 0.98}),
         ("sit", {"z": 0.0, "x": 0.0, "y": 0.5}),
     ]:
-        plan = SpatialPlan(engine, dict(kind=kind, position=position), [1.35, 0, 0.15])
+        plan = SpatialPlan(
+            engine,
+            dict(
+                kind=kind,
+                position=position,
+                description="A person moves toward the goal.",
+            ),
+            [1.35, 0, 0.15],
+        )
         assert plan.target.tolist() == [
             position[axis] for axis in ("x", "y", "z")
         ] or all(

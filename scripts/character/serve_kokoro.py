@@ -19,6 +19,7 @@ import os
 import threading
 import wave
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -30,13 +31,14 @@ from pydantic import BaseModel, Field
 class SpeechRequest(BaseModel):
     model: Literal["kokoro"] = "kokoro"
     input: str = Field(min_length=1, max_length=200)
-    voice: str = Field(default="zf_001", pattern=r"^z[fm]_\d{3}$")
+    voice: str | None = Field(default=None, min_length=1, max_length=80)
     response_format: Literal["wav"] = "wav"
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     import torch
+    from huggingface_hub import snapshot_download
     from kokoro import KPipeline
 
     device = os.environ.get("VIREA_TTS_DEVICE", "cpu")
@@ -47,8 +49,21 @@ async def lifespan(application: FastAPI):
     if application.state.precision not in {"auto", "float32", "float16", "bfloat16"}:
         raise ValueError("unsupported TTS precision")
 
+    repository = os.environ.get("VIREA_TTS_REPOSITORY", "hexgrad/Kokoro-82M-v1.1-zh")
+    language = os.environ.get("VIREA_TTS_LANGUAGE", "z")
+    snapshot = Path(
+        snapshot_download(repository, allow_patterns=f"voices/{language}*.pt")
+    )
+    application.state.voices = {
+        path.stem: path
+        for path in sorted((snapshot / "voices").glob(f"{language}*.pt"))
+    }
+    if not application.state.voices:
+        raise RuntimeError("The configured speech model has no installed voices")
+    application.state.repository = repository
+    application.state.language = language
     application.state.pipeline = KPipeline(
-        lang_code="z", repo_id="hexgrad/Kokoro-82M-v1.1-zh", device=device
+        lang_code=language, repo_id=repository, device=device
     )
     application.state.lock = threading.Lock()
     # Readiness includes vocabulary, voice and GPU kernel initialization.
@@ -64,23 +79,47 @@ app = FastAPI(title="VIREA Chinese Kokoro", lifespan=lifespan)
 @app.get("/health")
 def health() -> dict:
     return {
-        "model": "hexgrad/Kokoro-82M-v1.1-zh",
+        "model": app.state.repository,
         "device": app.state.device,
         "precision": app.state.precision,
     }
+
+
+@app.get("/v1/audio/voices")
+def voices() -> dict:
+    return {
+        "voices": [
+            {"id": name, "name": name, "language": app.state.language}
+            for name in app.state.voices
+        ]
+    }
+
+
+def voice_path(voice: str | None) -> str:
+    selected = voice or next(iter(app.state.voices))
+    if selected not in app.state.voices:
+        raise HTTPException(422, "Voice is not installed for the configured language")
+    return str(app.state.voices[selected])
+
+
+def inference_precision(text: str) -> str:
+    precision = app.state.precision
+    if precision == "auto":
+        threshold = int(os.environ.get("VIREA_TTS_AUTOCAST_MIN_CHARACTERS", "32"))
+        return (
+            "float16"
+            if app.state.device == "cuda" and len(text) > threshold
+            else "float32"
+        )
+    return precision
 
 
 @app.post("/v1/audio/speech")
 def speech(request: SpeechRequest) -> Response:
     import torch
 
-    precision = app.state.precision
-    if precision == "auto":
-        precision = (
-            "float16"
-            if app.state.device == "cuda" and len(request.input) > 32
-            else "float32"
-        )
+    precision = inference_precision(request.input)
+    voice = voice_path(request.voice)
     with (
         app.state.lock,
         torch.inference_mode(),
@@ -91,7 +130,7 @@ def speech(request: SpeechRequest) -> Response:
         ),
     ):
         samples = []
-        for result in app.state.pipeline(request.input, voice=request.voice):
+        for result in app.state.pipeline(request.input, voice=voice):
             if result.audio is not None:
                 samples.append(result.audio.detach().float().cpu().numpy())
         if not samples:
@@ -117,16 +156,12 @@ def speech_stream(request: SpeechRequest) -> StreamingResponse:
     caption; proportional text slices are bookkeeping, not word timestamps.
     """
 
+    voice = voice_path(request.voice)
+
     def chunks():
         import torch
 
-        precision = app.state.precision
-        if precision == "auto":
-            precision = (
-                "float16"
-                if app.state.device == "cuda" and len(request.input) > 32
-                else "float32"
-            )
+        precision = inference_precision(request.input)
         with (
             app.state.lock,
             torch.inference_mode(),
@@ -137,7 +172,7 @@ def speech_stream(request: SpeechRequest) -> StreamingResponse:
             ),
         ):
             text_cursor = 0
-            for result in app.state.pipeline(request.input, voice=request.voice):
+            for result in app.state.pipeline(request.input, voice=voice):
                 if result.audio is None:
                     continue
                 audio = result.audio.detach().float().cpu().numpy()

@@ -3,6 +3,7 @@ import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import type { BodyState, Expression, SceneAction } from "./contracts";
 import { RotationBridge } from "./continuity";
 import { contactIK } from "./interaction";
+import { samplePosition, sampleRotation } from "./motion_sampling";
 
 export interface SpatialWindow {
   sequence: number; offset: number; seconds: number; fps: number;
@@ -21,6 +22,7 @@ export class SpatialPlayer {
   private queue: SpatialWindow[] = [];
   private start = 0;
   private current: SpatialWindow | null = null;
+  private previous: SpatialWindow | null = null;
   private bridges = new Map<string, RotationBridge>();
   private recording: { id: string; windows: SpatialWindow[] } | null = null;
   private holding = false;
@@ -51,6 +53,7 @@ export class SpatialPlayer {
   async run(packet: Expression, body: BodyState, hipHeight: number,
     onProgress: (elapsed: number, duration: number) => void = () => {}): Promise<void> {
     this.stop();
+    this.previous = null;
     const controller = this.abort = new AbortController();
     if (!packet.preview) this.recording = null;
     this.contactError = null; this.contactState = null; this.stalledAt = null;
@@ -97,7 +100,7 @@ export class SpatialPlayer {
     };
     const reading = read().catch(error => { failure = error; });
     try {
-      while (this.queue.length < 4 && !ended && !failure && !controller.signal.aborted) await frame();
+      while (this.queue.reduce((seconds, window) => seconds + window.seconds, 0) < 1.6 && !ended && !failure && !controller.signal.aborted) await frame();
       if (failure) throw failure;
       if (controller.signal.aborted) throw new DOMException("Interrupted", "AbortError");
       this.current = this.queue.shift() ?? null;
@@ -118,6 +121,7 @@ export class SpatialPlayer {
               this.checkContact(); this.phaseContactError = Infinity;
             }
             if (this.stalledAt !== null) { this.start += now - this.stalledAt; this.stalledAt = null; }
+            this.previous = this.current;
             this.current = this.queue.shift()!;
           } else if (ended) { this.checkContact(); break; }
           else if (this.stalledAt === null) { this.stalledAt = now; this.underruns++; }
@@ -154,21 +158,26 @@ export class SpatialPlayer {
     if (!this.active || !window) return;
     const elapsed = this.holding ? this.total : (this.stalledAt ?? this.clock()) - this.start;
     const cursor = THREE.MathUtils.clamp((elapsed - window.offset) * window.fps, 0, window.root.length - 1);
-    const lo = Math.floor(cursor), hi = Math.min(lo + 1, window.root.length - 1), fraction = cursor - lo;
+    const next = this.queue[0];
     for (const [name, values] of Object.entries(window.rotations)) {
       const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
       if (!bone) continue;
-      const q = this.quaternion(values[lo]!).slerp(this.quaternion(values[hi]!), fraction);
+      const q = sampleRotation(values, cursor, this.previous?.rotations[name], next?.rotations[name]);
+      if (this.vrm.meta.metaVersion === "0") { q.x *= -1; q.z *= -1; }
       if (name === "chest" && !this.vrm.humanoid.getNormalizedBoneNode("upperChest")) {
         const extra = window.rotations.upperChest;
-        if (extra) q.multiply(this.quaternion(extra[lo]!).slerp(this.quaternion(extra[hi]!), fraction));
+        if (extra) {
+          const upper = sampleRotation(extra, cursor, this.previous?.rotations.upperChest, next?.rotations.upperChest);
+          if (this.vrm.meta.metaVersion === "0") { upper.x *= -1; upper.z *= -1; }
+          q.multiply(upper);
+        }
       }
       this.bridges.get(name)?.apply(q, elapsed);
       bone.quaternion.copy(q);
     }
     const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
     if (hips) {
-      const root = new THREE.Vector3().fromArray(window.root[lo]!).lerp(new THREE.Vector3().fromArray(window.root[hi]!), fraction);
+      const root = samplePosition(window.root, cursor, this.previous?.root, next?.root);
       this.vrm.scene.updateMatrixWorld(true);
       const actual = hips.getWorldPosition(new THREE.Vector3());
       this.vrm.scene.position.x += root.x - actual.x;
@@ -179,7 +188,7 @@ export class SpatialPlayer {
     }
     this.joints.clear();
     for (const [name, rows] of Object.entries(window.joints ?? {})) {
-      this.joints.set(name, new THREE.Vector3().fromArray(rows[lo]!).lerp(new THREE.Vector3().fromArray(rows[hi]!), fraction));
+      this.joints.set(name, samplePosition(rows, cursor, this.previous?.joints?.[name], next?.joints?.[name]));
     }
     if (window.phase_kind === "reach" && window.target) {
       const target = new THREE.Vector3(window.target.x, window.target.y, window.target.z);
@@ -207,8 +216,9 @@ const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => res
 export function validateSpatialWindow(value: SpatialWindow): void {
   const validRows = (rows: number[][], width: number) => Array.isArray(rows)
     && rows.length === value.root.length && rows.every(row => row.length === width && row.every(Number.isFinite));
-  if (!Array.isArray(value.root) || value.root.length !== 9 || !validRows(value.root, 3)
-    || value.fps !== 20 || value.seconds !== .4 || !Number.isFinite(value.total_seconds)
+  if (!Array.isArray(value.root) || value.root.length < 2 || !validRows(value.root, 3)
+    || !(value.fps > 0) || !Number.isFinite(value.fps) || !(value.seconds > 0)
+    || Math.abs((value.root.length - 1) / value.fps - value.seconds) > 1e-6 || !Number.isFinite(value.total_seconds)
     || !Number.isFinite(value.offset) || !value.rotations.hips
     || !Object.values(value.rotations).every(rows => validRows(rows, 4))) throw new Error("空间动作数据无效");
 }

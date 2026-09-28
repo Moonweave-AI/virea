@@ -42,7 +42,7 @@ class SceneAction(Contract):
 
 class Decision(Contract):
     mode: Literal["SPEAK", "ACT_SILENTLY", "WAIT"]
-    text: str = Field(default="", max_length=2400)
+    text: str = Field(default="", max_length=8192)
     motion_intent: str = Field(default="自然说话", max_length=300)
     actions: list[SceneAction] = Field(default_factory=list, max_length=12)
     end_state: Literal["relaxed", "hold"] = "relaxed"
@@ -97,6 +97,8 @@ class PlaybackFeedback(Contract):
 class UserMessage(Contract):
     text: str = Field(min_length=1, max_length=4000)
     engine: Literal["auto", "sentiavatar", "ardy"] = "auto"
+    voice: str | None = Field(default=None, min_length=1, max_length=80)
+    persona: str | None = Field(default=None, max_length=4000)
 
 
 class PlaybackControl(Contract):
@@ -104,10 +106,17 @@ class PlaybackControl(Contract):
     paused: bool
 
 
+class VoicePreview(Contract):
+    text: str = Field(min_length=1, max_length=200)
+    voice: str | None = Field(default=None, min_length=1, max_length=80)
+
+
 class SessionRequest(Contract):
     avatar_id: str | None = None
     require_native_history: bool = False
     playback_mode: Literal["synchronized", "voice_first"] = "synchronized"
+    voice: str | None = Field(default=None, min_length=1, max_length=80)
+    persona: str | None = Field(default=None, max_length=4000)
 
 
 class CharacterConfig(Contract):
@@ -119,7 +128,21 @@ class CharacterConfig(Contract):
     tts_voice: str = "zf_001"
     motion_planner_url: str | None = None
     spatial_url: str | None = None
-    persona: str = "你是生活在三维空间中的角色，简洁自然地用中文交流。"
+    persona: str = ""
+    language_max_tokens: int = Field(default=4096, ge=256, le=16384)
+    planning_max_tokens: int = Field(default=768, ge=128, le=4096)
+    planning_temperature: float = Field(default=0, ge=0, le=2)
+    output_engines: dict[
+        Literal["spoken_content", "physical_movement"], Literal["sentiavatar", "ardy"]
+    ] = Field(
+        default_factory=lambda: {
+            "spoken_content": "sentiavatar",
+            "physical_movement": "ardy",
+        }
+    )
+    temperature: float = Field(default=0.6, ge=0, le=2)
+    max_speech_beats: int = Field(default=64, ge=1, le=64)
+    spatial_history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)
     provider_timeout: float = Field(default=120, gt=0, le=600)
     motion_timeout: float = Field(default=600, gt=0, le=3600)
     feedback_timeout: float = Field(default=120, gt=0, le=600)

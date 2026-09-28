@@ -92,6 +92,8 @@ class CharacterSession:
             "buffered": self.buffered,
             "ready": list(self.ready.values()),
             "playback_mode": self.playback_mode,
+            "voice": self.config.tts_voice,
+            "persona": self.config.persona,
             "draft_text": self.draft_text,
             "route": self.route,
             "motion_plan": self.motion_plan,
@@ -103,10 +105,21 @@ class CharacterSession:
             "events": list(self.events),
         }
 
-    async def message(self, text: str, engine: str = "auto") -> None:
+    async def message(
+        self,
+        text: str,
+        engine: str = "auto",
+        *,
+        voice: str | None = None,
+        persona: str | None = None,
+    ) -> None:
         async with self._lock:
             self._ensure_open()
             await self._cancel()
+            if voice is not None:
+                self.config.tts_voice = voice
+            if persona is not None:
+                self.config.persona = persona
             self._autonomous = 0
             self.draft_text = ""
             self.route, self.route_preference, self.motion_plan = None, engine, []
@@ -254,6 +267,7 @@ class CharacterSession:
         semantic_body = self.body.model_dump(exclude={"pose"})
         return {
             "trigger": trigger,
+            "persona": self.config.persona,
             "route": self.route,
             "body": semantic_body,
             "environment": self.environment,

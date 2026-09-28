@@ -24,7 +24,7 @@ class GenerateRequest(BaseModel):
     hip_height: float = Field(default=1, gt=0.2, lt=3)
     steps: int = Field(default=10, ge=1, le=10)
     guidance: float = Field(default=2, ge=1, le=8)
-    history_frames: int = Field(default=4, ge=4, le=160, multiple_of=4)
+    history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)
 
 
 def create_app(engine):
@@ -34,7 +34,7 @@ def create_app(engine):
     @app.get("/health")
     async def health():
         return dict(
-            model="ARDY-Core-RP-20FPS-Horizon8",
+            model=engine.model_id,
             text_precision="NF4",
             fps=engine.fps,
             window_frames=engine.horizon,
@@ -78,9 +78,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, required=True)
     parser.add_argument("--text-dir", type=Path, required=True)
+    parser.add_argument("--model-id")
     parser.add_argument("--port", type=int, default=8085)
     args = parser.parse_args()
-    engine = SpatialEngine(args.model_dir, args.text_dir)
+    engine = SpatialEngine(args.model_dir, args.text_dir, model_id=args.model_id)
     import uvicorn
 
     uvicorn.run(create_app(engine), host="127.0.0.1", port=args.port)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from virea.character.contracts import (
     BodyState,
@@ -12,8 +12,10 @@ from virea.character.contracts import (
     PlaybackFeedback,
     SessionRequest,
     UserMessage,
+    VoicePreview,
 )
 from virea.character.providers.motion import CAPABILITIES
+from virea.character.providers.speech import SpeechProvider
 
 from .character_spatial import router as spatial_router
 
@@ -33,6 +35,30 @@ async def capabilities() -> dict:
     return CAPABILITIES
 
 
+@router.get("/preferences")
+async def character_preferences(request: Request) -> dict:
+    manager = request.app.state.characters
+    return {
+        "voice": manager.config.tts_voice,
+        "persona": manager.config.persona,
+        "voices": await manager.speech.voices(),
+    }
+
+
+@router.post("/voice-preview")
+async def voice_preview(body: VoicePreview, request: Request):
+    manager = request.app.state.characters
+    try:
+        await manager.speech.validate_voice(body.voice or manager.config.tts_voice)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    config = manager.config.model_copy(
+        update={"tts_voice": body.voice or manager.config.tts_voice}
+    )
+    audio, _ = await SpeechProvider(config, manager.client).synthesize(body.text)
+    return Response(audio, media_type="audio/wav")
+
+
 @router.get("/neutral-pose")
 async def neutral_pose(request: Request) -> dict:
     path = request.app.state.characters.directory / "neutral-pose.json"
@@ -47,6 +73,8 @@ async def neutral_pose(request: Request) -> dict:
 @router.post("", status_code=201)
 async def create_character(body: SessionRequest, request: Request) -> dict:
     try:
+        if body.voice is not None:
+            await request.app.state.characters.speech.validate_voice(body.voice)
         return request.app.state.characters.create(body).snapshot()
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -62,7 +90,14 @@ async def character_message(
     session_id: str, body: UserMessage, request: Request
 ) -> dict:
     current = session(request, session_id)
-    await current.message(body.text, body.engine)
+    if body.voice is not None:
+        try:
+            await current.speech.validate_voice(body.voice)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+    await current.message(
+        body.text, body.engine, voice=body.voice, persona=body.persona
+    )
     return current.snapshot()
 
 

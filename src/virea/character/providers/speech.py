@@ -14,6 +14,18 @@ class SpeechProvider:
         self.config = config
         self.client = client
 
+    async def voices(self) -> list[dict]:
+        response = await self.client.get(
+            self.config.tts_url.rstrip("/") + "/audio/voices",
+            timeout=self.config.provider_timeout,
+        )
+        response.raise_for_status()
+        return response.json()["voices"]
+
+    async def validate_voice(self, voice: str) -> None:
+        if voice not in {entry["id"] for entry in await self.voices()}:
+            raise ValueError("所选声线未安装")
+
     async def stream(self, text: str):
         received = ""
         async with self.client.stream(

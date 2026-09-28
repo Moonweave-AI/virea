@@ -46,11 +46,20 @@ class CharacterManager:
             raise ValueError(
                 "active character session limit reached; close an existing session"
             )
+        overrides = {
+            key: value
+            for key, value in {
+                "tts_voice": request.voice,
+                "persona": request.persona,
+            }.items()
+            if value is not None
+        }
+        config = self.config.model_copy(update=overrides)
         session = CharacterSession(
-            config=self.config,
+            config=config,
             directory=self.directory,
             language=self.language,
-            speech=self.speech,
+            speech=SpeechProvider(config, self.client),
             motion=self.motion,
             generation_slot=self.generation_slot,
             avatar_id=request.avatar_id,

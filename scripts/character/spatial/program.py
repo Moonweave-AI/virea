@@ -16,7 +16,7 @@ async def generate_program(
     steps,
     guidance,
     end_state,
-    history_frames=4,
+    history_frames=40,
 ):
     origin = [body["position"][axis] for axis in ("x", "y", "z")]
     scale = hip_height / engine.hip_height
@@ -29,20 +29,7 @@ async def generate_program(
         phases.append((action, plan.frames))
         if action["kind"] == "move_to":
             planned_origin = [action["position"][axis] for axis in ("x", "y", "z")]
-    settle_frames = 40 if end_state == "relaxed" else 0
-    total_frames = sum(frames for _, frames in phases) + settle_frames
-    if settle_frames:
-        phases.append(
-            (
-                {
-                    "kind": "perform",
-                    "label": "自然收势",
-                    "description": "A person finishes the movement, slows down and stands comfortably with relaxed arms.",
-                    "duration_seconds": settle_frames / engine.fps,
-                },
-                settle_frames,
-            )
-        )
+    total_frames = sum(frames for _, frames in phases)
     async with lock:
         height = body.get("pelvis_height")
         history = await asyncio.to_thread(
@@ -54,6 +41,7 @@ async def generate_program(
         )
         history = history[:, -history_frames:]
     offset = 0
+    sequence = 0
     for phase_index, (action, frames) in enumerate(phases):
         if await request.is_disconnected():
             return
@@ -83,10 +71,11 @@ async def generate_program(
                     guidance=guidance,
                     history_frames=history_frames,
                     foot_correction=False,
+                    output_frames=min(engine.horizon, frames - generated),
                 )
             frame = offset + generated
             packet.update(
-                sequence=frame // engine.horizon,
+                sequence=sequence,
                 offset=frame / engine.fps,
                 total_seconds=total_frames / engine.fps,
                 phase_index=phase_index,
@@ -96,7 +85,7 @@ async def generate_program(
                 phase_offset=offset / engine.fps,
                 prompt=plan.prompt,
                 target=action.get("position"),
-                continues=frame + engine.horizon < total_frames,
+                continues=frame + round(packet["seconds"] * engine.fps) < total_frames,
             )
             packet["root"] = [[v * scale for v in row] for row in packet["root"]]
             packet["joints"] = {
@@ -105,4 +94,5 @@ async def generate_program(
             }
             packet["hip_height"] *= scale
             yield packet
+            sequence += 1
         offset += frames
