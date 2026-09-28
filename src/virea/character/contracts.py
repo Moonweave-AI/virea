@@ -21,13 +21,19 @@ class SceneAction(Contract):
     kind: Literal["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"]
     target_id: str | None = Field(default=None, max_length=80)
     position: Position | None = None
-    description: str | None = Field(default=None, max_length=160)
+    description: str | None = Field(default=None, max_length=320)
+    label: str | None = Field(default=None, max_length=80)
+    duration_seconds: float | None = Field(default=None, ge=0.8, le=60)
 
     @model_validator(mode="after")
     def destination(self):
-        if self.kind in {"look_at", "move_to", "reach", "sit"} and (self.target_id is None) == (self.position is None):
+        if self.kind in {"look_at", "move_to", "reach", "sit"} and (
+            self.target_id is None
+        ) == (self.position is None):
             raise ValueError("spatial actions require exactly one target or position")
-        if self.kind in {"stop", "stand", "perform"} and (self.target_id or self.position):
+        if self.kind in {"stop", "stand", "perform"} and (
+            self.target_id or self.position
+        ):
             raise ValueError("this action has no destination")
         if self.kind == "perform" and not self.description:
             raise ValueError("perform requires an English motion description")
@@ -38,10 +44,13 @@ class Decision(Contract):
     mode: Literal["SPEAK", "ACT_SILENTLY", "WAIT"]
     text: str = Field(default="", max_length=2400)
     motion_intent: str = Field(default="自然说话", max_length=300)
-    actions: list[SceneAction] = Field(default_factory=list, max_length=4)
+    actions: list[SceneAction] = Field(default_factory=list, max_length=12)
+    end_state: Literal["relaxed", "hold"] = "relaxed"
 
     @model_validator(mode="after")
     def coherent(self):
+        if sum(action.duration_seconds or 4.8 for action in self.actions) > 180:
+            raise ValueError("one motion program may contain at most 180 seconds")
         if self.mode == "SPEAK" and not self.text.strip():
             raise ValueError("SPEAK requires final spoken text")
         if self.mode != "SPEAK" and self.text:
@@ -58,6 +67,7 @@ class BodyState(Contract):
 
     position: Position = Field(default_factory=Position)
     yaw: float = Field(default=0, ge=-1000, le=1000)
+    pelvis_height: float | None = Field(default=None, ge=-2, le=5)
     pose: dict[str, tuple[float, float, float, float]] = Field(
         default_factory=dict, max_length=80
     )
@@ -81,11 +91,17 @@ class PlaybackFeedback(Contract):
     body: BodyState
     message: str = Field(default="", max_length=500)
     audio_seconds: float = Field(default=0, ge=0, le=60)
-    motion_seconds: float = Field(default=0, ge=0, le=60)
+    motion_seconds: float = Field(default=0, ge=0, le=600)
 
 
 class UserMessage(Contract):
     text: str = Field(min_length=1, max_length=4000)
+    engine: Literal["auto", "sentiavatar", "ardy"] = "auto"
+
+
+class PlaybackControl(Contract):
+    epoch: int = Field(ge=0)
+    paused: bool
 
 
 class SessionRequest(Contract):

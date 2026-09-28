@@ -1,11 +1,5 @@
 import * as THREE from "three";
 
-/** Close-range contact keeps its standing support while allowing an expressive arm. */
-export function contactRotation(name: string, support: THREE.Quaternion, generated: THREE.Quaternion): THREE.Quaternion {
-  const weight = /Leg|Foot|Toes|^hips$/.test(name) ? 0 : /spine|chest|Chest/.test(name) ? .12 : /neck|head/.test(name) ? .35 : 1;
-  return support.clone().slerp(generated, weight);
-}
-
 /** Small contact correction over the generated pose; keeps the body's model balance. */
 export function contactIK(chain: THREE.Object3D[], hand: THREE.Object3D, target: THREE.Vector3, weight: number): number {
   const root = chain.at(-1)?.parent;

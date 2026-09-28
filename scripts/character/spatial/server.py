@@ -5,22 +5,26 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from .engine import SpatialEngine
-from .plan import SpatialPlan
+from .program import generate_program
 
 
 class GenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-    action: dict
+    action: dict | None = None
+    actions: list[dict] = Field(default_factory=list, max_length=12)
+    end_state: Literal["relaxed", "hold"] = "hold"
     body: dict
     hip_height: float = Field(default=1, gt=0.2, lt=3)
     steps: int = Field(default=10, ge=1, le=10)
     guidance: float = Field(default=2, ge=1, le=8)
+    history_frames: int = Field(default=4, ge=4, le=160, multiple_of=4)
 
 
 def create_app(engine):
@@ -35,48 +39,30 @@ def create_app(engine):
             fps=engine.fps,
             window_frames=engine.horizon,
             device="cuda",
-            history_frames=40,
+            history_frames=engine.history_frames,
+            continuous_program=True,
             physics=False,
         )
 
     @app.post("/generate")
     async def generate(body: GenerateRequest, request: Request):
-        origin = [body.body["position"][axis] for axis in ("x", "y", "z")]
-        scale = body.hip_height / engine.hip_height
-        plan = SpatialPlan(engine, body.action, origin, scale=scale)
-
         async def stream():
             try:
-                async with lock:
-                    history = await asyncio.to_thread(
-                        engine.initial_history,
-                        body.body["pose"],
-                        [v / scale for v in origin],
-                        body.body.get("yaw", 0),
-                    )
-                for generated in range(0, plan.frames, engine.horizon):
-                    if await request.is_disconnected():
-                        return
-                    async with lock:
-                        constraints = plan.constraints(generated, history)
-                        history, packet = await asyncio.to_thread(
-                            engine.step,
-                            history,
-                            plan.prompt,
-                            constraints,
-                            steps=body.steps,
-                            guidance=body.guidance,
-                            foot_correction=abs(origin[1]) < 0.01
-                            and (plan.kind != "move_to" or abs(plan.target[1]) < 0.01),
-                        )
-                    packet["sequence"] = generated // engine.horizon
-                    packet["total_seconds"] = plan.frames / engine.fps
-                    packet["offset"] = generated / engine.fps
-                    packet["root"] = [
-                        [v * scale for v in row] for row in packet["root"]
-                    ]
-                    packet["hip_height"] *= scale
-                    packet["continues"] = generated + engine.horizon < plan.frames
+                actions = body.actions or ([body.action] if body.action else [])
+                if not actions:
+                    raise ValueError("motion program is empty")
+                async for packet in generate_program(
+                    engine,
+                    lock,
+                    request,
+                    actions=actions,
+                    body=body.body,
+                    hip_height=body.hip_height,
+                    steps=body.steps,
+                    guidance=body.guidance,
+                    end_state=body.end_state,
+                    history_frames=body.history_frames,
+                ):
                     yield json.dumps(packet, allow_nan=False) + "\n"
                 yield json.dumps({"done": True}) + "\n"
             except Exception as exc:

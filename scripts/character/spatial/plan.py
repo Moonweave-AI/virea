@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 import torch
-from ardy.constraints import EndEffectorConstraintSet, Root2DConstraintSet
+from ardy.constraints import Root2DConstraintSet
 
 
 class PointConstraints:
@@ -15,6 +15,40 @@ class PointConstraints:
     def update_constraints(self, data, index):
         data["root_y_pos"].append(torch.tensor(self.root_y, dtype=torch.float32))
         index["root_y_pos"].append(self.frame_indices)
+
+
+class HandGoal:
+    """Sparse hand POSITION goal; no invented wrist orientation or frozen pelvis."""
+
+    def __init__(self, indices, hand_index, target, root_index, root):
+        self.frame_indices = torch.tensor(indices, dtype=torch.long)
+        self.hand_index, self.target = (
+            hand_index,
+            torch.as_tensor(target, dtype=torch.float32),
+        )
+        self.root_index, self.root = (
+            root_index,
+            torch.as_tensor(root, dtype=torch.float32),
+        )
+
+    def update_constraints(self, data, index):
+        # ARDY converts world hand goals into root-relative position features.
+        # The root row supplies that reference; it does NOT constrain pelvis Y.
+        count = len(self.frame_indices)
+        data["global_joints_positions"].append(
+            torch.stack((self.root, self.target)).repeat(count, 1)
+        )
+        index["global_joints_positions"].append(
+            torch.stack(
+                (
+                    self.frame_indices.repeat_interleave(2),
+                    torch.tensor([self.root_index, self.hand_index]).repeat(count),
+                ),
+                dim=1,
+            )
+        )
+        data["root_2d"].append(self.root[[0, 2]][None].repeat(count, 1))
+        index["root_2d"].append(self.frame_indices)
 
 
 class SpatialPlan:
@@ -30,35 +64,33 @@ class SpatialPlan:
             else self.origin.copy()
         )
         self.kind = action["kind"]
-        self.reference = None
         delta = self.target[[0, 2]] - self.origin[[0, 2]]
         distance = float(np.linalg.norm(delta))
-        self.heading = (
-            math.atan2(float(delta[0]), float(delta[1])) if distance > 0.02 else 0
-        )
-        self.duration = (
+        self.duration = action.get("duration_seconds") or (
             min(30, max(2.4, distance / 0.65 + 1.6)) if self.kind == "move_to" else 4.8
         )
+        if self.kind == "reach":
+            self.duration = max(2.4, self.duration)
         self.frames = (
-            math.ceil(self.duration * engine.fps / engine.horizon) * engine.horizon
+            math.ceil(self.duration * engine.fps / engine.horizon - 1e-9)
+            * engine.horizon
         )
-        self.prompt = {
-            "move_to": "A person walks naturally toward a destination, then slows down and stands relaxed.",
-            "reach": "A person gently reaches forward with their right hand to touch an object.",
-            "sit": "A person bends their knees and sits down naturally on a chair.",
-            "stand": "A person stands up from a chair and stands relaxed.",
-            "perform": action.get("description") or "A person stands relaxed.",
-        }[self.kind]
+        self.prompt = (
+            action.get("description")
+            or {
+                "move_to": "A person walks naturally toward a destination, then slows down and stands relaxed.",
+                "reach": "A person gently reaches forward with their right hand to touch an object.",
+                "sit": "A person bends their knees and sits down naturally on a chair.",
+                "stand": "A person stands up from a chair and stands relaxed.",
+                "perform": action.get("description") or "A person stands relaxed.",
+            }[self.kind]
+        )
 
     def constraints(self, generated, history):
         history_frames = history.shape[1]
-        if self.reference is None:
-            self.reference = self.engine.model.motion_rep.inverse(
-                history[:, -1:], is_normalized=True
-            )
         skel = self.engine.model.skeleton
         remaining = self.frames - generated
-        horizon = min(remaining, 48)
+        horizon = min(remaining, 200 - history_frames)
         index = list(range(history_frames + 3, history_frames + horizon, 4))
         if self.kind == "move_to":
             # Native root constraints guide leg motion. Never slide the rendered
@@ -68,51 +100,35 @@ class SpatialPlan:
             # Ease departure/arrival without restarting at each inference window.
             u = progress * progress * (3 - 2 * progress)
             path = self.origin[None] + (self.target - self.origin)[None] * u[:, None]
-            arrival = np.clip((progress - 0.6) / 0.4, 0, 1)
-            headings = self.heading * (1 - arrival * arrival * (3 - 2 * arrival))
             return [
                 Root2DConstraintSet(
                     skel,
                     torch.tensor(index),
                     torch.tensor(path[:, [0, 2]], dtype=torch.float32),
-                    global_root_heading=torch.tensor(headings, dtype=torch.float32),
-                ),
-                PointConstraints(
-                    index, root_y=(path[:, 1] + self.engine.hip_height).tolist()
                 ),
             ]
         if self.kind == "reach":
-            # Keep the planted feet and pelvis; move the hand along one
-            # continuous goal trajectory, not a new target for every window.
-            positions = self.reference["posed_joints"][0].cpu().repeat(len(index), 1, 1)
-            rotations = (
-                self.reference["global_rot_mats"][0].cpu().repeat(len(index), 1, 1, 1)
-            )
-            progress = np.clip(
-                (np.arange(3, horizon, 4) + generated) / max(1, self.frames - 24), 0, 1
-            )
-            u = torch.tensor(
-                progress * progress * (3 - 2 * progress), dtype=torch.float32
-            )[:, None]
-            hand = skel.bone_index["RightHand"]
-            delta = (torch.tensor(self.target) - positions[0, hand]) * u
-            for name in skel.right_hand_joint_names:
-                positions[:, skel.bone_index[name]] += delta
-            return [
-                EndEffectorConstraintSet(
-                    skel,
-                    torch.tensor(index),
-                    positions,
-                    rotations,
-                    None,
-                    joint_names=["Hips", "LeftFoot", "RightFoot", "RightHand"],
-                ),
-                Root2DConstraintSet(
-                    skel,
-                    torch.tensor(index),
-                    torch.tensor(self.origin[[0, 2]])[None].repeat(len(index), 1),
-                ),
+            # Leave the approach unconstrained. Far-future sparse goals let the
+            # native model coordinate balance, elbow, shoulder and torso itself.
+            contact_at = max(7, self.frames - 9)
+            indices = [
+                history_frames + frame - generated
+                for frame in (contact_at, self.frames - 1)
+                if generated <= frame < generated + horizon
             ]
+            return (
+                [
+                    HandGoal(
+                        indices,
+                        skel.bone_index["RightHand"],
+                        self.target,
+                        skel.root_idx,
+                        self.origin,
+                    )
+                ]
+                if indices
+                else []
+            )
         if self.kind == "sit":
             at = history_frames + min(remaining, 48) - 1
             return [

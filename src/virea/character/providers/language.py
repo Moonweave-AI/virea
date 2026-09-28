@@ -9,6 +9,7 @@ from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
 from ..streaming import LanguageUpdate, partial_decision
 from ..utterances import SpeechBeat, beat_decision, decode_beats, utterance_schema
+from .routing import compile_motion, select_route
 
 
 class LanguageProvider:
@@ -22,11 +23,24 @@ class LanguageProvider:
                 return update.decision
         raise ValueError("language stream ended without a decision")
 
+    async def route(self, history, context, preference="auto"):
+        return await select_route(
+            self.config, self.client, history, context, preference
+        )
+
     async def stream(self, history: list[dict], context: dict):
+        if (context.get("route") or {}).get("engine") == "ardy":
+            yield LanguageUpdate(
+                await compile_motion(self.config, self.client, history, context),
+                final=True,
+            )
+            return
         thinking = (
             self.config.llm_thinking and context.get("trigger") != "behavior_completed"
         )
         rules = self.config.persona + "\n" + DECISION_RULES
+        if (context.get("route") or {}).get("engine") == "sentiavatar":
+            rules += "\n本轮已路由到 SentiAvatar 对话表达。actions=[]，只生成自然台词与语义手势，不发起 ARDY 全身动作。"
         payload = {
             "model": self.config.llm_model,
             "messages": [
@@ -47,7 +61,10 @@ class LanguageProvider:
                     "think": thinking,
                     "keep_alive": "15m",
                     "format": utterance_schema(
-                        list(context.get("targets", {})), explicit_positions(history)
+                        list(context.get("targets", {})),
+                        explicit_positions(history),
+                        speech_only=(context.get("route") or {}).get("engine")
+                        == "sentiavatar",
                     ),
                     "options": {
                         "temperature": 0.6,
@@ -71,6 +88,8 @@ class LanguageProvider:
                             "schema": utterance_schema(
                                 list(context.get("targets", {})),
                                 explicit_positions(history),
+                                speech_only=(context.get("route") or {}).get("engine")
+                                == "sentiavatar",
                             ),
                         },
                     },

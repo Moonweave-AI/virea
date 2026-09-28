@@ -2,6 +2,7 @@ export interface Position { x: number; y: number; z: number }
 export interface BodyState {
   position: Position;
   yaw: number;
+  pelvis_height?: number;
   pose: Record<string, [number, number, number, number]>;
   gaze_target: string | null;
   behavior: string;
@@ -11,6 +12,8 @@ export interface SceneAction {
   target_id: string | null;
   position: Position | null;
   description?: string | null;
+  label?: string | null;
+  duration_seconds?: number | null;
 }
 export interface Expression {
   id: string;
@@ -28,6 +31,9 @@ export interface Expression {
   offset_seconds?: number;
   parent_id?: string | null;
   caption?: string;
+  route?: { engine: "sentiavatar" | "ardy"; reason: string } | null;
+  end_state?: "relaxed" | "hold";
+  preview?: boolean;
 }
 export interface FaceTrack { fps: number; names: string[]; values: number[][];
   arkit?: { names: string[]; values: number[][] } }
@@ -44,8 +50,11 @@ export interface Session {
   ready?: Expression[];
   latest_expression: Expression | null;
   draft_text: string;
+  route?: { engine: "sentiavatar" | "ardy"; reason: string } | null;
+  motion_plan?: SceneAction[];
   playback_mode: "voice_first" | "synchronized";
-  events: { sequence: number; kind: string; message?: string }[];
+  events: { sequence: number; kind: string; message?: string; text?: string;
+    interrupted?: boolean; feedback?: { status: string } }[];
   history: { role: string; content: string }[];
   metrics: { first_expression_seconds: number | null; rtf: number | null;
     first_audio_seconds: number | null; language_seconds: number | null;

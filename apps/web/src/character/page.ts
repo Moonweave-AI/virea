@@ -1,45 +1,15 @@
 import "./style.css";
+import { studioShell } from "./ui/shell";
+import { StudioHistory, downloadJSON } from "./ui/history";
 import { CharacterStage } from "./stage";
 import type { Expression, Session, PlaybackProgress } from "./contracts";
 
 const root = document.querySelector<HTMLDivElement>("#character")!;
-root.innerHTML = `
-  <header><a href="./">VIREA<span class="brand-dot">.</span></a><span>持续角色 / LIVE SPACE</span><a href="./">动作工作室 ↗</a></header>
-  <main>
-    <section class="stage"><canvas aria-label="持续角色三维场景"></canvas>
-      <div class="stage-title"><small><i></i> CHARACTER SPACE</small><h1>在这里，继续对话。</h1><p>说话、倾听，自然相伴。</p></div>
-      <div id="subtitle" aria-live="polite"></div><div class="stage-note">拖动旋转 · 滚轮缩放</div>
-      <aside aria-label="角色聊天">
-        <div class="session-heading"><div><small>CONVERSATION</small><h2>和角色聊聊</h2></div><div class="session-actions"><span id="status" role="status">未连接</span><button id="close" aria-label="结束会话" title="结束会话" disabled>×</button></div></div>
-        <div class="chat-content">
-          <details id="session-tools" class="settings" open><summary>角色与会话</summary><div class="settings-content">
-            <label class="file">载入 VRM 角色<input id="avatar" type="file" accept=".vrm,.glb"></label>
-            <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">严格同步 · 统一时间轴</option><option value="voice_first">语音优先 · 动作稍后预览</option></select></label>
-            <div class="buttons"><button id="start" class="primary" disabled>开始会话</button><button id="sound">继续声音</button></div>
-          </div></details>
-          <section class="latest-reply" aria-label="角色回复"><div class="text-heading"><strong>角色</strong><span id="text-state">等待回复</span></div><p id="response-text">载入角色，开始一段对话。</p></section>
-          <section class="expression-panel" aria-label="语音、动作与文本">
-            <div class="track timeline"><strong>统一时间轴</strong><span id="timeline-state">等待资源就绪</span><button id="pause" disabled>暂停</button><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
-            <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
-            <div class="track"><strong>动作</strong><span id="motion-state">保留当前姿态</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
-            <details class="playback-tools"><summary>音量与重播</summary><div class="settings-content">
-              <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
-              <div class="buttons"><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>预览动作</button><button id="replay-sync" disabled>同步重播</button></div>
-              <p id="playback-note" class="hint">声音、动作和面部全部就绪后统一起播；字幕随语音显示。</p>
-            </div></details>
-          </section>
-          <details class="history"><summary>对话记录</summary><div id="conversation" role="log" aria-label="对话记录"></div></details>
-          <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output><p>讲话期间动作连续衔接，表达结束后放松收势。手指使用上游固定资源，标准 VRM 的面部映射为近似转换。</p></details>
-        </div>
-        <form><label class="sr-only" for="message">对角色说</label><textarea id="message" rows="2" maxlength="4000" placeholder="说点什么，让对话继续…" required></textarea>
-          <div class="composer-actions"><button type="button" id="interrupt" title="打断并保留当前姿态" disabled>打断</button><button type="submit" id="send" class="primary" disabled>发送 <span aria-hidden="true">↗</span></button></div></form>
-        <div id="error" role="alert"></div>
-      </aside>
-    </section>
-  </main>`;
+root.innerHTML = studioShell;
 
 function element<T extends HTMLElement>(selector: string): T { return root.querySelector<T>(selector)!; }
 const stage = new CharacterStage(element("canvas"));
+const history = new StudioHistory(root);
 let session: Session | null = null;
 let playing: string | null = null;
 let handled = new Set<string>();
@@ -76,6 +46,10 @@ function showProgress(value: PlaybackProgress): void {
       : name === "audio" ? "无语音" : "本次未播放动作";
   }
   element("#pause").textContent = value.paused ? "继续" : "暂停";
+  const phase = element<HTMLCanvasElement>("canvas").dataset.motionPhase;
+  element("#active-phase").textContent = session?.route?.engine === "ardy" && phase ? phase : "播放时间轴";
+  const index = Number(element<HTMLCanvasElement>("canvas").dataset.motionPhaseIndex ?? -1);
+  element("#motion-plan").querySelectorAll("li").forEach((node, i) => node.dataset.active = String(playing !== null && i === index));
 }
 
 async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -92,31 +66,42 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 
 function showError(error: unknown): void {
   element("#error").textContent = error instanceof Error ? error.message : String(error);
+  element("#settings-error").textContent = element("#error").textContent;
 }
 
 function renderState(value: Session): void {
-  const labels: Record<string, string> = { waiting: "正在等待", thinking: "正在思考", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "正在表达", error: "需要处理", closed: "已结束" };
-  element("#status").textContent = labels[value.status] ?? value.status;
+  const labels: Record<string, string> = { routing: "选择生成方式", waiting: "就绪", thinking: "规划中", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "播放中", error: "需要处理", closed: "已结束" };
+  element("#status").textContent = previewing ? "动作预览" : labels[value.status] ?? value.status;
   const seconds = (value: number | null) => value?.toFixed(2) ?? "—";
   element("#metrics").textContent = `语言流水线 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 首包就绪 ${seconds(value.metrics.first_expression_seconds)}s · ${value.playback_mode === "synchronized" ? "动作" : "生成"} RTF ${seconds(value.metrics.rtf)}`;
-  element("#response-text").textContent = value.draft_text || (value.status === "thinking" ? "正在准备回复…" : "此刻没有需要说出的文本。");
-  element("#text-state").textContent = value.draft_text ? "实时回复" : "尚未生成";
+  element("#response-text").textContent = value.draft_text || (value.route?.engine === "ardy" ? "" : ["thinking", "routing"].includes(value.status) ? "正在准备…" : "描述一个动作，或和角色聊聊。");
+  element("#reply-owner").textContent = value.route?.engine === "ardy" ? "动作计划" : "VIREA";
+  element("#route-card").hidden = !value.route;
+  element("#route-model").textContent = value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
+  element("#route-reason").textContent = value.route?.reason ?? "";
+  const plan = element("#motion-plan"), signature = JSON.stringify(value.motion_plan ?? []);
+  if (plan.dataset.plan !== signature) {
+    plan.dataset.plan = signature;
+    plan.replaceChildren(...(value.motion_plan ?? []).map((action, i) => {
+      const li = document.createElement("li"), index = document.createElement("span"), label = document.createElement("span"), time = document.createElement("small");
+      index.className = "phase-number"; index.textContent = String(i + 1);
+      label.textContent = action.label ?? action.kind; time.textContent = `${action.duration_seconds ?? "自动"}s`;
+      li.title = action.description ?? ""; li.append(index, label, time); return li;
+    }));
+  }
+  element("#text-state").textContent = value.route?.engine === "ardy"
+    ? value.motion_plan?.length ? "动作序列" : "正在编排" : value.draft_text ? "实时回复" : "尚未生成";
   const idle = !playing && !previewing && ["waiting", "error"].includes(value.status);
   const latest = value.latest_expression;
   element<HTMLButtonElement>("#replay-audio").disabled = !idle || !latest?.audio_url;
-  element<HTMLButtonElement>("#replay-motion").disabled = !idle || !latest?.motion;
+  element<HTMLButtonElement>("#replay-motion").disabled = !idle || (!latest?.motion && !stage.motionRecording().length);
+  element<HTMLButtonElement>("#export-motion").disabled = !idle || value.route?.engine !== "ardy" || !stage.motionRecording().length;
   element<HTMLButtonElement>("#replay-sync").disabled = !idle || !latest?.motion || !latest?.audio_url;
   if (!playing && !previewing) {
-    element("#motion-state").textContent = value.status === "generating" ? "动作生成中…" : latest?.motion ? "动作已就绪 · 可预览" : "保留当前姿态";
+    element("#motion-state").textContent = value.status === "generating" ? "动作生成中…" : latest?.motion || stage.motionRecording().length ? "动作已就绪 · 可重播" : "保留当前姿态";
     if (value.status === "synthesizing") element("#audio-state").textContent = "合成语音中…";
   }
-  const log = element("#conversation");
-  log.replaceChildren(...value.history.map(item => {
-    const paragraph = document.createElement("p");
-    paragraph.className = item.role;
-    paragraph.textContent = `${item.role === "user" ? "你" : "角色"} · ${item.content}`;
-    return paragraph;
-  }));
+  history.update(value);
   if (value.status === "error") {
     const error = [...value.events].reverse().find(event => event.kind === "error");
     if (error?.message) showError(new Error(error.message));
@@ -131,7 +116,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   element<HTMLButtonElement>("#pause").disabled = false;
   element("#playback-note").textContent = packet.motion
     ? "动作在讲话期间持续衔接，结束后自然收势；语音、动作与字幕共用时间轴。"
-    : "优先播放语音与字幕，口型按音量近似驱动；生成动作可稍后预览或同步重播。";
+    : packet.route?.engine === "ardy" ? "动作序列连续生成，共用一条时间轴。" : "语音与字幕同步播放。";
   let status = "completed";
   let message = "";
   let durations = { audio_seconds: 0, motion_seconds: 0 };
@@ -183,8 +168,11 @@ element<HTMLInputElement>("#avatar").onchange = async (event) => {
   try {
     if (session) return;
     await stage.loadAvatar(file);
+    element("#avatar-name").textContent = file.name.replace(/\.vrm$/i, "");
+    root.classList.add("avatar-loaded");
     element<HTMLButtonElement>("#start").disabled = false;
     element("#error").textContent = "";
+    element("#settings-error").textContent = "";
   } catch (error) { showError(error); }
 };
 
@@ -201,8 +189,10 @@ element("#start").onclick = async () => {
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = false;
     element<HTMLInputElement>("#avatar").disabled = true;
     element<HTMLButtonElement>("#start").disabled = true;
-    element<HTMLDetailsElement>("#session-tools").open = false;
+    element<HTMLDialogElement>("#settings-dialog").close();
+    root.classList.add("connected");
     element("#error").textContent = "";
+    element("#settings-error").textContent = "";
     renderState(session);
   } catch (error) { showError(error); }
   finally { setMutating(false); }
@@ -216,9 +206,10 @@ element<HTMLFormElement>("form").onsubmit = async (event) => {
   try {
     await stage.unlockAudio();
     await interrupt();
-    session = await request(`/${session!.id}/messages`, "POST", { text });
+    session = await request(`/${session!.id}/messages`, "POST", { text, engine: element<HTMLSelectElement>("#engine").value });
     element<HTMLTextAreaElement>("#message").value = "";
     element("#error").textContent = "";
+    element("#settings-error").textContent = "";
   } catch (error) { showError(error); }
   finally { setMutating(false); }
 };
@@ -230,7 +221,12 @@ element("#interrupt").onclick = async () => {
   finally { setMutating(false); }
 };
 element("#sound").onclick = () => { void stage.unlockAudio().catch(showError); };
-element("#pause").onclick = () => { void stage.togglePause().catch(showError); };
+element("#pause").onclick = async () => {
+  try {
+    const paused = await stage.togglePause();
+    if (session && playing) await request(`/${session.id}/playback-control`, "POST", { epoch: session.epoch, paused });
+  } catch (error) { showError(error); }
+};
 element<HTMLInputElement>("#volume").oninput = event => stage.setVolume(Number((event.target as HTMLInputElement).value));
 
 async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> {
@@ -243,7 +239,7 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   element("#playback-note").textContent = kind === "audio" ? "正在单独重播语音。" : kind === "motion" ? "正在单独预览动作（无声音）。" : "正在同步重播语音、动作与字幕。";
   try {
     await stage.unlockAudio();
-    await stage.perform({ ...packet, actions: [], audio_url: kind === "motion" ? null : packet.audio_url,
+    await stage.perform({ ...packet, preview: packet.route?.engine === "ardy", actions: packet.route?.engine === "ardy" ? packet.actions : [], audio_url: kind === "motion" ? null : packet.audio_url,
       motion: kind === "audio" ? null : packet.motion }, () => {
         element("#subtitle").textContent = kind === "motion" ? "" : packet.text;
       }, showProgress);
@@ -259,6 +255,43 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
 element("#replay-audio").onclick = () => { void replay("audio"); };
 element("#replay-motion").onclick = () => { void replay("motion"); };
 element("#replay-sync").onclick = () => { void replay("synchronized"); };
+
+element("#export-motion").onclick = () => {
+  const windows = stage.motionRecording();
+  downloadJSON("virea-motion.json", {
+    schema: "virea.spatial_recording.v1", fps: 20, coordinate_system: "right-handed-y-up", quaternion_order: "xyzw",
+    phases: windows.filter((w, i) => !i || w.phase_index !== windows[i - 1]!.phase_index)
+      .map(w => ({ label: w.phase_label, description: w.prompt, kind: w.phase_kind, seconds: w.phase_seconds, offset: w.phase_offset, target: w.target })),
+    windows,
+  });
+};
+element("#settings-toggle").onclick = () => element<HTMLDialogElement>("#settings-dialog").showModal();
+element("#settings-close").onclick = () => element<HTMLDialogElement>("#settings-dialog").close();
+const toggleHistory = (open: boolean) => {
+  element("#history-drawer").hidden = !open;
+  element("#history-toggle").setAttribute("aria-expanded", String(open));
+  if (open) element<HTMLInputElement>("#history-search").focus();
+};
+element("#history-toggle").onclick = () => toggleHistory(element("#history-drawer").hidden);
+element("#history-close").onclick = () => toggleHistory(false);
+element("#chat-collapse").onclick = () => {
+  const collapsed = root.classList.toggle("chat-collapsed");
+  element("#chat-collapse").textContent = collapsed ? "展开" : "收起";
+  element("#chat-collapse").setAttribute("aria-expanded", String(!collapsed));
+};
+element("#reset-camera").onclick = () => stage.resetCamera();
+element("#toggle-grid").onclick = () => {
+  const visible = element("#toggle-grid").getAttribute("aria-pressed") !== "true";
+  element("#toggle-grid").setAttribute("aria-pressed", String(visible)); stage.setGrid(visible);
+};
+element("#toggle-skeleton").onclick = () => {
+  const visible = element("#toggle-skeleton").getAttribute("aria-pressed") !== "true";
+  element("#toggle-skeleton").setAttribute("aria-pressed", String(visible)); stage.setSkeleton(visible);
+};
+element<HTMLTextAreaElement>("#message").onkeydown = event => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); element<HTMLFormElement>("#composer").requestSubmit(); }
+};
+document.addEventListener("keydown", event => { if (event.key === "Escape") toggleHistory(false); });
 element("#close").onclick = async () => {
   if (!session || mutating) return;
   closing = true; setMutating(true);
@@ -267,6 +300,7 @@ element("#close").onclick = async () => {
   catch (error) { showError(error); }
   finally {
     session = null; closing = false; setMutating(false); handled.clear();
+    root.classList.remove("connected");
     element("#status").textContent = "已结束";
     element("#subtitle").textContent = "";
     element<HTMLInputElement>("#avatar").disabled = false;
@@ -275,6 +309,12 @@ element("#close").onclick = async () => {
     element<HTMLButtonElement>("#start").disabled = false;
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = true;
   }
+};
+
+element("#new-session").onclick = async () => {
+  if (mutating || closing) return;
+  if (session) await element("#close").onclick?.(new PointerEvent("click"));
+  element<HTMLDialogElement>("#settings-dialog").showModal();
 };
 
 async function poll(): Promise<void> {
@@ -320,3 +360,4 @@ window.addEventListener("pagehide", () => {
   if (session) void fetch(`/api/v1/characters/${session.id}`, { method: "DELETE", keepalive: true });
 });
 void poll();
+element<HTMLDialogElement>("#settings-dialog").showModal();

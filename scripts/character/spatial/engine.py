@@ -61,6 +61,9 @@ class SpatialEngine:
         self.embeddings = OrderedDict()
         self.fps = self.model.motion_rep.fps
         self.horizon = self.model.gen_horizon_len
+        # Match the interactive demo's one-token context. Long histories can
+        # suppress a new prompt after a stationary ending (see seeded ablation).
+        self.history_frames = 4
         joints = self.model.skeleton.neutral_joints.cpu().numpy()
         self.hip_height = float(-joints[:, 1].min())
 
@@ -79,7 +82,7 @@ class SpatialEngine:
         return self.embeddings[prompt]
 
     @torch.inference_mode()
-    def initial_history(self, pose, position, yaw=0):
+    def initial_history(self, pose, position, yaw=0, pelvis_height=None):
         """Encode the actually rendered normalized pose, not a new model T-pose."""
         skel = self.model.skeleton
         global_vrm = {}
@@ -109,7 +112,13 @@ class SpatialEngine:
             None
         ].repeat(8, 1, 1, 1)
         roots = torch.tensor(
-            [position[0], position[1] + self.hip_height, position[2]], device="cuda"
+            [
+                position[0],
+                position[1]
+                + (self.hip_height if pelvis_height is None else pelvis_height),
+                position[2],
+            ],
+            device="cuda",
         )[None].repeat(8, 1)
         return self.model.motion_rep(matrices, roots, to_normalize=True).unsqueeze(0)
 
@@ -122,11 +131,13 @@ class SpatialEngine:
         *,
         steps=None,
         guidance=2.0,
-        foot_correction=True,
+        history_frames=None,
+        foot_correction=False,
     ):
         started = perf_counter()
         m = self.model
-        history = history[:, -40:]
+        history_frames = history_frames or self.history_frames
+        history = history[:, -history_frames:]
         frames = history.shape[1] + self.horizon
         mask, observed = None, None
         if constraints:
@@ -146,36 +157,35 @@ class SpatialEngine:
             init_history_sequence=history,
         )
         if foot_correction:
-            from ardy.constraints import FullBodyConstraintSet, Root2DConstraintSet
+            from ardy.constraints import Root2DConstraintSet
             from ardy.postprocess import post_process_motion
 
-            # Freeze already executed history during contact correction. Feed the
-            # corrected generated poses back into the next native model step.
-            motion[:, : history.shape[1]] = history
             full = m.motion_rep.inverse(motion, is_normalized=True)
             h = history.shape[1]
-            fixed = FullBodyConstraintSet(
-                m.skeleton,
-                torch.arange(h),
-                full["posed_joints"][0, :h].cpu(),
-                full["global_rot_mats"][0, :h].cpu(),
-            )
+            # Official demo corrects only NEW frames, never optimizes a frozen
+            # full-history skeleton against future goals outside this window.
+            goals = [
+                c.crop_move(h, h + self.horizon)
+                for c in constraints
+                if isinstance(c, Root2DConstraintSet)
+            ]
             corrected = post_process_motion(
-                full["local_rot_mats"],
-                full["root_positions"],
-                full["foot_contacts"],
+                full["local_rot_mats"][:, h:],
+                full["root_positions"][:, h:],
+                full["foot_contacts"][:, h:],
                 m.skeleton,
-                constraint_lst=[
-                    c for c in constraints if isinstance(c, Root2DConstraintSet)
-                ]
-                + [fixed],
+                constraint_lst=goals,
             )
-            motion = m.motion_rep(
+            generated = m.motion_rep(
                 corrected["local_rot_mats"],
                 corrected["root_positions"],
                 to_normalize=True,
             )
-            motion[:, :h] = history
+        else:
+            generated = motion[:, -self.horizon :]
+        # Decoding a longer token sequence also reconstructs the prefix. It must
+        # not silently rewrite the already executed poses used as future history.
+        motion = torch.cat((history, generated), dim=1)
         # Keep the last observed sample in the packet for interpolation across a
         # boundary. History is never stretched to the wall-clock generation time.
         sample = torch.cat((history[:, -1:], motion[:, -self.horizon :]), dim=1)
@@ -192,12 +202,20 @@ class SpatialEngine:
         contacts = output["foot_contacts"][0].float().cpu().numpy()
         if not np.isfinite(root).all():
             raise ValueError("non-finite spatial motion")
-        return motion[:, -40:], {
+        return motion[:, -history_frames:], {
             "fps": self.fps,
             "seconds": self.horizon / self.fps,
             "root": root.tolist(),
             "rotations": rotations,
             "contacts": contacts.tolist(),
+            "joints": {
+                name: output["posed_joints"][0, :, m.skeleton.bone_index[source]]
+                .float()
+                .cpu()
+                .tolist()
+                for name, (source, _) in VRM_CORE.items()
+            },
+            "history_frames": history.shape[1],
             "hip_height": self.hip_height,
             "generation_seconds": perf_counter() - started,
         }

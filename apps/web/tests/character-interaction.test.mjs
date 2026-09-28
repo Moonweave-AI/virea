@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { contactIK, contactRotation } from "../src/character/interaction.ts";
+import { contactIK } from "../src/character/interaction.ts";
 
 test("contact correction reaches a nearby target without moving the body root", () => {
   const root = new THREE.Object3D(), arm = new THREE.Object3D(), elbow = new THREE.Object3D(), hand = new THREE.Object3D();
@@ -19,14 +19,4 @@ test("unreachable contacts report error rather than translating the character", 
   root.add(arm); arm.add(hand); hand.position.x = .4;
   assert.ok(contactIK([arm], hand, new THREE.Vector3(5, 0, 0), 1) > 4);
   assert.deepEqual(root.position.toArray(), [0, 0, 0]);
-});
-
-test("a near touch retains its support pose instead of crouching to reach the object", () => {
-  const base = new THREE.Quaternion();
-  const generated = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-  for (const name of ["hips", "rightUpperLeg", "leftFoot", "rightToes"]) {
-    assert.equal(contactRotation(name, base, generated).angleTo(base), 0);
-  }
-  assert.ok(Math.abs(contactRotation("chest", base, generated).angleTo(base) - Math.PI / 2 * .12) < 1e-6);
-  assert.ok(contactRotation("rightUpperArm", base, generated).angleTo(generated) < 1e-6);
 });

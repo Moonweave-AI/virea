@@ -13,7 +13,8 @@ router = APIRouter()
 
 class SpatialPlaybackRequest(Contract):
     packet_id: str = Field(min_length=1, max_length=100)
-    action_index: int = Field(ge=0, le=3)
+    action_index: int = Field(default=0, ge=0, le=11)
+    full_program: bool = False
     epoch: int = Field(ge=0)
     body: BodyState
     hip_height: float = Field(gt=0.2, lt=3)
@@ -56,12 +57,21 @@ async def spatial_motion(
     if action["kind"] not in {"move_to", "reach", "sit", "stand", "perform"}:
         raise HTTPException(422, "action does not own generated body motion")
     key = (body.packet_id, body.action_index)
+    keys = (
+        {
+            (body.packet_id, i)
+            for i, item in enumerate(packet["actions"])
+            if item["kind"] in {"move_to", "reach", "sit", "stand", "perform"}
+        }
+        if body.full_program
+        else {key}
+    )
     active = getattr(current, "_spatial_active", set())
     current._spatial_active = active
-    if key in current._spatial_seen:
+    if keys & current._spatial_seen:
         raise HTTPException(409, "spatial action is already streaming")
-    active.add(key)
-    current._spatial_seen.add(key)
+    active.update(keys)
+    current._spatial_seen.update(keys)
 
     async def stream():
         try:
@@ -69,7 +79,19 @@ async def spatial_motion(
                 "POST",
                 manager.config.spatial_url.rstrip("/") + "/generate",
                 json={
-                    "action": action,
+                    **(
+                        {
+                            "actions": [
+                                item
+                                for item in packet["actions"]
+                                if item["kind"]
+                                in {"move_to", "reach", "sit", "stand", "perform"}
+                            ],
+                            "end_state": packet.get("end_state", "relaxed"),
+                        }
+                        if body.full_program
+                        else {"action": action}
+                    ),
                     "body": body.body.model_dump(),
                     "hip_height": body.hip_height,
                 },
@@ -87,6 +109,6 @@ async def spatial_motion(
                 + "\n"
             )
         finally:
-            active.discard(key)
+            active.difference_update(keys)
 
     return StreamingResponse(stream(), media_type="application/x-ndjson")

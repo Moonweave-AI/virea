@@ -12,6 +12,7 @@ from uuid import uuid4
 from .audio import speech_windows, text_chunks
 from .contracts import BodyState, CharacterConfig, EnvironmentEvent, PlaybackFeedback
 from .expression_stream import ExpressionStream
+from .playback_clock import PlaybackClock
 from .providers.motion import CAPABILITIES
 
 
@@ -37,6 +38,10 @@ class CharacterSession:
         self.avatar_id = avatar_id
         self.playback_mode = playback_mode
         self.draft_text = ""
+        self.route = None
+        self.route_preference = "auto"
+        self.motion_plan = []
+        self.motion_ending = "relaxed"
         self.latest_expression: dict | None = None
         self.body = BodyState()
         self.targets = {}
@@ -68,6 +73,7 @@ class CharacterSession:
         self._autonomous = 0
         self._last_decision: str | None = None
         self._closed = False
+        self.playback_clock = PlaybackClock()
 
     def record(self, kind: str, **data) -> None:
         self.revision += 1
@@ -87,6 +93,8 @@ class CharacterSession:
             "ready": list(self.ready.values()),
             "playback_mode": self.playback_mode,
             "draft_text": self.draft_text,
+            "route": self.route,
+            "motion_plan": self.motion_plan,
             "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
             "spatial_available": bool(self.config.spatial_url),
@@ -95,12 +103,13 @@ class CharacterSession:
             "events": list(self.events),
         }
 
-    async def message(self, text: str) -> None:
+    async def message(self, text: str, engine: str = "auto") -> None:
         async with self._lock:
             self._ensure_open()
             await self._cancel()
             self._autonomous = 0
             self.draft_text = ""
+            self.route, self.route_preference, self.motion_plan = None, engine, []
             self.latest_expression = None
             for key in (
                 "language_seconds",
@@ -231,6 +240,7 @@ class CharacterSession:
 
     async def _cancel(self) -> None:
         self.epoch += 1
+        self.playback_clock.set_paused(False)
         if self._task and not self._task.done():
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -244,6 +254,7 @@ class CharacterSession:
         semantic_body = self.body.model_dump(exclude={"pose"})
         return {
             "trigger": trigger,
+            "route": self.route,
             "body": semantic_body,
             "environment": self.environment,
             "targets": self.targets,
@@ -267,6 +278,14 @@ class CharacterSession:
     async def _run(self, trigger: str, epoch: int) -> None:
         started = monotonic()
         try:
+            if hasattr(self.language, "route"):
+                self.status = "routing"
+                route = await self.language.route(
+                    list(self.history), self._context(trigger), self.route_preference
+                )
+                self.route = route.model_dump()
+                self.record("route_selected", **self.route)
+                self.status = "thinking"
             if (
                 trigger == "user_message"
                 and self.playback_mode == "synchronized"
@@ -275,10 +294,23 @@ class CharacterSession:
                 decision = await ExpressionStream(self, epoch, started).run(trigger)
                 completed = True
                 if decision.mode == "ACT_SILENTLY":
+                    self.motion_plan = self._actions(decision.actions)
+                    self.motion_ending = decision.end_state
                     feedback = await self._deliver(
-                        epoch, "", self._actions(decision.actions), None, None
+                        epoch, "", self.motion_plan, None, None
                     )
                     completed = feedback.status == "completed"
+                    if completed:
+                        self.history.append(
+                            {
+                                "role": "assistant",
+                                "content": "[已执行动作] "
+                                + " → ".join(
+                                    a.get("label") or a.get("description") or a["kind"]
+                                    for a in self.motion_plan
+                                ),
+                            }
+                        )
                 self.status = "waiting"
                 self.record("response_finished", interrupted=not completed)
                 # Playback is a receipt, not a new intention. Re-entering the LLM
@@ -315,8 +347,21 @@ class CharacterSession:
                 self.status = "waiting"
                 return
             if decision.mode == "ACT_SILENTLY":
+                self.motion_plan = actions
+                self.motion_ending = decision.end_state
                 feedback = await self._deliver(epoch, "", actions, None, None)
                 completed = feedback.status == "completed"
+                if completed:
+                    self.history.append(
+                        {
+                            "role": "assistant",
+                            "content": "[已执行动作] "
+                            + " → ".join(
+                                a.get("label") or a.get("description") or a["kind"]
+                                for a in actions
+                            ),
+                        }
+                    )
             elif self.playback_mode == "synchronized":
                 if hasattr(self.speech, "stream"):
                     await ExpressionStream(self, epoch, started, decision).run(trigger)
@@ -515,6 +560,8 @@ class CharacterSession:
             "epoch": epoch,
             "text": text,
             "actions": actions,
+            "route": self.route,
+            "end_state": self.motion_ending,
             "audio_url": f"/api/v1/characters/{self.id}/audio/{packet_id}"
             if audio
             else None,
@@ -530,7 +577,15 @@ class CharacterSession:
         self.status = "awaiting_playback"
         self.record("expression_ready", packet_id=packet["id"])
         try:
-            return await asyncio.wait_for(self._feedback, self.config.feedback_timeout)
+            duration = sum(
+                action.get("duration_seconds") or 4.8 for action in packet["actions"]
+            )
+            timeout = (
+                max(self.config.feedback_timeout, duration + 60)
+                if packet["actions"]
+                else self.config.feedback_timeout
+            )
+            return await self.playback_clock.wait(self._feedback, timeout)
         finally:
             self.pending = None
             self._feedback = None

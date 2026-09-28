@@ -3,13 +3,14 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName } from "@pixiv/three-vrm";
 import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from "@pixiv/three-vrm-animation";
-import { assertFiniteClip, ensureVRMLookAtQuaternionProxy } from "../viewer-compat";
+import { assertFiniteClip, computeCameraFraming, ensureVRMLookAtQuaternionProxy } from "../viewer-compat";
 import { anchorClip, sceneDestination, sampleClip } from "./motion";
 import { RotationBridge, rotationVector } from "./continuity";
 import { PoseRecovery, faceRelease, type PoseSample } from "./recovery";
 import { RelaxedIdle } from "./idle";
 import { ExpressionTimeline } from "./timeline";
 import { SpatialPlayer } from "./spatial";
+import { MotionInspection } from "./inspection";
 import type { BodyState, Expression, FaceTrack, SceneAction, PlaybackProgress } from "./contracts";
 
 export class CharacterStage {
@@ -42,6 +43,9 @@ export class CharacterStage {
   private spatial: SpatialPlayer | null = null;
   private hipHeight = 1;
   private cameraRoot = new THREE.Vector3();
+  private avatarSize = new THREE.Vector3(2, 2, .5);
+  private readonly inspection = new MotionInspection();
+  private readonly grid = new THREE.GridHelper(40, 80, 0xd1d5db, 0xe5e7eb);
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.gain.connect(this.audio.destination);
@@ -50,11 +54,18 @@ export class CharacterStage {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.scene.background = new THREE.Color("#13221f");
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x455e57, 2.6));
+    this.scene.background = new THREE.Color("#f3f4f6");
+    this.scene.fog = new THREE.Fog(0xf3f4f6, 8, 25);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 2.6));
     const light = new THREE.DirectionalLight(0xffffff, 2.2);
     light.position.set(2, 4, 3);
-    this.scene.add(light, new THREE.GridHelper(16, 32, 0x476e61, 0x263e35));
+    this.scene.add(light, this.grid, this.inspection.object);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -.015; floor.receiveShadow = true;
+    this.scene.add(floor);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    light.castShadow = true; light.shadow.mapSize.set(1024, 1024);
     const ceramic = new THREE.MeshStandardMaterial({ color: 0xe1e6ce, side: THREE.DoubleSide });
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.16, 24, 1, true), ceramic);
     cup.position.set(1, 0.9, 0.4);
@@ -62,7 +73,7 @@ export class CharacterStage {
     handle.position.set(0.085, 0, 0);
     cup.add(handle);
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.82, 24),
-      new THREE.MeshStandardMaterial({ color: 0x455e57 }));
+      new THREE.MeshStandardMaterial({ color: 0xcbd0d7 }));
     stand.position.set(1, 0.41, 0.4);
     this.scene.add(cup, stand);
     this.camera.position.set(0, 1.4, 3.6);
@@ -73,7 +84,9 @@ export class CharacterStage {
       const width = Math.max(1, canvas.clientWidth), height = Math.max(1, canvas.clientHeight);
       this.renderer.setSize(width, height, false);
       this.camera.aspect = width / height;
+      this.camera.setViewOffset(width, height, width > 800 ? 100 : 0, width < 640 ? height * .15 : 0, width, height);
       this.camera.updateProjectionMatrix();
+      if (this.vrm) this.resetCamera();
     });
     this.resize.observe(canvas);
     this.render();
@@ -81,12 +94,28 @@ export class CharacterStage {
 
   async unlockAudio(): Promise<void> { await this.audio.resume(); }
 
-  async togglePause(): Promise<void> {
+  async togglePause(): Promise<boolean> {
     if (this.audio.state === "running") await this.audio.suspend();
     else await this.audio.resume();
+    return this.audio.state === "suspended";
   }
 
   setVolume(value: number): void { this.gain.gain.value = THREE.MathUtils.clamp(value, 0, 1); }
+
+  setGrid(visible: boolean): void { this.grid.visible = visible; }
+  setSkeleton(visible: boolean): void { this.inspection.object.visible = visible; }
+  resetCamera(): void {
+    const root = this.rootPosition();
+    const width = Math.max(this.canvas.clientWidth, 1), height = Math.max(this.canvas.clientHeight, 1);
+    const availableHeight = width < 640 ? .55 : .88;
+    const availableWidth = width > 800 ? .7 : .9;
+    const framing = computeCameraFraming(this.avatarSize.x / availableWidth, this.avatarSize.y / availableHeight,
+      this.avatarSize.z, width / height, THREE.MathUtils.degToRad(this.camera.fov));
+    this.controls.target.set(root.x, this.hipHeight, root.z);
+    this.camera.position.set(root.x, this.hipHeight + framing.distance * .08, root.z + framing.distance);
+    this.controls.update();
+  }
+  motionRecording() { return this.spatial?.export() ?? []; }
 
   private audibleTime(): number {
     const stamp = this.audio.getOutputTimestamp?.();
@@ -135,11 +164,15 @@ export class CharacterStage {
       VRMUtils.rotateVRM0(vrm);
       ensureVRMLookAtQuaternionProxy(vrm);
       this.scene.add(vrm.scene);
+      vrm.scene.traverse(object => { if (object instanceof THREE.Mesh) { object.castShadow = true; object.receiveShadow = true; } });
       this.hipHeight = this.rootPosition().y;
+      new THREE.Box3().setFromObject(vrm.scene).getSize(this.avatarSize);
+      this.avatarSize.x = Math.max(this.avatarSize.x, this.hipHeight * 2.1);
       const root = this.rootPosition();
       const offset = root.clone().sub(this.cameraRoot); offset.y = 0;
       this.camera.position.add(offset); this.controls.target.add(offset);
       this.cameraRoot.copy(root);
+      this.resetCamera();
     } finally { URL.revokeObjectURL(url); }
   }
 
@@ -152,7 +185,7 @@ export class CharacterStage {
     }
     const root = this.rootPosition();
     if (vrm?.meta.metaVersion === "0") for (const q of Object.values(pose)) { q[0] *= -1; q[2] *= -1; }
-    return { position: { x: root.x, y: vrm?.scene.position.y ?? 0, z: root.z }, yaw: (vrm?.scene.rotation.y ?? 0) - (vrm?.meta.metaVersion === "0" ? Math.PI : 0),
+    return { position: { x: root.x, y: vrm?.scene.position.y ?? 0, z: root.z }, pelvis_height: root.y - (vrm?.scene.position.y ?? 0), yaw: (vrm?.scene.rotation.y ?? 0) - (vrm?.meta.metaVersion === "0" ? Math.PI : 0),
       pose, gaze_target: this.gaze, behavior: this.source ? "speaking" : "holding_pose" };
   }
 
@@ -160,6 +193,7 @@ export class CharacterStage {
     this.epoch++;
     this.timeline.stop();
     this.spatial?.stop();
+    this.sceneActions = Promise.resolve();
     this.idle?.stop();
     if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
     if (this.action) this.action.paused = true;
@@ -384,27 +418,31 @@ export class CharacterStage {
 
   private async executeActions(packet: Expression, current: () => boolean,
     onProgress: (elapsed: number, duration: number) => void): Promise<void> {
-    let offset = 0;
-    for (const [index, action] of packet.actions.entries()) {
+    for (const action of packet.actions) {
       if (!current() || !this.vrm) return;
       if (action.kind === "stop") { this.spatial?.stop(); this.gaze = null; this.gazePoint = null; continue; }
       if (action.kind === "look_at") {
         if (!action.position) throw new Error("场景动作缺少目标位置");
         this.gaze = action.target_id;
         this.gazePoint = sceneDestination(action.position);
-      } else {
+      }
+    }
+    if (packet.actions.some(action => !["look_at", "stop"].includes(action.kind))) {
+      if (!this.vrm || !current()) return;
         this.idle?.stop();
         let duration = 0;
         try {
-          await this.spatial!.run(packet, index, this.state(), this.hipHeight, (elapsed, total) => {
-            duration = total; onProgress(offset + elapsed, offset + total);
+          await this.spatial!.run(packet, this.state(), this.hipHeight, (elapsed, total) => {
+            duration = total; onProgress(elapsed, total);
+            this.canvas.dataset.motionPhase = this.spatial!.phase;
+            this.canvas.dataset.motionPhaseIndex = String(this.spatial!.phaseIndex);
           });
         } finally {
           this.canvas.dataset.spatialUnderruns = String(this.spatial!.underruns);
-          this.canvas.dataset.spatialAction = action.kind;
+          this.canvas.dataset.spatialAction = "program";
           this.canvas.dataset.contactError = String(this.spatial!.contactError ?? "");
           this.canvas.dataset.contactState = JSON.stringify(this.spatial!.contactState);
-          if (action.kind !== "sit" && !this.source && this.rest && current()) {
+          if (packet.end_state !== "hold" && !this.source && this.rest && current()) {
             const pose = this.poseSample();
             const hips = this.vrm.humanoid.getNormalizedBoneNode("hips")!;
             const before = { ...pose, rotations: new Map([...pose.rotations].map(([bone, q]) => {
@@ -417,15 +455,13 @@ export class CharacterStage {
             const start = this.audibleTime();
             while (current() && this.audibleTime() - start < recovery.duration) {
               recovery.apply(this.audibleTime() - start);
-              onProgress(offset + duration + this.audibleTime() - start, offset + duration + recovery.duration);
+              onProgress(duration + this.audibleTime() - start, duration + recovery.duration);
               await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
             }
             if (current()) { recovery.apply(recovery.duration); this.idle?.start(this.poseSample()); }
             duration += recovery.duration;
           }
-          offset += duration;
         }
-      }
     }
   }
 
@@ -446,6 +482,11 @@ export class CharacterStage {
       }
       if (this.gazePoint) this.vrm.lookAt?.lookAt(this.gazePoint);
       this.vrm.update(dt);
+      if (this.spatial?.active) {
+        this.canvas.dataset.retargetMaxAngle = this.inspection.update(this.vrm, this.spatial.joints).toFixed(2);
+        this.canvas.dataset.motionPhase = this.spatial.phase;
+        this.canvas.dataset.motionPhaseIndex = String(this.spatial.phaseIndex);
+      }
       const root = this.rootPosition();
       const follow = root.clone().sub(this.cameraRoot); follow.y = 0;
       this.camera.position.add(follow); this.controls.target.add(follow);

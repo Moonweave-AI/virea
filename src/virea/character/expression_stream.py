@@ -132,7 +132,7 @@ class ExpressionStream:
     async def playback(self):
         while (item := await self.published.get()) is not None:
             packet, future = item
-            feedback = await asyncio.wait_for(
+            feedback = await self.session.playback_clock.wait(
                 future, self.session.config.feedback_timeout
             )
             if feedback.status != "completed":

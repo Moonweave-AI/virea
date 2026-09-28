@@ -14,7 +14,7 @@ class SpeechBeat(Contract):
     text: str = Field(min_length=1, max_length=120)
 
 
-def utterance_schema(targets=None, positions=None):
+def utterance_schema(targets=None, positions=None, *, speech_only=False):
     schema = decision_schema(targets, positions)
     schema["$defs"]["SpeechBeat"] = SpeechBeat.model_json_schema()
     for variant in schema["oneOf"]:
@@ -31,6 +31,14 @@ def utterance_schema(targets=None, positions=None):
             },
         }
         variant["required"] = ["mode", "actions", "beats"]
+        if speech_only:
+            variant["properties"]["actions"]["maxItems"] = 0
+    if speech_only:
+        schema["oneOf"] = [
+            v
+            for v in schema["oneOf"]
+            if v["properties"]["mode"]["const"] != "ACT_SILENTLY"
+        ]
     return schema
 
 

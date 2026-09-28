@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-27
-last_reviewed: 2026-09-27
+updated: 2026-09-28
+last_reviewed: 2026-09-28
 review_cycle_days: 30
 summary: Deployment and acceptance boundaries for persistent character sessions.
 canonical: doc/character/README.en.md
@@ -17,7 +17,9 @@ superseded_by: []
 
 # Persistent character sessions (experimental)
 
-The latest [semantic streaming and ARDY spatial-control record](semantic-spatial-upgrade.zh-CN.md)
+The latest [Motion Studio routing and continuous-motion evaluation](motion-studio-upgrade.zh-CN.md)
+documents intent-first routing, dedicated ARDY programs, the seeded history-length ablation,
+pause-aware playback, local history and recording export. Earlier [semantic streaming work](semantic-spatial-upgrade.zh-CN.md)
 documents single-response generation, batched SentiAvatar infill, the resident NF4 text encoder,
 native eight-frame spatial windows, installation and verified limitations. Install the optional
 spatial worker with `scripts/character/install_spatial.ps1 -DataRoot <DATA_ROOT>` before using
@@ -33,7 +35,7 @@ final response; users never specify a response duration. Executed pose and world
 position survive response completion and interruption within the live API process.
 
 The page presents separate audio, motion and text sections, with pause, volume,
-audio replay, motion preview and synchronized replay. The optional **voice-first**
+audio replay, motion preview and synchronized replay. The API-only **voice-first**
 mode displays finalized text and plays speech as soon as TTS is ready. Late motion
 is available for explicit preview; it is never automatically played with mismatched
 speech. Interim mouth movement is an amplitude-based approximation, not phoneme alignment.

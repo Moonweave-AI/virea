@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from virea.character.contracts import (
     BodyState,
     EnvironmentEvent,
+    PlaybackControl,
     PlaybackFeedback,
     SessionRequest,
     UserMessage,
@@ -61,7 +62,7 @@ async def character_message(
     session_id: str, body: UserMessage, request: Request
 ) -> dict:
     current = session(request, session_id)
-    await current.message(body.text)
+    await current.message(body.text, body.engine)
     return current.snapshot()
 
 
@@ -91,6 +92,17 @@ async def character_interrupt(
     current = session(request, session_id)
     await current.interrupt(body)
     return current.snapshot()
+
+
+@router.post("/{session_id}/playback-control")
+async def character_playback_control(
+    session_id: str, body: PlaybackControl, request: Request
+) -> dict:
+    current = session(request, session_id)
+    if body.epoch != current.epoch or not current.pending:
+        raise HTTPException(409, "stale playback control")
+    current.playback_clock.set_paused(body.paused)
+    return {"paused": body.paused}
 
 
 @router.get("/{session_id}/audio/{packet_id}")

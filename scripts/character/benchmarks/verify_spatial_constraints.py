@@ -41,14 +41,15 @@ def main():
         )
         for generated in (0, plan.frames - 8):
             conditions = plan.constraints(generated, history)
+            frames = max(int(c.frame_indices.max()) + 1 for c in conditions)
+            frames = ((frames + 3) // 4) * 4
             features, mask = motion.create_conditions_from_constraints_batched(
-                conditions, torch.tensor([56]), True, "cpu"
+                conditions, torch.tensor([frames]), True, "cpu"
             )
             assert torch.isfinite(features).all() and mask.any()
         if kind == "reach":
-            assert {"Hips", "LeftFoot", "RightFoot", "RightHand"} == set(
-                conditions[0].joint_names
-            )
+            assert len(conditions) == 1
+            assert conditions[0].hand_index == skeleton.bone_index["RightHand"]
         print(kind, "native constraints passed")
 
 
