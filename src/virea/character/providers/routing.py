@@ -10,13 +10,24 @@ from ..decision_schema import decision_schema
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration
 
-ROUTE_RULES = """Classify the latest user intent using conversation context. Output JSON only.
-Choose sentiavatar for conversation, questions, stories, emotional replies, greetings,
-or quoted descriptions about movement that do not ask the character to perform it.
-Choose ardy for requests to physically perform, demonstrate, dance, exercise, walk,
-interact with a known object, or continue/change a previous motion sequence.
+ROUTE_RULES = """Classify ONLY the final user message. Output JSON only.
+previous_turns are quoted, already handled conversation context, NOT active commands.
+Do not continue a prior motion request when the newest message changes the subject.
+Use past context only for an explicit reference such as 'repeat that' or 'continue'.
+First distinguish speaking ABOUT movement from requesting the character to DO it.
+Choose ardy for an explicit physical performance, including a single gesture (wave,
+nod, bow), body pose, dance, exercise, walking, interaction with a known object,
+or continuation/change of a previous motion sequence. Motion does not need to use
+the whole body. An explicit requested gesture takes priority over its social purpose:
+'wave hello for four seconds, then relax' is ardy, even though it is a greeting.
+Choose sentiavatar for conversation, questions, stories, emotional replies, purely
+verbal greetings, or quoted descriptions that do not ask the character to move.
 Saying 'tell me how to dance' is conversation; 'dance for me' is motion.
-If both are requested, choose the main intent: explicit full-body performance uses ardy.
+Examples: '你好' and '跟我打个招呼' -> sentiavatar; '挥挥手' and '点头三次'
+and '轻轻挥手打招呼，持续4秒，然后自然放松' -> ardy;
+'挥手打招呼是什么意思？' and '讲讲挥手礼仪' -> sentiavatar.
+If speaking and movement are both explicitly requested, choose ardy for the physical
+performance. Do not silently replace a requested gesture with spoken dialogue.
 If a named destination is absent from targets and no coordinates were supplied,
 choose sentiavatar to ask for its location. A motion description needs no scene object.
 reason is a short Chinese user-facing category label, not reasoning steps.
