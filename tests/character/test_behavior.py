@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from native_plans import native_plan
 from virea_api.routes import character_behavior as api
 
 from virea.character.behavior import WindowChoice, remaining_actions
@@ -30,16 +31,23 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
                     "coordination": "with_reply",
                 },
             }
-        return {
-            "operation": "replace",
-            "actions": [
+        return native_plan(
+            **(
                 {
-                    "kind": "perform",
-                    "description": "A person is dancing.",
-                    "duration_seconds": 8,
+                    "operation": "replace",
+                    "executors": ["ardy"],
+                    "objective_groups": [[0]],
+                    "starts": [{"event": "reply_start"}],
+                    "actions": [
+                        {
+                            "kind": "perform",
+                            "description": "A person is dancing.",
+                            "duration_seconds": 8,
+                        }
+                    ],
                 }
-            ],
-        }
+            )
+        )
 
     monkeypatch.setattr(performance, "structured_completion", completion)
     result = asyncio.run(
@@ -52,8 +60,9 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
     )
     assert result.reply_plan.goal == "接受邀请"
     assert result.body.start_with_reply
-    assert calls[1][0] == [{"role": "user", "content": "角色决定用轻快的舞步回应邀请"}]
-    assert "我的朋友" not in str(calls[1])
+    assert calls[1][0] == calls[0][0]
+    assert calls[1][1]["adopted_objectives"] == ["角色决定用轻快的舞步回应邀请"]
+    assert calls[1][1]["requested_communication"]["goal"] == "接受邀请"
 
 
 def test_remaining_goal_keeps_spatial_target_and_deadline_without_new_phase():
@@ -170,13 +179,9 @@ def test_replacing_intent_preserves_executing_slot_without_advancing_new_goal(
         assert current.body_program["status"] == "ready"
 
 
-def test_short_speech_tail_is_a_valid_request(monkeypatch):
+def test_short_speech_tail_is_a_valid_request():
     from virea.character import behavior
 
-    async def completion(*a, **kw):
-        return {"owner": "sentiavatar", "seconds": 0.41, "reason": "语音收尾"}
-
-    monkeypatch.setattr(behavior, "structured_completion", completion)
     choice, _ = asyncio.run(
         behavior.choose_window(
             CharacterConfig(),
@@ -186,6 +191,7 @@ def test_short_speech_tail_is_a_valid_request(monkeypatch):
             body=behavior.BodyState(),
             speech=behavior.SpeechAvailability(available=True, remaining_seconds=0.41),
             previous="sentiavatar",
+            expression_executor="sentiavatar",
         )
     )
     assert choice.seconds == 0.41

@@ -9,10 +9,11 @@ from virea.character.providers.language import LanguageProvider
 from virea.character.providers.routing import select_route
 
 
+@pytest.mark.parametrize("engine", ["ardy", "sentiavatar"])
 @pytest.mark.parametrize("planned", [False, True])
-def test_reply_uses_one_plan_and_one_continuous_content_stream(planned):
+def test_reply_uses_one_plan_and_one_continuous_content_stream(planned, engine):
     plan = {"goal": "讲完整故事", "outline": ["人物遇到困难", "解决困难"]}
-    route = {"engine": "sentiavatar", "reply_plan": plan if planned else None}
+    route = {"engine": engine, "reply_plan": plan if planned else None}
     context = {"route": route, "persona": "一位冷静的叙事者"}
     calls = []
 
@@ -93,7 +94,7 @@ def test_routing_binds_semantic_output_to_configured_engine_without_scene_noise(
     def respond(request):
         payload = json.loads(request.content)
         instructions = payload["messages"][0]["content"]
-        assert "unrelated-scene-marker" not in instructions
+        assert "available_executors" in instructions
         assert payload["messages"][-1]["content"] == "继续刚才的舞蹈"
         schema = payload["response_format"]["json_schema"]["schema"]
         assert (
@@ -111,8 +112,8 @@ def test_routing_binds_semantic_output_to_configured_engine_without_scene_noise(
                         "message": {
                             "content": json.dumps(
                                 {
-                                    "requested_task": "继续舞蹈",
-                                    "output": "physical_movement",
+                                    "reason": "继续舞蹈",
+                                    "engine": "full-body-worker",
                                 }
                             ),
                         },
@@ -122,7 +123,8 @@ def test_routing_binds_semantic_output_to_configured_engine_without_scene_noise(
         )
 
     async def run():
-        config = CharacterConfig()
+        config = CharacterConfig(spatial_url="http://worker")
+        config.body_executors["full-body-worker"] = config.body_executors.pop("ardy")
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
             result = await select_route(
                 config,
@@ -130,7 +132,7 @@ def test_routing_binds_semantic_output_to_configured_engine_without_scene_noise(
                 [{"role": "user", "content": "继续刚才的舞蹈"}],
                 {"spatial_available": True, "targets": {"unrelated-scene-marker": {}}},
             )
-        assert result.engine == config.output_engines["physical_movement"]
+        assert result.engine == "full-body-worker"
         assert result.reason == "继续舞蹈"
 
     asyncio.run(run())

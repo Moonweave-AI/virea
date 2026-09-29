@@ -16,6 +16,7 @@ def plan(operation="keep", speech=None):
         spoken_content=speech["goal"] if speech else None,
         body={
             "operation": operation,
+            "executors": ["ardy"] if operation == "replace" else [],
             "actions": [
                 {
                     "kind": "perform",

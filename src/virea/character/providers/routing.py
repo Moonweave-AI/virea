@@ -2,21 +2,18 @@
 
 import json
 import re
-from typing import Literal
 
 from pydantic import Field
 
 from ..contracts import Contract, Decision, SceneAction
 from ..decision_schema import decision_schema
+from ..executors import available_executors, executor_context
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration
 
-ROUTE_RULES = """Identify what the latest user message asks the avatar to produce.
-spoken_content means a verbal response as the actual requested result.
-physical_movement means executing a movement, including local gestures, as the actual requested result.
-Describe the requested task briefly, then choose its output modality.
-Acknowledging a physical task verbally does not perform it.
-Prior turns are completed context and only resolve references. Output JSON.
+ROUTE_RULES = """Select an available body executor using its advertised capabilities, the conversation and current state.
+Explain the allocation. This choice controls a body source; speech and text are planned independently.
+Output the allocation contract.
 """
 
 MOTION_RULES = """将最新运动请求编排为 ARDY 的连续运动时间轴。
@@ -42,14 +39,9 @@ class ReplyPlan(Contract):
     )
 
 
-class IntentChoice(Contract):
-    requested_task: str = Field(min_length=1, max_length=300)
-    output: Literal["spoken_content", "physical_movement"]
-
-
 class RouteChoice(Contract):
     reason: str = Field(min_length=1, max_length=300)
-    engine: str = Field(pattern="^(sentiavatar|ardy)$")
+    engine: str = Field(min_length=1, max_length=80)
     reply_plan: ReplyPlan | None = None
 
 
@@ -143,25 +135,26 @@ async def structured_completion(
 
 
 async def select_route(config, client, history, context, preference="auto"):
+    engines = available_executors(config, context)
     if preference != "auto":
-        if preference == "ardy" and not context.get("spatial_available"):
-            raise ValueError("ARDY 尚未就绪，请启动空间动作服务")
+        if preference not in engines:
+            raise ValueError(f"执行器 {preference} 尚未就绪")
         return RouteChoice(engine=preference, reason="手动选择")
-    if not context.get("spatial_available"):
-        return RouteChoice(engine="sentiavatar", reason="对话表达")
+    schema = RouteChoice.model_json_schema()
+    schema["properties"]["engine"] = {"enum": list(engines)}
     value = await structured_completion(
         config,
         client,
         history,
-        {},
+        {**context, "available_executors": executor_context(config, context)},
         ROUTE_RULES,
-        IntentChoice.model_json_schema(),
+        schema,
         tokens=config.planning_max_tokens,
     )
-    intent = IntentChoice.model_validate(value)
-    return RouteChoice(
-        engine=config.output_engines[intent.output], reason=intent.requested_task
-    )
+    choice = RouteChoice.model_validate(value)
+    if choice.engine not in engines:
+        raise ValueError("LLM selected an unavailable executor")
+    return choice
 
 
 async def compile_motion(config, client, history, context):

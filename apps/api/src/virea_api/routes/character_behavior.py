@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import Field
 
 from virea.character.behavior import (
+    AllocationUnavailable,
     BehaviorRequest,
     WindowChoice,
     choose_window,
@@ -15,6 +16,16 @@ from virea.character.behavior import (
     remaining_actions,
 )
 from virea.character.contracts import BodyState, Contract
+from virea.character.coordination import (
+    anchor_reached,
+    observe_program,
+    phase_anchor,
+    unavailable_anchor,
+)
+from virea.character.executors import available_executors
+from virea.character.motion_timing import planned_duration
+from virea.character.providers.reallocation import reallocate_phase
+from virea.character.providers.recovery import plan_recovery
 from virea.character.settlement import terminal_measurement
 
 router = APIRouter()
@@ -65,6 +76,7 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
     current = current_session(request, session_id)
     async with current.behavior_lock:
         program = current.body_program
+        observe_program(program, body.speech)
         epoch = current.epoch
         program_id = (program or {}).get("id")
         previous = slot_for(current, body.after) if body.after else None
@@ -96,9 +108,27 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             if previous and previous["program_id"] == program_id
             else (program or {}).get("elapsed", 0)
         )
+        missing = unavailable_anchor(
+            program, elapsed, body.speech, epoch, current.status == "error"
+        )
+        if (
+            missing
+            and program
+            and program.get("status") not in {"completed", "failed", "interrupted"}
+        ):
+            program["status"] = "failed"
+            current.record("body_error", program_id=program_id, message=missing)
         settling = bool(
             program
-            and program.get("ending")
+            and (
+                program.get("ending")
+                or program.get("recovery_required")
+                or (
+                    previous
+                    and previous["program_id"] == program_id
+                    and previous.get("support", {}).get("settled") is False
+                )
+            )
             and (
                 program.get("finish_requested")
                 or not remaining_actions(program, elapsed)
@@ -116,42 +146,139 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 program["status"] = "failed"
                 current.record("body_error", message="收势未达到支撑和速度要求")
                 raise HTTPException(422, "收势尚未达到支撑和速度要求，请重新规划动作")
-            seconds = min(policy.window_seconds, policy.max_seconds - settled_seconds)
+            ending_executor = program.get("ending_executor")
+            seconds = program.get("ending_seconds")
+            caption = program.get("ending")
+            reason = program.get("ending_reason") or "执行 LLM 规划的最终恢复"
+            if not caption or (previous and previous.get("settling")):
+                recovery = await plan_recovery(
+                    current.config,
+                    request.app.state.characters.client,
+                    program=program,
+                    previous=previous,
+                    body=body.body,
+                    budget=policy.max_seconds - settled_seconds,
+                )
+                ending_executor, seconds, caption, reason = (
+                    recovery.executor,
+                    recovery.seconds,
+                    recovery.goal,
+                    recovery.reason,
+                )
+            spec = available_executors(current.config).get(ending_executor)
+            if not spec or spec.requires_speech or seconds is None:
+                raise HTTPException(422, "最终恢复缺少可执行的模型分配")
+            seconds = min(seconds, policy.max_seconds - settled_seconds)
             actions = [
                 dict(
                     kind="perform",
-                    description=program["ending"],
+                    description=caption,
                     label="自然收势",
                     duration_seconds=seconds,
                 )
             ]
             choice = WindowChoice(
-                owner="ardy", seconds=seconds, reason="完成整项活动并建立稳定支撑"
+                owner=spec.source,
+                executor=ending_executor,
+                seconds=seconds,
+                reason=reason,
             )
         else:
-            choice, actions = await choose_window(
+            try:
+                for attempt in range(2):
+                    try:
+                        choice, actions = await choose_window(
+                            current.config,
+                            request.app.state.characters.client,
+                            program=program,
+                            elapsed=elapsed,
+                            body=body.body,
+                            speech=body.speech,
+                            previous=previous["owner"] if previous else None,
+                            expression_executor=(
+                                getattr(current, "route", None) or {}
+                            ).get("expression_executor"),
+                        )
+                        break
+                    except AllocationUnavailable as error:
+                        if attempt:
+                            raise
+                        remaining = remaining_actions(program, elapsed)
+                        phase = len(program["actions"]) - len(remaining)
+                        revision = await reallocate_phase(
+                            current.config,
+                            request.app.state.characters.client,
+                            program=program,
+                            phase=phase,
+                            remaining=remaining[0]["duration_seconds"],
+                            body=body.body,
+                            speech_usable=body.speech.available
+                            and body.speech.epoch == program.get("origin_epoch"),
+                            failure=str(error),
+                        )
+                        if (
+                            current.epoch != epoch
+                            or current.body_program is not program
+                        ):
+                            raise HTTPException(
+                                409, "intent changed during reallocation"
+                            )
+                        program["executors"][phase] = revision.executor
+                        program["actions"][phase].update(
+                            description=revision.continuation,
+                            continuation_description=revision.continuation,
+                        )
+                        current.record(
+                            "body_replanned",
+                            program_id=program_id,
+                            phase=phase,
+                            elapsed=elapsed,
+                            allocation=revision.model_dump(),
+                        )
+
+            except ValueError as error:
+                if program:
+                    program["status"] = "failed"
+                current.record("body_error", program_id=program_id, message=str(error))
+                raise HTTPException(422, str(error)) from error
+
+        # A semantic pause cannot freeze an airborne predecessor. Continue its
+        # own motion until handoff is supported, without consuming the next cue.
+        handoff = bool(
+            previous
+            and previous["owner"] == "ardy"
+            and previous.get("support", {}).get("supported") is False
+            and choice.owner != "ardy"
+        )
+        handoff_seconds = previous.get("handoff_seconds", 0) if handoff else 0
+        if handoff:
+            policy = current.config.settlement
+            if handoff_seconds >= policy.max_seconds:
+                if program:
+                    program["status"] = "failed"
+                current.record("body_error", message="身体交接未能恢复支撑")
+                raise HTTPException(422, "身体交接未能恢复支撑")
+            recovery = await plan_recovery(
                 current.config,
                 request.app.state.characters.client,
                 program=program,
-                elapsed=elapsed,
+                previous=previous,
                 body=body.body,
-                speech=body.speech,
-                previous=previous["owner"] if previous else None,
+                budget=policy.max_seconds - handoff_seconds,
+                purpose="handoff_to_next_phase",
             )
-            # A predicted airborne boundary is not a safe place to hand off or freeze.
-            if (
-                actions
-                and previous
-                and previous.get("support", {}).get("supported") is False
-            ):
-                choice = WindowChoice(
-                    owner="ardy",
-                    seconds=min(
-                        current.config.behavior_horizon_seconds,
-                        sum(a["duration_seconds"] for a in actions),
-                    ),
-                    reason="延续当前动作直至恢复支撑",
+            seconds = recovery.seconds
+            actions = [
+                dict(
+                    kind="perform", description=recovery.goal, duration_seconds=seconds
                 )
+            ]
+            choice = WindowChoice(
+                owner=available_executors(current.config)[recovery.executor].source,
+                executor=recovery.executor,
+                seconds=seconds,
+                reason=recovery.reason,
+            )
         if (
             current.body_program is not program
             or current.epoch != epoch
@@ -164,15 +291,34 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             program_id=program_id,
             epoch=current.epoch,
             owner=choice.owner,
+            executor=choice.executor,
+            advances_activity=choice.advances_activity,
             seconds=choice.seconds,
             reason=choice.reason,
             speech_available=body.speech.available,
+            speech_active=body.speech.active,
+            speech_clock=body.speech.clock_seconds,
+            speech_epoch=body.speech.epoch,
+            observed_marks=body.speech.marks,
+            start_anchor=phase_anchor(program, elapsed).model_dump(),
+            waiting_for=phase_anchor(program, elapsed).model_dump()
+            if remaining_actions(program, elapsed)
+            and not anchor_reached(phase_anchor(program, elapsed), program, body.speech)
+            and not settling
+            else None,
             speech_packet_id=body.speech.packet_id,
             speech_stream_id=body.speech.stream_id,
-            phase_index=len((program or {}).get("actions", [])) - len(actions),
+            phase_index=len((program or {}).get("actions", []))
+            - len(remaining_actions(program, elapsed)),
             activity_start=elapsed,
             activity_end=elapsed
-            + (choice.seconds if choice.owner == "ardy" and not settling else 0),
+            + (
+                choice.seconds
+                if choice.advances_activity and not settling and not handoff
+                else 0
+            ),
+            handoff=handoff,
+            handoff_seconds=handoff_seconds + (choice.seconds if handoff else 0),
             settling=settling,
             settled_seconds=settled_seconds + (choice.seconds if settling else 0),
             actions=actions,
@@ -329,21 +475,26 @@ async def behavior_feedback(
         current.body_program
         and slot["program_id"] == current.body_program["id"]
         and body.status == "completed"
-        and slot["owner"] == "ardy"
+        and (slot.get("advances_activity") or slot.get("settling"))
         and current.body_program["status"] != "failed"
     ):
         current.body_program["elapsed"] = slot["activity_end"]
         current.body_program["settled_seconds"] = slot.get("settled_seconds", 0)
-        duration = sum(
-            a.get("duration_seconds") or 4.8 for a in current.body_program["actions"]
-        )
+        duration = sum(planned_duration(a) for a in current.body_program["actions"])
         ended = slot["activity_end"] >= duration - 1e-5 or current.body_program.get(
             "finish_requested", False
+        )
+        current.body_program["recovery_required"] = bool(
+            ended and slot.get("support", {}).get("settled") is False
         )
         current.body_program["status"] = (
             "completed"
             if slot.get("terminal")
-            or (ended and not current.body_program.get("ending"))
+            or (
+                ended
+                and not current.body_program.get("ending")
+                and not current.body_program["recovery_required"]
+            )
             else "settling"
             if ended
             else "playing"

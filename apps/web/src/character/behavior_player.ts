@@ -1,14 +1,17 @@
 import type { BodyProgram, BodyState } from "./contracts";
 import type { BodyOwner } from "./body_authority";
 import type { SpatialWindow } from "./spatial";
+import type { SpeechAnchor, SpeechObservation } from "./speech_clock";
 
 export interface BehaviorSlot {
   id: string; after: string | null; program_id: string | null; epoch: number;
   owner: BodyOwner; seconds: number; reason: string;
   activity_start: number; activity_end: number;
   speech_available: boolean;
+  executor?: string | null; advances_activity?: boolean;
   speech_packet_id?: string | null;
-  settling?: boolean; terminal?: boolean;
+  settling?: boolean; terminal?: boolean; handoff?: boolean;
+  waiting_for?: SpeechAnchor | null;
 }
 type Prepared = { slot: BehaviorSlot; windows?: SpatialWindow[] };
 
@@ -19,7 +22,7 @@ export function reservationMatches(slot: BehaviorSlot, program: BodyProgram | nu
 
 interface BehaviorPort {
   state(): BodyState;
-  speech(): { available: boolean; text: string; remaining_seconds: number; packet_id?: string | null; stream_id?: string | null };
+  speech(): SpeechObservation;
   hipHeight(): number;
   needed(): boolean;
   canStart(slot: BehaviorSlot): boolean;
@@ -77,7 +80,9 @@ export class BehaviorPlayer {
           value = await realize(value ?? await plan(after));
           while (current() && !this.port.canStart(value.slot)) await frame();
           if (!current()) break;
-          if (value.slot.owner !== "ardy" && value.slot.speech_available !== this.port.speech().available) {
+          const speech = this.port.speech();
+          if (value.slot.owner !== "ardy" && (value.slot.speech_available !== speech.available
+            || value.slot.owner === "sentiavatar" && value.slot.speech_packet_id && value.slot.speech_packet_id !== speech.packet_id)) {
             await receipt(value.slot, "interrupted"); value = null; continue;
           }
           await receipt(value.slot, "playing");
@@ -95,14 +100,14 @@ export class BehaviorPlayer {
           : plan(executing.slot.id).then(realize);
         const prepared = upcoming.then(v => ({ value: v, error: null }), error => ({ value: null, error }));
         await playback;
-        const next = await prepared;
         if (!current()) break;
         await receipt(executing.slot, "completed");
         active = null;
+        const next = await prepared;
         after = executing.slot.id;
         value = next.value;
         if (next.error && !(next.error instanceof StaleReservation)) throw next.error;
-        if (!this.port.needed()) {
+        if (!this.port.needed() && !value?.slot.settling && !value?.slot.handoff) {
           if (value) await receipt(value.slot, "interrupted").catch(() => {});
           value = null; break;
         }

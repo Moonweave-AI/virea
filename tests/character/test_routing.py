@@ -5,7 +5,6 @@ import httpx
 import pytest
 
 from virea.character.contracts import CharacterConfig
-from virea.character.providers.language import LanguageProvider
 from virea.character.providers.routing import compile_motion, select_route
 
 
@@ -31,7 +30,7 @@ def test_explicit_route_is_local_and_unavailable_motion_is_not_faked():
             assert (
                 await select_route(config, client, [], {}, "sentiavatar")
             ).engine == "sentiavatar"
-            with pytest.raises(ValueError, match="ARDY"):
+            with pytest.raises(ValueError, match="ardy"):
                 await select_route(config, client, [], {}, "ardy")
 
     asyncio.run(run())
@@ -59,18 +58,13 @@ def test_ardy_compiles_one_program_without_opening_a_speech_stream():
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            provider = LanguageProvider(CharacterConfig(), client)
-            updates = [
-                item
-                async for item in provider.stream(
-                    [dict(role="user", content="跳舞")],
-                    {"route": {"engine": "ardy"}, "targets": {}},
-                )
-            ]
-            assert len(updates) == 1 and updates[0].final
-            assert updates[0].decision.mode == "ACT_SILENTLY"
-            assert updates[0].decision.text == ""
-            assert updates[0].decision.actions[0].duration_seconds == 24
+            result = await compile_motion(
+                CharacterConfig(),
+                client,
+                [dict(role="user", content="跳舞")],
+                {"targets": {}},
+            )
+            assert result.actions[0].duration_seconds == 24
 
     asyncio.run(run())
     assert len(sent) == 1 and sent[0]["stream"] is False

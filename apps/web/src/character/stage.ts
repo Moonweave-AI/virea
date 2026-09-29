@@ -12,6 +12,7 @@ import { ExpressionTimeline } from "./timeline";
 import { SpatialPlayer, type SpatialWindow } from "./spatial";
 import { BodyAuthority } from "./body_authority";
 import { BehaviorPlayer, reservationMatches } from "./behavior_player";
+import { SpeechClock, cueReached } from "./speech_clock";
 import { MotionInspection } from "./inspection";
 import { PerformanceRecording, mixRecordedAudio } from "./recording";
 import type { BodyState, Expression, FaceTrack, PlaybackProgress, BodyProgram, Session } from "./contracts";
@@ -26,6 +27,7 @@ export class CharacterStage {
   private readonly gain = this.audio.createGain();
   private readonly analyser = this.audio.createAnalyser();
   private readonly timeline = new ExpressionTimeline(this.audio, this.analyser);
+  private readonly speechClock = new SpeechClock();
   private idle: RelaxedIdle | null = null;
   private readonly waveform = new Float32Array(256);
   private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
@@ -160,6 +162,7 @@ export class CharacterStage {
       speech: { ...this.speechInfo, active: Boolean(this.source) && this.audibleTime() < this.speechInfo.end,
         remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()) },
       motion_ready: this.authority?.speechReady ?? false, ground_clearance: this.authority?.groundClearance,
+      synchronization: this.speechClock.observe(this.audibleTime(), Boolean(this.authority?.speechReady)),
       retarget_max_angle: Number(this.canvas.dataset.retargetMaxAngle ?? 0), ...this.poseMetrics,
       peak_head_pose: this.peakHeadPose, recording: this.tape.summary() };
   }
@@ -261,6 +264,8 @@ export class CharacterStage {
 
   stopSpeech(): BodyState {
     this.epoch++;
+    this.replaying = false;
+    this.speechClock.reset();
     this.timeline.stop();
     this.authority?.release();
     this.previewSpeech = false;
@@ -297,14 +302,12 @@ export class CharacterStage {
     const speaking = () => Boolean(this.source) && this.audibleTime() < this.speechInfo.end;
     const speechReady = () => speaking() && Boolean(this.authority?.speechReady);
     const needed = () => speaking() || Boolean(this.activity && ["ready", "playing", "settling"].includes(this.activity.status)
-      && (Boolean(this.activity.ending) || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) - 1e-5));
+      && (Boolean(this.activity.ending) || this.activity.recovery_required || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) - 1e-5));
     if (this.behavior?.running || !needed() || this.disposed) return;
     const player = this.behavior = new BehaviorPlayer({
       state: () => this.state(), hipHeight: () => this.hipHeight, needed,
-      canStart: slot => slot.settling || this.activity?.finish_requested || slot.program_id !== this.activity?.id || !this.activity?.start_with_reply
-        || slot.activity_start > 0 || speaking(),
-      speech: () => ({ available: speechReady(), text: this.speechInfo.text,
-        remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()), packet_id: this.speechInfo.packet_id, stream_id: this.speechInfo.stream_id }),
+      canStart: () => true,
+      speech: () => this.speechClock.observe(this.audibleTime(), Boolean(this.authority?.speechReady)),
       report: slot => {
         this.canvas.dataset.behaviorSlot = slot.id;
         this.canvas.dataset.behaviorReason = slot.reason;
@@ -312,10 +315,10 @@ export class CharacterStage {
       },
       play: async ({ slot, windows }, current) => {
         this.tape.driver(this.audibleTime(), slot.owner, slot.reason, slot.id);
-        const total = slot.settling ? slot.seconds : this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) ?? slot.seconds;
+        const total = slot.settling ? slot.seconds : this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) ?? slot.seconds;
         const progress = (elapsed: number) => {
-          this.canvas.dataset.bodyStatus = slot.settling ? "settling" : slot.owner === "ardy" ? "playing" : "idle";
-          this.canvas.dataset.bodyElapsed = ((slot.settling ? 0 : slot.activity_start) + (slot.owner === "ardy" ? elapsed : 0)).toFixed(3);
+          this.canvas.dataset.bodyStatus = slot.settling ? "settling" : slot.advances_activity ? "playing" : "idle";
+          this.canvas.dataset.bodyElapsed = ((slot.settling ? 0 : slot.activity_start) + (slot.advances_activity || slot.settling ? elapsed : 0)).toFixed(3);
           this.canvas.dataset.bodyDuration = total.toFixed(3);
           if (!this.source && slot.owner === "ardy") onProgress({ elapsed: (slot.settling ? 0 : slot.activity_start) + elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
         };
@@ -335,6 +338,8 @@ export class CharacterStage {
           while (current() && this.audibleTime() - start < slot.seconds) {
             if (!needed() || !reservationMatches(slot, this.activity)
               || speechReady() !== slot.speech_available
+              || slot.waiting_for && cueReached(slot.waiting_for, this.activity?.origin_epoch,
+                this.speechClock.observe(this.audibleTime(), Boolean(this.authority?.speechReady)))
               || slot.owner === "sentiavatar" && (this.audibleTime() >= this.speechInfo.end
                 || slot.speech_packet_id && slot.speech_packet_id !== this.speechInfo.packet_id)) break;
             progress(this.audibleTime() - start);
@@ -452,6 +457,7 @@ export class CharacterStage {
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
     this.speechInfo = { text: packet.caption ?? packet.text, end: start + duration, packet_id: packet.id, stream_id: packet.stream_id ?? null };
+    if (!packet.preview) this.speechClock.begin(packet, start, duration);
     if (!packet.preview && audio) this.tape.addSpeech(packet, start, audio.duration, audio);
     // Replay packets may carry a program. Live behavior reservations have their own lifetime.
     const hasBody = Boolean(packet.actions.length || packet.spatial_windows?.length);

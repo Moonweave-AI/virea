@@ -10,8 +10,16 @@ from .decision_schema import decision_schema
 
 
 class SpeechBeat(Contract):
-    motion_intent: str = Field(min_length=1, max_length=100)
-    text: str = Field(min_length=1, max_length=120)
+    motion_intent: str = Field(
+        min_length=1,
+        max_length=100,
+        description="随当前话语表达情绪和意义的中文交际手势描述。独立的 body_commitment 按其同步条件由行为层执行。",
+    )
+    text: str = Field(
+        min_length=1,
+        max_length=120,
+        description="一个完整话语单元的可朗读正文；动作说明属于 motion_intent 或 body_commitment。",
+    )
 
 
 def utterance_schema(
@@ -84,7 +92,7 @@ def beat_decision(control, beats):
     return Decision(
         **control,
         text="".join(beat.text for beat in beats),
-        motion_intent=beats[-1].motion_intent if beats else "自然站立",
+        motion_intent=beats[-1].motion_intent if beats else "",
     )
 
 
@@ -92,21 +100,5 @@ def planner_action(intent: str) -> str:
     """Match upstream extract_description, accepting both public/demo delimiters."""
     tags = re.findall(r"[【〖]([^】〗]+)[】〗]", intent)
     if tags:
-        action = tags[-1]
-        if action in {"动作：无动作", "动作:无动作"}:
-            emotion = next(
-                (
-                    tag
-                    for tag in tags
-                    if tag.startswith("表情：") and tag != "表情：无表情"
-                ),
-                None,
-            )
-            if emotion:
-                action = "动作：" + emotion.split("：", 1)[1]
-        return action
-    return (
-        intent.strip()
-        if intent.startswith("动作：")
-        else "动作：" + (intent.strip() or "轻松说话")
-    )
+        return tags[-1]
+    return intent.strip()

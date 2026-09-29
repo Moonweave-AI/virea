@@ -3,7 +3,7 @@ import type { CharacterStage } from "../stage";
 import { downloadJSON } from "./history";
 
 const eventLabels: Record<string, string> = {
-  user_message: "用户输入", dialogue_appraised: "对话理解与行为承诺", performance_planned: "身体任务编排",
+  user_message: "用户输入", dialogue_appraised: "对话理解与行为承诺", performance_planned: "身体任务编排", body_replanned: "身体执行器重规划",
   expression_ready: "语音与文本就绪", motion_ready: "SentiAvatar 就绪", motion_error: "表达动作失败",
   behavior_planned: "预订身体时段", behavior_ready: "ARDY 就绪与支撑检查", behavior_feedback: "身体播放回执",
   playback_feedback: "语音播放回执", body_release_requested: "回应结束，请求收势", response_finished: "语音回应结束",
@@ -51,6 +51,7 @@ export class StudioDiagnostics {
     this.el("#current-driver").title = playback.reason;
     this.el("#trace-live").textContent = `${driver}\n${playback.reason || "等待可执行行为"}\n`
       + `语音：${speech.active ? `剩余 ${speech.remaining_seconds.toFixed(2)} 秒` : "已结束或尚未开始"}\n`
+      + `同步点：${Object.keys(playback.synchronization.marks).at(-1) ?? "等待语音开始"} · 语音与动作就绪独立计量\n`
       + `身体：${playback.retracting ? "手势回收进行中" : `${playback.body_status}，当前时段剩余 ${remainder.toFixed(2)} 秒`}\n`
       + `任务范围：${body && ["completed", "failed", "interrupted"].includes(body.status) ? "空间任务已结束，当前为对话表达" : body?.scope === "activity" ? "独立活动，可持续到目标完成" : "本次回应及最终收势"}\n`
       + `实播录制：${recording.duration_seconds.toFixed(2)} 秒 / ${recording.speech.length} 个语音窗口\n`
@@ -72,7 +73,7 @@ export class StudioDiagnostics {
     if (this.el("#trace-drawer").hidden) return;
     this.el("#trace-range").textContent = `当前第 ${session.epoch} 轮，${events.length} 条事件 / ${slots.length} 个身体时段。导出保留完整会话事件 #${session.events[0]?.sequence ?? 0}–#${session.events.at(-1)?.sequence ?? 0}。字幕按 PCM 窗口分段，非逐字强制对齐。`
       + ((session.events[0]?.sequence ?? 1) > 1 ? "较早事件已超出会话缓冲区。" : "");
-    const signature = JSON.stringify([session.events.at(-1)?.sequence, session.behavior_timeline, recording.speech.length, recording.drivers.length]);
+    const signature = JSON.stringify([session.events.at(-1)?.sequence, session.behavior_timeline, recording.speech.length, recording.drivers.length, playback.synchronization.marks]);
     if (signature === this.signature) return;
     this.signature = signature;
     const entries: HTMLElement[] = [];
@@ -88,7 +89,8 @@ export class StudioDiagnostics {
       title.textContent = `${owners[slot.owner] ?? slot.owner} · ${slot.seconds.toFixed(2)}s · ${slot.status}`;
       row.append(title, text("p", slot.reason), text("pre", JSON.stringify(slot, null, 2))); return row;
     }));
-    this.el("#trace-playback").replaceChildren(...recording.drivers.map(d => text("p",
+    this.el("#trace-playback").replaceChildren(...Object.entries(playback.synchronization.marks).map(([name, at]) => text("p",
+      `语音同步点 · ${name} · 音频时钟 ${at.toFixed(3)}s`)), ...recording.drivers.map(d => text("p",
       `播放 +${d.at.toFixed(2)}s · ${owners[d.owner] ?? d.owner}\n${d.reason}`)),
       ...recording.speech.map(c => text("p", `语音 +${c.at.toFixed(2)}–${(c.at + c.seconds).toFixed(2)}s · ${c.id}\n${c.text}`)));
   }

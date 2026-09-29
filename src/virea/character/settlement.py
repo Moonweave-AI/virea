@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class SettlementPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-    window_seconds: float = Field(default=4.0, ge=0.8, le=12)
     max_seconds: float = Field(default=16.0, ge=4, le=60)
     observation_seconds: float = Field(default=0.6, ge=0.2, le=2)
     support_height_ratio: float = Field(default=0.12, gt=0, le=0.3)

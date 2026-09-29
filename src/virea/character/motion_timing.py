@@ -3,6 +3,14 @@
 import math
 
 
+def planned_duration(action):
+    """Missing timing is an invalid plan, not permission to invent a duration."""
+    value = action.get("duration_seconds")
+    if value is None or not math.isfinite(value) or value <= 0:
+        raise ValueError("Every executable activity requires a model-planned duration")
+    return value
+
+
 def fit_program_duration(actions, seconds: float | None):
     """Apportion a model-parsed total budget; natural-language intent is not regex."""
     if not actions:
@@ -11,7 +19,7 @@ def fit_program_duration(actions, seconds: float | None):
         # Every phase must fit the same native frame grid as reservations. A
         # fractional tail otherwise survives forever in the semantic clock.
         for action in actions:
-            duration = action.get("duration_seconds") or 4.8
+            duration = planned_duration(action)
             action["duration_seconds"] = round(
                 math.ceil(duration / 0.2 - 1e-9) * 0.2, 3
             )
@@ -22,7 +30,7 @@ def fit_program_duration(actions, seconds: float | None):
     minimum = [6 if a["kind"] == "reach" else 2 for a in actions]
     if budget < sum(minimum):
         raise ValueError("动作阶段数量与指定总时长不匹配，请减少阶段或调整时长")
-    weights = [a.get("duration_seconds") or 1 for a in actions]
+    weights = [planned_duration(a) for a in actions]
     ideal = [budget * w / sum(weights) for w in weights]
     units = [max(low, math.floor(w)) for low, w in zip(minimum, ideal)]
     while sum(units) != budget:

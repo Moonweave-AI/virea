@@ -50,7 +50,7 @@ class MotionProvider:
         planner_history: list | None = None,
     ) -> dict:
         request = JobRequest(
-            model_id="sentiavatar-susu",
+            model_id=self.config.motion_model_id,
             task="audio_text_to_avatar_motion",
             input={
                 "audio": "data:audio/wav;base64,"
@@ -65,8 +65,8 @@ class MotionProvider:
                 "planner_action_only": True,
                 "planner_url": self.config.motion_planner_url,
                 "seed": secrets.randbelow(2_147_483_583),
-                "temperature": 0.5,
-                "top_p": 0.7,
+                "temperature": self.config.motion_temperature,
+                "top_p": self.config.motion_top_p,
             },
             avatar_id=avatar_id,
             execution_target=self.config.execution_target,

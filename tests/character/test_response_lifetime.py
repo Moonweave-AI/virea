@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from native_plans import native_plan
 from test_behavior import setup
 
 from virea.character.behavior import BodyState, SpeechAvailability, choose_window
@@ -18,6 +19,7 @@ def test_speech_only_owner_ends_at_the_actual_subframe_tail():
             body=BodyState(),
             speech=SpeechAvailability(available=True, remaining_seconds=0.037),
             previous="hold",
+            expression_executor="sentiavatar",
         )
     )
     assert choice.owner == "sentiavatar"
@@ -60,16 +62,23 @@ def test_response_release_invalidates_prepared_activity_but_keeps_active_owner(
 
 def test_unspecified_pose_duration_cannot_expand_to_180_seconds(monkeypatch):
     async def complete(*args, **kwargs):
-        return {
-            "operation": "replace",
-            "actions": [
+        return native_plan(
+            **(
                 {
-                    "kind": "perform",
-                    "description": "Standing with relaxed arms.",
-                    "duration_seconds": 180,
+                    "operation": "replace",
+                    "executors": ["sentiavatar"],
+                    "objective_groups": [[0]],
+                    "starts": [{"event": "immediate"}],
+                    "actions": [
+                        {
+                            "kind": "perform",
+                            "description": "Standing with relaxed arms.",
+                            "duration_seconds": 180,
+                        }
+                    ],
                 }
-            ],
-        }
+            )
+        )
 
     monkeypatch.setattr(performance, "structured_completion", complete)
     appraisal = performance.DialogueAppraisal(
@@ -92,10 +101,9 @@ def test_unspecified_pose_duration_cannot_expand_to_180_seconds(monkeypatch):
         )
     )
     assert plan.body.scope == "response"
-    assert (
-        plan.body.actions[0].duration_seconds
-        == CharacterConfig().behavior_horizon_seconds
-    )
+    # Only an explicit model estimate supplies 180 seconds; the runtime neither
+    # invents it nor clamps it to one inference window. Response scope still ends it.
+    assert plan.body.actions[0].duration_seconds == 180
 
 
 def test_model_invented_explicit_duration_is_rejected_without_affecting_speech():

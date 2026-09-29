@@ -16,6 +16,12 @@ class PCMWindows:
         self.parts = deque()
         self.frames = 0
         self.first = True
+        self.position = 0
+        self.marks = deque()
+
+    def mark(self, name: str):
+        """Place an event at an exact PCM boundary, before reblocking."""
+        self.marks.append((name, self.position + self.frames))
 
     def push(self, unit):
         with wave.open(io.BytesIO(unit["audio"]), "rb") as source:
@@ -62,8 +68,15 @@ class PCMWindows:
                     caption="".join(texts),
                     decision=decision,
                     continues=not (final and count == self.frames),
+                    speech_marks=[],
                 )
             )
+            while self.marks and self.marks[0][1] <= self.position + count:
+                name, at = self.marks.popleft()
+                windows[-1]["speech_marks"].append(
+                    {"name": name, "offset_seconds": (at - self.position) / 24000}
+                )
+            self.position += count
             self.frames -= count
             self.first = False
         return windows

@@ -10,7 +10,7 @@ from ..prompts import DECISION_RULES
 from ..streaming import LanguageUpdate, partial_decision
 from ..utterances import SpeechBeat, beat_decision, decode_beats, utterance_schema
 from .performance import appraise_dialogue, compile_performance, plan_performance
-from .routing import compile_motion, plan_reply, select_route
+from .routing import plan_reply, select_route
 
 
 class LanguageProvider:
@@ -41,12 +41,6 @@ class LanguageProvider:
         )
 
     async def stream(self, history: list[dict], context: dict):
-        if (context.get("route") or {}).get("engine") == "ardy":
-            yield LanguageUpdate(
-                await compile_motion(self.config, self.client, history, context),
-                final=True,
-            )
-            return
         route = context.get("route")
         if route and not route.get("reply_plan"):
             plan = await plan_reply(self.config, self.client, history, context)
@@ -58,8 +52,7 @@ class LanguageProvider:
         schema = utterance_schema(
             list(context.get("targets", {})),
             explicit_positions(history),
-            speech_only=(context.get("route") or {}).get("engine")
-            in {"sentiavatar", "hybrid", "temporal"},
+            speech_only=bool(route),
             max_beats=self.config.max_speech_beats,
             committed_speech=bool(
                 route and route.get("engine") == "temporal" and route.get("reply_plan")

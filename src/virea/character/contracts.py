@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .executors import BodyExecutor, installed_executors
 from .settlement import SettlementPolicy
 
 
@@ -51,13 +52,13 @@ class SceneAction(Contract):
 class Decision(Contract):
     mode: Literal["SPEAK", "ACT_SILENTLY", "WAIT"]
     text: str = Field(default="", max_length=8192)
-    motion_intent: str = Field(default="自然说话", max_length=300)
+    motion_intent: str = Field(default="", max_length=300)
     actions: list[SceneAction] = Field(default_factory=list, max_length=12)
     end_state: Literal["relaxed", "hold"] = "relaxed"
 
     @model_validator(mode="after")
     def coherent(self):
-        if sum(action.duration_seconds or 4.8 for action in self.actions) > 180:
+        if sum(action.duration_seconds or 0 for action in self.actions) > 180:
             raise ValueError("one motion program may contain at most 180 seconds")
         if self.mode == "SPEAK" and not self.text.strip():
             raise ValueError("SPEAK requires final spoken text")
@@ -149,19 +150,15 @@ class CharacterConfig(Contract):
     tts_url: str = "http://127.0.0.1:8081/v1"
     tts_voice: str = "zf_001"
     motion_planner_url: str | None = None
+    motion_model_id: str = "sentiavatar-susu"
+    motion_temperature: float = Field(default=0.5, ge=0, le=2)
+    motion_top_p: float = Field(default=0.7, gt=0, le=1)
     spatial_url: str | None = None
     persona: str = ""
     language_max_tokens: int = Field(default=4096, ge=256, le=16384)
     planning_max_tokens: int = Field(default=768, ge=128, le=4096)
     planning_temperature: float = Field(default=0, ge=0, le=2)
-    output_engines: dict[
-        Literal["spoken_content", "physical_movement"], Literal["sentiavatar", "ardy"]
-    ] = Field(
-        default_factory=lambda: {
-            "spoken_content": "sentiavatar",
-            "physical_movement": "ardy",
-        }
-    )
+    body_executors: dict[str, BodyExecutor] = Field(default_factory=installed_executors)
     temperature: float = Field(default=0.6, ge=0, le=2)
     max_speech_beats: int = Field(default=64, ge=1, le=64)
     spatial_history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)

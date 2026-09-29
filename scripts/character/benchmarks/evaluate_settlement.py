@@ -16,6 +16,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--neutral", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--window-seconds",
+        type=float,
+        default=4,
+        help="Fixed window for this controlled benchmark only; production uses LLM-planned recovery.",
+    )
     args = parser.parse_args()
     neutral = json.loads(args.neutral.read_text(encoding="utf8"))
     cases = [
@@ -41,7 +47,7 @@ def main():
         for name, active, ending in cases:
             body = BodyState(pose=neutral["rotations"])
             report = dict(name=name, windows=[], measurements=[])
-            for i in range(1 + round(policy.max_seconds / policy.window_seconds)):
+            for i in range(1 + round(policy.max_seconds / args.window_seconds)):
                 started = perf_counter()
                 response = client.post(
                     "http://127.0.0.1:8085/generate",
@@ -50,7 +56,7 @@ def main():
                             dict(
                                 kind="perform",
                                 description=active if i == 0 else ending,
-                                duration_seconds=policy.window_seconds,
+                                duration_seconds=args.window_seconds,
                             )
                         ],
                         "body": body.model_dump(),
@@ -69,7 +75,7 @@ def main():
                 measurement = terminal_measurement(windows, body.position.y, policy)
                 measurement.update(
                     stage="activity" if i == 0 else "settlement",
-                    seconds=(i * policy.window_seconds),
+                    seconds=(i * args.window_seconds),
                     wall_seconds=perf_counter() - started,
                 )
                 report["measurements"].append(measurement)

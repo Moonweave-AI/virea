@@ -86,6 +86,8 @@ def test_temporal_audio_completes_even_when_motion_never_finishes(tmp_path):
 
 
 def test_body_compiler_failure_cannot_cancel_accepted_speech(tmp_path):
+    from virea.character.providers.performance import EmbodiedCommitment
+
     async def run():
         session = session_fixture(tmp_path)
         original = session.language
@@ -94,6 +96,8 @@ def test_body_compiler_failure_cannot_cancel_accepted_speech(tmp_path):
         async def appraise(*args):
             return SimpleNamespace(
                 speech="speak",
+                expression_executor="sentiavatar",
+                embodiment=EmbodiedCommitment(operation="replace", goal="表演"),
                 understanding="交谈并表演",
                 reply=SimpleNamespace(
                     goal="讲故事", model_dump=lambda: {"goal": "讲故事", "outline": []}

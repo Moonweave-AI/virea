@@ -3,6 +3,7 @@ import io
 import wave
 
 import pytest
+from native_plans import native_plan
 
 from virea.character.audio_stream import PCMWindows
 from virea.character.contracts import CharacterConfig
@@ -33,18 +34,27 @@ def test_sitting_requires_a_scene_support_affordance(monkeypatch, target, allowe
         ]
         assert len(sitting) == 1
         assert sitting[0]["properties"]["target_id"]["enum"] == ["floor"]
-        return {
-            "operation": "replace",
-            "ending": "Sitting comfortably on the floor.",
-            "actions": [
+        return native_plan(
+            **(
                 {
-                    "kind": "sit",
-                    "target_id": target,
-                    "description": "Sitting down on the floor.",
-                    "duration_seconds": 4,
+                    "operation": "replace",
+                    "ending": "Sitting comfortably on the floor.",
+                    "ending_executor": "ardy",
+                    "ending_seconds": 2,
+                    "executors": ["ardy"],
+                    "objective_groups": [[0]],
+                    "starts": [{"event": "immediate"}],
+                    "actions": [
+                        {
+                            "kind": "sit",
+                            "target_id": target,
+                            "description": "Sitting down on the floor.",
+                            "duration_seconds": 4,
+                        }
+                    ],
                 }
-            ],
-        }
+            )
+        )
 
     monkeypatch.setattr(performance, "structured_completion", completion)
     appraisal = performance.DialogueAppraisal(
@@ -57,7 +67,7 @@ def test_sitting_requires_a_scene_support_affordance(monkeypatch, target, allowe
     def run():
         return asyncio.run(
             performance.compile_performance(
-                CharacterConfig(),
+                CharacterConfig(spatial_url="http://worker"),
                 None,
                 [{"role": "user", "content": "坐下休息一会吧"}],
                 {

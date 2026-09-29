@@ -12,6 +12,7 @@ from uuid import uuid4
 from .audio import speech_windows, text_chunks
 from .contracts import BodyState, CharacterConfig, EnvironmentEvent, PlaybackFeedback
 from .expression_stream import ExpressionStream
+from .motion_timing import planned_duration
 from .playback_clock import PlaybackClock
 from .providers.motion import CAPABILITIES
 
@@ -347,6 +348,12 @@ class CharacterSession:
                         "end_state": plan.body.end_state,
                         "ending": plan.body.ending,
                         "start_with_reply": plan.body.start_with_reply,
+                        "cues": [cue.model_dump() for cue in plan.body.cues],
+                        "executors": plan.body.executors,
+                        "objective_groups": plan.body.objective_groups,
+                        "ending_executor": plan.body.ending_executor,
+                        "ending_reason": plan.body.ending_reason,
+                        "ending_seconds": plan.body.ending_seconds,
                         "status": "ready",
                         "elapsed": 0,
                     }
@@ -481,6 +488,8 @@ class CharacterSession:
             "reason": appraisal.understanding,
             "spoken_request": reply.goal if reply else None,
             "reply_plan": reply.model_dump() if reply else None,
+            "body_commitment": appraisal.embodiment.model_dump(),
+            "expression_executor": appraisal.expression_executor,
         }
         speech_finished = not reply
         self.record(
@@ -521,6 +530,12 @@ class CharacterSession:
                         "ending": plan.body.ending,
                         "end_state": plan.body.end_state,
                         "start_with_reply": plan.body.start_with_reply,
+                        "cues": [cue.model_dump() for cue in plan.body.cues],
+                        "executors": plan.body.executors,
+                        "objective_groups": plan.body.objective_groups,
+                        "ending_executor": plan.body.ending_executor,
+                        "ending_reason": plan.body.ending_reason,
+                        "ending_seconds": plan.body.ending_seconds,
                         "scope": plan.body.scope,
                         "origin_epoch": epoch,
                         "goal": appraisal.embodiment.goal,
@@ -532,8 +547,7 @@ class CharacterSession:
                         finish_response_body()
                 elif plan.body.operation == "stop" and self.body_program:
                     self.body_program["elapsed"] = sum(
-                        a.get("duration_seconds") or 4.8
-                        for a in self.body_program["actions"]
+                        planned_duration(a) for a in self.body_program["actions"]
                     )
                     self.body_program["status"] = "settling"
                     self.body_program["id"] = uuid4().hex
@@ -747,9 +761,7 @@ class CharacterSession:
         self.status = "awaiting_playback"
         self.record("expression_ready", packet_id=packet["id"])
         try:
-            duration = sum(
-                action.get("duration_seconds") or 4.8 for action in packet["actions"]
-            )
+            duration = sum(planned_duration(action) for action in packet["actions"])
             timeout = (
                 max(self.config.feedback_timeout, duration + 60)
                 if packet["actions"]

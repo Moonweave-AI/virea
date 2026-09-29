@@ -6,15 +6,15 @@ from typing import Literal
 from pydantic import Field
 
 from .contracts import BodyState, Contract
-from .providers.routing import structured_completion
+from .coordination import SpeechObservation, anchor_reached, phase_anchor
+from .executors import available_executors
+from .motion_timing import planned_duration
+
+SpeechAvailability = SpeechObservation
 
 
-class SpeechAvailability(Contract):
-    available: bool = False
-    text: str = Field(default="", max_length=8192)
-    remaining_seconds: float = Field(default=0, ge=0, le=600)
-    packet_id: str | None = None
-    stream_id: str | None = None
+class AllocationUnavailable(ValueError):
+    """An allocated input disappeared; the intention remains valid for replanning."""
 
 
 class BehaviorRequest(Contract):
@@ -27,22 +27,15 @@ class WindowChoice(Contract):
     owner: Literal["ardy", "sentiavatar", "hold"]
     seconds: float = Field(gt=0, allow_inf_nan=False)
     reason: str = Field(min_length=1, max_length=200)
-
-
-WINDOW_RULES = """为角色接下来的短时段选择唯一的全身动作执行者。语音和脸部表情独立继续。
-这是执行中的滚动决策，不是为整轮对话选择模型。根据已采纳的行为、剩余阶段、当前姿态与语音状态决策。
-ARDY 负责当前持续身体活动、空间移动和接触；SentiAvatar 负责与实际语音匹配的全身交际动作。
-hold 保留当前姿态用于无可执行活动的间隙。模型交接继承前序姿态和速度。
-动作目标仍在进行时考虑其完整性和支撑连续性；交接应有行为上的理由，不为了轮换而切换。
-seconds 是本次提交的近期时段，之后会基于新的观察重新决策。剩余目标不是新的用户命令。
-"""
+    executor: str | None = None
+    advances_activity: bool = False
 
 
 def remaining_actions(program: dict | None, elapsed: float) -> list[dict]:
     """Trim elapsed activity time without changing a spatial goal's deadline."""
     remaining = []
     for action in (program or {}).get("actions", []):
-        duration = action.get("duration_seconds") or 4.8
+        duration = planned_duration(action)
         if elapsed >= duration - 1e-6:
             elapsed -= duration
             continue
@@ -54,56 +47,91 @@ def remaining_actions(program: dict | None, elapsed: float) -> list[dict]:
     return remaining
 
 
-async def choose_window(config, client, *, program, elapsed, body, speech, previous):
+async def choose_window(
+    config,
+    client,
+    *,
+    program,
+    elapsed,
+    body,
+    speech,
+    previous,
+    expression_executor=None,
+):
+    """Realize semantic commitments, without another LLM call in the playout loop.
+
+    The language layer chooses activities, executors and cue relations. The
+    runtime executes those allocations; availability cannot rewrite that intent.
+    A native generation window is bounded by its semantic phase, never by TTS.
+    """
     actions = remaining_actions(program, elapsed)
-    available = ["hold"]
-    if actions and config.spatial_url:
-        available = ["ardy"]
+    if (program or {}).get("status") in {"completed", "failed", "interrupted"}:
+        actions = []
+    anchor = phase_anchor(program, elapsed)
+    eligible = anchor_reached(anchor, program, speech)
     speech_available = speech.available and speech.remaining_seconds > 0
-    if speech_available:
-        available = [owner for owner in available if owner != "hold"] + ["sentiavatar"]
-    schema = WindowChoice.model_json_schema()
-    schema["properties"]["owner"]["enum"] = available
-    schema["properties"]["seconds"]["maximum"] = config.behavior_horizon_seconds
-    value = (
-        {
-            "owner": available[0],
-            "seconds": config.behavior_horizon_seconds,
-            "reason": "当前只有一个可执行的身体通道",
-        }
-        if len(available) == 1
-        else await structured_completion(
-            config,
-            client,
-            [{"role": "user", "content": "规划下一个执行时段。"}],
-            {
-                "remaining_activity": actions,
-                "executed_seconds": elapsed,
-                "body": body.model_dump(exclude={"pose", "history"}),
-                "speech": speech.model_dump(),
-                "previous_owner": previous,
-                "horizon_seconds": config.behavior_horizon_seconds,
-            },
-            WINDOW_RULES,
-            schema,
-            tokens=config.planning_max_tokens,
-        )
+    engines = available_executors(config)
+    phase = len((program or {}).get("actions", [])) - len(actions)
+    allocation = (program or {}).get("executors", [])
+    executor = (
+        allocation[phase] if actions and eligible and phase < len(allocation) else None
     )
-    choice = WindowChoice.model_validate(value)
-    if choice.owner not in available:
-        raise ValueError("behavior planner selected an unavailable body owner")
-    seconds = min(choice.seconds, config.behavior_horizon_seconds)
-    if choice.owner == "ardy":
-        seconds = min(seconds, sum(a["duration_seconds"] for a in actions))
-        if (program or {}).get("scope") == "response" and speech_available:
-            seconds = min(seconds, max(0.2, speech.remaining_seconds))
-    if choice.owner == "sentiavatar":
-        seconds = min(seconds, speech.remaining_seconds)
-        choice.seconds = max(0.001, seconds)
-        return choice, actions
-    # ARDY's motion tokenizer consumes patches of four frames at 20 Hz.
-    choice.seconds = max(0.2, math.floor(seconds / 0.2 + 1e-6) * 0.2)
-    return choice, actions
+    if actions and eligible and executor is None:
+        raise ValueError(
+            "Body phase has no model allocation; a new LLM plan is required"
+        )
+    selected = engines.get(executor)
+    if executor and selected is None:
+        raise AllocationUnavailable(
+            f"Allocated executor {executor} is unavailable; replan required"
+        )
+    if selected and selected.requires_speech and not speech_available:
+        ended = "reply:end" in speech.marks or "reply:end" in (program or {}).get(
+            "observed_marks", {}
+        )
+        if ended or (
+            speech.epoch and speech.epoch != (program or {}).get("origin_epoch")
+        ):
+            raise AllocationUnavailable(
+                "The allocated speech input ended before this phase completed; replan required"
+            )
+    if selected and (not selected.requires_speech or speech_available):
+        seconds = min(config.behavior_horizon_seconds, actions[0]["duration_seconds"])
+        if selected.requires_speech:
+            seconds = min(seconds, speech.remaining_seconds)
+        if selected.time_quantum:
+            seconds = max(
+                selected.time_quantum,
+                math.floor(seconds / selected.time_quantum + 1e-6)
+                * selected.time_quantum,
+            )
+        return WindowChoice(
+            owner=selected.source,
+            executor=executor,
+            advances_activity=True,
+            seconds=seconds,
+            reason=f"执行 LLM 分配的模型 {executor}；语音独立继续",
+        ), actions[:1]
+    waiting = (
+        f"等待同步点 {anchor.key}"
+        if actions and not eligible
+        else "等待已分配执行器的输入"
+        if actions
+        else "没有待执行的身体任务"
+    )
+    expression = engines.get(expression_executor)
+    if speech_available and expression and expression.requires_speech:
+        return WindowChoice(
+            owner=expression.source,
+            executor=expression_executor,
+            seconds=min(config.behavior_horizon_seconds, speech.remaining_seconds),
+            reason=f"执行 LLM 的随声表达分配 {expression_executor}；{waiting}",
+        ), actions
+    return WindowChoice(
+        owner="hold",
+        seconds=config.behavior_horizon_seconds,
+        reason=f"{waiting}；等待可用表达",
+    ), actions
 
 
 def motion_forecast(windows: list[dict], initial: BodyState) -> BodyState:

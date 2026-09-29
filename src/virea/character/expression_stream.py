@@ -63,8 +63,11 @@ class ExpressionStream:
     async def speech(self):
         session = self.session
         windows = PCMWindows()
+        windows.mark("reply:start")
+        utterance = 0
         while (clause := await self.clauses.get()) is not None:
             text, decision = clause
+            windows.mark(f"utterance:{utterance}:start")
             if not session.pending:
                 session.status = "synthesizing"
             started = monotonic()
@@ -74,7 +77,10 @@ class ExpressionStream:
                 unit["decision"] = decision
                 for window in windows.push(unit):
                     await self.audio.put(window)
+            windows.mark(f"utterance:{utterance}:end")
+            utterance += 1
             session.metrics["tts_seconds"] = monotonic() - started
+        windows.mark("reply:end")
         for window in windows.take(final=True):
             await self.audio.put(window)
         await self.audio.put(None)
@@ -158,6 +164,7 @@ class ExpressionStream:
                 parent_id=previous,
                 motion_status="pending",
                 independent_speech=True,
+                speech_marks=unit.get("speech_marks", []),
             )
             self.files.add(packet["id"])
             self.unpublished.add(packet["id"])
