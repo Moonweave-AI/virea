@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from .audio_stream import PCMWindows
 from .streaming import ClauseBuffer, LanguageUpdate
+from .turn_timing import BodyAnchor
 
 
 class ExpressionStream:
@@ -43,21 +44,33 @@ class ExpressionStream:
         session = self.session
         buffer = ClauseBuffer()
         semantic = False
+        utterance = 0
+        timing = getattr(session, "timing", None)
+        if timing and timing.epoch != self.epoch:
+            timing = None
         async for update in self._updates(trigger):
             decision = update.decision
             session.draft_text = decision.text
             if update.beat is not None:
                 semantic = True
-                await self.clauses.put((update.beat.text, decision))
+                if timing:
+                    timing.add_speech(utterance, update.beat.start)
+                await self.clauses.put((update.beat.text, decision, update.beat.start))
+                utterance += 1
             elif decision.mode == "SPEAK" and not semantic:
                 for text in buffer.take(decision.text, final=update.final):
-                    await self.clauses.put((text, decision))
+                    if timing:
+                        timing.add_speech(utterance, BodyAnchor())
+                    await self.clauses.put((text, decision, BodyAnchor()))
+                    utterance += 1
             if update.final:
                 self.decision = decision
                 session.metrics["language_seconds"] = monotonic() - self.started
                 session.record("decision", decision=decision.model_dump())
         if self.decision is None:
             raise ValueError("language stream did not finish")
+        if timing:
+            timing.finish_speech()
         await self.clauses.put(None)
 
     async def speech(self):
@@ -65,8 +78,13 @@ class ExpressionStream:
         windows = PCMWindows()
         windows.mark("reply:start")
         utterance = 0
+        previous_start = BodyAnchor()
         while (clause := await self.clauses.get()) is not None:
-            text, decision = clause
+            text, decision, start = clause
+            if start != previous_start:
+                for window in windows.take(final=True):
+                    await self.audio.put(window)
+            previous_start = start
             windows.mark(f"utterance:{utterance}:start")
             if not session.pending:
                 session.status = "synthesizing"
@@ -75,6 +93,7 @@ class ExpressionStream:
                 if session.metrics["first_audio_seconds"] is None:
                     session.metrics["first_audio_seconds"] = monotonic() - self.started
                 unit["decision"] = decision
+                unit["speech_start"] = start.model_dump()
                 for window in windows.push(unit):
                     await self.audio.put(window)
             windows.mark(f"utterance:{utterance}:end")
@@ -165,6 +184,7 @@ class ExpressionStream:
                 motion_status="pending",
                 independent_speech=True,
                 speech_marks=unit.get("speech_marks", []),
+                speech_start=unit.get("speech_start"),
             )
             self.files.add(packet["id"])
             self.unpublished.add(packet["id"])
@@ -189,6 +209,20 @@ class ExpressionStream:
             except TimeoutError:
                 pass
             packet["presentation_lead_seconds"] = monotonic() - lead_started
+            timing = getattr(session, "timing", None)
+            if timing and timing.epoch == self.epoch and unit.get("speech_start"):
+                release = asyncio.create_task(
+                    timing.wait(
+                        BodyAnchor.model_validate(unit["speech_start"]), packet["id"]
+                    )
+                )
+                try:
+                    await session.playback_clock.wait(
+                        release, session.config.motion_timeout
+                    )
+                finally:
+                    release.cancel()
+                    await asyncio.gather(release, return_exceptions=True)
             self.unpublished.discard(packet["id"])
             if session.metrics["first_expression_seconds"] is None:
                 session.metrics["first_expression_seconds"] = monotonic() - self.started

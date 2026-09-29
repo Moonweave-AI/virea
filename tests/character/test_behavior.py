@@ -60,9 +60,9 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
     )
     assert result.reply_plan.goal == "接受邀请"
     assert result.body.start_with_reply
-    assert calls[1][0] == calls[0][0]
+    assert calls[1][0] == [{"role": "user", "content": "角色决定用轻快的舞步回应邀请"}]
     assert calls[1][1]["adopted_objectives"] == ["角色决定用轻快的舞步回应邀请"]
-    assert calls[1][1]["requested_communication"]["goal"] == "接受邀请"
+    assert calls[1][1]["requested_communication"] is None
 
 
 def test_remaining_goal_keeps_spatial_target_and_deadline_without_new_phase():

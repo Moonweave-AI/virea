@@ -15,6 +15,7 @@ from .expression_stream import ExpressionStream
 from .motion_timing import planned_duration
 from .playback_clock import PlaybackClock
 from .providers.motion import CAPABILITIES
+from .turn_timing import TimingConflict, TurnTiming
 
 
 class CharacterSession:
@@ -44,6 +45,7 @@ class CharacterSession:
         self.motion_plan = []
         self.motion_ending = "relaxed"
         self.body_program: dict | None = None
+        self.timing: TurnTiming | None = None
         self.behavior_slots: dict[str, dict] = {}
         self.behavior_lock = asyncio.Lock()
         self.latest_expression: dict | None = None
@@ -111,6 +113,9 @@ class CharacterSession:
             "route": self.route,
             "motion_plan": self.motion_plan,
             "body_program": self.body_program,
+            "timing": self.timing.snapshot()
+            if self.timing and self.timing.epoch == self.epoch
+            else None,
             "behavior_timeline": [
                 {
                     k: v
@@ -480,6 +485,15 @@ class CharacterSession:
             self.record("error", message=f"{type(exc).__name__}: {exc}")
 
     async def _run_temporal(self, trigger, epoch, started):
+        timing = self.timing = TurnTiming(
+            epoch,
+            self.record,
+            [
+                name
+                for name, spec in self.config.body_executors.items()
+                if spec.requires_speech
+            ],
+        )
         history, context = list(self.history), self._context(trigger)
         appraisal = await self.language.appraise(history, context)
         reply = appraisal.reply if appraisal.speech == "speak" else None
@@ -543,16 +557,24 @@ class CharacterSession:
                         "status": "ready",
                         "elapsed": 0,
                     }
+                    timing.set_body(self.body_program)
                     if speech_finished:
                         finish_response_body()
                 elif plan.body.operation == "stop" and self.body_program:
+                    self.body_program["finish_requested"] = True
                     self.body_program["elapsed"] = sum(
                         planned_duration(a) for a in self.body_program["actions"]
                     )
                     self.body_program["status"] = "settling"
                     self.body_program["id"] = uuid4().hex
+                    timing.set_body(self.body_program)
+                else:
+                    timing.set_body(self.body_program)
                 self.record("performance_planned", plan=plan.model_dump())
             except Exception as exc:
+                timing.fail(f"{type(exc).__name__}: {exc}")
+                if self.body_program and self.body_program.get("origin_epoch") == epoch:
+                    self.body_program["status"] = "failed"
                 # Body planning cannot cancel an already accepted verbal reply.
                 self.record("body_error", message=f"{type(exc).__name__}: {exc}")
 
@@ -562,6 +584,8 @@ class CharacterSession:
                 await ExpressionStream(self, epoch, started).run(trigger)
                 speech_finished = True
                 finish_response_body()
+            else:
+                timing.finish_speech()
 
         tasks = [asyncio.create_task(body()), asyncio.create_task(speech())]
         try:
@@ -571,6 +595,12 @@ class CharacterSession:
             # finishing speech must not create a second, unrelated ARDY task.
             self.status = "waiting"
             self.record("response_finished", interrupted=False)
+        except TimingConflict as exc:
+            timing.fail(str(exc))
+            if self.body_program and self.body_program.get("origin_epoch") == epoch:
+                self.body_program["status"] = "failed"
+            self.record("timing_error", message=str(exc))
+            raise
         finally:
             for task in tasks:
                 if not task.done():

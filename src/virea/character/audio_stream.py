@@ -43,6 +43,7 @@ class PCMWindows:
                 count = self.frames
             remaining, chunks, texts = count, [], []
             decision = self.parts[0].get("decision")
+            speech_start = self.parts[0].get("speech_start")
             dominant_frames = 0
             while remaining:
                 part = self.parts[0]
@@ -67,6 +68,7 @@ class PCMWindows:
                     text="".join(texts),
                     caption="".join(texts),
                     decision=decision,
+                    speech_start=speech_start,
                     continues=not (final and count == self.frames),
                     speech_marks=[],
                 )

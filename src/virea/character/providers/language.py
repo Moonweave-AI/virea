@@ -42,6 +42,18 @@ class LanguageProvider:
 
     async def stream(self, history: list[dict], context: dict):
         route = context.get("route")
+        adopted = ((route or {}).get("reply_plan") or {}).get("utterances")
+        if adopted:
+            # The joint planner already authored the words and their timing.
+            # Re-expanding an outline here would invent a second turn plan.
+            beats = [SpeechBeat.model_validate(part) for part in adopted]
+            control = dict(mode="SPEAK", actions=[])
+            for index, beat in enumerate(beats):
+                yield LanguageUpdate(
+                    beat_decision(control, beats[: index + 1]), beat=beat
+                )
+            yield LanguageUpdate(beat_decision(control, beats), final=True)
+            return
         if route and not route.get("reply_plan"):
             plan = await plan_reply(self.config, self.client, history, context)
             context = {**context, "route": {**route, "reply_plan": plan.model_dump()}}
@@ -49,6 +61,18 @@ class LanguageProvider:
             self.config.llm_thinking and context.get("trigger") != "behavior_completed"
         )
         rules = context.get("persona", self.config.persona) + "\n" + DECISION_RULES
+        commitment = (route or {}).get("body_commitment", {})
+        program = context.get("body_program") or {}
+        groups = program.get("objective_groups", [])
+        objectives = (
+            len(commitment.get("activities", [])) or 1
+            if commitment.get("operation") == "replace"
+            else max((i for group in groups for i in group), default=-1) + 1
+            if groups
+            else len(program.get("actions", []))
+            if program.get("actions")
+            else None
+        )
         schema = utterance_schema(
             list(context.get("targets", {})),
             explicit_positions(history),
@@ -57,6 +81,7 @@ class LanguageProvider:
             committed_speech=bool(
                 route and route.get("engine") == "temporal" and route.get("reply_plan")
             ),
+            body_objectives=objectives,
         )
         payload = {
             "model": self.config.llm_model,

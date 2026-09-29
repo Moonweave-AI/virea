@@ -62,6 +62,7 @@ export interface Session {
   draft_text: string;
   route?: Expression["route"];
   body_program?: BodyProgram | null;
+  timing?: { epoch: number; observed: string[]; waiting: Record<string, string>; error: string | null } | null;
   behavior_timeline?: { id: string; owner: string; seconds: number; status: string; reason: string; [key: string]: unknown }[];
   motion_plan?: SceneAction[];
   playback_mode: "voice_first" | "synchronized";

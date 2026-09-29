@@ -61,7 +61,11 @@ def test_sitting_requires_a_scene_support_affordance(monkeypatch, target, allowe
         understanding="接受坐下的邀请",
         speech="silent",
         reply=None,
-        embodiment={"operation": "replace", "goal": "在地面坐下"},
+        embodiment={
+            "operation": "replace",
+            "goal": "在地面坐下",
+            "activities": [dict(goal="在地面坐下", target_ids=["floor", "user"])],
+        },
     )
 
     def run():

@@ -5,12 +5,14 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from ..communication import CommunicationPlan, check_appraisal, check_communication
 from ..contracts import Contract, SceneAction
 from ..coordination import PhaseCue, SpeechAnchor
 from ..decision_schema import decision_schema
 from ..executors import available_executors, executable_seconds, executor_context
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration, planned_duration
+from .plan_review import adopt_spoken_units, review_interaction
 from .recovery import RecoveryPlan
 from .routing import ReplyPlan, motion_plan_problem, structured_completion
 
@@ -94,16 +96,19 @@ class PerformancePlan(Contract):
         description="Requested verbal content, independently planned while the body program runs."
     )
     body: BodyPlan
-    reply_plan: ReplyPlan | None = None
+    reply_plan: CommunicationPlan | ReplyPlan | None = None
 
 
 class ActivityIntent(Contract):
     start: SpeechAnchor = Field(default_factory=SpeechAnchor)
+    target_ids: list[str] = Field(
+        default_factory=list,
+        description="本目标实际涉及的现场实体 ID；由已采纳的行动语义决定。未涉及现场实体时为空，实体仅仅在场不代表要与其交互。",
+    )
     goal: str = Field(
         min_length=1,
         max_length=320,
-        pattern="^[ -~]+$",
-        description="English physical objective, independent of speech. One sustained activity is one objective; list multiple objectives only when the requested activity itself changes. Entry, continuation, waiting for speech and final recovery are handled by the realizer.",
+        description="角色采纳的身体目标和期望变化，可用当前对话语言表述。一个持续活动对应一个目标；目标改变时才列出另一个。模型输入的翻译、阶段划分和最终恢复由实现层完成。",
     )
 
 
@@ -136,7 +141,7 @@ class EmbodiedCommitment(Contract):
     )
     goal: str | None = Field(
         max_length=500,
-        description="English description of the adopted physical task itself, with references resolved. Its speech dependency is already represented by start; verbal content belongs to reply. Null when no new physical task is adopted.",
+        description="角色实际采纳的身体任务，解析清楚动作主体和指代。发言内容属于 reply，时序由各目标的 start 表达；没有采纳新身体任务时为 null。",
     )
     activities: list[ActivityIntent] = Field(
         default_factory=list,
@@ -154,6 +159,7 @@ class EmbodiedCommitment(Contract):
 
 
 class DialogueAppraisal(Contract):
+    timing_rationale: str | None = None
     expression_executor: str | None = Field(
         default=None,
         description="Executor selected for accompanying this reply outside committed activity intervals; null leaves the body unchanged. Choose from available capabilities, independently of whether speech is produced.",
@@ -171,15 +177,16 @@ class DialogueAppraisal(Contract):
     speech: Literal["speak", "silent"] = Field(
         description="本轮是否实际出声。speak 表示口头交流；silent 表示无声回应，包括安静地执行已采纳的行为。",
     )
-    reply: ReplyPlan | None = Field(
-        description="实际要说给对方听的内容目标和提纲；不记录动作执行状态或内部计划。无口头内容时为 null。",
+    reply: CommunicationPlan | ReplyPlan | None = Field(
+        description="实际要说给对方听的完整正文及开始条件；不记录内部计划或非发声条目。无口头内容时为 null。",
     )
     embodiment: EmbodiedCommitment
 
 
 DIALOGUE_RULES = """你是当前角色的对话与意图层。结合人设、历史和现场理解对方，决定自己如何回应。
 understanding 表达对话的意义，reply 是自己的口头回应计划，embodiment 是自己采纳的身体目标。
-reply 的 goal/outline 是要实际说出的内容，身体的执行、停顿和确认状态由独立身体层实现。
+reply.utterances.text 是会直接朗读给对方听的完整正文，不是提纲。start 是开始条件，序号用于身体目标的 utterance_start/end 引用；无声动作不占发言序号。
+同一份计划同时决定发言和身体的先后、并行及停顿。两条通道的依赖应能执行，已生成不代表已执行。
 embodiment.activities 是具体身体运动目标，等待语音由 start 引用，口头内容只属于 reply。
 duration_seconds 仅记录用户明确给出的时长；身体实现所需的估计时间在后续运动编译中处理。
 动作的提及不等于让角色执行：叙述者、被描述的人、假设情景和角色自己是不同主体。
@@ -192,7 +199,7 @@ expression_executor 是伴随本次回应的表达执行器分配；可用能力
 
 PERFORMANCE_RULES = """你是身体实现规划层。结合已采纳目标、对话理解、实际身体状态和可用能力，自主组织阶段、时间关系、执行器及其运动输入。
 每个 phase 将目标来源 objectives、起始依赖 start、执行器 executor 和动作输入 action 绑定为一个整体。目标可以跨阶段延续，也可以合并为连续阶段。
-start 表达本阶段最终选择的语音起始依赖；objective_start_conditions 是意图层的候选时序，可结合整体理解重新规划。
+objective_start_conditions 和 requested_communication 是已采纳的联合时序；本层在这些依赖内组织运动阶段。
 executor 来自现场能力目录，action 提供选定执行器的英文运动描述、阶段时长及必要的场景目标。
 continuation_description 表达运动已开始后的延续，transition_description 表达阶段末尾的变化。推理窗口和音频分片是传输边界，不产生新的行为目标。
 recovery 描述整项活动结束时适合当下的恢复分配；任务本身已经到达所需终态时可保持其终态。
@@ -202,8 +209,29 @@ recovery 描述整项活动结束时适合当下的恢复分配；任务本身�
 
 async def appraise_dialogue(config, client, history, context):
     schema = DialogueAppraisal.model_json_schema()
+    schema["properties"]["reply"] = {
+        "anyOf": [{"$ref": "#/$defs/CommunicationPlan"}, {"type": "null"}]
+    }
+    schema["$defs"].pop("ReplyPlan", None)
+    schema["properties"] = {
+        name: schema["properties"][name]
+        for name in (
+            "understanding",
+            "embodiment",
+            "speech",
+            "reply",
+            "expression_executor",
+            "resting",
+        )
+    }
+    schema["$defs"]["SpeechBeat"]["required"] = ["start", "motion_intent", "text"]
     activity = schema["$defs"]["ActivityIntent"]
-    activity["required"] = ["start", "goal"]
+    activity["required"] = ["start", "target_ids", "goal"]
+    targets = list(context.get("targets", {}))
+    activity["properties"]["target_ids"].update(
+        items=dict(type="string", **({"enum": targets} if targets else {})),
+        maxItems=len(targets),
+    )
     expression_engines = [
         name
         for name, spec in available_executors(config, context).items()
@@ -213,6 +241,10 @@ async def appraise_dialogue(config, client, history, context):
     schema["required"] = [*schema["required"], "expression_executor"]
     context = {**context, "available_executors": executor_context(config, context)}
     commitment = schema["$defs"]["EmbodiedCommitment"]
+    # Legacy aliases stay readable, but new plans have one time relation per
+    # objective, jointly authored with the spoken intentions.
+    for name in ("coordination", "start"):
+        commitment["properties"].pop(name)
     commitment["required"] = list(
         dict.fromkeys(
             [
@@ -220,7 +252,6 @@ async def appraise_dialogue(config, client, history, context):
                 "scope",
                 "duration_seconds",
                 "duration_evidence",
-                "start",
                 "activities",
             ]
         )
@@ -250,7 +281,12 @@ async def appraise_dialogue(config, client, history, context):
             client,
             history,
             context,
-            DIALOGUE_RULES,
+            (
+                "你是交互计划修订器。Scene.invalid_appraisal 是尚未执行的候选 JSON，校验器给出了具体错误。修订这份对象以消除错误，保留用户意图、已有的合法正文和身体目标，并一致更新相关的事件引用。此时不是重新演绎角色或从头写回复。\n校验反馈："
+                + context["validation_error"]
+                if attempt
+                else DIALOGUE_RULES
+            ),
             schema,
             tokens=config.language_max_tokens,
             thinking=config.llm_thinking,
@@ -258,6 +294,14 @@ async def appraise_dialogue(config, client, history, context):
         )
         try:
             appraisal = DialogueAppraisal.model_validate(value)
+            if any(
+                target not in targets
+                for objective in appraisal.embodiment.activities
+                for target in objective.target_ids
+            ):
+                raise ValueError(
+                    "An adopted body objective references an unknown scene entity"
+                )
             if appraisal.expression_executor not in [None, *expression_engines]:
                 raise ValueError("Expression executor is not available for this input")
             duration = appraisal.embodiment
@@ -268,6 +312,17 @@ async def appraise_dialogue(config, client, history, context):
                 raise ValueError(
                     "duration_evidence must quote the user's explicit duration"
                 )
+            if isinstance(appraisal.reply, CommunicationPlan):
+                review = await review_interaction(
+                    config, client, history, context, appraisal
+                )
+                if review.problems:
+                    raise ValueError(
+                        "Interaction review: " + "; ".join(review.problems)
+                    )
+                adopt_spoken_units(appraisal, review)
+                appraisal.timing_rationale = review.execution_summary
+            check_appraisal(appraisal, context.get("body_program"))
             return appraisal
         except ValueError as error:
             if attempt:
@@ -315,9 +370,17 @@ async def compile_performance(config, client, history, context, appraisal):
     )
     if explicit_seconds is not None and (not evidence or evidence not in user_text):
         raise ValueError("动作时长缺少对应的用户原文依据")
-    definitions = decision_schema(
-        list(context.get("targets", {})), explicit_positions(history)
-    )["$defs"]
+    selected_targets = {
+        target
+        for activity in appraisal.embodiment.activities
+        for target in activity.target_ids
+    }
+    targets = {
+        key: value
+        for key, value in context.get("targets", {}).items()
+        if key in selected_targets
+    }
+    definitions = decision_schema(list(targets), explicit_positions(history))["$defs"]
     properties = schema["$defs"]["SceneAction"]["properties"]
     variants = definitions["SceneAction"]["oneOf"]
     variants[:] = [
@@ -386,6 +449,9 @@ async def compile_performance(config, client, history, context, appraisal):
     # dialogue lifetime and global timing are supplied by the appraisal layer.
     engines = available_executors(config, context)
     phase_schema = schema["$defs"]["RealizationPhase"]["properties"]
+    if isinstance(reply, CommunicationPlan):
+        phase_schema.pop("start")
+        schema["$defs"]["RealizationPhase"]["required"].remove("start")
     phase_schema["executor"] = {"enum": list(engines)}
     phase_schema["objectives"]["items"] = {
         "type": "integer",
@@ -406,17 +472,19 @@ async def compile_performance(config, client, history, context, appraisal):
     else:
         schema["properties"]["recovery"] = {"type": "null"}
     motion_context = {
-        **{
-            k: context[k]
-            for k in ("body", "environment", "targets", "affordances")
-            if k in context
-        },
+        **{k: context[k] for k in ("body", "environment") if k in context},
         "adopted_objectives": goals,
+        "objective_targets": [a.target_ids for a in appraisal.embodiment.activities],
+        "targets": targets,
+        "affordances": {key: affordances[key] for key in targets if key in affordances},
         "objective_start_conditions": [a.model_dump() for a in anchors],
         "coordination": appraisal.embodiment.coordination,
         "overall_body_goal": appraisal.embodiment.goal,
-        "dialogue_understanding": appraisal.understanding,
-        "requested_communication": reply.model_dump() if reply else None,
+        "requested_communication": {
+            "utterances": [dict(start=u.start.model_dump()) for u in reply.utterances]
+        }
+        if isinstance(reply, CommunicationPlan)
+        else None,
         "activity_seconds": explicit_seconds,
         "available_executors": executor_context(config, context),
         "speech_planned": bool(reply),
@@ -425,7 +493,7 @@ async def compile_performance(config, client, history, context, appraisal):
         value = await structured_completion(
             config,
             client,
-            history[-1:] or [{"role": "user", "content": "\n".join(goals)}],
+            [{"role": "user", "content": "\n".join(goals)}],
             motion_context,
             PERFORMANCE_RULES,
             schema,
@@ -433,6 +501,9 @@ async def compile_performance(config, client, history, context, appraisal):
             thinking=config.llm_thinking,
         )
         try:
+            if isinstance(reply, CommunicationPlan):
+                for phase in value["phases"]:
+                    phase["start"] = SpeechAnchor().model_dump()
             realization = RealizationPlan.model_validate(value)
             ending = realization.recovery
             body_plan = BodyPlan(
@@ -452,7 +523,43 @@ async def compile_performance(config, client, history, context, appraisal):
                 raise ValueError(
                     f"The motion compiler changed the adopted objective count: groups={groups}; cover {list(range(len(goals)))}"
                 )
-            phase_anchors = [phase.start for phase in realization.phases]
+            phase_anchors, started_objectives = [], set()
+            for phase in realization.phases:
+                allowed_targets = {
+                    target
+                    for i in phase.objectives
+                    for target in (
+                        appraisal.embodiment.activities[i].target_ids
+                        if appraisal.embodiment.activities
+                        else []
+                    )
+                }
+                if (
+                    phase.action.target_id
+                    and phase.action.target_id not in allowed_targets
+                ):
+                    raise ValueError(
+                        "Motion phase used a scene entity outside its adopted objectives"
+                    )
+                if not isinstance(reply, CommunicationPlan):
+                    phase_anchors.append(phase.start)
+                    continue
+                new_goals = set(phase.objectives) - started_objectives
+                dependencies = {
+                    anchors[i].model_dump_json()
+                    for i in new_goals
+                    if anchors[i].event != "immediate"
+                }
+                if len(dependencies) > 1:
+                    raise ValueError(
+                        "Objectives with different speech dependencies need distinct phases"
+                    )
+                phase_anchors.append(
+                    SpeechAnchor.model_validate_json(next(iter(dependencies)))
+                    if dependencies
+                    else SpeechAnchor()
+                )
+                started_objectives.update(phase.objectives)
             for name in [
                 *body_plan.executors,
                 *([body_plan.ending_executor] if body_plan.ending else []),
@@ -468,6 +575,20 @@ async def compile_performance(config, client, history, context, appraisal):
                     raise ValueError(
                         "A speech-conditioned executor cannot start after reply end"
                     )
+            if isinstance(reply, CommunicationPlan):
+                check_communication(
+                    {
+                        **body_plan.model_dump(),
+                        "id": "compiled",
+                        "status": "planned",
+                        "cues": [
+                            dict(phase=i, start=a.model_dump())
+                            for i, a in enumerate(phase_anchors)
+                        ],
+                    },
+                    reply,
+                    [name for name, spec in engines.items() if spec.requires_speech],
+                )
             break
         except ValueError as error:
             if attempt:

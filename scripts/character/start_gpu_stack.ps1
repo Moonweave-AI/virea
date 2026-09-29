@@ -5,6 +5,9 @@ param(
     [Parameter(Mandatory)][string]$ModelFile,
     [Parameter(Mandatory)][string]$HfHome,
     [string]$MotionPlannerFile,
+    [int]$ReasoningBudget = 512,
+    [int]$ContextPerSlot = 16384,
+    [int]$ParallelSlots = 2,
     [switch]$SkipWarmup
 )
 $ErrorActionPreference = 'Stop'
@@ -40,8 +43,8 @@ function Wait-Endpoint([string]$Url, [int]$Seconds = 180) {
 
 if (!(Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue)) {
     $started += Start-Helper 'language' $LlamaServer @('-m', $ModelFile, '--alias', 'qwen3.5:9b',
-        '--host', '127.0.0.1', '--port', '8080', '-ngl', '99', '-c', '16384', '-np', '2',
-        '-fa', 'on', '-ctk', 'q8_0', '-ctv', 'q8_0', '--reasoning', 'on', '--reasoning-budget', '96',
+        '--host', '127.0.0.1', '--port', '8080', '-ngl', '99', '-c', "$($ContextPerSlot * $ParallelSlots)", '-np', "$ParallelSlots",
+        '-fa', 'on', '-ctk', 'q8_0', '-ctv', 'q8_0', '--reasoning', 'auto', '--reasoning-budget', "$ReasoningBudget",
         '--no-prefill-assistant', '-t', '8')
 }
 $models = Wait-Endpoint 'http://127.0.0.1:8080/v1/models'

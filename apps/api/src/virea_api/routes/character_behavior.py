@@ -118,6 +118,8 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
         ):
             program["status"] = "failed"
             current.record("body_error", program_id=program_id, message=missing)
+            if getattr(current, "timing", None):
+                current.timing.fail(missing)
         settling = bool(
             program
             and (
@@ -145,6 +147,8 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             if settled_seconds >= policy.max_seconds:
                 program["status"] = "failed"
                 current.record("body_error", message="收势未达到支撑和速度要求")
+                if getattr(current, "timing", None):
+                    current.timing.fail("Recovery ended without stable support")
                 raise HTTPException(422, "收势尚未达到支撑和速度要求，请重新规划动作")
             ending_executor = program.get("ending_executor")
             seconds = program.get("ending_seconds")
@@ -240,6 +244,8 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 if program:
                     program["status"] = "failed"
                 current.record("body_error", program_id=program_id, message=str(error))
+                if getattr(current, "timing", None):
+                    current.timing.fail(str(error))
                 raise HTTPException(422, str(error)) from error
 
         # A semantic pause cannot freeze an airborne predecessor. Continue its
@@ -257,6 +263,8 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 if program:
                     program["status"] = "failed"
                 current.record("body_error", message="身体交接未能恢复支撑")
+                if getattr(current, "timing", None):
+                    current.timing.fail("Body handoff ended without stable support")
                 raise HTTPException(422, "身体交接未能恢复支撑")
             recovery = await plan_recovery(
                 current.config,
@@ -429,6 +437,9 @@ async def realize_behavior(
             and slot["epoch"] == current.epoch
         ):
             current.body_program["status"] = "failed"
+            timing = getattr(current, "timing", None)
+            if timing and timing.epoch == current.epoch:
+                timing.fail("Body generation failed before playback")
         raise
 
 
@@ -502,4 +513,7 @@ async def behavior_feedback(
     current.record(
         "behavior_feedback", slot_id=slot_id, owner=slot["owner"], status=body.status
     )
+    timing = getattr(current, "timing", None)
+    if timing and timing.epoch == current.epoch:
+        timing.receipt(current.body_program, slot, body.status)
     return {"accepted": True}

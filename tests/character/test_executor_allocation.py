@@ -282,7 +282,7 @@ def test_atomic_phases_keep_model_allocation_timing_and_provenance_together(
     from virea.character.providers import performance
 
     async def complete(config, client, history, context, rules, schema, **kwargs):
-        assert history[-1]["content"] == "Alternate the movement and its reprise."
+        assert history[-1]["content"] == "First movement.\nSecond movement."
         assert schema["$defs"]["RealizationPhase"]["required"] == [
             "objectives",
             "start",

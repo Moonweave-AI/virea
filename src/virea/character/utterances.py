@@ -7,9 +7,14 @@ from pydantic import Field
 
 from .contracts import Contract, Decision
 from .decision_schema import decision_schema
+from .turn_timing import BodyAnchor
 
 
 class SpeechBeat(Contract):
+    start: BodyAnchor = Field(
+        default_factory=BodyAnchor,
+        description="When this utterance may be spoken: immediately, during an adopted activity, or after its observed completion. The objective index refers to body_commitment.activities, not model windows.",
+    )
     motion_intent: str = Field(
         min_length=1,
         max_length=100,
@@ -29,9 +34,37 @@ def utterance_schema(
     speech_only=False,
     max_beats=64,
     committed_speech=False,
+    body_objectives=None,
 ):
     schema = decision_schema(targets, positions)
-    schema["$defs"]["SpeechBeat"] = SpeechBeat.model_json_schema()
+    beat = SpeechBeat.model_json_schema()
+    schema["$defs"].update(beat.pop("$defs", {}))
+    schema["$defs"]["SpeechBeat"] = beat
+    events = ["immediate"] + (
+        ["body_start", "body_end"] if body_objectives is not None else []
+    )
+    anchors = [
+        dict(
+            type="object",
+            additionalProperties=False,
+            properties=dict(event=dict(enum=events), objective=dict(type="null")),
+            required=["event", "objective"],
+        )
+    ]
+    if body_objectives:
+        anchors.append(
+            dict(
+                type="object",
+                additionalProperties=False,
+                properties=dict(
+                    event=dict(enum=["objective_start", "objective_end"]),
+                    objective=dict(type="integer", enum=list(range(body_objectives))),
+                ),
+                required=["event", "objective"],
+            )
+        )
+    schema["$defs"]["BodyAnchor"] = {"oneOf": anchors}
+    beat["required"] = ["start", *beat["required"]]
     for variant in schema["oneOf"]:
         props = variant["properties"]
         mode = props["mode"]["const"]
