@@ -20,6 +20,7 @@ async def generate_program(
     guidance,
     end_state,
     history_frames=40,
+    max_seconds=None,
 ):
     origin = [body["position"][axis] for axis in ("x", "y", "z")]
     scale = hip_height / engine.hip_height
@@ -33,6 +34,11 @@ async def generate_program(
         if action["kind"] == "move_to":
             planned_origin = [action["position"][axis] for axis in ("x", "y", "z")]
     total_frames = sum(frames for _, frames in phases)
+    output_frames = (
+        min(total_frames, round(max_seconds * engine.fps))
+        if max_seconds
+        else total_frames
+    )
     async with lock:
         height = body.get("pelvis_height")
         if body.get("history"):
@@ -90,6 +96,8 @@ async def generate_program(
         # Embedding compilation is cached; it happens once per phase, never once
         # per frame. Read-ahead playback hides later prompt encoding latency.
         for generated in range(0, frames, engine.horizon):
+            if offset + generated >= output_frames:
+                return
             if await request.is_disconnected():
                 return
             async with lock:
@@ -113,20 +121,23 @@ async def generate_program(
                     guidance=guidance,
                     history_frames=history_frames,
                     foot_correction=False,
-                    output_frames=min(engine.horizon, frames - generated),
+                    output_frames=min(
+                        engine.horizon,
+                        frames - generated,
+                        output_frames - offset - generated,
+                    ),
                 )
             frame = offset + generated
             packet.update(
                 sequence=sequence,
                 offset=frame / engine.fps,
-                total_seconds=total_frames / engine.fps,
+                total_seconds=output_frames / engine.fps,
                 phase_index=phase_index,
                 phase_label=action.get("label") or action["kind"],
                 phase_kind=action["kind"],
                 phase_seconds=frames / engine.fps,
                 phase_offset=offset / engine.fps,
                 prompt=prompt,
-                gesture_weights=action.get("gesture_weights"),
                 target=action.get("position"),
                 continues=frame + round(packet["seconds"] * engine.fps) < total_frames,
             )

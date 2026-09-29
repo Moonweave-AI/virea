@@ -17,14 +17,6 @@ class Position(Contract):
     z: float = Field(default=0, ge=-20, le=20)
 
 
-class GestureWeights(Contract):
-    head: float = Field(default=0.5, ge=0, le=1)
-    torso: float = Field(default=0.25, ge=0, le=1)
-    left_arm: float = Field(default=0.65, ge=0, le=1)
-    right_arm: float = Field(default=0.65, ge=0, le=1)
-    hands: float = Field(default=1, ge=0, le=1)
-
-
 class SceneAction(Contract):
     kind: Literal["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"]
     target_id: str | None = Field(default=None, max_length=80)
@@ -38,7 +30,6 @@ class SceneAction(Contract):
         max_length=320,
         description="English caption for the ongoing middle of this phase, after entry has already happened. Used by all later native windows.",
     )
-    gesture_weights: GestureWeights = Field(default_factory=GestureWeights)
 
     @model_validator(mode="after")
     def destination(self):
@@ -167,6 +158,7 @@ class CharacterConfig(Contract):
     temperature: float = Field(default=0.6, ge=0, le=2)
     max_speech_beats: int = Field(default=64, ge=1, le=64)
     spatial_history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)
+    behavior_horizon_seconds: float = Field(default=6.4, ge=2, le=12)
     provider_timeout: float = Field(default=120, gt=0, le=600)
     motion_timeout: float = Field(default=600, gt=0, le=3600)
     feedback_timeout: float = Field(default=120, gt=0, le=600)

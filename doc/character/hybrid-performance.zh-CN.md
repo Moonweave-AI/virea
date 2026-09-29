@@ -1,6 +1,6 @@
 ---
 type: explanation
-status: Active
+status: Superseded
 owner: VIREA maintainers
 created: 2026-09-29
 updated: 2026-09-29
@@ -10,10 +10,12 @@ summary: 持续身体任务与语音表情的并行执行、阶段边界修复�
 canonical: doc/character/hybrid-performance.zh-CN.md
 related: [doc/character/continuous-motion-dialogue.zh-CN.md]
 supersedes: []
-superseded_by: []
+superseded_by: [doc/character/temporal-behavior.zh-CN.md]
 ---
 
 # 持续身体任务与混合表达
+
+> 此文保留旧版实验记录。身体残差叠加方案已删除，当前架构与验证结果见 [对话驱动的分时身体执行](temporal-behavior.zh-CN.md)。以下旧实验不代表当前组合方案已经通过验证。
 
 一轮聊天的结束、一个语音窗口的结束、一个动作阶段的结束，是三种不同事件。身体任务独立于语音 epoch；新问题可以中止旧回复，同时保留正在执行的身体任务。界面使用混合表达，不再要求先选择 ARDY 或 SentiAvatar。
 

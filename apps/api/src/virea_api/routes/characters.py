@@ -17,10 +17,12 @@ from virea.character.contracts import (
 from virea.character.providers.motion import CAPABILITIES
 from virea.character.providers.speech import SpeechProvider
 
+from .character_behavior import router as behavior_router
 from .character_spatial import router as spatial_router
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 router.include_router(spatial_router)
+router.include_router(behavior_router)
 
 
 def session(request: Request, session_id: str):

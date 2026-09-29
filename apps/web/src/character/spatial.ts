@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
-import type { BodyState, Expression, SceneAction, GestureWeights } from "./contracts";
+import type { BodyState, Expression, SceneAction } from "./contracts";
 import { RotationBridge } from "./continuity";
 import { contactIK } from "./interaction";
 import { samplePosition, sampleRotation } from "./motion_sampling";
@@ -14,7 +14,6 @@ export interface SpatialWindow {
   phase_index?: number; phase_label?: string; phase_kind?: SceneAction["kind"];
   phase_seconds?: number; phase_offset?: number; prompt?: string;
   target?: { x: number; y: number; z: number } | null;
-  gesture_weights?: GestureWeights | null;
 }
 
 /** A single rolling program owns the whole body, across every prompt transition. */
@@ -51,13 +50,6 @@ export class SpatialPlayer {
 
   export(): SpatialWindow[] { return this.recording?.windows ?? []; }
 
-  get gestureWeights(): GestureWeights | null | undefined { return this.active ? this.current?.gesture_weights : null; }
-  get protectedBones(): ReadonlySet<string> {
-    return this.active && this.current?.phase_kind === "reach"
-      ? new Set(["spine", "chest", "upperChest", "rightShoulder", "rightUpperArm", "rightLowerArm", "rightHand"])
-      : new Set();
-  }
-
   async run(packet: Expression, body: BodyState, hipHeight: number,
     onProgress: (elapsed: number, duration: number) => void = () => {}): Promise<void> {
     this.stop();
@@ -70,6 +62,10 @@ export class SpatialPlayer {
     let ended = false, failure: unknown = null, sequence = 0;
     const captured: SpatialWindow[] = [];
     const read = async () => {
+      if (packet.spatial_windows) {
+        for (const window of packet.spatial_windows) validateSpatialWindow(window);
+        this.queue = [...packet.spatial_windows]; captured.push(...this.queue); ended = true; return;
+      }
       if (packet.preview) {
         if (this.recording?.id !== packet.id) throw new Error("本地尚无这段动作的录制");
         this.queue = [...this.recording.windows]; ended = true; return;
@@ -115,7 +111,7 @@ export class SpatialPlayer {
       this.current = this.queue.shift() ?? null;
       this.total = this.current?.total_seconds ?? 0;
       this.start = this.clock(); this.underruns = 0; this.elapsed = 0;
-      if (this.current) for (const [name, values] of Object.entries(this.current.rotations)) {
+      if (this.current && !packet.temporal) for (const [name, values] of Object.entries(this.current.rotations)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (bone) this.bridges.set(name, new RotationBridge(bone.quaternion, this.quaternion(values[0]!), undefined, undefined, .35));
       }
@@ -132,7 +128,10 @@ export class SpatialPlayer {
             if (this.stalledAt !== null) { this.start += now - this.stalledAt; this.stalledAt = null; }
             this.previous = this.current;
             this.current = this.queue.shift()!;
-          } else if (ended) { this.checkContact(); break; }
+          } else if (ended) {
+            if (!packet.temporal || (this.current.phase_offset ?? 0) + (this.current.phase_seconds ?? 0) <= this.total + 1e-5) this.checkContact();
+            break;
+          }
           else if (this.stalledAt === null) { this.stalledAt = now; this.underruns++; }
         }
         this.phase = this.current?.phase_label ?? "生成动作";

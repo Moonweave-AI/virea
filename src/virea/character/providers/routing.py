@@ -67,7 +67,16 @@ async def plan_reply(config, client, history, context):
 
 
 async def structured_completion(
-    config, client, history, context, rules, schema, *, tokens, thinking=False
+    config,
+    client,
+    history,
+    context,
+    rules,
+    schema,
+    *,
+    tokens,
+    thinking=False,
+    include_history=False,
 ):
     payload = {
         "model": config.llm_model,
@@ -80,7 +89,7 @@ async def structured_completion(
                 + "\nScene: "
                 + json.dumps(context, ensure_ascii=False),
             },
-            *history[-1:],
+            *(history if include_history else history[-1:]),
         ],
         "stream": False,
     }

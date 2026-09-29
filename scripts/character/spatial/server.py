@@ -25,6 +25,7 @@ class GenerateRequest(BaseModel):
     steps: int = Field(default=10, ge=1, le=10)
     guidance: float = Field(default=2, ge=1, le=8)
     history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)
+    max_seconds: float | None = Field(default=None, ge=0.2, le=12)
 
 
 def create_app(engine):
@@ -62,6 +63,7 @@ def create_app(engine):
                     guidance=body.guidance,
                     end_state=body.end_state,
                     history_frames=body.history_frames,
+                    max_seconds=body.max_seconds,
                 ):
                     yield json.dumps(packet, allow_nan=False) + "\n"
                 yield json.dumps({"done": True}) + "\n"

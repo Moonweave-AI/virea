@@ -49,8 +49,8 @@ export const studioShell = `
             </div></details>
           </section>
         </div>
-        <form id="composer"><label class="sr-only" for="message">描述动作或对话</label><textarea id="message" rows="2" maxlength="4000" placeholder="描述动作，或开始对话…" required></textarea>
-          <div class="composer-actions"><span class="engine-picker" title="身体、语音、表情并行表达">混合表达</span>
+        <form id="composer"><label class="sr-only" for="message">和角色聊天</label><textarea id="message" rows="2" maxlength="4000" placeholder="和角色聊聊…" required></textarea>
+          <div class="composer-actions"><span class="engine-picker" title="先理解对话，再决定如何回应与行动">对话驱动</span>
             <div class="send-actions"><button type="button" id="interrupt" class="quiet" disabled>停止</button><button type="submit" id="send" class="send-button" aria-label="发送" disabled>${icon("arrow")}</button></div></div>
         </form>
         <div id="error" role="alert"></div>

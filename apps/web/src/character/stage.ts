@@ -9,8 +9,9 @@ import { rotationVector } from "./continuity";
 import { PoseRecovery, faceRelease, type PoseSample } from "./recovery";
 import { RelaxedIdle } from "./idle";
 import { ExpressionTimeline } from "./timeline";
-import { SpatialPlayer } from "./spatial";
-import { PoseLayers } from "./pose_layers";
+import { SpatialPlayer, type SpatialWindow } from "./spatial";
+import { BodyAuthority } from "./body_authority";
+import { BehaviorPlayer } from "./behavior_player";
 import { MotionInspection } from "./inspection";
 import type { BodyState, Expression, FaceTrack, PlaybackProgress, BodyProgram } from "./contracts";
 
@@ -29,7 +30,14 @@ export class CharacterStage {
   private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
   private poseHistory = new Map<THREE.Object3D, { q: THREE.Quaternion; velocity: THREE.Vector3 }>();
   private rest: PoseSample | null = null;
-  private layers: PoseLayers | null = null;
+  private authority: BodyAuthority | null = null;
+  private behavior: BehaviorPlayer | null = null;
+  private previewSpeech = false;
+  private activity: BodyProgram | null = null;
+  private activityElapsed = 0;
+  private recordingId: string | null = null;
+  private bodyRecording: SpatialWindow[] = [];
+  private speechInfo = { text: "", end: 0 };
   private bodyId: string | null = null;
   private bodyGeneration = 0;
   private observations: NonNullable<BodyState["history"]> = [];
@@ -122,7 +130,7 @@ export class CharacterStage {
     this.camera.position.set(root.x, this.hipHeight + framing.distance * .08, root.z + framing.distance);
     this.controls.update();
   }
-  motionRecording() { return this.spatial?.export() ?? []; }
+  motionRecording() { return this.bodyRecording.length ? this.bodyRecording : this.spatial?.export() ?? []; }
 
   private audibleTime(): number {
     const stamp = this.audio.getOutputTimestamp?.();
@@ -166,7 +174,7 @@ export class CharacterStage {
       this.spatial = new SpatialPlayer(vrm, () => this.audibleTime());
       this.idle = new RelaxedIdle(vrm, pose.rotations);
       this.rest = this.poseSample();
-      this.layers = new PoseLayers(vrm);
+      this.authority = new BodyAuthority(vrm);
       this.observations = [];
       this.idle.start(this.rest);
       this.poseHistory.clear();
@@ -201,7 +209,8 @@ export class CharacterStage {
   stopSpeech(): BodyState {
     this.epoch++;
     this.timeline.stop();
-    this.layers?.release();
+    this.authority?.release();
+    this.previewSpeech = false;
     if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
     if (this.action) this.action.paused = true;
     for (const name of ["aa", "ih", "ou", "ee", "oh"]) this.vrm?.expressionManager?.setValue(name, 0);
@@ -211,39 +220,68 @@ export class CharacterStage {
   stop(): BodyState {
     const body = this.stopSpeech();
     this.bodyGeneration++; this.bodyId = null; this.bodyRecovery = null;
+    this.behavior?.stop(); this.activity = null;
     this.canvas.dataset.bodyStatus = "idle";
     this.spatial?.stop(); this.sceneActions = Promise.resolve(); this.idle?.stop();
     return body;
   }
 
-  get bodyRunning(): boolean { return this.canvas.dataset.bodyStatus === "playing"; }
+  get bodyRunning(): boolean { return this.behavior?.running ?? false; }
 
   syncBody(program: BodyProgram | null, sessionId: string,
     onProgress: (value: PlaybackProgress) => void, onFinish: (id: string, status: string, message: string) => void): void {
-    if (program?.id === this.bodyId || (!program && !this.bodyId)) return;
-    this.bodyGeneration++; const generation = this.bodyGeneration; this.bodyRecovery = null;
-    this.canvas.dataset.bodyStatus = "idle";
-    this.spatial?.stop(); this.bodyId = program?.id ?? null;
-    if (!program || !["ready", "playing"].includes(program.status)) return;
-    const packet: Expression = { id: program.id, body_program_id: program.id, session_id: sessionId,
-      epoch: this.epoch, actions: program.actions, end_state: program.end_state,
-      text: "", audio_url: null, audio_seconds: 0, motion: null };
-    const current = () => generation === this.bodyGeneration && !this.disposed;
-    this.canvas.dataset.bodyProgram = program.id;
-    this.canvas.dataset.bodyStatus = "playing";
-    const task = this.executeActions(packet, current, (elapsed, total) => {
-      this.canvas.dataset.bodyElapsed = elapsed.toFixed(3);
-      this.canvas.dataset.bodyDuration = total.toFixed(3);
-      if (!this.source) onProgress({ elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
+    this.activity = program;
+    const id = program?.id ?? null;
+    if (id !== this.bodyId) {
+      this.bodyId = id;
+      this.activityElapsed = program?.elapsed ?? 0;
+    }
+    if (id && id !== this.recordingId) { this.recordingId = id; this.bodyRecording = []; }
+    const needed = () => Boolean(this.source) || Boolean(this.activity && ["ready", "playing"].includes(this.activity.status)
+      && this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) - 1e-5);
+    if (this.behavior?.running || !needed() || this.disposed) return;
+    const player = this.behavior = new BehaviorPlayer({
+      state: () => this.state(), hipHeight: () => this.hipHeight, needed,
+      canStart: slot => slot.program_id !== this.activity?.id || !this.activity?.start_with_reply
+        || slot.activity_start > 0 || Boolean(this.source),
+      speech: () => ({ available: Boolean(this.source), text: this.speechInfo.text,
+        remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()) }),
+      report: slot => {
+        this.canvas.dataset.behaviorSlot = slot.id;
+        this.canvas.dataset.behaviorReason = slot.reason;
+        this.canvas.dataset.bodyProgram = slot.program_id ?? "";
+      },
+      play: async ({ slot, windows }, current) => {
+        const total = this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) ?? slot.seconds;
+        const progress = (elapsed: number) => {
+          this.canvas.dataset.bodyStatus = slot.owner === "ardy" ? "playing" : "idle";
+          this.canvas.dataset.bodyElapsed = (slot.activity_start + (slot.owner === "ardy" ? elapsed : 0)).toFixed(3);
+          this.canvas.dataset.bodyDuration = total.toFixed(3);
+          if (!this.source) onProgress({ elapsed: slot.activity_start + elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
+        };
+        if (windows) {
+          await this.spatial!.run({ id: slot.id, epoch: this.epoch, text: "", audio_url: null, audio_seconds: 0,
+            motion: null, actions: [], spatial_windows: windows, temporal: true, end_state: "hold" }, this.state(), this.hipHeight, progress);
+          if (current() && slot.program_id === this.recordingId) {
+            for (const window of windows) this.bodyRecording.push({ ...window, sequence: this.bodyRecording.length,
+              offset: slot.activity_start + window.offset, phase_offset: slot.activity_start + (window.phase_offset ?? 0), total_seconds: slot.activity_end });
+            for (const window of this.bodyRecording) window.total_seconds = slot.activity_end;
+          }
+        } else {
+          this.spatial?.stop();
+          const start = this.audibleTime();
+          while (current() && this.audibleTime() - start < slot.seconds) {
+            if (slot.owner === "hold" && Boolean(this.source) !== slot.speech_available) break;
+            progress(this.audibleTime() - start);
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          }
+        }
+        if (slot.program_id === this.activity?.id) this.activityElapsed = slot.activity_end;
+      },
     });
-    void task.then(() => {
-      if (current()) { this.canvas.dataset.bodyStatus = "completed"; onFinish(program.id, "completed", ""); }
-    }, error => {
-      if (current()) {
-        this.canvas.dataset.bodyStatus = "failed";
-        onFinish(program.id, "failed", error instanceof Error ? error.message : String(error));
-      }
-    });
+    void player.run(sessionId).catch(error => {
+      if (!(error instanceof DOMException && error.name === "AbortError")) onFinish(id ?? "", "failed", String(error));
+    }).finally(() => { if (this.behavior === player) this.canvas.dataset.bodyStatus = "completed"; });
   }
 
   private prepare(packet: Expression) {
@@ -283,11 +321,12 @@ export class CharacterStage {
 
   async perform(packet: Expression, onStart: () => void,
     onProgress: (value: PlaybackProgress) => void = () => {}): Promise<{ audio_seconds: number; motion_seconds: number }> {
-    if (!this.vrm || !this.layers) throw new Error("请先载入 VRM");
+    if (!this.vrm || !this.authority) throw new Error("请先载入 VRM");
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
     const [gltf, audio, face] = await this.preload(packet);
     if (!current()) throw new DOMException("Interrupted", "AbortError");
+    this.previewSpeech = Boolean(packet.preview && gltf);
     if (audio && this.audio.state !== "running") throw new Error("音频暂停，请点击继续声音后重试");
     const manager = this.vrm.expressionManager;
     const native = face?.arkit;
@@ -303,8 +342,8 @@ export class CharacterStage {
       assertFiniteClip(clip);
       duration = audio?.duration ?? clip.duration;
       motionScale = duration > 0 ? clip.duration / duration : 1;
-      this.layers.beginSpeech();
-      this.layers.capture(() => {
+      this.authority.beginSpeech();
+      this.authority.capture(() => {
         this.mixer?.stopAllAction(); this.mixer?.uncacheRoot(this.vrm!.scene);
         this.mixer = new THREE.AnimationMixer(this.vrm!.scene);
         this.action = this.mixer.clipAction(clip);
@@ -324,7 +363,8 @@ export class CharacterStage {
     while (current() && this.audibleTime() < start) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     onStart();
-    // Legacy/replay packets may carry a program. Live hybrid body playback has its own lifetime.
+    this.speechInfo = { text: packet.caption ?? packet.text, end: start + duration };
+    // Replay packets may carry a program. Live behavior reservations have their own lifetime.
     if (packet.actions.length) this.sceneActions = this.executeActions(packet, current, (elapsed, total) => {
       if (!audio) onProgress({ elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
     });
@@ -332,8 +372,8 @@ export class CharacterStage {
     const release = packet.continues ? 0 : .32;
     const sample = (elapsed: number) => {
       const time = Math.min(elapsed, duration);
-      if (gltf && this.mixer && this.action) this.layers!.capture(() => sampleClip(this.mixer!, this.action!, time * motionScale), time);
-      if (elapsed >= duration && !packet.continues) this.layers!.release();
+      if (gltf && this.mixer && this.action) this.authority!.capture(() => sampleClip(this.mixer!, this.action!, time * motionScale));
+      if (elapsed >= duration && !packet.continues) this.authority!.release();
       if (faceTrack) {
         this.applyFace(faceTrack, audio ? time * Math.max(0, faceTrack.values.length - 1) / (faceTrack.fps * audio.duration) : time);
         if (elapsed < .1) for (const [name, value] of heldFace)
@@ -359,9 +399,10 @@ export class CharacterStage {
       return { audio_seconds: audio?.duration ?? 0, motion_seconds: duration };
     } finally {
       if (current()) {
+        this.previewSpeech = false;
         if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
         if (this.action) this.action.paused = true;
-        if (!packet.continues) this.layers.release();
+        if (!packet.continues) this.authority.release();
         if (!face) for (const name of ["aa", "oh", "ou"]) manager?.setValue(name, 0);
         this.timeline.complete(packet.id);
       }
@@ -446,7 +487,7 @@ export class CharacterStage {
               await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
             }
             if (current()) {
-              this.layers?.restoreBase(); recovery.apply(recovery.duration);
+              recovery.apply(recovery.duration);
               this.idle?.start(this.poseSample()); this.bodyRecovery = null;
             }
             duration += recovery.duration;
@@ -461,11 +502,12 @@ export class CharacterStage {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     if (this.vrm) {
-      this.layers?.restoreBase();
-      if (!this.spatial?.active) this.idle?.update(dt);
-      this.spatial?.update(Boolean(this.source));
+      const owner = this.behavior?.running ? this.behavior.owner : this.spatial?.active ? "ardy" : this.previewSpeech ? "sentiavatar" : "hold";
+      this.authority?.render(owner, this.audio.state === "running" ? dt : 0,
+        () => this.spatial?.update(false), Boolean(this.spatial?.active));
       this.bodyRecovery?.();
-      this.layers?.apply(this.audio.state === "running" ? dt : 0, this.spatial?.gestureWeights, this.spatial?.protectedBones);
+      this.canvas.dataset.bodyOwner = this.authority?.owner ?? "hold";
+      this.canvas.dataset.bodyContributors = this.authority?.owner === "hold" ? "0" : "1";
       if (this.audio.state === "running" && this.audibleTime() - this.observationTime >= .05) {
         const { history, gaze_target, behavior, ...observation } = this.state();
         this.observations.push(observation);

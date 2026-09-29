@@ -77,14 +77,14 @@ function showError(error: unknown): void {
 
 function renderState(value: Session): void {
   root.dataset.sessionId = value.id;
-  const labels: Record<string, string> = { routing: "选择生成方式", waiting: "就绪", thinking: "规划中", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "播放中", error: "需要处理", closed: "已结束" };
+  const labels: Record<string, string> = { routing: "理解对话", waiting: "就绪", thinking: "规划中", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "播放中", error: "需要处理", closed: "已结束" };
   element("#status").textContent = previewing ? "动作预览" : labels[value.status] ?? value.status;
   const seconds = (value: number | null) => value?.toFixed(2) ?? "—";
   element("#metrics").textContent = `语言流水线 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 首包就绪 ${seconds(value.metrics.first_expression_seconds)}s · ${value.playback_mode === "synchronized" ? "动作" : "生成"} RTF ${seconds(value.metrics.rtf)}`;
-  element("#response-text").textContent = value.draft_text || (value.route?.engine === "ardy" ? "" : ["thinking", "routing"].includes(value.status) ? "正在准备…" : "描述一个动作，或和角色聊聊。");
+  element("#response-text").textContent = value.draft_text || (value.route?.engine === "ardy" ? "" : ["thinking", "routing"].includes(value.status) ? "正在准备…" : "和角色聊聊。");
   element("#reply-owner").textContent = "VIREA";
   element("#route-card").hidden = !value.route;
-  element("#route-model").textContent = value.route?.engine === "hybrid" ? "ARDY + SentiAvatar" : value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
+  element("#route-model").textContent = value.route?.engine === "temporal" ? "对话 · 行为调度" : value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
   element("#route-reason").textContent = value.route?.reason ?? "";
   const activePlan = value.body_program?.actions ?? value.motion_plan ?? [];
   const plan = element("#motion-plan"), signature = JSON.stringify(activePlan);
@@ -99,7 +99,7 @@ function renderState(value: Session): void {
   }
   element("#text-state").textContent = value.route?.engine === "ardy"
     ? value.motion_plan?.length ? "动作序列" : "正在编排" : value.draft_text ? "实时回复" : "尚未生成";
-  const idle = !playing && !previewing && ["waiting", "error"].includes(value.status);
+  const idle = !playing && !stage.bodyRunning && !previewing && ["waiting", "error"].includes(value.status);
   element<HTMLButtonElement>("#pause").disabled = !playing && !stage.bodyRunning;
   const latest = value.latest_expression;
   element<HTMLButtonElement>("#replay-audio").disabled = !idle || !latest?.audio_url;
@@ -124,7 +124,7 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   const generation = playbackGeneration;
   element<HTMLButtonElement>("#pause").disabled = false;
   element("#playback-note").textContent = packet.motion
-    ? "身体活动持续执行，口型、表情与手势随语音叠加；共用音频时钟。"
+    ? "身体按时段选择一个动作模型；语音、口型与表情使用统一时钟。"
     : packet.route?.engine === "ardy" ? "动作序列连续生成，共用一条时间轴。" : "语音与字幕同步播放。";
   let status = "completed";
   let message = "";
@@ -245,10 +245,10 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   const latest = session?.latest_expression;
   const program = session?.body_program;
   const recorded = kind !== "audio" && program && stage.motionRecording().length;
-  const packet = recorded ? { ...latest, id: program.id, epoch: session!.epoch, actions: program.actions,
+  const packet = recorded ? { ...latest, id: program.id, epoch: session!.epoch, actions: program.actions, spatial_windows: stage.motionRecording(),
     end_state: program.end_state, text: latest?.text ?? "", audio_url: latest?.audio_url ?? null,
     audio_seconds: latest?.audio_seconds ?? 0, motion: latest?.motion ?? null } : latest;
-  if (!packet || playing || previewing || mutating) return;
+  if (!packet || playing || stage.bodyRunning || previewing || mutating) return;
   previewing = true;
   const generation = ++playbackGeneration;
   stage.stop();
@@ -256,7 +256,7 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   element("#playback-note").textContent = kind === "audio" ? "正在单独重播语音。" : kind === "motion" ? "正在单独预览动作（无声音）。" : "正在同步重播语音、动作与字幕。";
   try {
     await stage.unlockAudio();
-    await stage.perform({ ...packet, preview: Boolean(recorded), actions: recorded ? packet.actions : [], audio_url: kind === "motion" ? null : packet.audio_url,
+    await stage.perform({ ...packet, preview: true, actions: recorded ? packet.actions : [], audio_url: kind === "motion" ? null : packet.audio_url,
       motion: kind === "audio" ? null : packet.motion }, () => {
         element("#subtitle").textContent = kind === "motion" ? "" : packet.text;
       }, showProgress);
@@ -345,8 +345,6 @@ async function poll(): Promise<void> {
           if (!previewing) stage.syncBody(value.body_program ?? null, id, showProgress, (programId, status, message) => {
             if (session?.id !== id || closing) return;
             if (status === "failed") showError(new Error(message));
-            void request(`/${id}/body/${programId}/feedback`, "POST", { status, message, body: stage.state() })
-              .catch(error => { if (!(error instanceof RequestError && error.status === 409)) showError(error); });
           });
           if (value.status === "error" && playing) {
             playbackGeneration++; stage.stopSpeech(); playing = null;

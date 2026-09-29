@@ -8,8 +8,7 @@ export interface BodyState {
   behavior: string;
   history?: Omit<BodyState, "history" | "gaze_target" | "behavior">[];
 }
-export interface GestureWeights { head: number; torso: number; left_arm: number; right_arm: number; hands: number }
-export interface BodyProgram { id: string; actions: SceneAction[]; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "completed" | "failed" | "interrupted" }
+export interface BodyProgram { id: string; actions: SceneAction[]; elapsed?: number; start_with_reply?: boolean; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "completed" | "failed" | "interrupted" }
 export interface SceneAction {
   kind: "look_at" | "move_to" | "reach" | "sit" | "stand" | "perform" | "stop";
   target_id: string | null;
@@ -19,12 +18,13 @@ export interface SceneAction {
   duration_seconds?: number | null;
   transition_description?: string | null;
   continuation_description?: string | null;
-  gesture_weights?: GestureWeights;
 }
 export interface Expression {
   id: string;
   session_id?: string;
   body_program_id?: string;
+  spatial_windows?: import("./spatial").SpatialWindow[];
+  temporal?: boolean;
   epoch: number;
   text: string;
   actions: SceneAction[];
@@ -38,7 +38,7 @@ export interface Expression {
   offset_seconds?: number;
   parent_id?: string | null;
   caption?: string;
-  route?: { engine: "sentiavatar" | "ardy" | "hybrid"; reason: string } | null;
+  route?: { engine: "sentiavatar" | "ardy" | "hybrid" | "temporal"; reason: string } | null;
   end_state?: "relaxed" | "hold";
   preview?: boolean;
 }
@@ -59,6 +59,7 @@ export interface Session {
   draft_text: string;
   route?: Expression["route"];
   body_program?: BodyProgram | null;
+  behavior_timeline?: { id: string; owner: string; seconds: number; status: string; reason: string }[];
   motion_plan?: SceneAction[];
   playback_mode: "voice_first" | "synchronized";
   events: { sequence: number; kind: string; message?: string; text?: string;

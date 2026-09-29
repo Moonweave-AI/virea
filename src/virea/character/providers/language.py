@@ -50,8 +50,12 @@ class LanguageProvider:
         schema = utterance_schema(
             list(context.get("targets", {})),
             explicit_positions(history),
-            speech_only=(context.get("route") or {}).get("engine") in {"sentiavatar", "hybrid"},
+            speech_only=(context.get("route") or {}).get("engine")
+            in {"sentiavatar", "hybrid", "temporal"},
             max_beats=self.config.max_speech_beats,
+            committed_speech=bool(
+                route and route.get("engine") == "temporal" and route.get("reply_plan")
+            ),
         )
         payload = {
             "model": self.config.llm_model,

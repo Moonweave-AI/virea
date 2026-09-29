@@ -43,6 +43,8 @@ class CharacterSession:
         self.motion_plan = []
         self.motion_ending = "relaxed"
         self.body_program: dict | None = None
+        self.behavior_slots: dict[str, dict] = {}
+        self.behavior_lock = asyncio.Lock()
         self.latest_expression: dict | None = None
         self.body = BodyState()
         self.targets = {}
@@ -99,6 +101,10 @@ class CharacterSession:
             "route": self.route,
             "motion_plan": self.motion_plan,
             "body_program": self.body_program,
+            "behavior_timeline": [
+                {k: v for k, v in slot.items() if k not in {"windows", "forecast", "actions"}}
+                for slot in self.behavior_slots.values()
+            ][-12:],
             "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
             "spatial_available": bool(self.config.spatial_url),
@@ -160,6 +166,7 @@ class CharacterSession:
             self._ensure_open()
             await self._cancel()
             self.body_program = None
+            self.behavior_slots.clear()
             self.body = body
             self.status = "waiting"
             self.record("interrupted")
@@ -237,6 +244,7 @@ class CharacterSession:
                 return
             await self._cancel()
             self.body_program = None
+            self.behavior_slots.clear()
             self._closed = True
             self.status = "closed"
             self.record("closed")
@@ -305,9 +313,10 @@ class CharacterSession:
                     list(self.history), self._context(trigger)
                 )
                 self.route = {
-                    "engine": "hybrid",
+                    "engine": "temporal",
                     "reason": plan.intent,
                     "spoken_request": plan.spoken_content,
+                    "reply_plan": plan.reply_plan.model_dump() if plan.reply_plan else None,
                 }
                 if plan.body.operation == "replace":
                     self.motion_plan = self._actions(plan.body.actions)
@@ -315,7 +324,9 @@ class CharacterSession:
                         "id": uuid4().hex,
                         "actions": self.motion_plan,
                         "end_state": plan.body.end_state,
+                        "start_with_reply": plan.body.start_with_reply,
                         "status": "ready",
+                        "elapsed": 0,
                     }
                 elif plan.body.operation == "stop":
                     self.body_program = None
