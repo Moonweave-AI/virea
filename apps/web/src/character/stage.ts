@@ -44,7 +44,10 @@ export class CharacterStage {
   private turnKey = "";
   private replaying = false;
   private observedHead: THREE.Quaternion | null = null;
-  private poseMetrics = { head_speed_deg_s: 0, peak_head_speed_deg_s: 0, max_joint_speed_deg_s: 0, worst_joint: "" };
+  private peakHeadPose: Record<string, unknown> = {};
+  private poseMetrics = { head_speed_deg_s: 0, peak_head_speed_deg_s: 0, peak_head_delta_deg: 0,
+    peak_head_frame_seconds: 0, peak_head_at_seconds: 0, peak_head_owner: "hold", peak_head_packet: "",
+    peak_head_joint: "", head_world_norm: 1, max_joint_speed_deg_s: 0, worst_joint: "" };
   private bodyId: string | null = null;
   private bodyGeneration = 0;
   private observations: NonNullable<BodyState["history"]> = [];
@@ -55,6 +58,7 @@ export class CharacterStage {
   private mixer: THREE.AnimationMixer | null = null;
   private action: THREE.AnimationAction | null = null;
   private source: AudioBufferSourceNode | null = null;
+  private sampleExpression: (() => void) | null = null;
   private frame = 0;
   private epoch = 0;
   private disposed = false;
@@ -150,13 +154,14 @@ export class CharacterStage {
   diagnostics() {
     return { clock_seconds: this.audibleTime(), body_owner: this.authority?.owner ?? "hold", preview: this.replaying,
       phase: this.canvas.dataset.motionPhase ?? "", reason: this.canvas.dataset.behaviorReason ?? "",
-      body_status: this.canvas.dataset.bodyStatus ?? "idle", body_elapsed: Number(this.canvas.dataset.bodyElapsed ?? 0),
+      body_status: this.canvas.dataset.bodyStatus ?? "idle", body_active: this.bodyRunning,
+      retracting: this.authority?.retracting ?? false, body_elapsed: Number(this.canvas.dataset.bodyElapsed ?? 0),
       body_duration: Number(this.canvas.dataset.bodyDuration ?? 0), body_program: this.bodyId,
       speech: { ...this.speechInfo, active: Boolean(this.source) && this.audibleTime() < this.speechInfo.end,
         remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()) },
       motion_ready: this.authority?.speechReady ?? false, ground_clearance: this.authority?.groundClearance,
       retarget_max_angle: Number(this.canvas.dataset.retargetMaxAngle ?? 0), ...this.poseMetrics,
-      recording: this.tape.summary() };
+      peak_head_pose: this.peakHeadPose, recording: this.tape.summary() };
   }
 
   async replay(kind: "audio" | "motion" | "synchronized", caption: (text: string) => void,
@@ -275,7 +280,7 @@ export class CharacterStage {
     return body;
   }
 
-  get bodyRunning(): boolean { return this.behavior?.running ?? false; }
+  get bodyRunning(): boolean { return Boolean(this.behavior?.running || this.authority?.retracting); }
 
   syncBody(program: BodyProgram | null, sessionId: string,
     onProgress: (value: PlaybackProgress) => void, onFinish: (id: string, status: string, message: string) => void): void {
@@ -289,14 +294,16 @@ export class CharacterStage {
       if (program?.continuation_of !== this.recordingId) this.bodyRecording = [];
       this.recordingId = id;
     }
-    const needed = () => Boolean(this.source) || Boolean(this.activity && ["ready", "playing", "settling"].includes(this.activity.status)
+    const speaking = () => Boolean(this.source) && this.audibleTime() < this.speechInfo.end;
+    const speechReady = () => speaking() && Boolean(this.authority?.speechReady);
+    const needed = () => speaking() || Boolean(this.activity && ["ready", "playing", "settling"].includes(this.activity.status)
       && (Boolean(this.activity.ending) || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) - 1e-5));
     if (this.behavior?.running || !needed() || this.disposed) return;
     const player = this.behavior = new BehaviorPlayer({
       state: () => this.state(), hipHeight: () => this.hipHeight, needed,
       canStart: slot => slot.settling || this.activity?.finish_requested || slot.program_id !== this.activity?.id || !this.activity?.start_with_reply
-        || slot.activity_start > 0 || Boolean(this.source),
-      speech: () => ({ available: Boolean(this.source) && this.authority!.speechReady, text: this.speechInfo.text,
+        || slot.activity_start > 0 || speaking(),
+      speech: () => ({ available: speechReady(), text: this.speechInfo.text,
         remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()), packet_id: this.speechInfo.packet_id, stream_id: this.speechInfo.stream_id }),
       report: slot => {
         this.canvas.dataset.behaviorSlot = slot.id;
@@ -327,7 +334,7 @@ export class CharacterStage {
           const start = this.audibleTime();
           while (current() && this.audibleTime() - start < slot.seconds) {
             if (!needed() || !reservationMatches(slot, this.activity)
-              || (Boolean(this.source) && this.authority!.speechReady) !== slot.speech_available
+              || speechReady() !== slot.speech_available
               || slot.owner === "sentiavatar" && (this.audibleTime() >= this.speechInfo.end
                 || slot.speech_packet_id && slot.speech_packet_id !== this.speechInfo.packet_id)) break;
             progress(this.audibleTime() - start);
@@ -336,7 +343,7 @@ export class CharacterStage {
         }
         if (slot.program_id === this.activity?.id) {
           this.activityElapsed = slot.activity_end;
-          if (slot.terminal) this.activity!.status = "completed";
+          if (slot.terminal) { this.activity!.status = "completed"; this.authority?.commitRest(); }
         }
       },
     });
@@ -393,9 +400,15 @@ export class CharacterStage {
     if (!this.vrm || !this.authority) throw new Error("请先载入 VRM");
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
-    let [gltf, audio, face] = prepared ?? await this.preload(packet.independent_speech && !packet.preview ? { ...packet, motion: null } : packet);
+    let [gltf, audio, face] = prepared ?? await this.preload(packet).catch(error => {
+      if (!packet.independent_speech || !packet.motion) throw error;
+      return this.preload({ ...packet, motion: null });
+    });
     this.expressionUpdates.set(packet.id, packet);
     if (!current()) throw new DOMException("Interrupted", "AbortError");
+    // A missing window must not advertise the previous window's gesture as
+    // available. The authority retains the rendered pose for a smooth handoff.
+    if (!gltf) this.authority.release();
     this.previewSpeech = Boolean(packet.preview && gltf);
     if (audio && this.audio.state !== "running") throw new Error("音频暂停，请点击继续声音后重试");
     const manager = this.vrm.expressionManager;
@@ -450,7 +463,6 @@ export class CharacterStage {
     const sample = (elapsed: number) => {
       const time = Math.min(elapsed, duration);
       if (gltf && this.mixer && this.action) this.authority!.capture(() => sampleClip(this.mixer!, this.action!, time * motionScale));
-      if (elapsed >= duration && !packet.continues) this.authority!.release();
       if (faceTrack) {
         this.applyFace(faceTrack, audio ? time * Math.max(0, faceTrack.values.length - 1) / (faceTrack.fps * audio.duration) : time);
         if (elapsed < .1) for (const [name, value] of heldFace)
@@ -463,8 +475,17 @@ export class CharacterStage {
         manager?.setValue("aa", Math.min(1, rms * 5));
       }
     };
+    // Sample and present in the same render callback. A separate RAF producer
+    // made the visible source one frame old and amplified timing hitches.
+    const sampling: { failure: { error: unknown } | null } = { failure: null };
+    const present = () => {
+      try { if (current()) sample(Math.max(0, this.audibleTime() - start)); }
+      catch (error) { sampling.failure = { error }; }
+    };
+    this.sampleExpression = present;
     try {
       while (current() && this.audibleTime() - start < duration + release) {
+        if (sampling.failure) throw sampling.failure.error;
         const elapsed = Math.max(0, this.audibleTime() - start);
         const update = this.expressionUpdates.get(packet.id);
         if (!gltf && update?.motion && !attaching && elapsed < duration) {
@@ -476,7 +497,6 @@ export class CharacterStage {
             // The next sample uses the elapsed audio time, never restarts the gesture.
           }).catch(() => { /* Optional motion failure does not interrupt speech. */ });
         }
-        sample(elapsed);
         onProgress({ elapsed, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: this.audio.state !== "running" });
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
@@ -485,11 +505,21 @@ export class CharacterStage {
       if (!current()) throw new DOMException("Interrupted", "AbortError");
       return { audio_seconds: audio?.duration ?? 0, motion_seconds: duration };
     } finally {
+      if (this.sampleExpression === present) this.sampleExpression = null;
       if (current()) {
         this.previewSpeech = false;
         if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
         if (this.action) this.action.paused = true;
-        if (!packet.continues) this.authority.release();
+        if (!packet.continues) {
+          this.authority.release();
+          if (!packet.preview && (!this.activity || ["completed", "failed", "interrupted"].includes(this.activity.status))) {
+            this.authority.retract();
+            if (this.authority.retracting) {
+              this.canvas.dataset.behaviorReason = "本轮手势完成，回到交流前的稳定支撑姿态";
+              this.tape.driver(this.audibleTime(), "retraction", this.canvas.dataset.behaviorReason, packet.id);
+            }
+          }
+        }
         if (!face) for (const name of ["aa", "oh", "ou"]) manager?.setValue(name, 0);
         this.timeline.complete(packet.id);
       }
@@ -589,6 +619,7 @@ export class CharacterStage {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     if (this.vrm) {
+      this.sampleExpression?.();
       const owner = this.behavior?.running ? this.behavior.owner : this.spatial?.active ? "ardy" : this.previewSpeech ? "sentiavatar" : "hold";
       this.authority?.render(owner, this.audio.state === "running" ? dt : 0,
         () => this.spatial?.update(false), Boolean(this.spatial?.active));
@@ -609,11 +640,14 @@ export class CharacterStage {
           Object.keys(this.vrm.expressionManager?.expressionMap ?? {}).map(name => [name, this.vrm!.expressionManager!.getValue(name) ?? 0])), this.authority?.owner ?? "hold");
       }
       let maxSpeed = 0, worstJoint = "";
+      const changes: { name: string; angle: number; before: number[]; after: number[] }[] = [];
       if (dt > 0 && this.audio.state === "running") for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (!bone) continue;
         const previous = this.poseHistory.get(bone);
         const velocity = previous ? rotationVector(bone.quaternion.clone().multiply(previous.q.clone().invert())).divideScalar(dt) : new THREE.Vector3();
+        if (previous) changes.push({ name, angle: THREE.MathUtils.radToDeg(velocity.length() * dt),
+          before: previous.q.toArray(), after: bone.quaternion.toArray() });
         if (velocity.length() > maxSpeed) { maxSpeed = velocity.length(); worstJoint = name; }
         this.poseHistory.set(bone, { q: bone.quaternion.clone(), velocity });
       }
@@ -622,8 +656,23 @@ export class CharacterStage {
       this.vrm.scene.updateMatrixWorld(true);
       const head = this.vrm.humanoid.getNormalizedBoneNode("head")?.getWorldQuaternion(new THREE.Quaternion());
       if (head && dt > 0 && this.audio.state === "running") {
-        const speed = this.observedHead ? THREE.MathUtils.radToDeg(head.angleTo(this.observedHead)) / dt : 0;
+        // Matrix decomposition under nonuniform avatar scales is not guaranteed
+        // to return a unit quaternion; angleTo assumes both operands are unit.
+        const headNorm = head.length(); head.normalize();
+        const angle = this.observedHead ? THREE.MathUtils.radToDeg(head.angleTo(this.observedHead)) : 0;
+        const speed = angle / dt;
+        if (speed > this.poseMetrics.peak_head_speed_deg_s) this.peakHeadPose = {
+          before: this.observedHead?.toArray(), after: head.toArray(),
+          joints: changes.sort((a, b) => b.angle - a.angle).slice(0, 8),
+        };
         this.poseMetrics = { head_speed_deg_s: speed, peak_head_speed_deg_s: Math.max(speed, this.poseMetrics.peak_head_speed_deg_s),
+          head_world_norm: headNorm,
+          peak_head_delta_deg: speed > this.poseMetrics.peak_head_speed_deg_s ? angle : this.poseMetrics.peak_head_delta_deg,
+          peak_head_frame_seconds: speed > this.poseMetrics.peak_head_speed_deg_s ? dt : this.poseMetrics.peak_head_frame_seconds,
+          peak_head_at_seconds: speed > this.poseMetrics.peak_head_speed_deg_s ? this.tape.elapsed(this.audibleTime()) : this.poseMetrics.peak_head_at_seconds,
+          peak_head_owner: speed > this.poseMetrics.peak_head_speed_deg_s ? this.authority?.owner ?? "hold" : this.poseMetrics.peak_head_owner,
+          peak_head_packet: speed > this.poseMetrics.peak_head_speed_deg_s ? this.speechInfo.packet_id ?? "" : this.poseMetrics.peak_head_packet,
+          peak_head_joint: speed > this.poseMetrics.peak_head_speed_deg_s ? worstJoint : this.poseMetrics.peak_head_joint,
           max_joint_speed_deg_s: THREE.MathUtils.radToDeg(maxSpeed), worst_joint: worstJoint };
         this.observedHead = head;
         this.canvas.dataset.headSpeed = speed.toFixed(2);

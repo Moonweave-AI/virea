@@ -169,6 +169,8 @@ class CharacterSession:
                 self.targets = {
                     key: value.model_dump() for key, value in event.targets.items()
                 }
+            if event.affordances is not None:
+                self.affordances = event.affordances
             self.record("environment", event=event.model_dump())
             # Context updates never masquerade as conversation turns, nor race an active turn.
             if not event.silent and (self._task is None or self._task.done()):
@@ -302,6 +304,7 @@ class CharacterSession:
             "environment": self.environment,
             "targets": self.targets,
             "capabilities": CAPABILITIES,
+            "affordances": getattr(self, "affordances", {}),
             "spatial_available": bool(self.config.spatial_url),
             "autonomous_decisions_remaining": self.config.max_autonomous_decisions
             - self._autonomous,
@@ -549,26 +552,9 @@ class CharacterSession:
         tasks = [asyncio.create_task(body()), asyncio.create_task(speech())]
         try:
             await asyncio.gather(*tasks)
-            program = self.body_program
-            resting = getattr(appraisal, "resting", None)
-            if (
-                reply
-                and resting
-                and self.config.spatial_url
-                and (not program or program["status"] == "completed")
-            ):
-                self.body_program = {
-                    "id": uuid4().hex,
-                    "continuation_of": program["id"] if program else None,
-                    "actions": [],
-                    "ending": resting,
-                    "end_state": "relaxed",
-                    "start_with_reply": False,
-                    "scope": "response",
-                    "origin_epoch": epoch,
-                    "status": "settling",
-                    "elapsed": 0,
-                }
+            # Speech gestures retract in their own executed posture frame. A
+            # completed spatial task already owns its model-generated ending;
+            # finishing speech must not create a second, unrelated ARDY task.
             self.status = "waiting"
             self.record("response_finished", interrupted=False)
         finally:

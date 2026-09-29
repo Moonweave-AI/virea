@@ -21,6 +21,11 @@ def interpolate_batched(model, keyframes, features, *, generate_steps=6):
     tokens = torch.full((batch, 5, levels), mask_id, device=device, dtype=torch.long)
     tokens[:, 0], tokens[:, -1] = keys[:-1] + offsets, keys[1:] + offsets
     tokens = tokens.flatten(1)
+    # RVQ levels use disjoint vocabularies. The checkpoint's unconstrained head
+    # can predict another level (or MASK); neither is a decodable motion token.
+    vocabulary = torch.arange(model.config.vocab_size, device=device)
+    position_offsets = offsets.repeat(5)[:, None]
+    valid = (vocabulary >= position_offsets) & (vocabulary < position_offsets + size)
     indices = np.minimum(
         np.arange(batch)[:, None] * 4 + np.arange(5), len(features) - 1
     )
@@ -29,7 +34,8 @@ def interpolate_batched(model, keyframes, features, *, generate_steps=6):
     remaining = 3 * levels
     with torch.inference_mode():
         for step in range(generate_steps):
-            scores, predicted = model(tokens, audio_features=audio).max(dim=-1)
+            logits = model(tokens, audio_features=audio)
+            scores, predicted = logits.masked_fill(~valid, -torch.inf).max(dim=-1)
             scores = scores.masked_fill(tokens != mask_id, -torch.inf)
             count = (
                 remaining if step == generate_steps - 1 else min(per_step, remaining)

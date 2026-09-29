@@ -6,6 +6,7 @@ import asyncio
 import base64
 import json
 import secrets
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -27,9 +28,9 @@ CAPABILITIES = {
     "silent_generative_motion": False,
     "playback_continuity": "continuous_windows_then_relaxed_idle",
     "scene_actions": ["look_at", "move_to", "reach", "sit", "stand", "perform", "stop"],
-    "spatial_model": "ARDY-Core-RP-20FPS-Horizon8 (optional resident worker)",
+    "spatial_model": "ARDY-Core-RP-20FPS-Horizon40 (resident worker)",
     "spatial_physics": False,
-    "body_routing": "stationary: SentiAvatar; locomotion: ARDY + upper-body speech; interaction: ARDY + speech face",
+    "body_routing": "exclusive temporal body ownership; speech and face share the audio clock",
 }
 
 
@@ -110,6 +111,19 @@ class MotionProvider:
                     encoding="utf-8",
                 )
                 generation = json.loads(metadata)["provenance"]["generation_parameters"]
+                events = await asyncio.to_thread(self.control.store.job_events, job_id)
+                stamps = [
+                    (e["state"], datetime.fromisoformat(e["created_at"]).timestamp())
+                    for e in events
+                ]
+                stages = {}
+                for (state, start), (_, end) in zip(stamps, stamps[1:]):
+                    stages[state.lower()] = round(
+                        stages.get(state.lower(), 0) + end - start, 4
+                    )
+                stages["resident_reused"] = any(
+                    e["event_type"] == "job.resident_worker_reused" for e in events
+                )
                 return {
                     "job_id": job_id,
                     "result_id": result_id,
@@ -123,7 +137,10 @@ class MotionProvider:
                         "planner_history_applied", False
                     ),
                     "executed_pose_conditioning": False,
-                    "planner_backend": generation.get("planner_backend", "transformers"),
+                    "planner_backend": generation.get(
+                        "planner_backend", "transformers"
+                    ),
+                    "stages": stages,
                 }
             if job["state"] in {"FAILED", "REJECTED", "TIMED_OUT", "CANCELLED"}:
                 raise RuntimeError(f"motion job {job_id}: {job['state']}")

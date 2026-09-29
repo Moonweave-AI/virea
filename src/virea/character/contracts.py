@@ -98,6 +98,9 @@ class EnvironmentEvent(Contract):
     summary: str = Field(default="", max_length=2000)
     silent: bool = True
     targets: dict[str, Position] | None = Field(default=None, max_length=32)
+    affordances: (
+        dict[str, list[Literal["look_at", "move_to", "reach", "sit"]]] | None
+    ) = Field(default=None, max_length=32)
 
 
 class PlaybackFeedback(Contract):
@@ -138,6 +141,7 @@ class SessionRequest(Contract):
 
 class CharacterConfig(Contract):
     settlement: SettlementPolicy = Field(default_factory=SettlementPolicy)
+    expression_lead_seconds: float = Field(default=1.8, ge=0, le=5)
     llm_api: Literal["openai", "ollama"] = "openai"
     llm_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "Qwen3.5-2B"

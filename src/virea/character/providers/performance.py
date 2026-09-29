@@ -1,5 +1,6 @@
 """Interpret dialogue before compiling a character's adopted body intentions."""
 
+from copy import deepcopy
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -137,16 +138,27 @@ async def appraise_dialogue(config, client, history, context):
             ]
         )
     )
-    schema["properties"]["resting"] = {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 320,
-        "pattern": "^[ -~]+$",
-        "description": DialogueAppraisal.model_fields["resting"].description,
-    }
-    schema["required"] = list(dict.fromkeys([*schema["required"], "resting"]))
-    return DialogueAppraisal.model_validate(
-        await structured_completion(
+    # Constrain the relationship, not merely the two independently nullable
+    # fields: a numeric duration always travels with its quoted user evidence.
+    unspecified, specified = deepcopy(commitment), deepcopy(commitment)
+    unspecified["properties"].update(
+        duration_seconds={"type": "null"}, duration_evidence={"type": "null"}
+    )
+    for name in ("duration_seconds", "duration_evidence"):
+        prop = specified["properties"][name]
+        alternatives = prop.pop("anyOf")
+        prop.update(next(option for option in alternatives if option["type"] != "null"))
+    specified["properties"]["duration_evidence"]["minLength"] = 1
+    schema["$defs"]["EmbodiedCommitment"] = {"oneOf": [unspecified, specified]}
+    # A compulsory resting caption before understanding/reply primed the model
+    # to invent a posture task for every utterance. Endings belong to adopted
+    # activities; co-speech retraction uses the executed contextual rest pose.
+    schema["properties"].pop("resting")
+    user_text = next(
+        (m["content"] for m in reversed(history) if m["role"] == "user"), ""
+    )
+    for attempt in range(2):
+        value = await structured_completion(
             config,
             client,
             history,
@@ -157,7 +169,27 @@ async def appraise_dialogue(config, client, history, context):
             thinking=config.llm_thinking,
             include_history=True,
         )
-    )
+        try:
+            appraisal = DialogueAppraisal.model_validate(value)
+            duration = appraisal.embodiment
+            if duration.duration_seconds is not None and (
+                not duration.duration_evidence
+                or duration.duration_evidence not in user_text
+            ):
+                raise ValueError(
+                    "duration_evidence must quote the user's explicit duration"
+                )
+            return appraisal
+        except ValueError as error:
+            if attempt:
+                raise
+            # Constrained number grammars do not enforce every schema bound.
+            # One repair stays in the intention layer; no invalid plan executes.
+            context = {
+                **context,
+                "invalid_appraisal": value,
+                "validation_error": str(error),
+            }
 
 
 async def plan_performance(config, client, history, context):
@@ -197,6 +229,19 @@ async def compile_performance(config, client, history, context, appraisal):
         v
         for v in variants
         if v["properties"]["kind"]["const"] not in {"look_at", "stop", "stand"}
+    ]
+    affordances = context.get("affordances", {})
+    for variant in variants:
+        props = variant["properties"]
+        kind = props["kind"]["const"]
+        if props["target_id"].get("type") == "string":
+            props["target_id"]["enum"] = [
+                target
+                for target in props["target_id"].get("enum", [])
+                if kind in affordances.get(target, [])
+            ]
+    variants[:] = [
+        v for v in variants if v["properties"]["target_id"].get("enum") != []
     ]
     for variant in variants:
         variant["properties"].update(
@@ -285,6 +330,10 @@ async def compile_performance(config, client, history, context, appraisal):
     problem = motion_plan_problem(actions, context)
     if problem:
         raise ValueError(problem)
+    for action in actions:
+        target = action.get("target_id")
+        if target and action["kind"] not in affordances.get(target, []):
+            raise ValueError(f"场景目标 {target} 不支持 {action['kind']}")
     if actions and not context.get("spatial_available"):
         raise ValueError("身体轨道需要已启动的 ARDY 服务")
     fit_program_duration(actions, plan.body.total_duration_seconds)

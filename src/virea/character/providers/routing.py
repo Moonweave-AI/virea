@@ -120,7 +120,7 @@ async def structured_completion(
                 },
             },
         )
-    if len(history) > 1:
+    if len(history) > 1 and not include_history:
         payload["messages"][0]["content"] += (
             "\nprevious_turns (context only): "
             + json.dumps(history[:-1], ensure_ascii=False)

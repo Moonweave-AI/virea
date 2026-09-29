@@ -3364,6 +3364,10 @@ class ControlPlane:
                     "LOADING_MODEL",
                     "RUNNING",
                     "DECODING",
+                    "NORMALIZING",
+                    "RETARGETING",
+                    "VALIDATING",
+                    "EXPORTING",
                 }
                 and not self._closing.is_set()
             )

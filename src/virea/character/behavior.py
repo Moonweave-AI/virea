@@ -59,7 +59,8 @@ async def choose_window(config, client, *, program, elapsed, body, speech, previ
     available = ["hold"]
     if actions and config.spatial_url:
         available = ["ardy"]
-    if speech.available:
+    speech_available = speech.available and speech.remaining_seconds > 0
+    if speech_available:
         available = [owner for owner in available if owner != "hold"] + ["sentiavatar"]
     schema = WindowChoice.model_json_schema()
     schema["properties"]["owner"]["enum"] = available
@@ -94,7 +95,7 @@ async def choose_window(config, client, *, program, elapsed, body, speech, previ
     seconds = min(choice.seconds, config.behavior_horizon_seconds)
     if choice.owner == "ardy":
         seconds = min(seconds, sum(a["duration_seconds"] for a in actions))
-        if (program or {}).get("scope") == "response" and speech.available:
+        if (program or {}).get("scope") == "response" and speech_available:
             seconds = min(seconds, max(0.2, speech.remaining_seconds))
     if choice.owner == "sentiavatar":
         seconds = min(seconds, speech.remaining_seconds)

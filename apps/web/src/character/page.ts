@@ -94,7 +94,10 @@ function renderState(value: Session): void {
   element("#route-card").hidden = !value.route;
   element("#route-model").textContent = value.route?.engine === "temporal" ? "对话 · 行为调度" : value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
   element("#route-reason").textContent = value.route?.reason ?? "";
-  const activePlan = value.body_program?.actions ?? value.motion_plan ?? [];
+  const body = value.body_program;
+  const archivedPlan = body && (body.origin_epoch ?? value.epoch) < value.epoch
+    && ["completed", "failed", "interrupted"].includes(body.status);
+  const activePlan = archivedPlan ? [] : body?.actions ?? value.motion_plan ?? [];
   const plan = element("#motion-plan"), signature = JSON.stringify(activePlan);
   if (plan.dataset.plan !== signature) {
     plan.dataset.plan = signature;
@@ -203,7 +206,8 @@ element("#start").onclick = async () => {
     element<HTMLSelectElement>("#playback-mode").disabled = true;
     await request(`/${session.id}/environment`, "POST", { kind: "context", silent: true,
       summary: "平坦地面 y=0。用户在正前方；杯子在左侧小圆台上，cup 是接触点，cup_side 是杯子旁的地面站位。move_to 只能选择地面站位；reach 选择杯子接触点。",
-      targets: { user: { x: 0, y: 1.5, z: 3 }, cup: { x: 1, y: 0.98, z: 0.4 }, cup_side: { x: 1.3, y: 0, z: .35 }, center: { x: 0, y: 0, z: 0 } } });
+      targets: { user: { x: 0, y: 1.5, z: 3 }, cup: { x: 1, y: 0.98, z: 0.4 }, cup_side: { x: 1.3, y: 0, z: .35 }, center: { x: 0, y: 0, z: 0 } },
+      affordances: { user: ["look_at"], cup: ["look_at", "reach"], cup_side: ["move_to"], center: ["move_to", "sit"] } });
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = false;
     element<HTMLInputElement>("#avatar").disabled = true;
     element<HTMLButtonElement>("#start").disabled = true;

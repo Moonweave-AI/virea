@@ -26,6 +26,9 @@ class ExpressionStream:
         self.files = set()
         self.planned = decision
         self.motion_jobs = asyncio.Queue(maxsize=3)
+        self.motion_ready: dict[str, asyncio.Event] = {}
+        self.unpublished: set[str] = set()
+        self.lead_deadline: float | None = None
 
     async def _updates(self, trigger):
         if self.planned is not None:
@@ -157,13 +160,32 @@ class ExpressionStream:
                 independent_speech=True,
             )
             self.files.add(packet["id"])
-            if session.metrics["first_expression_seconds"] is None:
-                session.metrics["first_expression_seconds"] = monotonic() - self.started
-            await self.published.put((packet, session._publish(packet)))
+            self.unpublished.add(packet["id"])
+            ready = self.motion_ready[packet["id"]] = asyncio.Event()
             if self.motion_jobs.full():
                 skipped, _ = self.motion_jobs.get_nowait()
                 skipped["motion_status"] = "expired"
+                self.motion_ready[skipped["id"]].set()
             self.motion_jobs.put_nowait((packet, unit))
+            # Warm inference normally fits inside this bounded playout lead.
+            # A cold/failed model cannot hold speech indefinitely. The worker
+            # continues preparing future windows after this deadline expires.
+            lead_started = monotonic()
+            if self.lead_deadline is None:
+                self.lead_deadline = (
+                    lead_started + session.config.expression_lead_seconds
+                )
+            try:
+                await asyncio.wait_for(
+                    ready.wait(), max(0, self.lead_deadline - monotonic())
+                )
+            except TimeoutError:
+                pass
+            packet["presentation_lead_seconds"] = monotonic() - lead_started
+            self.unpublished.discard(packet["id"])
+            if session.metrics["first_expression_seconds"] is None:
+                session.metrics["first_expression_seconds"] = monotonic() - self.started
+            await self.published.put((packet, session._publish(packet)))
             previous = packet["id"]
             offset += unit["seconds"]
             sequence += 1
@@ -174,8 +196,12 @@ class ExpressionStream:
         previous = None
         while True:
             packet, unit = await self.motion_jobs.get()
-            if packet["id"] not in session.ready:
+            if (
+                packet["id"] not in session.ready
+                and packet["id"] not in self.unpublished
+            ):
                 packet["motion_status"] = "expired"
+                self.motion_ready[packet["id"]].set()
                 previous = None
                 continue
             prior = (
@@ -198,7 +224,9 @@ class ExpressionStream:
                     )
                 packet["motion"] = motion
                 packet["motion_status"] = (
-                    "ready" if packet["id"] in session.ready else "expired"
+                    "ready"
+                    if packet["id"] in session.ready or packet["id"] in self.unpublished
+                    else "expired"
                 )
                 elapsed = monotonic() - started
                 session.metrics["motion_seconds"] = elapsed
@@ -212,12 +240,18 @@ class ExpressionStream:
                     "motion_ready",
                     packet_id=packet["id"],
                     status=packet["motion_status"],
+                    generation_seconds=elapsed,
+                    audio_seconds=unit["seconds"],
+                    native_history_applied=motion.get("native_history_applied", False),
+                    stages=motion.get("stages", {}),
                 )
                 previous = packet
             except Exception as exc:
                 packet["motion_status"] = "failed"
                 previous = None
                 session.record("motion_error", packet_id=packet["id"], message=str(exc))
+            finally:
+                self.motion_ready[packet["id"]].set()
 
     async def playback(self):
         while (item := await self.published.get()) is not None:

@@ -35,7 +35,7 @@ class PCMWindows:
             count = min(target, self.frames)
             if self.frames - count < 14_400:
                 count = self.frames
-            remaining, chunks, texts, captions = count, [], [], []
+            remaining, chunks, texts = count, [], []
             decision = self.parts[0].get("decision")
             dominant_frames = 0
             while remaining:
@@ -46,8 +46,6 @@ class PCMWindows:
                 end = round(len(part["text"]) * size * 2 / len(part["pcm"]))
                 chunks.append(part["pcm"][: size * 2])
                 texts.append(part["text"][:end])
-                if not captions or captions[-1] != part["caption"]:
-                    captions.append(part["caption"])
                 part["pcm"], part["text"] = part["pcm"][size * 2 :], part["text"][end:]
                 remaining -= size
                 if not part["pcm"]:
@@ -61,7 +59,7 @@ class PCMWindows:
                     audio=buffer.getvalue(),
                     seconds=count / 24000,
                     text="".join(texts),
-                    caption="".join(captions),
+                    caption="".join(texts),
                     decision=decision,
                     continues=not (final and count == self.frames),
                 )

@@ -112,6 +112,19 @@ class ResidentWorkers:
             else:
                 self._evict_requested = True
 
+    def touch(self, model_id: str) -> bool:
+        """An active character lease keeps its loaded model warm, without inference.
+
+        This only extends idle expiry. Explicit reclamation, cancellation and
+        shutdown retain their existing authority to release the accelerator.
+        """
+        with self._condition:
+            entry = self._entry
+            if entry is None or entry.handle.model_id != model_id:
+                return False
+            self._idle_since = time.monotonic()
+            return entry.handle.running
+
     def _retire(self) -> None:
         entry = self._entry
         if entry is None:

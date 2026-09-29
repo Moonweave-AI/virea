@@ -71,6 +71,7 @@ class CharacterManager:
     def get(self, session_id: str) -> CharacterSession:
         session = self.sessions[session_id]
         session.last_seen = monotonic()
+        self.motion.control.residents.touch("sentiavatar-susu")
         return session
 
     async def remove(self, session_id: str) -> None:

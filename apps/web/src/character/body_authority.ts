@@ -13,12 +13,15 @@ export class BodyAuthority {
   private speechBasis: Pose | null = null;
   private ardy: Pose | null = null;
   private last: Pose;
+  private resting: Pose;
+  private retraction: { elapsed: number | null; duration: number; bridges: Map<string, RotationBridge>; offset: THREE.Vector3 } | null = null;
   private velocity = new Map<string, THREE.Vector3>();
   private bridges = new Map<string, RotationBridge>();
   private support: GroundSupport;
   private positionError = new THREE.Vector3();
   private key = "hold";
   private clip = 0;
+  private gestureNeedsRetraction = false;
   private elapsed = 0;
   owner: BodyOwner = "hold";
 
@@ -29,6 +32,7 @@ export class BodyAuthority {
       if (bone) this.bones.set(name, bone);
     }
     this.last = this.snapshot();
+    this.resting = this.snapshot();
   }
 
   private snapshot(): Pose {
@@ -37,14 +41,28 @@ export class BodyAuthority {
   private restore(pose: Pose): void {
     for (const [name, value] of pose) { const b = this.bones.get(name)!; b.quaternion.copy(value.q); b.position.copy(value.p); }
   }
-  beginSpeech(): void { this.clip++; this.speechBasis = this.snapshot(); }
+  beginSpeech(): void { this.clip++; this.retraction = null; this.speech = null; this.speechBasis = this.snapshot(); }
+  commitRest(): void { this.resting = this.snapshot(); this.gestureNeedsRetraction = false; }
+  get retracting(): boolean { return this.retraction !== null; }
+  /** Return a completed gesture to its contextual support pose, never the bind pose. */
+  retract(): void {
+    if (!this.gestureNeedsRetraction || this.retraction) return;
+    const duration = Math.min(1.6, Math.max(.65,
+      ...[...this.last].map(([name, value]) => value.q.angleTo(this.resting.get(name)!.q) / 2.5 + .65)));
+    const bridges = new Map([...this.last].map(([name, value]) => [name,
+      new RotationBridge(value.q, this.resting.get(name)!.q, this.velocity.get(name), undefined, duration)]));
+    this.retraction = { elapsed: null, duration, bridges,
+      offset: this.last.get("hips")!.p.clone().sub(this.resting.get("hips")!.p) };
+  }
   get speechReady(): boolean { return this.speech !== null; }
   get groundClearance(): number | null { return this.support.clearance(); }
-  release(): void { this.speech = null; }
+  release(): void { this.speech = null; this.retraction = null; }
   capture(sample: () => void): void {
     const held = this.snapshot();
     this.speechBasis ??= held;
-    try { this.restore(this.speechBasis); sample(); this.speech = this.snapshot(); }
+    // Three's PropertyMixer skips unchanged values. Restore the previous
+    // uncorrected sample, not the entry pose, so constant tracks cannot revert.
+    try { this.restore(this.speech ?? this.speechBasis); sample(); this.speech = this.snapshot(); }
     finally { this.restore(held); }
   }
 
@@ -52,6 +70,8 @@ export class BodyAuthority {
     const owner = requested === "ardy" && ardyReady ? "ardy"
       : requested === "sentiavatar" && this.speech ? "sentiavatar" : "hold";
     this.restore(this.last);
+    if (owner !== "hold") this.retraction = null;
+    if (owner !== "hold") this.gestureNeedsRetraction = owner === "sentiavatar";
     if (owner === "ardy") {
       // Source sampling must never inherit the last rendered correction. Sparse
       // tracks otherwise integrate that error repeatedly (notably head/fingers).
@@ -68,14 +88,28 @@ export class BodyAuthority {
         this.bridges.set(name, new RotationBridge(this.last.get(name)!.q, b.quaternion, this.velocity.get(name)));
       if (hips) this.positionError.copy(this.last.get("hips")!.p).sub(hips.position);
       this.key = key;
-    }
+    } else this.elapsed += dt;
     if (owner !== "hold" && hips) {
       const t = THREE.MathUtils.clamp(this.elapsed / .4, 0, 1);
       hips.position.addScaledVector(this.positionError, 2 * t ** 3 - 3 * t ** 2 + 1);
     }
     if (owner !== "hold") for (const [name, b] of this.bones) this.bridges.get(name)?.apply(b.quaternion, this.elapsed);
+    if (owner === "hold" && this.retraction) {
+      const r = this.retraction;
+      r.elapsed = r.elapsed === null ? 0 : Math.min(r.duration, r.elapsed + dt);
+      for (const [name, b] of this.bones) {
+        b.quaternion.copy(this.resting.get(name)!.q);
+        r.bridges.get(name)!.apply(b.quaternion, r.elapsed);
+      }
+      if (hips) {
+        const t = THREE.MathUtils.clamp(r.elapsed / r.duration, 0, 1);
+        // The resting support height is contextual; world travel is retained.
+        hips.position.y = this.resting.get("hips")!.p.y + r.offset.y * (2 * t ** 3 - 3 * t ** 2 + 1);
+      }
+      if (r.elapsed >= r.duration) { this.retraction = null; this.gestureNeedsRetraction = false; this.key = "hold"; }
+    }
     if (dt > 0) for (const [name, b] of this.bones)
       this.velocity.set(name, rotationVector(b.quaternion.clone().multiply(this.last.get(name)!.q.clone().invert())).divideScalar(dt));
-    this.last = this.snapshot(); this.elapsed += dt; this.owner = owner;
+    this.last = this.snapshot(); this.owner = owner;
   }
 }
