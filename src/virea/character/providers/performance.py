@@ -18,8 +18,13 @@ class BodyPlan(Contract):
     actions: list[SceneAction] = Field(default_factory=list, max_length=12)
     total_duration_seconds: float | None = Field(default=None, gt=0, le=180)
     start_with_reply: bool = False
+    ending: str | None = Field(
+        default=None,
+        max_length=320,
+        description="English motion caption for completing this whole activity and settling into its appropriate supported resting posture. Preserve a meaningful seated, kneeling or lying destination; finish airborne motion by landing. This is a separate terminal behavior, never an intermediate keyframe.",
+    )
     end_state: Literal["hold", "relaxed"] = Field(
-        default="hold",
+        default="relaxed",
         description="Terminal pose policy for the whole program, never for intermediate phases.",
     )
 
@@ -62,6 +67,11 @@ class EmbodiedCommitment(Contract):
 
 
 class DialogueAppraisal(Contract):
+    resting: str | None = Field(
+        default=None,
+        max_length=320,
+        description="English caption of how the character comfortably settles after this entire response. Consistent with the current or adopted activity's final posture (including sitting or lying), with relaxed hands and stable support. This is an ending, not a new task or repeated action.",
+    )
     understanding: str = Field(
         min_length=1,
         max_length=300,
@@ -98,20 +108,37 @@ total_duration_seconds 是用户指定的整个任务时长。end_state 只作�
 """
 
 
-async def plan_performance(config, client, history, context):
-    appraisal = DialogueAppraisal.model_validate(
+async def appraise_dialogue(config, client, history, context):
+    schema = DialogueAppraisal.model_json_schema()
+    schema["properties"]["resting"] = {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 320,
+        "pattern": "^[ -~]+$",
+        "description": DialogueAppraisal.model_fields["resting"].description,
+    }
+    schema["required"] = list(dict.fromkeys([*schema["required"], "resting"]))
+    return DialogueAppraisal.model_validate(
         await structured_completion(
             config,
             client,
             history,
             context,
             DIALOGUE_RULES,
-            DialogueAppraisal.model_json_schema(),
-            tokens=config.planning_max_tokens,
+            schema,
+            tokens=config.language_max_tokens,
             thinking=config.llm_thinking,
             include_history=True,
         )
     )
+
+
+async def plan_performance(config, client, history, context):
+    appraisal = await appraise_dialogue(config, client, history, context)
+    return await compile_performance(config, client, history, context, appraisal)
+
+
+async def compile_performance(config, client, history, context, appraisal):
     operation = appraisal.embodiment.operation
     if operation == "stop" and (context.get("body_program") or {}).get(
         "status"
@@ -177,7 +204,14 @@ async def plan_performance(config, client, history, context):
     schema["$defs"].update(definitions)
     schema["properties"]["operation"] = {"const": "replace", "type": "string"}
     schema["properties"]["actions"]["minItems"] = 1
-    schema["required"] = list(dict.fromkeys([*schema["required"], "actions"]))
+    schema["properties"]["ending"] = {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 320,
+        "pattern": "^[ -~]+$",
+        "description": BodyPlan.model_fields["ending"].description,
+    }
+    schema["required"] = list(dict.fromkeys([*schema["required"], "actions", "ending"]))
     value = await structured_completion(
         config,
         client,

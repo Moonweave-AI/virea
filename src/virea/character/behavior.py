@@ -56,27 +56,35 @@ async def choose_window(config, client, *, program, elapsed, body, speech, previ
     actions = remaining_actions(program, elapsed)
     available = ["hold"]
     if actions and config.spatial_url:
-        available.append("ardy")
+        available = ["ardy"]
     if speech.available:
         available.append("sentiavatar")
     schema = WindowChoice.model_json_schema()
     schema["properties"]["owner"]["enum"] = available
     schema["properties"]["seconds"]["maximum"] = config.behavior_horizon_seconds
-    value = await structured_completion(
-        config,
-        client,
-        [{"role": "user", "content": "规划下一个执行时段。"}],
+    value = (
         {
-            "remaining_activity": actions,
-            "executed_seconds": elapsed,
-            "body": body.model_dump(exclude={"pose", "history"}),
-            "speech": speech.model_dump(),
-            "previous_owner": previous,
-            "horizon_seconds": config.behavior_horizon_seconds,
-        },
-        WINDOW_RULES,
-        schema,
-        tokens=config.planning_max_tokens,
+            "owner": available[0],
+            "seconds": config.behavior_horizon_seconds,
+            "reason": "当前只有一个可执行的身体通道",
+        }
+        if len(available) == 1
+        else await structured_completion(
+            config,
+            client,
+            [{"role": "user", "content": "规划下一个执行时段。"}],
+            {
+                "remaining_activity": actions,
+                "executed_seconds": elapsed,
+                "body": body.model_dump(exclude={"pose", "history"}),
+                "speech": speech.model_dump(),
+                "previous_owner": previous,
+                "horizon_seconds": config.behavior_horizon_seconds,
+            },
+            WINDOW_RULES,
+            schema,
+            tokens=config.planning_max_tokens,
+        )
     )
     choice = WindowChoice.model_validate(value)
     if choice.owner not in available:

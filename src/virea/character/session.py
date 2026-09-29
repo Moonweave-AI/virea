@@ -102,7 +102,11 @@ class CharacterSession:
             "motion_plan": self.motion_plan,
             "body_program": self.body_program,
             "behavior_timeline": [
-                {k: v for k, v in slot.items() if k not in {"windows", "forecast", "actions"}}
+                {
+                    k: v
+                    for k, v in slot.items()
+                    if k not in {"windows", "forecast", "actions"}
+                }
                 for slot in self.behavior_slots.values()
             ][-12:],
             "latest_expression": self.latest_expression,
@@ -308,6 +312,9 @@ class CharacterSession:
     async def _run(self, trigger: str, epoch: int) -> None:
         started = monotonic()
         try:
+            if hasattr(self.language, "appraise"):
+                await self._run_temporal(trigger, epoch, started)
+                return
             if hasattr(self.language, "plan"):
                 plan = await self.language.plan(
                     list(self.history), self._context(trigger)
@@ -316,7 +323,9 @@ class CharacterSession:
                     "engine": "temporal",
                     "reason": plan.intent,
                     "spoken_request": plan.spoken_content,
-                    "reply_plan": plan.reply_plan.model_dump() if plan.reply_plan else None,
+                    "reply_plan": plan.reply_plan.model_dump()
+                    if plan.reply_plan
+                    else None,
                 }
                 if plan.body.operation == "replace":
                     self.motion_plan = self._actions(plan.body.actions)
@@ -324,6 +333,7 @@ class CharacterSession:
                         "id": uuid4().hex,
                         "actions": self.motion_plan,
                         "end_state": plan.body.end_state,
+                        "ending": plan.body.ending,
                         "start_with_reply": plan.body.start_with_reply,
                         "status": "ready",
                         "elapsed": 0,
@@ -449,6 +459,78 @@ class CharacterSession:
         except Exception as exc:
             self.status = "error"
             self.record("error", message=f"{type(exc).__name__}: {exc}")
+
+    async def _run_temporal(self, trigger, epoch, started):
+        history, context = list(self.history), self._context(trigger)
+        appraisal = await self.language.appraise(history, context)
+        reply = appraisal.reply if appraisal.speech == "speak" else None
+        self.route = {
+            "engine": "temporal",
+            "reason": appraisal.understanding,
+            "spoken_request": reply.goal if reply else None,
+            "reply_plan": reply.model_dump() if reply else None,
+        }
+
+        async def body():
+            try:
+                plan = await self.language.compile(history, context, appraisal)
+                if epoch != self.epoch:
+                    return
+                if plan.body.operation == "replace":
+                    self.motion_plan = self._actions(plan.body.actions)
+                    self.body_program = {
+                        "id": uuid4().hex,
+                        "actions": self.motion_plan,
+                        "ending": plan.body.ending,
+                        "end_state": plan.body.end_state,
+                        "start_with_reply": False,
+                        "status": "ready",
+                        "elapsed": 0,
+                    }
+                elif plan.body.operation == "stop" and self.body_program:
+                    self.body_program["elapsed"] = sum(
+                        a.get("duration_seconds") or 4.8
+                        for a in self.body_program["actions"]
+                    )
+                    self.body_program["status"] = "settling"
+                    self.body_program["id"] = uuid4().hex
+                self.record("performance_planned", plan=plan.model_dump())
+            except Exception as exc:
+                # Body planning cannot cancel an already accepted verbal reply.
+                self.record("body_error", message=f"{type(exc).__name__}: {exc}")
+
+        async def speech():
+            if reply:
+                await ExpressionStream(self, epoch, started).run(trigger)
+
+        tasks = [asyncio.create_task(body()), asyncio.create_task(speech())]
+        try:
+            await asyncio.gather(*tasks)
+            program = self.body_program
+            resting = getattr(appraisal, "resting", None)
+            if (
+                reply
+                and resting
+                and self.config.spatial_url
+                and (not program or program["status"] == "completed")
+            ):
+                self.body_program = {
+                    "id": uuid4().hex,
+                    "continuation_of": program["id"] if program else None,
+                    "actions": [],
+                    "ending": resting,
+                    "end_state": "relaxed",
+                    "start_with_reply": False,
+                    "status": "settling",
+                    "elapsed": 0,
+                }
+            self.status = "waiting"
+            self.record("response_finished", interrupted=False)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _prepare_speech(
         self, epoch, text, intent, actions, started, reasoning_seconds

@@ -246,7 +246,7 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   const program = session?.body_program;
   const recorded = kind !== "audio" && program && stage.motionRecording().length;
   const packet = recorded ? { ...latest, id: program.id, epoch: session!.epoch, actions: program.actions, spatial_windows: stage.motionRecording(),
-    end_state: program.end_state, text: latest?.text ?? "", audio_url: latest?.audio_url ?? null,
+    end_state: "hold" as const, text: latest?.text ?? "", audio_url: latest?.audio_url ?? null,
     audio_seconds: latest?.audio_seconds ?? 0, motion: latest?.motion ?? null } : latest;
   if (!packet || playing || stage.bodyRunning || previewing || mutating) return;
   previewing = true;
@@ -356,7 +356,7 @@ async function poll(): Promise<void> {
           });
           const fastEnough = value.pending && value.metrics.motion_seconds !== null
             && value.metrics.motion_seconds < value.pending.audio_seconds * 0.7;
-          const bufferedStart = !value.pending?.stream_id || !value.pending.continues || fastEnough || (value.ready?.length ?? 0) >= 2;
+          const bufferedStart = value.pending?.independent_speech || !value.pending?.stream_id || !value.pending.continues || fastEnough || (value.ready?.length ?? 0) >= 2;
           if (value.pending && !playing && !handled.has(value.pending.id) && bufferedStart) void play(value.pending, id);
         }
       } catch (error) {

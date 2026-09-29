@@ -7,8 +7,15 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import Field
 
-from virea.character.behavior import BehaviorRequest, choose_window, motion_forecast
+from virea.character.behavior import (
+    BehaviorRequest,
+    WindowChoice,
+    choose_window,
+    motion_forecast,
+    remaining_actions,
+)
 from virea.character.contracts import BodyState, Contract
+from virea.character.settlement import terminal_measurement
 
 router = APIRouter()
 
@@ -80,15 +87,59 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             if previous and previous["program_id"] == program_id
             else (program or {}).get("elapsed", 0)
         )
-        choice, actions = await choose_window(
-            current.config,
-            request.app.state.characters.client,
-            program=program,
-            elapsed=elapsed,
-            body=body.body,
-            speech=body.speech,
-            previous=previous["owner"] if previous else None,
+        settling = bool(
+            program
+            and program.get("ending")
+            and not remaining_actions(program, elapsed)
+            and program.get("status") not in {"completed", "failed", "interrupted"}
         )
+        settled_seconds = (
+            previous.get("settled_seconds", 0)
+            if previous and previous["program_id"] == program_id
+            else (program or {}).get("settled_seconds", 0)
+        )
+        if settling:
+            policy = current.config.settlement
+            if settled_seconds >= policy.max_seconds:
+                program["status"] = "failed"
+                current.record("body_error", message="收势未达到支撑和速度要求")
+                raise HTTPException(422, "收势尚未达到支撑和速度要求，请重新规划动作")
+            seconds = min(policy.window_seconds, policy.max_seconds - settled_seconds)
+            actions = [
+                dict(
+                    kind="perform",
+                    description=program["ending"],
+                    label="自然收势",
+                    duration_seconds=seconds,
+                )
+            ]
+            choice = WindowChoice(
+                owner="ardy", seconds=seconds, reason="完成整项活动并建立稳定支撑"
+            )
+        else:
+            choice, actions = await choose_window(
+                current.config,
+                request.app.state.characters.client,
+                program=program,
+                elapsed=elapsed,
+                body=body.body,
+                speech=body.speech,
+                previous=previous["owner"] if previous else None,
+            )
+            # A predicted airborne boundary is not a safe place to hand off or freeze.
+            if (
+                actions
+                and previous
+                and previous.get("support", {}).get("supported") is False
+            ):
+                choice = WindowChoice(
+                    owner="ardy",
+                    seconds=min(
+                        current.config.behavior_horizon_seconds,
+                        sum(a["duration_seconds"] for a in actions),
+                    ),
+                    reason="延续当前动作直至恢复支撑",
+                )
         if (
             current.body_program is not program
             or current.epoch != epoch
@@ -106,7 +157,10 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             speech_available=body.speech.available,
             phase_index=len((program or {}).get("actions", [])) - len(actions),
             activity_start=elapsed,
-            activity_end=elapsed + (choice.seconds if choice.owner == "ardy" else 0),
+            activity_end=elapsed
+            + (choice.seconds if choice.owner == "ardy" and not settling else 0),
+            settling=settling,
+            settled_seconds=settled_seconds + (choice.seconds if settling else 0),
             actions=actions,
             status="planned",
         )
@@ -132,7 +186,11 @@ async def realize_behavior(
     current = current_session(request, session_id)
     slot = slot_for(current, slot_id)
     if slot["status"] == "ready" and slot.get("windows"):
-        return {"windows": slot["windows"], "seconds": slot["seconds"]}
+        return {
+            "windows": slot["windows"],
+            "seconds": slot["seconds"],
+            "slot": reservation_view(slot),
+        }
     if slot["status"] != "planned" or slot["owner"] != "ardy":
         raise HTTPException(409, "slot is not an unclaimed ARDY reservation")
     slot["status"] = "generating"
@@ -179,10 +237,18 @@ async def realize_behavior(
                 raise ValueError("ARDY stream ended without completion")
         slot_for(current, slot_id)
         slot["forecast"] = motion_forecast(windows, initial).model_dump()
+        slot["support"] = terminal_measurement(
+            windows, initial.position.y, current.config.settlement
+        )
+        slot["terminal"] = bool(slot.get("settling") and slot["support"]["settled"])
         slot["status"] = "ready"
         slot["windows"] = windows
         slot["generation_seconds"] = monotonic() - started
-        return {"windows": windows, "seconds": slot["seconds"]}
+        return {
+            "windows": windows,
+            "seconds": slot["seconds"],
+            "slot": reservation_view(slot),
+        }
     except HTTPException:
         slot["status"] = "interrupted"
         raise
@@ -240,13 +306,22 @@ async def behavior_feedback(
         current.body_program
         and slot["program_id"] == current.body_program["id"]
         and body.status == "completed"
+        and slot["owner"] == "ardy"
+        and current.body_program["status"] != "failed"
     ):
         current.body_program["elapsed"] = slot["activity_end"]
+        current.body_program["settled_seconds"] = slot.get("settled_seconds", 0)
         duration = sum(
             a.get("duration_seconds") or 4.8 for a in current.body_program["actions"]
         )
+        ended = slot["activity_end"] >= duration - 1e-5
         current.body_program["status"] = (
-            "completed" if slot["activity_end"] >= duration - 1e-5 else "playing"
+            "completed"
+            if slot.get("terminal")
+            or (ended and not current.body_program.get("ending"))
+            else "settling"
+            if ended
+            else "playing"
         )
     current.record(
         "behavior_feedback", slot_id=slot_id, owner=slot["owner"], status=body.status

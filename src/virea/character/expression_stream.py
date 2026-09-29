@@ -25,6 +25,7 @@ class ExpressionStream:
         self.decision = None
         self.files = set()
         self.planned = decision
+        self.motion_jobs = asyncio.Queue(maxsize=3)
 
     async def _updates(self, trigger):
         if self.planned is not None:
@@ -77,6 +78,9 @@ class ExpressionStream:
 
     async def motion(self):
         session = self.session
+        if (session.route or {}).get("engine") == "temporal":
+            await self.publish_speech()
+            return
         unit = await self.audio.get()
         previous, offset, sequence = None, 0.0, 0
         while unit is not None:
@@ -92,8 +96,12 @@ class ExpressionStream:
                     unit["text"] or unit["caption"],
                     unit["decision"].motion_intent,
                     session.avatar_id,
-                    motion_prefix=previous["motion"].get("motion_tail") if previous else None,
-                    planner_history=previous["motion"].get("planner_history") if previous else None,
+                    motion_prefix=previous["motion"].get("motion_tail")
+                    if previous
+                    else None,
+                    planner_history=previous["motion"].get("planner_history")
+                    if previous
+                    else None,
                 )
             elapsed = monotonic() - started
             session.metrics["motion_seconds"] = elapsed
@@ -129,6 +137,88 @@ class ExpressionStream:
             unit = await self.audio.get()
         await self.published.put(None)
 
+    async def publish_speech(self):
+        """Audio/text are authoritative; optional body results attach at their timestamp."""
+        session = self.session
+        previous, offset, sequence = None, 0.0, 0
+        while (unit := await self.audio.get()) is not None:
+            await self.capacity.acquire()
+            packet = session._packet(
+                self.epoch, unit["text"], [], (unit["audio"], unit["seconds"]), None
+            )
+            packet.update(
+                stream_id=self.id,
+                sequence=sequence,
+                offset_seconds=offset,
+                caption=unit["caption"],
+                continues=unit["continues"],
+                parent_id=previous,
+                motion_status="pending",
+                independent_speech=True,
+            )
+            self.files.add(packet["id"])
+            if session.metrics["first_expression_seconds"] is None:
+                session.metrics["first_expression_seconds"] = monotonic() - self.started
+            await self.published.put((packet, session._publish(packet)))
+            if self.motion_jobs.full():
+                skipped, _ = self.motion_jobs.get_nowait()
+                skipped["motion_status"] = "expired"
+            self.motion_jobs.put_nowait((packet, unit))
+            previous = packet["id"]
+            offset += unit["seconds"]
+            sequence += 1
+        await self.published.put(None)
+
+    async def generate_motion(self):
+        session = self.session
+        previous = None
+        while True:
+            packet, unit = await self.motion_jobs.get()
+            if packet["id"] not in session.ready:
+                packet["motion_status"] = "expired"
+                previous = None
+                continue
+            prior = (
+                previous if previous and previous["id"] == packet["parent_id"] else None
+            )
+            started = monotonic()
+            try:
+                async with session.generation_slot:
+                    motion = await session.motion.generate(
+                        unit["audio"],
+                        unit["text"] or unit["caption"],
+                        unit["decision"].motion_intent,
+                        session.avatar_id,
+                        motion_prefix=prior["motion"].get("motion_tail")
+                        if prior
+                        else None,
+                        planner_history=prior["motion"].get("planner_history")
+                        if prior
+                        else None,
+                    )
+                packet["motion"] = motion
+                packet["motion_status"] = (
+                    "ready" if packet["id"] in session.ready else "expired"
+                )
+                elapsed = monotonic() - started
+                session.metrics["motion_seconds"] = elapsed
+                session.metrics["generation_seconds"] += elapsed
+                session.metrics["generated_seconds"] += unit["seconds"]
+                session.metrics["rtf"] = (
+                    session.metrics["generation_seconds"]
+                    / session.metrics["generated_seconds"]
+                )
+                session.record(
+                    "motion_ready",
+                    packet_id=packet["id"],
+                    status=packet["motion_status"],
+                )
+                previous = packet
+            except Exception as exc:
+                packet["motion_status"] = "failed"
+                previous = None
+                session.record("motion_error", packet_id=packet["id"], message=str(exc))
+
     async def playback(self):
         while (item := await self.published.get()) is not None:
             packet, future = item
@@ -142,6 +232,7 @@ class ExpressionStream:
             self.capacity.release()
 
     async def run(self, trigger):
+        optional_motion = asyncio.create_task(self.generate_motion())
         tasks = [
             asyncio.create_task(stage)
             for stage in (
@@ -155,6 +246,8 @@ class ExpressionStream:
             await asyncio.gather(*tasks)
             return self.decision
         finally:
+            optional_motion.cancel()
+            await asyncio.gather(optional_motion, return_exceptions=True)
             for task in tasks:
                 if not task.done():
                     task.cancel()

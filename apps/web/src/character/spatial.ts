@@ -4,6 +4,7 @@ import type { BodyState, Expression, SceneAction } from "./contracts";
 import { RotationBridge } from "./continuity";
 import { contactIK } from "./interaction";
 import { samplePosition, sampleRotation } from "./motion_sampling";
+import { GroundSupport } from "./support";
 
 export interface SpatialWindow {
   sequence: number; offset: number; seconds: number; fps: number;
@@ -40,8 +41,9 @@ export class SpatialPlayer {
   readonly joints = new Map<string, THREE.Vector3>();
   private readonly vrm: VRM;
   private readonly clock: () => number;
+  private readonly support: GroundSupport;
 
-  constructor(vrm: VRM, clock: () => number) { this.vrm = vrm; this.clock = clock; }
+  constructor(vrm: VRM, clock: () => number) { this.vrm = vrm; this.clock = clock; this.support = new GroundSupport(vrm); }
 
   stop(): void {
     this.abort?.abort(); this.abort = null; this.active = this.holding = false;
@@ -198,6 +200,7 @@ export class SpatialPlayer {
     for (const [name, rows] of Object.entries(window.joints ?? {})) {
       this.joints.set(name, samplePosition(rows, cursor, this.previous?.joints?.[name], next?.joints?.[name]));
     }
+    this.support.align(this.joints);
     if (window.phase_kind === "reach" && window.target) {
       const target = new THREE.Vector3(window.target.x, window.target.y, window.target.z);
       const hand = this.vrm.humanoid.getNormalizedBoneNode("rightHand");

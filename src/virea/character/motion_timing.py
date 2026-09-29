@@ -1,11 +1,20 @@
-"""Fit an explicit whole-program duration to the native eight-frame grid."""
+"""Fit semantic phase durations to native motion frame grids."""
 
 import math
 
 
 def fit_program_duration(actions, seconds: float | None):
     """Apportion a model-parsed total budget; natural-language intent is not regex."""
-    if seconds is None or not actions:
+    if not actions:
+        return
+    if seconds is None:
+        # Every phase must fit the same native frame grid as reservations. A
+        # fractional tail otherwise survives forever in the semantic clock.
+        for action in actions:
+            duration = action.get("duration_seconds") or 4.8
+            action["duration_seconds"] = round(
+                math.ceil(duration / 0.2 - 1e-9) * 0.2, 3
+            )
         return
     if not 0.8 <= seconds <= 180:
         raise ValueError("单次动作程序时长须在 0.8 至 180 秒内")

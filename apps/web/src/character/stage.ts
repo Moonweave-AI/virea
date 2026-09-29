@@ -28,6 +28,7 @@ export class CharacterStage {
   private idle: RelaxedIdle | null = null;
   private readonly waveform = new Float32Array(256);
   private prepared = new Map<string, ReturnType<CharacterStage["prepare"]>>();
+  private expressionUpdates = new Map<string, Expression>();
   private poseHistory = new Map<THREE.Object3D, { q: THREE.Quaternion; velocity: THREE.Vector3 }>();
   private rest: PoseSample | null = null;
   private authority: BodyAuthority | null = null;
@@ -171,8 +172,8 @@ export class CharacterStage {
       if (epoch !== this.epoch || this.disposed) { VRMUtils.deepDispose(vrm.scene); return; }
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
-      this.spatial = new SpatialPlayer(vrm, () => this.audibleTime());
       this.idle = new RelaxedIdle(vrm, pose.rotations);
+      this.spatial = new SpatialPlayer(vrm, () => this.audibleTime());
       this.rest = this.poseSample();
       this.authority = new BodyAuthority(vrm);
       this.observations = [];
@@ -236,15 +237,18 @@ export class CharacterStage {
       this.bodyId = id;
       this.activityElapsed = program?.elapsed ?? 0;
     }
-    if (id && id !== this.recordingId) { this.recordingId = id; this.bodyRecording = []; }
-    const needed = () => Boolean(this.source) || Boolean(this.activity && ["ready", "playing"].includes(this.activity.status)
-      && this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) - 1e-5);
+    if (id && id !== this.recordingId) {
+      if (program?.continuation_of !== this.recordingId) this.bodyRecording = [];
+      this.recordingId = id;
+    }
+    const needed = () => Boolean(this.source) || Boolean(this.activity && ["ready", "playing", "settling"].includes(this.activity.status)
+      && (Boolean(this.activity.ending) || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) - 1e-5));
     if (this.behavior?.running || !needed() || this.disposed) return;
     const player = this.behavior = new BehaviorPlayer({
       state: () => this.state(), hipHeight: () => this.hipHeight, needed,
       canStart: slot => slot.program_id !== this.activity?.id || !this.activity?.start_with_reply
         || slot.activity_start > 0 || Boolean(this.source),
-      speech: () => ({ available: Boolean(this.source), text: this.speechInfo.text,
+      speech: () => ({ available: Boolean(this.source) && this.authority!.speechReady, text: this.speechInfo.text,
         remaining_seconds: Math.max(0, this.speechInfo.end - this.audibleTime()) }),
       report: slot => {
         this.canvas.dataset.behaviorSlot = slot.id;
@@ -252,31 +256,36 @@ export class CharacterStage {
         this.canvas.dataset.bodyProgram = slot.program_id ?? "";
       },
       play: async ({ slot, windows }, current) => {
-        const total = this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) ?? slot.seconds;
+        const total = slot.settling ? slot.seconds : this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 4.8), 0) ?? slot.seconds;
         const progress = (elapsed: number) => {
-          this.canvas.dataset.bodyStatus = slot.owner === "ardy" ? "playing" : "idle";
-          this.canvas.dataset.bodyElapsed = (slot.activity_start + (slot.owner === "ardy" ? elapsed : 0)).toFixed(3);
+          this.canvas.dataset.bodyStatus = slot.settling ? "settling" : slot.owner === "ardy" ? "playing" : "idle";
+          this.canvas.dataset.bodyElapsed = ((slot.settling ? 0 : slot.activity_start) + (slot.owner === "ardy" ? elapsed : 0)).toFixed(3);
           this.canvas.dataset.bodyDuration = total.toFixed(3);
-          if (!this.source) onProgress({ elapsed: slot.activity_start + elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
+          if (!this.source && slot.owner === "ardy") onProgress({ elapsed: (slot.settling ? 0 : slot.activity_start) + elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
         };
         if (windows) {
           await this.spatial!.run({ id: slot.id, epoch: this.epoch, text: "", audio_url: null, audio_seconds: 0,
             motion: null, actions: [], spatial_windows: windows, temporal: true, end_state: "hold" }, this.state(), this.hipHeight, progress);
           if (current() && slot.program_id === this.recordingId) {
+            const offset = this.bodyRecording.reduce((sum, window) => sum + window.seconds, 0);
+            const total = offset + windows.reduce((sum, window) => sum + window.seconds, 0);
             for (const window of windows) this.bodyRecording.push({ ...window, sequence: this.bodyRecording.length,
-              offset: slot.activity_start + window.offset, phase_offset: slot.activity_start + (window.phase_offset ?? 0), total_seconds: slot.activity_end });
-            for (const window of this.bodyRecording) window.total_seconds = slot.activity_end;
+              offset: offset + window.offset, phase_offset: offset + (window.phase_offset ?? 0), total_seconds: total });
+            for (const window of this.bodyRecording) window.total_seconds = total;
           }
         } else {
           this.spatial?.stop();
           const start = this.audibleTime();
           while (current() && this.audibleTime() - start < slot.seconds) {
-            if (slot.owner === "hold" && Boolean(this.source) !== slot.speech_available) break;
+            if (slot.owner === "hold" && (Boolean(this.source) && this.authority!.speechReady) !== slot.speech_available) break;
             progress(this.audibleTime() - start);
             await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           }
         }
-        if (slot.program_id === this.activity?.id) this.activityElapsed = slot.activity_end;
+        if (slot.program_id === this.activity?.id) {
+          this.activityElapsed = slot.activity_end;
+          if (slot.terminal) this.activity!.status = "completed";
+        }
       },
     });
     void player.run(sessionId).catch(error => {
@@ -304,6 +313,8 @@ export class CharacterStage {
   }
 
   preload(packet: Expression): ReturnType<CharacterStage["prepare"]> {
+    this.expressionUpdates.set(packet.id, packet);
+    while (this.expressionUpdates.size > 6) this.expressionUpdates.delete(this.expressionUpdates.keys().next().value!);
     const key = this.resourceKey(packet);
     let value = this.prepared.get(key);
     if (!value) {
@@ -324,33 +335,39 @@ export class CharacterStage {
     if (!this.vrm || !this.authority) throw new Error("请先载入 VRM");
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
-    const [gltf, audio, face] = await this.preload(packet);
+    let [gltf, audio, face] = await this.preload(packet.independent_speech && !packet.preview ? { ...packet, motion: null } : packet);
+    this.expressionUpdates.set(packet.id, packet);
     if (!current()) throw new DOMException("Interrupted", "AbortError");
     this.previewSpeech = Boolean(packet.preview && gltf);
     if (audio && this.audio.state !== "running") throw new Error("音频暂停，请点击继续声音后重试");
     const manager = this.vrm.expressionManager;
-    const native = face?.arkit;
-    const faceTrack = native && native.names.filter(name => manager?.getExpression(name)).length >= 40
-      ? { ...face!, names: native.names, values: native.values } : face;
-    const heldFace = new Map(faceTrack?.names.map(name => [name, manager?.getValue(name) ?? 0]) ?? []);
+    let faceTrack = face;
+    let heldFace = new Map<string, number>();
     let duration = audio?.duration ?? 0, motionScale = 1;
-    if (gltf) {
+    const attach = () => {
+      const native = face?.arkit;
+      faceTrack = native && native.names.filter(name => manager?.getExpression(name)).length >= 40
+        ? { ...face!, names: native.names, values: native.values } : face;
+      heldFace = new Map(faceTrack?.names.map(name => [name, manager?.getValue(name) ?? 0]) ?? []);
+      if (!gltf) return;
       const animation = gltf.userData.vrmAnimations?.[0];
       if (!animation) throw new Error("动作资源缺少 VRMA 动画");
-      const hips = this.vrm.humanoid.getNormalizedBoneNode("hips")!;
-      const clip = anchorClip(createVRMAnimationClip(animation, this.vrm), hips);
+      const hips = this.vrm!.humanoid.getNormalizedBoneNode("hips")!;
+      const clip = anchorClip(createVRMAnimationClip(animation, this.vrm!), hips);
       assertFiniteClip(clip);
       duration = audio?.duration ?? clip.duration;
       motionScale = duration > 0 ? clip.duration / duration : 1;
-      this.authority.beginSpeech();
-      this.authority.capture(() => {
+      this.authority!.beginSpeech();
+      this.authority!.capture(() => {
         this.mixer?.stopAllAction(); this.mixer?.uncacheRoot(this.vrm!.scene);
         this.mixer = new THREE.AnimationMixer(this.vrm!.scene);
         this.action = this.mixer.clipAction(clip);
         this.action.setLoop(THREE.LoopOnce, 1); this.action.clampWhenFinished = true; this.action.play();
         sampleClip(this.mixer, this.action, 0);
       });
-    }
+    };
+    attach();
+    let attaching = false;
     let start = this.audio.currentTime + .04;
     if (audio && packet.stream_id) {
       const scheduled = this.timeline.begin(packet, audio);
@@ -365,7 +382,8 @@ export class CharacterStage {
     onStart();
     this.speechInfo = { text: packet.caption ?? packet.text, end: start + duration };
     // Replay packets may carry a program. Live behavior reservations have their own lifetime.
-    if (packet.actions.length) this.sceneActions = this.executeActions(packet, current, (elapsed, total) => {
+    const hasBody = Boolean(packet.actions.length || packet.spatial_windows?.length);
+    if (hasBody) this.sceneActions = this.executeActions(packet, current, (elapsed, total) => {
       if (!audio) onProgress({ elapsed, audioDuration: 0, motionDuration: total, paused: this.audio.state !== "running" });
     });
     const actions = this.sceneActions; void actions.catch(() => {});
@@ -389,12 +407,21 @@ export class CharacterStage {
     try {
       while (current() && this.audibleTime() - start < duration + release) {
         const elapsed = Math.max(0, this.audibleTime() - start);
+        const update = this.expressionUpdates.get(packet.id);
+        if (!gltf && update?.motion && !attaching && elapsed < duration) {
+          attaching = true;
+          void this.preload(update).then(([loaded, , track]) => {
+            if (!current() || this.audibleTime() >= start + duration) return;
+            gltf = loaded; face = track; attach();
+            // The next sample uses the elapsed audio time, never restarts the gesture.
+          }).catch(() => { /* Optional motion failure does not interrupt speech. */ });
+        }
         sample(elapsed);
         onProgress({ elapsed, audioDuration: audio?.duration ?? 0, motionDuration: duration, paused: this.audio.state !== "running" });
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
       if (current()) sample(duration + release);
-      if (packet.actions.length && !packet.continues) await actions;
+      if (hasBody && !packet.continues) await actions;
       if (!current()) throw new DOMException("Interrupted", "AbortError");
       return { audio_seconds: audio?.duration ?? 0, motion_seconds: duration };
     } finally {
@@ -455,7 +482,7 @@ export class CharacterStage {
         this.gazePoint = sceneDestination(action.position);
       }
     }
-    if (packet.actions.some(action => !["look_at", "stop"].includes(action.kind))) {
+    if (packet.spatial_windows?.length || packet.actions.some(action => !["look_at", "stop"].includes(action.kind))) {
       if (!this.vrm || !current()) return;
         this.idle?.stop();
         let duration = 0;
@@ -516,6 +543,8 @@ export class CharacterStage {
         this.canvas.dataset.bodyPosition = JSON.stringify(observation.position);
         this.canvas.dataset.speechActive = String(Boolean(this.source));
         this.canvas.dataset.mouthValue = String(this.vrm.expressionManager?.getValue("aa") ?? 0);
+        this.canvas.dataset.groundClearance = String(this.authority?.groundClearance ?? "");
+        this.canvas.dataset.pelvisHeight = String(observation.pelvis_height ?? "");
       }
       if (dt > 0 && this.audio.state === "running") for (const name of Object.keys(this.vrm.humanoid.humanBones)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);

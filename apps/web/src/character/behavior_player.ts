@@ -7,6 +7,7 @@ export interface BehaviorSlot {
   owner: BodyOwner; seconds: number; reason: string;
   activity_start: number; activity_end: number;
   speech_available: boolean;
+  settling?: boolean; terminal?: boolean;
 }
 type Prepared = { slot: BehaviorSlot; windows?: SpatialWindow[] };
 interface BehaviorPort {
@@ -51,10 +52,11 @@ export class BehaviorPlayer {
     }) });
     const realize = async (value: Prepared): Promise<Prepared> => {
       if (value.slot.owner === "ardy" && !value.windows) {
-        const result = await request<{ windows: SpatialWindow[] }>(`/${value.slot.id}/motion`, {
+        const result = await request<{ windows: SpatialWindow[]; slot?: BehaviorSlot }>(`/${value.slot.id}/motion`, {
           body: this.port.state(), hip_height: this.port.hipHeight(),
         });
         value.windows = result.windows;
+        if (result.slot) value.slot = result.slot;
       }
       return value;
     };
@@ -82,7 +84,8 @@ export class BehaviorPlayer {
         this.port.report(executing.slot);
         const playback = this.port.play(executing, current);
         // Preplan while the current model executes. Only a matching ARDY forecast is realized early.
-        const upcoming = plan(executing.slot.id).then(v => executing.slot.owner === "ardy" ? realize(v) : v);
+        const upcoming = executing.slot.terminal ? Promise.resolve(null)
+          : plan(executing.slot.id).then(v => executing.slot.owner === "ardy" ? realize(v) : v);
         const prepared = upcoming.then(v => ({ value: v, error: null }), error => ({ value: null, error }));
         await playback;
         const next = await prepared;

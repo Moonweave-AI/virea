@@ -8,7 +8,7 @@ export interface BodyState {
   behavior: string;
   history?: Omit<BodyState, "history" | "gaze_target" | "behavior">[];
 }
-export interface BodyProgram { id: string; actions: SceneAction[]; elapsed?: number; start_with_reply?: boolean; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "completed" | "failed" | "interrupted" }
+export interface BodyProgram { id: string; continuation_of?: string | null; actions: SceneAction[]; elapsed?: number; ending?: string | null; start_with_reply?: boolean; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "settling" | "completed" | "failed" | "interrupted" }
 export interface SceneAction {
   kind: "look_at" | "move_to" | "reach" | "sit" | "stand" | "perform" | "stop";
   target_id: string | null;
@@ -31,6 +31,7 @@ export interface Expression {
   audio_url: string | null;
   audio_seconds: number;
   motion: { vrma_url: string; result_id: string } | null;
+  independent_speech?: boolean;
   /** Internal windows continue on one clock; only the final window retracts. */
   continues?: boolean;
   stream_id?: string;

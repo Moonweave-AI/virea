@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { RotationBridge, rotationVector } from "./continuity";
+import { GroundSupport } from "./support";
 
 export type BodyOwner = "ardy" | "sentiavatar" | "hold";
 type Pose = Map<string, { q: THREE.Quaternion; p: THREE.Vector3 }>;
@@ -12,7 +13,7 @@ export class BodyAuthority {
   private last: Pose;
   private velocity = new Map<string, THREE.Vector3>();
   private bridges = new Map<string, RotationBridge>();
-  private hipOffset = new THREE.Vector3();
+  private support: GroundSupport;
   private positionError = new THREE.Vector3();
   private key = "hold";
   private clip = 0;
@@ -20,6 +21,7 @@ export class BodyAuthority {
   owner: BodyOwner = "hold";
 
   constructor(vrm: VRM) {
+    this.support = new GroundSupport(vrm);
     for (const name of Object.keys(vrm.humanoid.humanBones)) {
       const bone = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
       if (bone) this.bones.set(name, bone);
@@ -34,6 +36,8 @@ export class BodyAuthority {
     for (const [name, value] of pose) { const b = this.bones.get(name)!; b.quaternion.copy(value.q); b.position.copy(value.p); }
   }
   beginSpeech(): void { this.clip++; }
+  get speechReady(): boolean { return this.speech !== null; }
+  get groundClearance(): number | null { return this.support.clearance(); }
   release(): void { this.speech = null; }
   capture(sample: () => void): void {
     const held = this.snapshot();
@@ -47,18 +51,17 @@ export class BodyAuthority {
     this.restore(this.last);
     if (owner === "ardy") sampleArdy();
     if (owner === "sentiavatar") this.restore(this.speech!);
+    if (owner === "sentiavatar") this.support.align();
     const key = owner === "sentiavatar" ? `${owner}:${this.clip}` : owner;
     const hips = this.bones.get("hips");
     if (key !== this.key) {
       this.bridges.clear(); this.elapsed = 0;
-      if (owner === "sentiavatar" && hips) this.hipOffset.copy(this.last.get("hips")!.p).sub(hips.position);
       for (const [name, b] of this.bones)
         this.bridges.set(name, new RotationBridge(this.last.get(name)!.q, b.quaternion, this.velocity.get(name)));
       if (hips) this.positionError.copy(this.last.get("hips")!.p).sub(hips.position);
       this.key = key;
     }
-    if (owner === "sentiavatar" && hips) hips.position.add(this.hipOffset);
-    if (owner === "ardy" && hips) {
+    if (owner !== "hold" && hips) {
       const t = THREE.MathUtils.clamp(this.elapsed / .4, 0, 1);
       hips.position.addScaledVector(this.positionError, 2 * t ** 3 - 3 * t ** 2 + 1);
     }

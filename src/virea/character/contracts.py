@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .settlement import SettlementPolicy
+
 
 class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
@@ -135,6 +137,7 @@ class SessionRequest(Contract):
 
 
 class CharacterConfig(Contract):
+    settlement: SettlementPolicy = Field(default_factory=SettlementPolicy)
     llm_api: Literal["openai", "ollama"] = "openai"
     llm_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "Qwen3.5-2B"
