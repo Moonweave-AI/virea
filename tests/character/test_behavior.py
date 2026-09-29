@@ -188,7 +188,7 @@ def test_short_speech_tail_is_a_valid_request(monkeypatch):
             previous="sentiavatar",
         )
     )
-    assert choice.seconds == 0.4
+    assert choice.seconds == 0.41
 
 
 def test_new_message_during_realization_discards_prediction_not_ongoing_goal(

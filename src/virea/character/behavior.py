@@ -13,6 +13,8 @@ class SpeechAvailability(Contract):
     available: bool = False
     text: str = Field(default="", max_length=8192)
     remaining_seconds: float = Field(default=0, ge=0, le=600)
+    packet_id: str | None = None
+    stream_id: str | None = None
 
 
 class BehaviorRequest(Contract):
@@ -58,7 +60,7 @@ async def choose_window(config, client, *, program, elapsed, body, speech, previ
     if actions and config.spatial_url:
         available = ["ardy"]
     if speech.available:
-        available.append("sentiavatar")
+        available = [owner for owner in available if owner != "hold"] + ["sentiavatar"]
     schema = WindowChoice.model_json_schema()
     schema["properties"]["owner"]["enum"] = available
     schema["properties"]["seconds"]["maximum"] = config.behavior_horizon_seconds
@@ -92,6 +94,12 @@ async def choose_window(config, client, *, program, elapsed, body, speech, previ
     seconds = min(choice.seconds, config.behavior_horizon_seconds)
     if choice.owner == "ardy":
         seconds = min(seconds, sum(a["duration_seconds"] for a in actions))
+        if (program or {}).get("scope") == "response" and speech.available:
+            seconds = min(seconds, max(0.2, speech.remaining_seconds))
+    if choice.owner == "sentiavatar":
+        seconds = min(seconds, speech.remaining_seconds)
+        choice.seconds = max(0.001, seconds)
+        return choice, actions
     # ARDY's motion tokenizer consumes patches of four frames at 20 Hz.
     choice.seconds = max(0.2, math.floor(seconds / 0.2 + 1e-6) * 0.2)
     return choice, actions

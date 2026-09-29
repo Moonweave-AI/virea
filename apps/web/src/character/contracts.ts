@@ -8,7 +8,7 @@ export interface BodyState {
   behavior: string;
   history?: Omit<BodyState, "history" | "gaze_target" | "behavior">[];
 }
-export interface BodyProgram { id: string; continuation_of?: string | null; actions: SceneAction[]; elapsed?: number; ending?: string | null; start_with_reply?: boolean; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "settling" | "completed" | "failed" | "interrupted" }
+export interface BodyProgram { id: string; continuation_of?: string | null; actions: SceneAction[]; elapsed?: number; ending?: string | null; start_with_reply?: boolean; scope?: "response" | "activity"; finish_requested?: boolean; origin_epoch?: number; goal?: string; duration_source?: string | null; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "settling" | "completed" | "failed" | "interrupted" }
 export interface SceneAction {
   kind: "look_at" | "move_to" | "reach" | "sit" | "stand" | "perform" | "stop";
   target_id: string | null;
@@ -32,6 +32,7 @@ export interface Expression {
   audio_seconds: number;
   motion: { vrma_url: string; result_id: string } | null;
   independent_speech?: boolean;
+  motion_status?: string;
   /** Internal windows continue on one clock; only the final window retracts. */
   continues?: boolean;
   stream_id?: string;
@@ -60,10 +61,10 @@ export interface Session {
   draft_text: string;
   route?: Expression["route"];
   body_program?: BodyProgram | null;
-  behavior_timeline?: { id: string; owner: string; seconds: number; status: string; reason: string }[];
+  behavior_timeline?: { id: string; owner: string; seconds: number; status: string; reason: string; [key: string]: unknown }[];
   motion_plan?: SceneAction[];
   playback_mode: "voice_first" | "synchronized";
-  events: { sequence: number; kind: string; message?: string; text?: string;
+  events: { sequence: number; kind: string; message?: string; text?: string; epoch?: number; at_seconds?: number; [key: string]: unknown;
     interrupted?: boolean; feedback?: { status: string } }[];
   history: { role: string; content: string }[];
   metrics: { first_expression_seconds: number | null; rtf: number | null;

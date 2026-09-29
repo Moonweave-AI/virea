@@ -50,7 +50,8 @@ class CharacterSession:
         self.targets = {}
         self.environment = ""
         self.history: deque[dict] = deque(maxlen=24)
-        self.events: deque[dict] = deque(maxlen=64)
+        self.events: deque[dict] = deque(maxlen=512)
+        self.created_at = monotonic()
         self.epoch = 0
         self.revision = 0
         self.status = "waiting"
@@ -80,7 +81,15 @@ class CharacterSession:
 
     def record(self, kind: str, **data) -> None:
         self.revision += 1
-        self.events.append({"sequence": self.revision, "kind": kind, **data})
+        self.events.append(
+            {
+                "sequence": self.revision,
+                "kind": kind,
+                "epoch": self.epoch,
+                "at_seconds": round(monotonic() - self.created_at, 3),
+                **data,
+            }
+        )
 
     def snapshot(self) -> dict:
         return {
@@ -108,7 +117,7 @@ class CharacterSession:
                     if k not in {"windows", "forecast", "actions"}
                 }
                 for slot in self.behavior_slots.values()
-            ][-12:],
+            ][-128:],
             "latest_expression": self.latest_expression,
             "capabilities": CAPABILITIES,
             "spatial_available": bool(self.config.spatial_url),
@@ -470,6 +479,31 @@ class CharacterSession:
             "spoken_request": reply.goal if reply else None,
             "reply_plan": reply.model_dump() if reply else None,
         }
+        speech_finished = not reply
+        self.record(
+            "dialogue_appraised",
+            appraisal=appraisal.model_dump()
+            if hasattr(appraisal, "model_dump")
+            else self.route,
+        )
+
+        def finish_response_body():
+            program = self.body_program
+            if (
+                not program
+                or program.get("origin_epoch") != epoch
+                or program.get("scope") != "response"
+            ):
+                return
+            if program["status"] in {"completed", "failed", "interrupted", "settling"}:
+                return
+            program["status"] = "settling"
+            program["finish_requested"] = True
+            self.record(
+                "body_release_requested",
+                program_id=program["id"],
+                reason="本次语音回应已结束",
+            )
 
         async def body():
             try:
@@ -483,10 +517,16 @@ class CharacterSession:
                         "actions": self.motion_plan,
                         "ending": plan.body.ending,
                         "end_state": plan.body.end_state,
-                        "start_with_reply": False,
+                        "start_with_reply": plan.body.start_with_reply,
+                        "scope": plan.body.scope,
+                        "origin_epoch": epoch,
+                        "goal": appraisal.embodiment.goal,
+                        "duration_source": appraisal.embodiment.duration_evidence,
                         "status": "ready",
                         "elapsed": 0,
                     }
+                    if speech_finished:
+                        finish_response_body()
                 elif plan.body.operation == "stop" and self.body_program:
                     self.body_program["elapsed"] = sum(
                         a.get("duration_seconds") or 4.8
@@ -500,8 +540,11 @@ class CharacterSession:
                 self.record("body_error", message=f"{type(exc).__name__}: {exc}")
 
         async def speech():
+            nonlocal speech_finished
             if reply:
                 await ExpressionStream(self, epoch, started).run(trigger)
+                speech_finished = True
+                finish_response_body()
 
         tasks = [asyncio.create_task(body()), asyncio.create_task(speech())]
         try:
@@ -521,6 +564,8 @@ class CharacterSession:
                     "ending": resting,
                     "end_state": "relaxed",
                     "start_with_reply": False,
+                    "scope": "response",
+                    "origin_epoch": epoch,
                     "status": "settling",
                     "elapsed": 0,
                 }

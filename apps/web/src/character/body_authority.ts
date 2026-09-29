@@ -10,6 +10,8 @@ type Pose = Map<string, { q: THREE.Quaternion; p: THREE.Vector3 }>;
 export class BodyAuthority {
   private bones = new Map<string, THREE.Object3D>();
   private speech: Pose | null = null;
+  private speechBasis: Pose | null = null;
+  private ardy: Pose | null = null;
   private last: Pose;
   private velocity = new Map<string, THREE.Vector3>();
   private bridges = new Map<string, RotationBridge>();
@@ -35,13 +37,14 @@ export class BodyAuthority {
   private restore(pose: Pose): void {
     for (const [name, value] of pose) { const b = this.bones.get(name)!; b.quaternion.copy(value.q); b.position.copy(value.p); }
   }
-  beginSpeech(): void { this.clip++; }
+  beginSpeech(): void { this.clip++; this.speechBasis = this.snapshot(); }
   get speechReady(): boolean { return this.speech !== null; }
   get groundClearance(): number | null { return this.support.clearance(); }
   release(): void { this.speech = null; }
   capture(sample: () => void): void {
     const held = this.snapshot();
-    try { sample(); this.speech = this.snapshot(); }
+    this.speechBasis ??= held;
+    try { this.restore(this.speechBasis); sample(); this.speech = this.snapshot(); }
     finally { this.restore(held); }
   }
 
@@ -49,7 +52,12 @@ export class BodyAuthority {
     const owner = requested === "ardy" && ardyReady ? "ardy"
       : requested === "sentiavatar" && this.speech ? "sentiavatar" : "hold";
     this.restore(this.last);
-    if (owner === "ardy") sampleArdy();
+    if (owner === "ardy") {
+      // Source sampling must never inherit the last rendered correction. Sparse
+      // tracks otherwise integrate that error repeatedly (notably head/fingers).
+      if (this.owner !== "ardy" || !this.ardy) this.ardy = this.snapshot();
+      this.restore(this.ardy); sampleArdy(); this.ardy = this.snapshot();
+    }
     if (owner === "sentiavatar") this.restore(this.speech!);
     if (owner === "sentiavatar") this.support.align();
     const key = owner === "sentiavatar" ? `${owner}:${this.clip}` : owner;

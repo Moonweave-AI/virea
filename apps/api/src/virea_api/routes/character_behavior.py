@@ -30,6 +30,7 @@ def current_session(request, session_id):
 def slot_for(current, slot_id):
     slot = current.behavior_slots.get(slot_id)
     program_id = (current.body_program or {}).get("id")
+    released = bool((current.body_program or {}).get("finish_requested"))
     if (
         not slot
         or (
@@ -37,6 +38,13 @@ def slot_for(current, slot_id):
             and slot["status"] not in {"playing", "completed"}
         )
         or current.status == "closed"
+        or (
+            released
+            and slot
+            and slot["program_id"] == program_id
+            and not slot.get("settling")
+            and slot["status"] not in {"playing", "completed"}
+        )
         or (
             slot["epoch"] != current.epoch
             and slot["status"] not in {"playing", "completed"}
@@ -77,6 +85,7 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 and s["program_id"] == program_id
                 and s["status"] in {"planned", "generating", "ready"}
                 and s["epoch"] == current.epoch
+                and (not (program or {}).get("finish_requested") or s.get("settling"))
             ),
             None,
         )
@@ -90,7 +99,10 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
         settling = bool(
             program
             and program.get("ending")
-            and not remaining_actions(program, elapsed)
+            and (
+                program.get("finish_requested")
+                or not remaining_actions(program, elapsed)
+            )
             and program.get("status") not in {"completed", "failed", "interrupted"}
         )
         settled_seconds = (
@@ -155,6 +167,8 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             seconds=choice.seconds,
             reason=choice.reason,
             speech_available=body.speech.available,
+            speech_packet_id=body.speech.packet_id,
+            speech_stream_id=body.speech.stream_id,
             phase_index=len((program or {}).get("actions", [])) - len(actions),
             activity_start=elapsed,
             activity_end=elapsed
@@ -244,6 +258,15 @@ async def realize_behavior(
         slot["status"] = "ready"
         slot["windows"] = windows
         slot["generation_seconds"] = monotonic() - started
+        current.record(
+            "behavior_ready",
+            slot_id=slot_id,
+            owner=slot["owner"],
+            generation_seconds=slot["generation_seconds"],
+            support=slot["support"],
+            terminal=slot["terminal"],
+            prompts=list(dict.fromkeys(w.get("prompt", "") for w in windows)),
+        )
         return {
             "windows": windows,
             "seconds": slot["seconds"],
@@ -314,7 +337,9 @@ async def behavior_feedback(
         duration = sum(
             a.get("duration_seconds") or 4.8 for a in current.body_program["actions"]
         )
-        ended = slot["activity_end"] >= duration - 1e-5
+        ended = slot["activity_end"] >= duration - 1e-5 or current.body_program.get(
+            "finish_requested", False
+        )
         current.body_program["status"] = (
             "completed"
             if slot.get("terminal")

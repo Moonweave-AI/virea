@@ -1,4 +1,4 @@
-import type { BodyState } from "./contracts";
+import type { BodyProgram, BodyState } from "./contracts";
 import type { BodyOwner } from "./body_authority";
 import type { SpatialWindow } from "./spatial";
 
@@ -7,12 +7,19 @@ export interface BehaviorSlot {
   owner: BodyOwner; seconds: number; reason: string;
   activity_start: number; activity_end: number;
   speech_available: boolean;
+  speech_packet_id?: string | null;
   settling?: boolean; terminal?: boolean;
 }
 type Prepared = { slot: BehaviorSlot; windows?: SpatialWindow[] };
+
+/** A waiting lease must yield as soon as its task is replaced or released. */
+export function reservationMatches(slot: BehaviorSlot, program: BodyProgram | null): boolean {
+  return slot.program_id === (program?.id ?? null) && (!program?.finish_requested || Boolean(slot.settling));
+}
+
 interface BehaviorPort {
   state(): BodyState;
-  speech(): { available: boolean; text: string; remaining_seconds: number };
+  speech(): { available: boolean; text: string; remaining_seconds: number; packet_id?: string | null; stream_id?: string | null };
   hipHeight(): number;
   needed(): boolean;
   canStart(slot: BehaviorSlot): boolean;
@@ -84,8 +91,8 @@ export class BehaviorPlayer {
         this.port.report(executing.slot);
         const playback = this.port.play(executing, current);
         // Preplan while the current model executes. Only a matching ARDY forecast is realized early.
-        const upcoming = executing.slot.terminal ? Promise.resolve(null)
-          : plan(executing.slot.id).then(v => executing.slot.owner === "ardy" ? realize(v) : v);
+        const upcoming = executing.slot.terminal || executing.slot.owner !== "ardy" ? Promise.resolve(null)
+          : plan(executing.slot.id).then(realize);
         const prepared = upcoming.then(v => ({ value: v, error: null }), error => ({ value: null, error }));
         await playback;
         const next = await prepared;

@@ -167,3 +167,15 @@ input::file-selector-button { border: 1px solid #dfe4ed; background: white; bord
   #subtitle { left: 14px; right: 14px; bottom: 41%; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+.current-driver { font-size: 10px; color: #566c8b; margin: 5px 0 10px; line-height: 1.5; }
+.trace-drawer { position: fixed; z-index: 24; top: 70px; bottom: 16px; left: 72px; width: min(410px, calc(100vw - 90px)); padding: 20px; box-sizing: border-box; background: #fcfdffed; backdrop-filter: blur(16px); border: 1px solid #e1e6ef; border-radius: 20px; box-shadow: 0 14px 55px #17223b1a; display: flex; flex-direction: column; gap: 10px; }
+.trace-drawer[hidden] { display: none; }
+.trace-live { font-size: 11px; line-height: 1.8; white-space: pre-line; background: #edf2f8; border-radius: 12px; padding: 12px; }
+.trace-scroll { min-height: 0; overflow: auto; scrollbar-width: thin; }
+.trace-scroll > details { border-top: 1px solid #e5e9ef; }
+.trace-scroll summary { font-size: 11px; cursor: pointer; padding: 9px 0; }
+.trace-scroll details details { border-left: 2px solid #dce5f0; padding-left: 9px; margin: 4px 0; }
+.trace-scroll p, .trace-scroll pre { font-size: 10px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.trace-scroll pre { background: #f0f3f7; padding: 8px; border-radius: 6px; max-height: 280px; overflow: auto; }
+.trace-scroll [data-kind$='error'] { color: #a83c46; }
+@media (max-width: 640px) { .trace-drawer { left: 56px; top: 58px; width: calc(100vw - 66px); bottom: 10px; } }

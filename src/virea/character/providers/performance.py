@@ -18,6 +18,7 @@ class BodyPlan(Contract):
     actions: list[SceneAction] = Field(default_factory=list, max_length=12)
     total_duration_seconds: float | None = Field(default=None, gt=0, le=180)
     start_with_reply: bool = False
+    scope: Literal["response", "activity"] = "response"
     ending: str | None = Field(
         default=None,
         max_length=320,
@@ -47,6 +48,21 @@ class PerformancePlan(Contract):
 
 
 class EmbodiedCommitment(Contract):
+    scope: Literal["response", "activity"] = Field(
+        default="response",
+        description="response 是随本次口头回应结束的表达；activity 是有独立完成目标的任务，例如走到目的地或完成指定表演。一般说话姿态属于 response。",
+    )
+    duration_seconds: float | None = Field(
+        default=None,
+        gt=0,
+        le=180,
+        description="只有用户明确要求时长时填写总秒数；未指定为 null。",
+    )
+    duration_evidence: str | None = Field(
+        default=None,
+        max_length=160,
+        description="指定时长的用户原文片段；与 duration_seconds 成对，无明确时长时为 null。",
+    )
     operation: Literal["keep", "replace", "stop"] = Field(
         description="keep 保留现有身体任务；replace 采纳新的身体任务；stop 终止正在执行的身体任务。发言结束不等于身体任务停止。",
     )
@@ -110,6 +126,17 @@ total_duration_seconds 是用户指定的整个任务时长。end_state 只作�
 
 async def appraise_dialogue(config, client, history, context):
     schema = DialogueAppraisal.model_json_schema()
+    commitment = schema["$defs"]["EmbodiedCommitment"]
+    commitment["required"] = list(
+        dict.fromkeys(
+            [
+                *commitment["required"],
+                "scope",
+                "duration_seconds",
+                "duration_evidence",
+            ]
+        )
+    )
     schema["properties"]["resting"] = {
         "type": "string",
         "minLength": 1,
@@ -142,7 +169,7 @@ async def compile_performance(config, client, history, context, appraisal):
     operation = appraisal.embodiment.operation
     if operation == "stop" and (context.get("body_program") or {}).get(
         "status"
-    ) not in {"ready", "playing"}:
+    ) not in {"ready", "playing", "settling"}:
         operation = "keep"
     reply = appraisal.reply if appraisal.speech == "speak" else None
     spoken_content = reply.goal if reply else None
@@ -154,6 +181,13 @@ async def compile_performance(config, client, history, context, appraisal):
             reply_plan=reply,
         )
     schema = BodyPlan.model_json_schema()
+    explicit_seconds = appraisal.embodiment.duration_seconds
+    evidence = appraisal.embodiment.duration_evidence
+    user_text = next(
+        (m["content"] for m in reversed(history) if m["role"] == "user"), ""
+    )
+    if explicit_seconds is not None and (not evidence or evidence not in user_text):
+        raise ValueError("动作时长缺少对应的用户原文依据")
     definitions = decision_schema(
         list(context.get("targets", {})), explicit_positions(history)
     )["$defs"]
@@ -190,6 +224,12 @@ async def compile_performance(config, client, history, context, appraisal):
             "maxLength": 320,
             "pattern": "^[ -~]+$",
             "description": "The motion maintained after entry has already happened. English present-progressive caption for every subsequent window, separate from the entry and exit.",
+        }
+        variant["properties"]["duration_seconds"] = {
+            "type": "number",
+            "minimum": 0.8,
+            "maximum": explicit_seconds or config.behavior_horizon_seconds,
+            "description": "This phase's finite execution budget; not a persistent mood or personality duration.",
         }
         variant["required"] = list(
             dict.fromkeys(
@@ -233,7 +273,15 @@ async def compile_performance(config, client, history, context, appraisal):
     plan.body.start_with_reply = (
         bool(reply) and appraisal.embodiment.coordination == "with_reply"
     )
+    plan.body.scope = appraisal.embodiment.scope if reply else "activity"
+    plan.body.total_duration_seconds = explicit_seconds
     actions = [a.model_dump() for a in plan.body.actions]
+    if explicit_seconds is None:
+        for action in actions:
+            action["duration_seconds"] = min(
+                action.get("duration_seconds") or config.behavior_horizon_seconds,
+                config.behavior_horizon_seconds,
+            )
     problem = motion_plan_problem(actions, context)
     if problem:
         raise ValueError(problem)

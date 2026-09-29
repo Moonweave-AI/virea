@@ -2,6 +2,7 @@ import "./style.css";
 import { studioShell } from "./ui/shell";
 import { StudioHistory, downloadJSON } from "./ui/history";
 import { StudioPreferences } from "./ui/preferences";
+import { StudioDiagnostics } from "./ui/diagnostics";
 import { CharacterStage } from "./stage";
 import type { Expression, Session, PlaybackProgress } from "./contracts";
 
@@ -12,6 +13,7 @@ function element<T extends HTMLElement>(selector: string): T { return root.query
 const stage = new CharacterStage(element("canvas"));
 const history = new StudioHistory(root);
 const preferences = new StudioPreferences(root, showError);
+const diagnostics = new StudioDiagnostics(root);
 let session: Session | null = null;
 let playing: string | null = null;
 let handled = new Set<string>();
@@ -34,13 +36,17 @@ class RequestError extends Error {
 
 function showProgress(value: PlaybackProgress): void {
   const dataset = element<HTMLCanvasElement>("canvas").dataset;
-  const bodyPlaying = dataset.bodyStatus === "playing";
+  const bodyPlaying = !previewing && ["playing", "settling"].includes(dataset.bodyStatus ?? "");
   const bodyElapsed = bodyPlaying ? Number(dataset.bodyElapsed ?? 0) : value.elapsed;
   const bodyDuration = bodyPlaying ? Number(dataset.bodyDuration ?? 0) : value.motionDuration;
   const duration = Math.max(value.audioDuration, bodyDuration);
   const timeline = element<HTMLProgressElement>("#timeline-progress");
   timeline.max = Math.max(duration, 0.001); timeline.value = Math.min(bodyPlaying ? bodyElapsed : value.elapsed, duration);
   element("#timeline-state").textContent = `${value.paused ? "已暂停 · " : ""}${timeline.value.toFixed(2)} / ${duration.toFixed(2)} 秒`;
+  if (!previewing) {
+    const recorded = stage.diagnostics().recording;
+    element("#timeline-state").textContent = `${value.paused ? "已暂停 · " : ""}本轮已播放 ${recorded.duration_seconds.toFixed(1)} 秒`;
+  }
   if (value.elapsed >= value.audioDuration) element("#subtitle").textContent = "";
   for (const [name, duration] of [["audio", value.audioDuration], ["motion", bodyDuration]] as const) {
     const elapsed = Math.min(name === "motion" ? bodyElapsed : value.elapsed, duration);
@@ -76,6 +82,8 @@ function showError(error: unknown): void {
 }
 
 function renderState(value: Session): void {
+  stage.track(value);
+  diagnostics.update(value, stage.diagnostics());
   root.dataset.sessionId = value.id;
   const labels: Record<string, string> = { routing: "理解对话", waiting: "就绪", thinking: "规划中", synthesizing: "合成语音", generating: "生成动作", awaiting_playback: "播放中", error: "需要处理", closed: "已结束" };
   element("#status").textContent = previewing ? "动作预览" : labels[value.status] ?? value.status;
@@ -100,12 +108,12 @@ function renderState(value: Session): void {
   element("#text-state").textContent = value.route?.engine === "ardy"
     ? value.motion_plan?.length ? "动作序列" : "正在编排" : value.draft_text ? "实时回复" : "尚未生成";
   const idle = !playing && !stage.bodyRunning && !previewing && ["waiting", "error"].includes(value.status);
-  element<HTMLButtonElement>("#pause").disabled = !playing && !stage.bodyRunning;
+  element<HTMLButtonElement>("#pause").disabled = !playing && !stage.bodyRunning && !previewing;
   const latest = value.latest_expression;
-  element<HTMLButtonElement>("#replay-audio").disabled = !idle || !latest?.audio_url;
-  element<HTMLButtonElement>("#replay-motion").disabled = !idle || (!latest?.motion && !stage.motionRecording().length);
+  element<HTMLButtonElement>("#replay-audio").disabled = !idle || !stage.recordedAudio;
+  element<HTMLButtonElement>("#replay-motion").disabled = !idle || !stage.replayAvailable;
   element<HTMLButtonElement>("#export-motion").disabled = !idle || !stage.motionRecording().length;
-  element<HTMLButtonElement>("#replay-sync").disabled = !idle || !latest?.motion || !latest?.audio_url;
+  element<HTMLButtonElement>("#replay-sync").disabled = !idle || !stage.replayAvailable || !stage.recordedAudio;
   if (!playing && !previewing) {
     element("#motion-state").textContent = value.status === "generating" ? "动作生成中…" : latest?.motion || stage.motionRecording().length ? "动作已就绪 · 可重播" : "保留当前姿态";
     if (value.status === "synthesizing") element("#audio-state").textContent = "合成语音中…";
@@ -242,13 +250,7 @@ element("#pause").onclick = async () => {
 element<HTMLInputElement>("#volume").oninput = event => stage.setVolume(Number((event.target as HTMLInputElement).value));
 
 async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> {
-  const latest = session?.latest_expression;
-  const program = session?.body_program;
-  const recorded = kind !== "audio" && program && stage.motionRecording().length;
-  const packet = recorded ? { ...latest, id: program.id, epoch: session!.epoch, actions: program.actions, spatial_windows: stage.motionRecording(),
-    end_state: "hold" as const, text: latest?.text ?? "", audio_url: latest?.audio_url ?? null,
-    audio_seconds: latest?.audio_seconds ?? 0, motion: latest?.motion ?? null } : latest;
-  if (!packet || playing || stage.bodyRunning || previewing || mutating) return;
+  if (!stage.replayAvailable || playing || stage.bodyRunning || previewing || mutating) return;
   previewing = true;
   const generation = ++playbackGeneration;
   stage.stop();
@@ -256,10 +258,8 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   element("#playback-note").textContent = kind === "audio" ? "正在单独重播语音。" : kind === "motion" ? "正在单独预览动作（无声音）。" : "正在同步重播语音、动作与字幕。";
   try {
     await stage.unlockAudio();
-    await stage.perform({ ...packet, preview: true, actions: recorded ? packet.actions : [], audio_url: kind === "motion" ? null : packet.audio_url,
-      motion: kind === "audio" ? null : packet.motion }, () => {
-        element("#subtitle").textContent = kind === "motion" ? "" : packet.text;
-      }, showProgress);
+    await stage.replay(kind, text => { element("#subtitle").textContent = text; }, showProgress);
+    if (generation === playbackGeneration) element("#playback-note").textContent = "回放结束。";
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) showError(error);
   } finally {

@@ -15,6 +15,7 @@ export const studioShell = `
   <nav class="rail" aria-label="工作室导航">
     <a class="brand" href="./" aria-label="VIREA 首页">v<span>.</span></a>
     <button id="history-toggle" class="icon-button" aria-label="打开历史记录" aria-expanded="false" title="历史记录">${icon("panel")}</button>
+    <button id="trace-toggle" class="icon-button" aria-label="打开执行链" aria-expanded="false" title="执行链与诊断">${icon("body")}</button>
     <button id="new-session" class="icon-button" aria-label="新建会话" title="新建会话">${icon("plus")}</button>
     <button id="settings-toggle" class="icon-button rail-bottom" aria-label="角色与设置" title="角色与设置">${icon("settings")}</button>
   </nav>
@@ -39,6 +40,7 @@ export const studioShell = `
           <section id="route-card" class="route-card" hidden><span id="route-model"></span><span id="route-reason"></span></section>
           <ol id="motion-plan" class="motion-plan" aria-label="动作序列"></ol>
           <section class="expression-panel" aria-label="语音、动作与文本">
+            <p id="current-driver" class="current-driver" role="status">等待行为</p>
             <div class="track timeline"><strong id="active-phase">播放时间轴</strong><span id="timeline-state">等待生成</span><button id="pause" disabled>暂停</button><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
             <details class="playback-tools"><summary>播放与导出</summary><div class="settings-content">
               <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
@@ -63,6 +65,17 @@ export const studioShell = `
     <div id="session-list" class="session-list"></div>
     <div class="history-heading"><strong id="history-title">当前会话</strong><button id="export-history" class="quiet">导出</button></div>
     <div id="conversation" role="log" aria-label="对话与执行记录"></div>
+  </section>
+  <section id="trace-drawer" class="trace-drawer" aria-label="执行链与诊断" hidden>
+    <div class="drawer-heading"><div><span class="eyebrow">EXECUTION TRACE</span><h2>执行链与诊断</h2></div><button id="trace-close" class="icon-button" aria-label="关闭执行链">${icon("close")}</button></div>
+    <p class="hint">对话理解 → 行为承诺 → 模型生成 → 实际播放 → 收势。展开条目可检查提示词、来源 ID、时间和失败原因。</p>
+    <output id="trace-live" class="trace-live">尚无执行记录</output>
+    <button id="trace-export" class="quiet">导出诊断 JSON</button><p id="trace-range" class="hint"></p>
+    <div class="trace-scroll">
+      <details open><summary>实际播放 · 音频时钟</summary><div id="trace-playback"></div></details>
+      <details open><summary>身体时段 · 预订与执行</summary><div id="trace-slots"></div></details>
+      <details open><summary>执行事件链 · 会话相对时间</summary><div id="trace-events"></div></details>
+    </div>
   </section>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><div><span class="eyebrow">WORKSPACE SETTINGS</span><h2 id="settings-title">角色与设置</h2></div><button id="settings-close" class="icon-button" aria-label="关闭设置">${icon("close")}</button></div>
