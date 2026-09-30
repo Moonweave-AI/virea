@@ -12,7 +12,7 @@ from ..decision_schema import decision_schema
 from ..executors import available_executors, executable_seconds, executor_context
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration, planned_duration
-from .plan_review import adopt_spoken_units, review_interaction
+from .plan_review import review_interaction, reviewed_appraisal
 from .recovery import RecoveryPlan
 from .routing import ReplyPlan, motion_plan_problem, structured_completion
 
@@ -100,6 +100,11 @@ class PerformancePlan(Contract):
 
 
 class ActivityIntent(Contract):
+    completion: str = Field(
+        default="",
+        max_length=320,
+        description="本项任务完成时可观察到的身体结果。描述实际完成了什么活动，而非愿意尝试、表达期待或准备开始。",
+    )
     start: SpeechAnchor = Field(default_factory=SpeechAnchor)
     target_ids: list[str] = Field(
         default_factory=list,
@@ -108,7 +113,7 @@ class ActivityIntent(Contract):
     goal: str = Field(
         min_length=1,
         max_length=320,
-        description="角色采纳的身体目标和期望变化，可用当前对话语言表述。一个持续活动对应一个目标；目标改变时才列出另一个。模型输入的翻译、阶段划分和最终恢复由实现层完成。",
+        description="为达成 completion 持续执行的身体活动。以完整活动为单位，发言伴随的表情手势属于 reply.motion_intent，起始姿态来自现场，最终恢复由实现层处理。",
     )
 
 
@@ -159,6 +164,7 @@ class EmbodiedCommitment(Contract):
 
 
 class DialogueAppraisal(Contract):
+    objective_review: dict | None = None
     timing_rationale: str | None = None
     expression_executor: str | None = Field(
         default=None,
@@ -201,7 +207,8 @@ PERFORMANCE_RULES = """你是身体实现规划层。结合已采纳目标、对
 每个 phase 将目标来源 objectives、起始依赖 start、执行器 executor 和动作输入 action 绑定为一个整体。目标可以跨阶段延续，也可以合并为连续阶段。
 objective_start_conditions 和 requested_communication 是已采纳的联合时序；本层在这些依赖内组织运动阶段。
 executor 来自现场能力目录，action 提供选定执行器的英文运动描述、阶段时长及必要的场景目标。
-continuation_description 表达运动已开始后的延续，transition_description 表达阶段末尾的变化。推理窗口和音频分片是传输边界，不产生新的行为目标。
+description 是本阶段持续使用的简短运动描述，用一句话表达当前任务必要的身体运动细节，如实际步法、重心或肢体变化。选择哪些细节由你判断，无需罗列全身；风格和情绪用于修饰运动，不能独自代替运动内容。模型从实际身体历史自然进入该运动，推理窗口和音频分片不产生新的行为目标。阶段划分对应运动条件的改变，准备发言和发言后的等待不占运动阶段。
+objective_outcomes 是活动完成的验收条件；phase 描述达成它的运动过程，recovery 描述有需要的最终恢复。完成后的状态不是整段运动的条件。
 recovery 描述整项活动结束时适合当下的恢复分配；任务本身已经到达所需终态时可保持其终态。
 语音内容在独立对话通道实现。输出契约表达计划与能力，不提供特定请求的预设动作或模型映射。
 """
@@ -226,7 +233,7 @@ async def appraise_dialogue(config, client, history, context):
     }
     schema["$defs"]["SpeechBeat"]["required"] = ["start", "motion_intent", "text"]
     activity = schema["$defs"]["ActivityIntent"]
-    activity["required"] = ["start", "target_ids", "goal"]
+    activity["required"] = ["completion", "start", "target_ids", "goal"]
     targets = list(context.get("targets", {}))
     activity["properties"]["target_ids"].update(
         items=dict(type="string", **({"enum": targets} if targets else {})),
@@ -282,7 +289,7 @@ async def appraise_dialogue(config, client, history, context):
             history,
             context,
             (
-                "你是交互计划修订器。Scene.invalid_appraisal 是尚未执行的候选 JSON，校验器给出了具体错误。修订这份对象以消除错误，保留用户意图、已有的合法正文和身体目标，并一致更新相关的事件引用。此时不是重新演绎角色或从头写回复。\n校验反馈："
+                "你是交互计划修订器。Scene.invalid_appraisal 是尚未执行的候选 JSON，校验器给出了具体错误。修订这份对象以消除错误，保留用户意图和有效正文，补足实际未达成的任务，并一致更新相关的事件引用。此时不是重新演绎角色或从头写回复。\n校验反馈："
                 + context["validation_error"]
                 if attempt
                 else DIALOGUE_RULES
@@ -312,16 +319,17 @@ async def appraise_dialogue(config, client, history, context):
                 raise ValueError(
                     "duration_evidence must quote the user's explicit duration"
                 )
-            if isinstance(appraisal.reply, CommunicationPlan):
-                review = await review_interaction(
-                    config, client, history, context, appraisal
+            if isinstance(appraisal.reply, CommunicationPlan) or (
+                appraisal.speech == "silent" and appraisal.embodiment.activities
+            ):
+                appraisal = await reviewed_appraisal(
+                    config,
+                    client,
+                    history,
+                    context,
+                    appraisal,
+                    reviewer=review_interaction,
                 )
-                if review.problems:
-                    raise ValueError(
-                        "Interaction review: " + "; ".join(review.problems)
-                    )
-                adopt_spoken_units(appraisal, review)
-                appraisal.timing_rationale = review.execution_summary
             check_appraisal(appraisal, context.get("body_program"))
             return appraisal
         except ValueError as error:
@@ -363,6 +371,8 @@ async def compile_performance(config, client, history, context, appraisal):
     anchors = [a.start for a in appraisal.embodiment.activities] or [
         appraisal.embodiment.start
     ]
+    reviewed_objectives = appraisal.objective_review is not None
+    inherit_timing = isinstance(reply, CommunicationPlan) or reviewed_objectives
     explicit_seconds = appraisal.embodiment.duration_seconds
     evidence = appraisal.embodiment.duration_evidence
     user_text = next(
@@ -409,24 +419,17 @@ async def compile_performance(config, client, history, context, appraisal):
                     "description",
                     "label",
                     "duration_seconds",
-                    "transition_description",
-                    "continuation_description",
                 )
             }
         )
+        for name in ("transition_description", "continuation_description"):
+            variant["properties"].pop(name, None)
         variant["properties"]["description"] = {
             "type": "string",
             "minLength": 1,
             "maxLength": 320,
             "pattern": "^[ -~]+$",
-            "description": "A time-local English caption of movement already underway, in present progressive. This conditions every window of the phase; it describes the maintained activity, not its entrance or ending.",
-        }
-        variant["properties"]["continuation_description"] = {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 320,
-            "pattern": "^[ -~]+$",
-            "description": "The motion maintained after entry has already happened. English present-progressive caption for every subsequent window, separate from the entry and exit.",
+            "description": "One short English sentence describing the ongoing motion and its most relevant observable body mechanics. Choose the details needed for this activity, rather than enumerating every joint. The same caption conditions every window; preparation, completion and generic style alone do not describe the ongoing motion.",
         }
         variant["properties"]["duration_seconds"] = {
             "type": "number",
@@ -440,7 +443,6 @@ async def compile_performance(config, client, history, context, appraisal):
                     *variant["required"],
                     "description",
                     "duration_seconds",
-                    "continuation_description",
                 ]
             )
         )
@@ -449,7 +451,7 @@ async def compile_performance(config, client, history, context, appraisal):
     # dialogue lifetime and global timing are supplied by the appraisal layer.
     engines = available_executors(config, context)
     phase_schema = schema["$defs"]["RealizationPhase"]["properties"]
-    if isinstance(reply, CommunicationPlan):
+    if inherit_timing:
         phase_schema.pop("start")
         schema["$defs"]["RealizationPhase"]["required"].remove("start")
     phase_schema["executor"] = {"enum": list(engines)}
@@ -460,6 +462,14 @@ async def compile_performance(config, client, history, context, appraisal):
     phase_schema["objectives"]["description"] = (
         "Zero-based adopted objective indices realized by this phase. Objectives can continue across phases or be combined; cover every adopted objective."
     )
+    if reviewed_objectives:
+        # Intent review owns the semantic timeline. Realization translates its
+        # activities; it cannot insert a second preparation/recovery timeline.
+        schema["properties"]["phases"].update(minItems=len(goals), maxItems=len(goals))
+        phase_schema["objectives"].update(minItems=1, maxItems=1)
+        phase_schema["objectives"]["description"] = (
+            "The single reviewed activity index being realized, in original execution order. Each activity is one persistent motion condition; final recovery is separate."
+        )
     # Each phase is atomic: its dependency, executor and input cannot have
     # different list lengths. The same principle applies to terminal recovery.
     recovery_engines = [
@@ -474,12 +484,13 @@ async def compile_performance(config, client, history, context, appraisal):
     motion_context = {
         **{k: context[k] for k in ("body", "environment") if k in context},
         "adopted_objectives": goals,
+        "objective_outcomes": [a.completion for a in appraisal.embodiment.activities],
         "objective_targets": [a.target_ids for a in appraisal.embodiment.activities],
         "targets": targets,
         "affordances": {key: affordances[key] for key in targets if key in affordances},
         "objective_start_conditions": [a.model_dump() for a in anchors],
         "coordination": appraisal.embodiment.coordination,
-        "overall_body_goal": appraisal.embodiment.goal,
+        "overall_body_goal": "；".join(goals),
         "requested_communication": {
             "utterances": [dict(start=u.start.model_dump()) for u in reply.utterances]
         }
@@ -501,10 +512,15 @@ async def compile_performance(config, client, history, context, appraisal):
             thinking=config.llm_thinking,
         )
         try:
-            if isinstance(reply, CommunicationPlan):
+            if inherit_timing:
                 for phase in value["phases"]:
                     phase["start"] = SpeechAnchor().model_dump()
             realization = RealizationPlan.model_validate(value)
+            # One semantic phase has one persistent text condition. A transport
+            # window boundary does not introduce a second, often terminal goal.
+            for phase in realization.phases:
+                phase.action.continuation_description = phase.action.description
+                phase.action.transition_description = None
             ending = realization.recovery
             body_plan = BodyPlan(
                 operation=operation,
@@ -518,6 +534,10 @@ async def compile_performance(config, client, history, context, appraisal):
                 end_state=realization.end_state,
             )
             groups = body_plan.objective_groups
+            if reviewed_objectives and groups != [[i] for i in range(len(goals))]:
+                raise ValueError(
+                    "Realization must translate each reviewed activity once, in order"
+                )
             covered = [i for group in groups for i in group]
             if sorted(set(covered)) != list(range(len(goals))):
                 raise ValueError(
@@ -541,7 +561,7 @@ async def compile_performance(config, client, history, context, appraisal):
                     raise ValueError(
                         "Motion phase used a scene entity outside its adopted objectives"
                     )
-                if not isinstance(reply, CommunicationPlan):
+                if not inherit_timing:
                     phase_anchors.append(phase.start)
                     continue
                 new_goals = set(phase.objectives) - started_objectives
