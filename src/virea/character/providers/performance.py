@@ -1,18 +1,16 @@
 """Interpret dialogue before compiling a character's adopted body intentions."""
 
-from copy import deepcopy
 from typing import Literal
 
 from pydantic import Field, model_validator
 
-from ..communication import CommunicationPlan, check_appraisal, check_communication
+from ..communication import CommunicationPlan, check_communication
 from ..contracts import Contract, SceneAction
 from ..coordination import PhaseCue, SpeechAnchor
 from ..decision_schema import decision_schema
 from ..executors import available_executors, executable_seconds, executor_context
 from ..grounding import explicit_positions
 from ..motion_timing import fit_program_duration, planned_duration
-from .plan_review import review_interaction, reviewed_appraisal
 from .recovery import RecoveryPlan
 from .routing import ReplyPlan, motion_plan_problem, structured_completion
 
@@ -164,6 +162,8 @@ class EmbodiedCommitment(Contract):
 
 
 class DialogueAppraisal(Contract):
+    interaction_program: dict | None = None
+    compiled_body: BodyPlan | None = None
     objective_review: dict | None = None
     timing_rationale: str | None = None
     expression_executor: str | None = Field(
@@ -189,20 +189,6 @@ class DialogueAppraisal(Contract):
     embodiment: EmbodiedCommitment
 
 
-DIALOGUE_RULES = """你是当前角色的对话与意图层。结合人设、历史和现场理解对方，决定自己如何回应。
-understanding 表达对话的意义，reply 是自己的口头回应计划，embodiment 是自己采纳的身体目标。
-reply.utterances.text 是会直接朗读给对方听的完整正文，不是提纲。start 是开始条件，序号用于身体目标的 utterance_start/end 引用；无声动作不占发言序号。
-同一份计划同时决定发言和身体的先后、并行及停顿。两条通道的依赖应能执行，已生成不代表已执行。
-embodiment.activities 是具体身体运动目标，等待语音由 start 引用，口头内容只属于 reply。
-duration_seconds 仅记录用户明确给出的时长；身体实现所需的估计时间在后续运动编译中处理。
-动作的提及不等于让角色执行：叙述者、被描述的人、假设情景和角色自己是不同主体。
-表演请求可以被角色采纳并自然回应；普通交流的表情、语气和伴随手势由表达层实现。
-发声、静默和等待下一轮交流属于 speech/reply；embodiment 代表具有独立目的的身体任务。
-已经在进行的身体目标可以在交谈中继续，keep 保留进度；replace 是新的承诺，stop 结束承诺。
-expression_executor 是伴随本次回应的表达执行器分配；可用能力来自现场目录。身体活动的逐阶段分配由下一层规划。
-"""
-
-
 PERFORMANCE_RULES = """你是身体实现规划层。结合已采纳目标、对话理解、实际身体状态和可用能力，自主组织阶段、时间关系、执行器及其运动输入。
 每个 phase 将目标来源 objectives、起始依赖 start、执行器 executor 和动作输入 action 绑定为一个整体。目标可以跨阶段延续，也可以合并为连续阶段。
 objective_start_conditions 和 requested_communication 是已采纳的联合时序；本层在这些依赖内组织运动阶段。
@@ -215,133 +201,9 @@ recovery 描述整项活动结束时适合当下的恢复分配；任务本身�
 
 
 async def appraise_dialogue(config, client, history, context):
-    schema = DialogueAppraisal.model_json_schema()
-    schema["properties"]["reply"] = {
-        "anyOf": [{"$ref": "#/$defs/CommunicationPlan"}, {"type": "null"}]
-    }
-    schema["$defs"].pop("ReplyPlan", None)
-    schema["properties"] = {
-        name: schema["properties"][name]
-        for name in (
-            "understanding",
-            "embodiment",
-            "speech",
-            "reply",
-            "expression_executor",
-            "resting",
-        )
-    }
-    schema["$defs"]["SpeechBeat"]["required"] = ["start", "motion_intent", "text"]
-    activity = schema["$defs"]["ActivityIntent"]
-    activity["required"] = ["completion", "start", "target_ids", "goal"]
-    targets = list(context.get("targets", {}))
-    activity["properties"]["target_ids"].update(
-        items=dict(type="string", **({"enum": targets} if targets else {})),
-        maxItems=len(targets),
-    )
-    expression_engines = [
-        name
-        for name, spec in available_executors(config, context).items()
-        if spec.requires_speech
-    ]
-    schema["properties"]["expression_executor"] = {"enum": [None, *expression_engines]}
-    schema["required"] = [*schema["required"], "expression_executor"]
-    context = {**context, "available_executors": executor_context(config, context)}
-    commitment = schema["$defs"]["EmbodiedCommitment"]
-    # Legacy aliases stay readable, but new plans have one time relation per
-    # objective, jointly authored with the spoken intentions.
-    for name in ("coordination", "start"):
-        commitment["properties"].pop(name)
-    commitment["required"] = list(
-        dict.fromkeys(
-            [
-                *commitment["required"],
-                "scope",
-                "duration_seconds",
-                "duration_evidence",
-                "activities",
-            ]
-        )
-    )
-    # Constrain the relationship, not merely the two independently nullable
-    # fields: a numeric duration always travels with its quoted user evidence.
-    unspecified, specified = deepcopy(commitment), deepcopy(commitment)
-    unspecified["properties"].update(
-        duration_seconds={"type": "null"}, duration_evidence={"type": "null"}
-    )
-    for name in ("duration_seconds", "duration_evidence"):
-        prop = specified["properties"][name]
-        alternatives = prop.pop("anyOf")
-        prop.update(next(option for option in alternatives if option["type"] != "null"))
-    specified["properties"]["duration_evidence"]["minLength"] = 1
-    schema["$defs"]["EmbodiedCommitment"] = {"oneOf": [unspecified, specified]}
-    # A compulsory resting caption before understanding/reply primed the model
-    # to invent a posture task for every utterance. Endings belong to adopted
-    # activities; co-speech retraction uses the executed contextual rest pose.
-    schema["properties"].pop("resting")
-    user_text = next(
-        (m["content"] for m in reversed(history) if m["role"] == "user"), ""
-    )
-    for attempt in range(2):
-        value = await structured_completion(
-            config,
-            client,
-            history,
-            context,
-            (
-                "你是交互计划修订器。Scene.invalid_appraisal 是尚未执行的候选 JSON，校验器给出了具体错误。修订这份对象以消除错误，保留用户意图和有效正文，补足实际未达成的任务，并一致更新相关的事件引用。此时不是重新演绎角色或从头写回复。\n校验反馈："
-                + context["validation_error"]
-                if attempt
-                else DIALOGUE_RULES
-            ),
-            schema,
-            tokens=config.language_max_tokens,
-            thinking=config.llm_thinking,
-            include_history=True,
-        )
-        try:
-            appraisal = DialogueAppraisal.model_validate(value)
-            if any(
-                target not in targets
-                for objective in appraisal.embodiment.activities
-                for target in objective.target_ids
-            ):
-                raise ValueError(
-                    "An adopted body objective references an unknown scene entity"
-                )
-            if appraisal.expression_executor not in [None, *expression_engines]:
-                raise ValueError("Expression executor is not available for this input")
-            duration = appraisal.embodiment
-            if duration.duration_seconds is not None and (
-                not duration.duration_evidence
-                or duration.duration_evidence not in user_text
-            ):
-                raise ValueError(
-                    "duration_evidence must quote the user's explicit duration"
-                )
-            if isinstance(appraisal.reply, CommunicationPlan) or (
-                appraisal.speech == "silent" and appraisal.embodiment.activities
-            ):
-                appraisal = await reviewed_appraisal(
-                    config,
-                    client,
-                    history,
-                    context,
-                    appraisal,
-                    reviewer=review_interaction,
-                )
-            check_appraisal(appraisal, context.get("body_program"))
-            return appraisal
-        except ValueError as error:
-            if attempt:
-                raise
-            # Constrained number grammars do not enforce every schema bound.
-            # One repair stays in the intention layer; no invalid plan executes.
-            context = {
-                **context,
-                "invalid_appraisal": value,
-                "validation_error": str(error),
-            }
+    from .program_planner import plan_interaction
+
+    return await plan_interaction(config, client, history, context)
 
 
 async def plan_performance(config, client, history, context):
@@ -350,6 +212,18 @@ async def plan_performance(config, client, history, context):
 
 
 async def compile_performance(config, client, history, context, appraisal):
+    if appraisal.compiled_body is not None:
+        body = appraisal.compiled_body.model_copy(deep=True)
+        reply = appraisal.reply if appraisal.speech == "speak" else None
+        check_communication(
+            body.model_dump() if body.actions else context.get("body_program"), reply
+        )
+        return PerformancePlan(
+            intent=appraisal.understanding,
+            spoken_content=reply.goal if reply else None,
+            body=body,
+            reply_plan=reply,
+        )
     operation = appraisal.embodiment.operation
     if operation == "stop" and (context.get("body_program") or {}).get(
         "status"

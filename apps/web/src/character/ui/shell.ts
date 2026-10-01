@@ -72,6 +72,7 @@ export const studioShell = `
     <output id="trace-live" class="trace-live">尚无执行记录</output>
     <button id="trace-export" class="quiet">导出诊断 JSON</button><p id="trace-range" class="hint"></p>
     <div class="trace-scroll">
+      <details open><summary>采纳的交互计划 · 顺序与并行</summary><div id="trace-plan"></div></details>
       <details open><summary>实际播放 · 音频时钟</summary><div id="trace-playback"></div></details>
       <details open><summary>身体时段 · 预订与执行</summary><div id="trace-slots"></div></details>
       <details open><summary>执行事件链 · 会话相对时间</summary><div id="trace-events"></div></details>

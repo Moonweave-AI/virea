@@ -123,9 +123,6 @@ def test_silent_actions_receive_the_same_semantic_review(monkeypatch):
     value.reply, value.speech = None, "silent"
     reviewed = []
 
-    async def complete(*args, **kwargs):
-        return value.model_dump()
-
     async def review(*args):
         reviewed.append(True)
         result = selection()
@@ -134,11 +131,16 @@ def test_silent_actions_receive_the_same_semantic_review(monkeypatch):
         result.body_objectives[0].start.utterance = None
         return result
 
-    monkeypatch.setattr(performance, "structured_completion", complete)
-    monkeypatch.setattr(performance, "review_interaction", review)
+    from virea.character.providers.plan_review import reviewed_appraisal
+
     actual = asyncio.run(
-        performance.appraise_dialogue(
-            CharacterConfig(), None, [], {"targets": {"stage": {}}}
+        reviewed_appraisal(
+            CharacterConfig(),
+            None,
+            [],
+            {"targets": {"stage": {}}},
+            value,
+            reviewer=review,
         )
     )
     assert reviewed == [True]

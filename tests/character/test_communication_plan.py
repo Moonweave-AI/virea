@@ -128,51 +128,44 @@ def test_native_motion_realizer_retains_joint_plan_dependencies_across_windows(
 
 
 def test_model_repair_receives_joint_cycle_and_can_choose_a_valid_plan(monkeypatch):
+    from virea.character.providers.plan_review import PlanReview, reviewed_appraisal
+
     calls = []
 
-    async def complete(config, client, history, context, rules, schema, **kwargs):
+    async def reviewed(config, client, history, context, value):
         calls.append(context)
-        return appraisal(
-            body_start="reply_end" if len(calls) == 1 else "immediate"
-        ).model_dump()
+        return PlanReview(
+            spoken_units=[dict(source=0, start=dict(event="body_end"))],
+            activity_starts=[
+                dict(event="reply_end" if len(calls) == 1 else "immediate")
+            ],
+        )
 
-    monkeypatch.setattr(performance, "structured_completion", complete)
-    from virea.character.providers.plan_review import PlanReview
-
-    async def reviewed(*args):
-        return PlanReview(problems=[])
-
-    monkeypatch.setattr(performance, "review_interaction", reviewed)
-    result = asyncio.run(performance.appraise_dialogue(CharacterConfig(), None, [], {}))
+    result = asyncio.run(
+        reviewed_appraisal(
+            CharacterConfig(), None, [], {}, appraisal(), reviewer=reviewed
+        )
+    )
     assert len(calls) == 2
-    assert "Circular" in calls[1]["validation_error"]
+    assert "Circular" in calls[1]["review_validation_error"]
     assert result.embodiment.activities[0].start.event == "immediate"
 
 
 def test_semantic_review_rejects_audible_stage_directions_before_adoption(monkeypatch):
-    from virea.character.providers.plan_review import PlanReview
+    from virea.character.providers.plan_review import PlanReview, reviewed_appraisal
 
-    calls = []
-
-    async def complete(config, client, history, context, rules, schema, **kwargs):
-        calls.append(context)
-        value = appraisal().model_dump()
-        value["reply"]["utterances"][0]["text"] = (
-            "（静默动作）" if len(calls) == 1 else "完成了，我很开心。"
-        )
-        return value
+    value = appraisal()
+    value.reply.utterances[0].text = "（静默动作）"
+    original = value.model_dump()
 
     async def review(config, client, history, context, value):
-        return PlanReview(
-            problems=["text contains a stage direction"] if len(calls) == 1 else []
-        )
+        return PlanReview(problems=["text contains a stage direction"])
 
-    monkeypatch.setattr(performance, "structured_completion", complete)
-    monkeypatch.setattr(performance, "review_interaction", review)
-    result = asyncio.run(performance.appraise_dialogue(CharacterConfig(), None, [], {}))
-    assert len(calls) == 2
-    assert "stage direction" in calls[1]["validation_error"]
-    assert result.reply.utterances[0].text == "完成了，我很开心。"
+    with pytest.raises(ValueError, match="stage direction"):
+        asyncio.run(
+            reviewed_appraisal(CharacterConfig(), None, [], {}, value, reviewer=review)
+        )
+    assert value.model_dump() == original
 
 
 def test_review_selection_preserves_words_and_rebinds_spoken_dependencies():

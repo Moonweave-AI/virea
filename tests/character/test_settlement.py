@@ -124,3 +124,49 @@ def test_body_compiler_failure_cannot_cancel_accepted_speech(tmp_path):
         await session.close()
 
     asyncio.run(run())
+
+
+def test_unsettled_recovery_prepares_continuation_without_another_llm_round(
+    monkeypatch,
+):
+    from virea_api.routes import character_behavior as api
+
+    from virea.character.contracts import CharacterConfig
+
+    client, current = setup(monkeypatch)
+    current.config = CharacterConfig(spatial_url="http://worker")
+    current.body_program = dict(
+        id="dance",
+        status="settling",
+        elapsed=12,
+        actions=[],
+        ending="Lower the arms and settle comfortably.",
+        ending_executor="ardy",
+        ending_seconds=2,
+        ending_reason="Complete activity",
+    )
+
+    async def unexpected(*args, **kwargs):
+        raise AssertionError("An adopted recovery needs no semantic rewrite")
+
+    monkeypatch.setattr(api, "plan_recovery", unexpected)
+    with client:
+        first = client.post("/s/behavior/plan", json={"body": {}}).json()
+        slot = current.behavior_slots[first["id"]]
+        slot.update(status="playing", support=dict(supported=True, settled=False))
+        second = client.post(
+            "/s/behavior/plan", json={"body": {}, "after": first["id"]}
+        )
+        assert second.status_code == 200
+        successor = current.behavior_slots[second.json()["id"]]
+        assert successor["actions"] == slot["actions"]
+        assert successor["settled_seconds"] == 4
+        assert successor["activity_end"] == 12
+        assert successor["settling"]
+        slot["settled_seconds"] = current.config.settlement.max_seconds
+        successor["status"] = "interrupted"
+        exhausted = client.post(
+            "/s/behavior/plan", json={"body": {}, "after": first["id"]}
+        )
+        assert exhausted.status_code == 422
+        assert current.body_program["status"] == "failed"

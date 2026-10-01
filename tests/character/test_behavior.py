@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from native_plans import native_plan
 from virea_api.routes import character_behavior as api
 
 from virea.character.behavior import WindowChoice, remaining_actions
@@ -16,6 +15,8 @@ from virea.character.utterances import utterance_schema
 
 
 def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeypatch):
+    from virea.character.providers import program_planner
+
     calls = []
 
     async def completion(config, client, history, context, rules, schema, **kwargs):
@@ -23,33 +24,40 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
         if len(calls) == 1:
             return {
                 "understanding": "邀请角色表演",
-                "speech": "speak",
-                "reply": {"goal": "接受邀请", "outline": ["自然回应"]},
-                "embodiment": {
-                    "operation": "replace",
-                    "goal": "角色决定用轻快的舞步回应邀请",
-                    "coordination": "with_reply",
+                "body_operation": "replace",
+                "body_scope": "activity",
+                "requested_seconds": None,
+                "duration_evidence": None,
+                "program": {
+                    "kind": "parallel",
+                    "children": [
+                        {"kind": "say", "goal": "接受邀请"},
+                        {
+                            "kind": "act",
+                            "goal": "角色决定用轻快的舞步回应邀请",
+                            "completion": "舞蹈完成",
+                        },
+                    ],
                 },
             }
-        return native_plan(
-            **(
-                {
-                    "operation": "replace",
-                    "executors": ["ardy"],
-                    "objective_groups": [[0]],
-                    "starts": [{"event": "reply_start"}],
-                    "actions": [
-                        {
-                            "kind": "perform",
-                            "description": "A person is dancing.",
-                            "duration_seconds": 8,
-                        }
-                    ],
-                }
-            )
+        return dict(
+            nodes={
+                "node_0": dict(text="好呀！", motion_intent="欣然接受邀请"),
+                "node_1": dict(
+                    executor="ardy",
+                    action=dict(
+                        kind="perform",
+                        description="A person is dancing.",
+                        duration_seconds=8,
+                    ),
+                ),
+            },
+            expression_executor="sentiavatar",
+            end_state="hold",
+            recovery=None,
         )
 
-    monkeypatch.setattr(performance, "structured_completion", completion)
+    monkeypatch.setattr(program_planner, "structured_completion", completion)
     result = asyncio.run(
         performance.plan_performance(
             CharacterConfig(spatial_url="http://worker"),
@@ -58,11 +66,13 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
             {"spatial_available": True},
         )
     )
-    assert result.reply_plan.goal == "接受邀请"
-    assert result.body.start_with_reply
-    assert calls[1][0] == [{"role": "user", "content": "角色决定用轻快的舞步回应邀请"}]
-    assert calls[1][1]["adopted_objectives"] == ["角色决定用轻快的舞步回应邀请"]
-    assert calls[1][1]["requested_communication"] is None
+    assert result.reply_plan.utterances[0].text == "好呀！"
+    assert result.body.cues[0].start.event == "utterance_start"
+    assert calls[1][0] == calls[0][0]
+    assert (
+        calls[1][1]["node_intents"]["node_1"]["goal"] == "角色决定用轻快的舞步回应邀请"
+    )
+    assert len(calls) == 2
 
 
 def test_remaining_goal_keeps_spatial_target_and_deadline_without_new_phase():

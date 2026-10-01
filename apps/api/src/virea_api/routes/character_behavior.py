@@ -154,7 +154,10 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             seconds = program.get("ending_seconds")
             caption = program.get("ending")
             reason = program.get("ending_reason") or "执行 LLM 规划的最终恢复"
-            if not caption or (previous and previous.get("settling")):
+            # Recovery is one adopted activity spanning native windows. Its
+            # measured completion decides when to stop, not another semantic
+            # rewrite between every pair of windows.
+            if not caption:
                 recovery = await plan_recovery(
                     current.config,
                     request.app.state.characters.client,
@@ -168,6 +171,14 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                     recovery.seconds,
                     recovery.goal,
                     recovery.reason,
+                )
+                if current.body_program is not program or current.epoch != epoch:
+                    raise HTTPException(409, "behavior intent changed while planning")
+                program.update(
+                    ending_executor=ending_executor,
+                    ending_seconds=seconds,
+                    ending=caption,
+                    ending_reason=reason,
                 )
             spec = available_executors(current.config).get(ending_executor)
             if not spec or spec.requires_speech or seconds is None:

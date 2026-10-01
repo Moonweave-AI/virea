@@ -1,6 +1,7 @@
 import type { Session } from "../contracts";
 import type { CharacterStage } from "../stage";
 import { downloadJSON } from "./history";
+import { interactionPlan } from "./interaction-plan";
 
 const eventLabels: Record<string, string> = {
   user_message: "用户输入", dialogue_appraised: "对话理解与行为承诺", performance_planned: "身体任务编排", body_replanned: "身体执行器重规划",
@@ -80,6 +81,8 @@ export class StudioDiagnostics {
     const signature = JSON.stringify([session.events.at(-1)?.sequence, session.behavior_timeline, recording.speech.length, recording.drivers.length, playback.synchronization.marks]);
     if (signature === this.signature) return;
     this.signature = signature;
+    this.el("#trace-plan").replaceChildren(interactionPlan(
+      events.filter(event => event.kind === "dialogue_appraised").at(-1)?.appraisal));
     const entries: HTMLElement[] = [];
     for (const event of events) {
       const row = document.createElement("details"), title = document.createElement("summary");

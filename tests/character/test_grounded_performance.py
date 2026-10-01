@@ -94,16 +94,30 @@ def test_sitting_requires_a_scene_support_affordance(monkeypatch, target, allowe
 
 
 def test_dialogue_appraisal_does_not_prime_a_compulsory_ending(monkeypatch):
+    from virea.character.providers import program_planner
+
     async def completion(config, client, history, context, rules, schema, **kwargs):
-        assert "resting" not in schema["properties"]
+        if "adopted_intent" in context:
+            assert schema["properties"]["recovery"] == {"type": "null"}
+            return dict(
+                nodes={"node_0": dict(text="今天有个趣事。", motion_intent="轻松分享")},
+                expression_executor="sentiavatar",
+                end_state="hold",
+                recovery=None,
+            )
         return {
             "understanding": "闲聊",
-            "speech": "speak",
-            "reply": {"goal": "分享趣事", "outline": ["叙述"]},
-            "embodiment": {"operation": "keep", "goal": None},
+            "body_operation": "keep",
+            "body_scope": "response",
+            "requested_seconds": None,
+            "duration_evidence": None,
+            "program": {
+                "kind": "sequence",
+                "children": [{"kind": "say", "goal": "分享趣事"}],
+            },
         }
 
-    monkeypatch.setattr(performance, "structured_completion", completion)
+    monkeypatch.setattr(program_planner, "structured_completion", completion)
     appraisal = asyncio.run(
         performance.appraise_dialogue(CharacterConfig(), None, [], {})
     )
@@ -111,28 +125,36 @@ def test_dialogue_appraisal_does_not_prime_a_compulsory_ending(monkeypatch):
 
 
 def test_decoder_numeric_bound_failure_gets_one_repair_before_execution(monkeypatch):
+    from virea.character.providers import program_planner
+
     calls = []
 
     async def completion(config, client, history, context, rules, schema, **kwargs):
         calls.append(context)
-        assert len(schema["$defs"]["EmbodiedCommitment"]["oneOf"]) == 2
+        if "adopted_intent" in context:
+            return dict(
+                nodes={"node_0": dict(text="你好。", motion_intent="问候")},
+                expression_executor="sentiavatar",
+                end_state="hold",
+                recovery=None,
+            )
         return {
             "understanding": "问候",
-            "speech": "speak",
-            "reply": {"goal": "问好", "outline": ["问候"]},
-            "embodiment": {
-                "operation": "keep",
-                "goal": None,
-                "duration_seconds": 0 if len(calls) == 1 else None,
-                "duration_evidence": None,
+            "body_operation": "keep",
+            "body_scope": "response",
+            "requested_seconds": 0 if len(calls) == 1 else None,
+            "duration_evidence": None,
+            "program": {
+                "kind": "sequence",
+                "children": [{"kind": "say", "goal": "问好"}],
             },
         }
 
-    monkeypatch.setattr(performance, "structured_completion", completion)
+    monkeypatch.setattr(program_planner, "structured_completion", completion)
     result = asyncio.run(performance.appraise_dialogue(CharacterConfig(), None, [], {}))
     assert result.embodiment.duration_seconds is None
-    assert len(calls) == 2
-    assert "validation_error" in calls[1]
+    assert len(calls) == 3
+    assert "compiler_error" in calls[1]
 
 
 def test_structured_full_history_is_present_exactly_once():
