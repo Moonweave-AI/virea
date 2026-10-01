@@ -18,7 +18,7 @@ def say(text="Hello."):
     return dict(kind="say", text=text, motion_intent="轻松地表达")
 
 
-def act(goal="Turning", seconds=3):
+def act(goal="Turning"):
     return dict(
         kind="act",
         goal=goal,
@@ -27,7 +27,6 @@ def act(goal="Turning", seconds=3):
         action=dict(
             kind="perform",
             description="A person turns in place.",
-            duration_seconds=seconds,
         ),
     )
 
@@ -140,7 +139,7 @@ def test_separate_task_purpose_does_not_filter_deliberate_stillness_by_words():
 def test_one_persistent_activity_outlives_native_windows_without_inserting_a_reset():
     from virea.character.behavior import remaining_actions
 
-    value = score(group(act(seconds=30)))
+    value = score(group(act()))
     value.speech = "silent"
     body = planner.compile_score(value, CONFIG, [], {}).compiled_body.model_dump()
     body.update(elapsed=6.4, status="playing")
@@ -152,7 +151,10 @@ def test_one_persistent_activity_outlives_native_windows_without_inserting_a_res
     assert body["actions"][0]["transition_description"] is None
     remainder = remaining_actions(body, 6.4)
     assert remainder[0]["description"] == body["actions"][0]["description"]
-    assert remainder[0]["duration_seconds"] == 23.6
+    assert remainder[0]["duration_seconds"] is None
+    assert remaining_actions(body, 300) == remainder
+    body["phase_index"] = 1
+    assert remaining_actions(body, 6.4) == []
 
 
 def test_realization_cannot_insert_padding_delete_speech_or_rewrite_task_kind():
@@ -231,7 +233,7 @@ def test_terminal_recovery_is_allocated_once_and_cannot_be_null_with_relaxed():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(value, schema)
     value["recovery"] = dict(
-        executor="ardy", goal="Lower the arms and relax.", reason="Finish", seconds=2
+        executor="ardy", goal="Lower the arms and relax.", reason="Finish"
     )
     jsonschema.validate(value, schema)
     result = planner.compile_score(
@@ -276,14 +278,15 @@ def test_compiled_plan_never_calls_another_model_or_mutates_the_adopted_words():
 
 
 def test_short_parallel_speech_cannot_cancel_an_explicit_motion_budget():
-    value = score(group(act(seconds=12), say("Hi"), kind="parallel"))
+    value = score(group(act(), say("Hi"), kind="parallel"))
     value.body_scope = "response"
     value.requested_seconds, value.duration_evidence = 12, "12秒"
     result = planner.compile_score(
         value, CONFIG, [dict(role="user", content="跳12秒舞，随便聊聊。")], {}
     )
     assert result.compiled_body.scope == "activity"
-    assert result.compiled_body.actions[0].duration_seconds == 12
+    assert result.compiled_body.actions[0].duration_seconds is None
+    assert result.compiled_body.total_duration_seconds == 12
 
 
 @pytest.mark.parametrize("payload", [None, 3, [], "text"])

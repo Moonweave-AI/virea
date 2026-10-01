@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from .activity_progress import is_observed, phase_index
 from .contracts import BodyState, Contract
 from .coordination import SpeechObservation, anchor_reached, phase_anchor
 from .executors import available_executors
@@ -33,6 +34,8 @@ class WindowChoice(Contract):
 
 def remaining_actions(program: dict | None, elapsed: float) -> list[dict]:
     """Trim elapsed activity time without changing a spatial goal's deadline."""
+    if is_observed(program):
+        return [dict(a) for a in program["actions"][phase_index(program) :]]
     remaining = []
     for action in (program or {}).get("actions", []):
         duration = planned_duration(action)
@@ -96,7 +99,13 @@ async def choose_window(
                 "The allocated speech input ended before this phase completed; replan required"
             )
     if selected and (not selected.requires_speech or speech_available):
-        seconds = min(config.behavior_horizon_seconds, actions[0]["duration_seconds"])
+        seconds = config.behavior_horizon_seconds
+        if is_observed(program):
+            requested = program.get("total_duration_seconds")
+            if requested is not None:
+                seconds = min(seconds, max(selected.time_quantum, requested - elapsed))
+        else:
+            seconds = min(seconds, actions[0]["duration_seconds"])
         if selected.requires_speech:
             seconds = min(seconds, speech.remaining_seconds)
         if selected.time_quantum:
@@ -111,7 +120,7 @@ async def choose_window(
             advances_activity=True,
             seconds=seconds,
             reason=f"执行 LLM 分配的模型 {executor}；语音独立继续",
-        ), actions[:1]
+        ), [dict(actions[0], duration_seconds=seconds)]
     waiting = (
         f"等待同步点 {anchor.key}"
         if actions and not eligible
@@ -143,7 +152,9 @@ def motion_forecast(windows: list[dict], initial: BodyState) -> BodyState:
                 {
                     "position": {"x": root[0], "y": initial.position.y, "z": root[2]},
                     "pelvis_height": root[1] - initial.position.y,
-                    "yaw": initial.yaw,
+                    # Native hips rotation already includes world heading.
+                    # Reapplying the scene transform would rotate history twice.
+                    "yaw": 0,
                     "pose": {
                         name: rows[index] for name, rows in window["rotations"].items()
                     },

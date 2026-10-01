@@ -8,7 +8,7 @@ from ..communication import CommunicationPlan, check_appraisal, check_communicat
 from ..contracts import Contract, SceneAction
 from ..coordination import PhaseCue
 from ..decision_schema import decision_schema
-from ..executors import available_executors, executable_seconds, executor_context
+from ..executors import available_executors, executor_context
 from ..grounding import explicit_positions
 from ..interaction_intent import (
     INTENT_RULES,
@@ -20,10 +20,14 @@ from ..interaction_intent import (
     intent_schema,
 )
 from ..interaction_program import Group, ProgramTracks
-from ..motion_timing import fit_program_duration
 from .performance import ActivityIntent, BodyPlan, DialogueAppraisal, EmbodiedCommitment
-from .recovery import RecoveryPlan
 from .routing import motion_plan_problem, structured_completion
+
+
+class CoarseRecovery(Contract):
+    executor: str
+    reason: str = Field(min_length=1, max_length=200)
+    goal: str = Field(min_length=1, max_length=320, pattern="^[ -~]+$")
 
 
 class InteractionScore(Contract):
@@ -36,7 +40,7 @@ class InteractionScore(Contract):
     duration_evidence: str | None
     program: Group
     end_state: Literal["hold", "relaxed"]
-    recovery: RecoveryPlan | None
+    recovery: CoarseRecovery | None
 
     @model_validator(mode="after")
     def coherent(self):
@@ -60,8 +64,10 @@ class InteractionScore(Contract):
 PROGRAM_RULES = """你是 scene.persona 所描述的角色，面向对话中的用户实现 adopted_intent 中已采纳的交互任务。
 每个 node 对应 node_intents 中同名任务。say 的 goal 是待完成的交流任务，text 才是你实际说给对方听的完整正文；角色设定塑造叙述的口吻，不替换该任务的内容。叙述的情节和结局属于正文。
 motion_intent 表示说话者当前交流情绪的中文面部、视线和手势条件，不发声；谈论的人物及其动作是内容，角色采纳的独立身体活动由 act 承载。
-为身体活动分配执行器、英文运动输入和时长。没有空间目标的运动使用自由文本条件；有目标的运动使用该场景提供的约束。
+P 是粗粒度活动序列：为身体活动分配执行器和英文持续运动输入；为 SentiAvatar 分配中文表情手势条件。没有空间目标的运动使用自由文本条件；有目标的运动使用该场景提供的约束。
+活动没有预设生成时长。执行层根据音频、运动进展和 completion 决定延续或切换；推理窗口是模型协议，不能用窗口代替活动。最终恢复只描述合适的终态，不分配秒数。
 节点关系已由意图层决定。action.description 描述本活动持续发生的身体运动，completion 是验收结果，整项活动的最终恢复属于 recovery；它们用途不同。
+action.description 是每个运动窗口都会重复使用的当前活动条件，采用正在发生的身体运动描述。交流方式、一次性开场、停止和自然结束由交互关系与 recovery 表达，放进重复条件会使模型在每个窗口重新开场或提前停止。
 身体初态来自实际运动历史。expression_executor 结合语音实现伴随表达；独立身体任务在它自己的时段占用身体通道。选择能力来自 available_executors。
 """
 
@@ -76,7 +82,7 @@ def program_schema(config, context, history, intent):
         raise ValueError("No available executor can realize the adopted body activity")
     schema["properties"]["expression_executor"] = {"enum": [None, *expression]}
     schema["$defs"]["Act"]["properties"]["executor"] = {"enum": native}
-    schema["$defs"]["RecoveryPlan"]["properties"]["executor"] = {"enum": native}
+    schema["$defs"]["CoarseRecovery"]["properties"]["executor"] = {"enum": native}
     if not native:
         # Grammar excludes unsupported actions, rather than silently rerouting.
         schema["$defs"].pop("Act")
@@ -86,7 +92,7 @@ def program_schema(config, context, history, intent):
             item for item in children["oneOf"] if item.get("$ref") != "#/$defs/Act"
         ]
         schema["properties"]["recovery"] = {"type": "null"}
-        schema["$defs"].pop("RecoveryPlan")
+        schema["$defs"].pop("CoarseRecovery")
     definitions = decision_schema(
         list(context.get("targets", {})), explicit_positions(history)
     )["$defs"]
@@ -108,7 +114,11 @@ def program_schema(config, context, history, intent):
                 for name in target.get("enum", [])
                 if props["kind"]["const"] in affordances.get(name, [])
             ]
-        for name in ("transition_description", "continuation_description"):
+        for name in (
+            "transition_description",
+            "continuation_description",
+            "duration_seconds",
+        ):
             props.pop(name, None)
         props.update(
             description=dict(
@@ -118,10 +128,11 @@ def program_schema(config, context, history, intent):
                 pattern="^[ -~]+$",
                 description="One short English caption of the ongoing physical movement and relevant body mechanics, reused across continuous inference windows. Completion state and recovery have separate fields.",
             ),
-            duration_seconds=dict(type="number", minimum=0.8, maximum=180),
         )
         variant["required"] = list(
-            dict.fromkeys([*variant["required"], "description", "duration_seconds"])
+            dict.fromkeys(
+                [k for k in [*variant["required"], "description"] if k in props]
+            )
         )
     variants[:] = [
         v for v in variants if v["properties"]["target_id"].get("enum") != []
@@ -177,7 +188,7 @@ def program_schema(config, context, history, intent):
             end_state={"const": "hold"}, recovery={"type": "null"}
         )
         recover["properties"].update(
-            end_state={"const": "relaxed"}, recovery={"$ref": "#/$defs/RecoveryPlan"}
+            end_state={"const": "relaxed"}, recovery={"$ref": "#/$defs/CoarseRecovery"}
         )
         schema.pop("additionalProperties", None)
         schema["oneOf"] = [hold, recover]
@@ -238,12 +249,14 @@ def compile_score(score, config, history, context):
             )
         action["continuation_description"] = action["description"]
         action["transition_description"] = None
-    fit_program_duration(actions, score.requested_seconds)
-    for action, activity in zip(actions, tracks.activities):
-        action["duration_seconds"] = executable_seconds(
-            engines[activity.executor], action["duration_seconds"]
-        )
+    for action in actions:
+        if action.get("duration_seconds") is not None:
+            raise ValueError(
+                "A coarse activity has no generation duration; execution owns native windows"
+            )
     body = BodyPlan(
+        completion_mode="observed",
+        completions=[a.completion for a in tracks.activities],
         operation=score.body_operation,
         actions=[SceneAction.model_validate(a) for a in actions],
         executors=[a.executor for a in tracks.activities],
@@ -256,9 +269,7 @@ def compile_score(score, config, history, context):
         end_state=score.end_state,
         ending=ending.goal if ending else None,
         ending_executor=ending.executor if ending else None,
-        ending_seconds=executable_seconds(engines[ending.executor], ending.seconds)
-        if ending
-        else None,
+        ending_seconds=None,
         ending_reason=ending.reason if ending else None,
     )
     reply = (

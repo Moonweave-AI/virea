@@ -48,7 +48,6 @@ def test_dialogue_precedes_motion_and_only_adopted_goal_reaches_compiler(monkeyp
                     action=dict(
                         kind="perform",
                         description="A person is dancing.",
-                        duration_seconds=8,
                     ),
                 ),
             },

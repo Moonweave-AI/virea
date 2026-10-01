@@ -4,6 +4,7 @@ import asyncio
 
 import numpy as np
 
+from .boundary import boundary_constraints
 from .plan import SpatialPlan
 from .trajectory import waypoint_velocity
 
@@ -21,6 +22,7 @@ async def generate_program(
     end_state,
     history_frames=40,
     max_seconds=None,
+    end_pose_samples=None,
 ):
     origin = [body["position"][axis] for axis in ("x", "y", "z")]
     scale = hip_height / engine.hip_height
@@ -102,6 +104,20 @@ async def generate_program(
                 return
             async with lock:
                 constraints = plan.constraints(generated, history)
+                if end_pose_samples:
+                    first = output_frames - len(end_pose_samples)
+                    if first < 0:
+                        raise ValueError("Boundary samples exceed the generated window")
+                    indices = [
+                        history.shape[1] + first + i - offset - generated
+                        for i in range(len(end_pose_samples))
+                    ]
+                    if indices[-1] >= history.shape[1]:
+                        constraints.append(
+                            boundary_constraints(
+                                engine, end_pose_samples, indices, scale
+                            )
+                        )
                 prompt = (
                     (
                         action.get("transition_description")
@@ -139,6 +155,7 @@ async def generate_program(
                 phase_offset=offset / engine.fps,
                 prompt=prompt,
                 target=action.get("position"),
+                boundary_conditioned=bool(end_pose_samples),
                 continues=frame + round(packet["seconds"] * engine.fps) < total_frames,
             )
             packet["root"] = [[v * scale for v in row] for row in packet["root"]]

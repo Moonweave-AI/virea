@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import Field
 
+from virea.character.activity_progress import activity_done, commit_window, is_observed
 from virea.character.behavior import (
     AllocationUnavailable,
     BehaviorRequest,
@@ -27,6 +28,9 @@ from virea.character.motion_timing import planned_duration
 from virea.character.providers.reallocation import reallocate_phase
 from virea.character.providers.recovery import plan_recovery
 from virea.character.settlement import terminal_measurement
+
+from .behavior_boundary import native_window, plan_expression_handoff
+from .behavior_progress import review_predecessor
 
 router = APIRouter()
 
@@ -67,7 +71,9 @@ def slot_for(current, slot_id):
 
 def reservation_view(slot):
     return {
-        k: v for k, v in slot.items() if k not in {"actions", "forecast", "windows"}
+        k: v
+        for k, v in slot.items()
+        if k not in {"actions", "forecast", "windows", "boundary_samples"}
     }
 
 
@@ -103,6 +109,9 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
         )
         if existing:
             return reservation_view(existing)
+        planning_program = await review_predecessor(
+            current, request.app.state.characters.client, previous, body
+        )
         elapsed = (
             previous["activity_end"]
             if previous and previous["program_id"] == program_id
@@ -133,7 +142,7 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             )
             and (
                 program.get("finish_requested")
-                or not remaining_actions(program, elapsed)
+                or not remaining_actions(planning_program, elapsed)
             )
             and program.get("status") not in {"completed", "failed", "interrupted"}
         )
@@ -152,6 +161,14 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 raise HTTPException(422, "收势尚未达到支撑和速度要求，请重新规划动作")
             ending_executor = program.get("ending_executor")
             seconds = program.get("ending_seconds")
+            if is_observed(program):
+                native = await native_window(
+                    current, request.app.state.characters.client
+                )
+                seconds = min(
+                    native["window_frames"] / native["fps"],
+                    policy.max_seconds - settled_seconds,
+                )
             caption = program.get("ending")
             reason = program.get("ending_reason") or "执行 LLM 规划的最终恢复"
             # Recovery is one adopted activity spanning native windows. Its
@@ -205,7 +222,7 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                         choice, actions = await choose_window(
                             current.config,
                             request.app.state.characters.client,
-                            program=program,
+                            program=planning_program,
                             elapsed=elapsed,
                             body=body.body,
                             speech=body.speech,
@@ -218,14 +235,15 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                     except AllocationUnavailable as error:
                         if attempt:
                             raise
-                        remaining = remaining_actions(program, elapsed)
+                        remaining = remaining_actions(planning_program, elapsed)
                         phase = len(program["actions"]) - len(remaining)
                         revision = await reallocate_phase(
                             current.config,
                             request.app.state.characters.client,
                             program=program,
                             phase=phase,
-                            remaining=remaining[0]["duration_seconds"],
+                            remaining=remaining[0].get("duration_seconds")
+                            or current.config.behavior_horizon_seconds,
                             body=body.body,
                             speech_usable=body.speech.available
                             and body.speech.epoch == program.get("origin_epoch"),
@@ -261,14 +279,36 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
 
         # A semantic pause cannot freeze an airborne predecessor. Continue its
         # own motion until handoff is supported, without consuming the next cue.
-        handoff = bool(
+        handoff_previous = previous
+        if handoff_previous is None or handoff_previous["owner"] == "hold":
+            # Speech may become available after the body loop has gone idle.
+            # Recover the last executed body owner, using the current observation
+            # rather than treating an old forecast as a newly executed pose.
+            last_owner = next(
+                (
+                    s
+                    for s in reversed(list(current.behavior_slots.values()))
+                    if s["status"] == "completed" and s["owner"] != "hold"
+                ),
+                None,
+            )
+            if last_owner and last_owner["owner"] == "ardy":
+                handoff_previous = dict(last_owner, forecast=body.body.model_dump())
+        transition = await plan_expression_handoff(
+            current, request.app.state.characters.client, handoff_previous, body, choice
+        )
+        if transition:
+            choice, actions = transition["choice"], transition["actions"]
+        handoff = bool(transition) or bool(
             previous
             and previous["owner"] == "ardy"
             and previous.get("support", {}).get("supported") is False
             and choice.owner != "ardy"
         )
-        handoff_seconds = previous.get("handoff_seconds", 0) if handoff else 0
-        if handoff:
+        handoff_seconds = (
+            (handoff_previous or {}).get("handoff_seconds", 0) if handoff else 0
+        )
+        if handoff and not transition:
             policy = current.config.settlement
             if handoff_seconds >= policy.max_seconds:
                 if program:
@@ -319,16 +359,24 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
             speech_clock=body.speech.clock_seconds,
             speech_epoch=body.speech.epoch,
             observed_marks=body.speech.marks,
-            start_anchor=phase_anchor(program, elapsed).model_dump(),
-            waiting_for=phase_anchor(program, elapsed).model_dump()
-            if remaining_actions(program, elapsed)
-            and not anchor_reached(phase_anchor(program, elapsed), program, body.speech)
+            start_anchor=phase_anchor(planning_program, elapsed).model_dump(),
+            waiting_for=phase_anchor(planning_program, elapsed).model_dump()
+            if remaining_actions(planning_program, elapsed)
+            and not anchor_reached(
+                phase_anchor(planning_program, elapsed), planning_program, body.speech
+            )
             and not settling
             else None,
             speech_packet_id=body.speech.packet_id,
             speech_stream_id=body.speech.stream_id,
             phase_index=len((program or {}).get("actions", []))
-            - len(remaining_actions(program, elapsed)),
+            - len(remaining_actions(planning_program, elapsed)),
+            phase_elapsed_end=(planning_program or {}).get("phase_elapsed", 0)
+            + (
+                choice.seconds
+                if choice.advances_activity and not settling and not handoff
+                else 0
+            ),
             activity_start=elapsed,
             activity_end=elapsed
             + (
@@ -337,6 +385,16 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 else 0
             ),
             handoff=handoff,
+            transition_to=transition["transition_to"] if transition else None,
+            boundary_samples=transition["boundary"]["samples"] if transition else [],
+            boundary_sources=transition["boundary"]["sources"] if transition else [],
+            boundary_stream_offset=transition["boundary"]["stream_offset"]
+            if transition
+            else None,
+            boundary_clock=transition["boundary_clock"] if transition else None,
+            boundary_frame_seconds=transition["boundary_frame_seconds"]
+            if transition
+            else None,
             handoff_seconds=handoff_seconds + (choice.seconds if handoff else 0),
             settling=settling,
             settled_seconds=settled_seconds + (choice.seconds if settling else 0),
@@ -348,7 +406,12 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
         for key in list(current.behavior_slots)[:-16]:
             del current.behavior_slots[key]
         current.record(
-            "behavior_planned", **{k: v for k, v in slot.items() if k != "actions"}
+            "behavior_planned",
+            **{
+                k: v
+                for k, v in slot.items()
+                if k not in {"actions", "boundary_samples"}
+            },
         )
         return reservation_view(slot)
 
@@ -394,6 +457,7 @@ async def realize_behavior(
                 "end_state": "hold",
                 "max_seconds": slot["seconds"],
                 "history_frames": current.config.spatial_history_frames,
+                "end_pose_samples": slot.get("boundary_samples", []),
             },
             timeout=current.config.provider_timeout,
         ) as response:
@@ -457,6 +521,7 @@ async def realize_behavior(
 class SlotReceipt(Contract):
     status: str = Field(pattern="^(playing|completed|interrupted|failed)$")
     body: BodyState
+    clock_seconds: float | None = Field(default=None, ge=0)
 
 
 @router.post("/{session_id}/behavior/{slot_id}/feedback")
@@ -485,6 +550,8 @@ async def behavior_feedback(
             raise HTTPException(409, "body is still owned by predecessor")
     was_playing = slot["status"] == "playing"
     slot["status"] = body.status
+    if body.status == "playing" and body.clock_seconds is not None:
+        slot["playback_start_clock"] = body.clock_seconds
     current.body = body.body
     if (
         current.body_program
@@ -502,10 +569,14 @@ async def behavior_feedback(
     ):
         current.body_program["elapsed"] = slot["activity_end"]
         current.body_program["settled_seconds"] = slot.get("settled_seconds", 0)
-        duration = sum(planned_duration(a) for a in current.body_program["actions"])
-        ended = slot["activity_end"] >= duration - 1e-5 or current.body_program.get(
-            "finish_requested", False
-        )
+        if is_observed(current.body_program):
+            commit_window(current.body_program, slot)
+            ended = activity_done(current.body_program)
+        else:
+            duration = sum(planned_duration(a) for a in current.body_program["actions"])
+            ended = slot["activity_end"] >= duration - 1e-5 or current.body_program.get(
+                "finish_requested", False
+            )
         current.body_program["recovery_required"] = bool(
             ended and slot.get("support", {}).get("settled") is False
         )

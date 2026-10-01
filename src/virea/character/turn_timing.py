@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from .activity_progress import is_observed
 from .contracts import Contract
 from .coordination import SpeechAnchor
 from .motion_timing import planned_duration
@@ -107,6 +108,8 @@ class TurnTiming:
         self.changed.set()
 
     def objective_bounds(self):
+        if is_observed(self.program):
+            return {}  # Completion is receipt-owned, not reconstructed from time.
         bounds, at = {}, 0.0
         groups = (self.program or {}).get("objective_groups", [])
         for phase, action in enumerate((self.program or {}).get("actions", [])):
@@ -242,11 +245,20 @@ class TurnTiming:
                 observed.add(f"objective:{goal}:start")
         if status == "completed":
             if slot.get("advances_activity"):
-                observed.update(
-                    f"objective:{goal}:end"
-                    for goal, (_, end) in self.objective_bounds().items()
-                    if slot["activity_end"] >= end - 1e-5
-                )
+                if is_observed(program):
+                    phase = slot["phase_index"]
+                    if program.get("phase_index", 0) > phase:
+                        groups = program.get("objective_groups", [])
+                        observed.update(
+                            f"objective:{g}:end"
+                            for g in (groups[phase] if phase < len(groups) else [phase])
+                        )
+                else:
+                    observed.update(
+                        f"objective:{goal}:end"
+                        for goal, (_, end) in self.objective_bounds().items()
+                        if slot["activity_end"] >= end - 1e-5
+                    )
             if program["status"] == "completed":
                 observed.add("body:end")
         for event in sorted(observed - self.facts):

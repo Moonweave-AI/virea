@@ -350,6 +350,11 @@ class CharacterSession:
                     self.body_program = {
                         "id": uuid4().hex,
                         "actions": self.motion_plan,
+                        "completion_mode": plan.body.completion_mode,
+                        "completions": plan.body.completions,
+                        "phase_index": 0,
+                        "phase_elapsed": 0,
+                        "total_duration_seconds": plan.body.total_duration_seconds,
                         "end_state": plan.body.end_state,
                         "ending": plan.body.ending,
                         "start_with_reply": plan.body.start_with_reply,
@@ -542,6 +547,11 @@ class CharacterSession:
                         "id": uuid4().hex,
                         "actions": self.motion_plan,
                         "ending": plan.body.ending,
+                        "completion_mode": plan.body.completion_mode,
+                        "completions": plan.body.completions,
+                        "phase_index": 0,
+                        "phase_elapsed": 0,
+                        "total_duration_seconds": plan.body.total_duration_seconds,
                         "end_state": plan.body.end_state,
                         "start_with_reply": plan.body.start_with_reply,
                         "cues": [cue.model_dump() for cue in plan.body.cues],
@@ -562,9 +572,10 @@ class CharacterSession:
                         finish_response_body()
                 elif plan.body.operation == "stop" and self.body_program:
                     self.body_program["finish_requested"] = True
-                    self.body_program["elapsed"] = sum(
-                        planned_duration(a) for a in self.body_program["actions"]
-                    )
+                    if self.body_program.get("completion_mode") != "observed":
+                        self.body_program["elapsed"] = sum(
+                            planned_duration(a) for a in self.body_program["actions"]
+                        )
                     self.body_program["status"] = "settling"
                     self.body_program["id"] = uuid4().hex
                     timing.set_body(self.body_program)

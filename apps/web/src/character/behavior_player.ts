@@ -12,8 +12,19 @@ export interface BehaviorSlot {
   speech_packet_id?: string | null;
   settling?: boolean; terminal?: boolean; handoff?: boolean;
   waiting_for?: SpeechAnchor | null;
+  boundary_clock?: number | null;
+  boundary_frame_seconds?: number | null;
 }
 type Prepared = { slot: BehaviorSlot; windows?: SpatialWindow[] };
+
+/** A native boundary targets a specific audible instant, never a stale pose. */
+export function boundaryExpired(slot: BehaviorSlot, clock: number): boolean {
+  return slot.boundary_clock != null && clock + slot.seconds > slot.boundary_clock + (slot.boundary_frame_seconds ?? 0);
+}
+
+export function boundaryReady(slot: BehaviorSlot, clock: number): boolean {
+  return slot.boundary_clock == null || clock >= slot.boundary_clock - slot.seconds;
+}
 
 /** A waiting lease must yield as soon as its task is replaced or released. */
 export function reservationMatches(slot: BehaviorSlot, program: BodyProgram | null): boolean {
@@ -70,7 +81,9 @@ export class BehaviorPlayer {
       }
       return value;
     };
-    const receipt = (slot: BehaviorSlot, status: string) => request(`/${slot.id}/feedback`, { status, body: this.port.state() });
+    const receipt = (slot: BehaviorSlot, status: string) => request(`/${slot.id}/feedback`, {
+      status, body: this.port.state(), clock_seconds: this.port.speech().clock_seconds,
+    });
     let value: Prepared | null = null;
     let after: string | null = null;
     let active: BehaviorSlot | null = null;
@@ -78,9 +91,13 @@ export class BehaviorPlayer {
       while (current() && (value || this.port.needed())) {
         try {
           value = await realize(value ?? await plan(after));
-          while (current() && !this.port.canStart(value.slot)) await frame();
+          while (current() && (!this.port.canStart(value.slot)
+            || !boundaryReady(value.slot, this.port.speech().clock_seconds))) await frame();
           if (!current()) break;
           const speech = this.port.speech();
+          if (boundaryExpired(value.slot, speech.clock_seconds)) {
+            await receipt(value.slot, "interrupted"); value = null; continue;
+          }
           if (value.slot.owner !== "ardy" && (value.slot.speech_available !== speech.available
             || value.slot.owner === "sentiavatar" && value.slot.speech_packet_id && value.slot.speech_packet_id !== speech.packet_id)) {
             await receipt(value.slot, "interrupted"); value = null; continue;

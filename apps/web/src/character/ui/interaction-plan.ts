@@ -30,7 +30,7 @@ export function interactionPlan(appraisal: unknown): HTMLElement {
       row.append(node("p", task.text), node("p", `伴随表达：${task.motion_intent ?? ""}`));
     } else if (task.kind === "act") {
       const action = record(task.action);
-      row.append(node("p", `${task.executor} · ${action.duration_seconds}s · ${task.goal}`),
+      row.append(node("p", `${task.executor} · ${action.duration_seconds ? `${action.duration_seconds}s` : "持续至完成判断"} · ${task.goal}`),
         node("p", `完成条件：${task.completion}`), node("pre", action.description));
     } else if (Array.isArray(task.children)) {
       task.children.forEach((child, i) => row.append(render(child, `${path}.children[${i}]`, depth + 1)));
@@ -39,7 +39,7 @@ export function interactionPlan(appraisal: unknown): HTMLElement {
   };
   root.append(render(score.program, "program"));
   const recovery = record(score.recovery);
-  if (recovery.goal) root.append(node("p", `整项活动最后的恢复 · ${recovery.executor} · ${recovery.seconds}s\n${recovery.goal}`));
-  root.append(node("p", "这里展示采纳的任务及生成时长；实际开始、完成、等待和失败以播放回执为准。"));
+  if (recovery.goal) root.append(node("p", `整项活动最后的恢复 · ${recovery.executor}\n${recovery.goal}`));
+  root.append(node("p", "粗粒度活动决定模型与输入；执行层结合音频与运动进展判断延续或切换。实际完成以播放回执为准。"));
   return root;
 }

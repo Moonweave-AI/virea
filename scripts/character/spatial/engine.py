@@ -214,6 +214,10 @@ class SpatialEngine:
         generated = (
             generated[:, :output_frames] if output_frames is not None else generated
         )
+        if constraints:
+            from .boundary import correct_boundary
+
+            generated = correct_boundary(m, history, generated, constraints)
         motion = torch.cat((history, generated), dim=1)
         # Keep the last observed sample in the packet for interpolation across a
         # boundary. History is never stretched to the wall-clock generation time.

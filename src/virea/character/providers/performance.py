@@ -16,6 +16,8 @@ from .routing import ReplyPlan, motion_plan_problem, structured_completion
 
 
 class BodyPlan(Contract):
+    completion_mode: Literal["duration", "observed"] = "duration"
+    completions: list[str] = Field(default_factory=list, max_length=12)
     operation: Literal["keep", "replace", "stop"] = Field(
         description="keep preserves the ongoing body activity while conversing; replace starts a new requested activity; stop ends it."
     )
@@ -53,7 +55,10 @@ class BodyPlan(Contract):
             raise ValueError("Only a replacement body program has actions")
         if len(self.executors) != len(self.actions):
             raise ValueError("Each action requires an explicit model allocation")
-        if bool(self.ending) != bool(self.ending_executor and self.ending_seconds):
+        if bool(self.ending) != bool(
+            self.ending_executor
+            and (self.completion_mode == "observed" or self.ending_seconds)
+        ):
             raise ValueError("An ending requires its model and duration allocation")
         if (
             self.operation == "replace"
@@ -63,7 +68,14 @@ class BodyPlan(Contract):
             raise ValueError(
                 "A relaxed end state requires a recovery allocation; hold explicitly preserves the activity's own terminal pose"
             )
-        if sum(planned_duration(a.model_dump()) for a in self.actions) > 180:
+        if self.completion_mode == "observed":
+            if len(self.completions) != len(self.actions) or any(
+                a.duration_seconds is not None for a in self.actions
+            ):
+                raise ValueError(
+                    "Observed activities need completion goals and no preallocated durations"
+                )
+        elif sum(planned_duration(a.model_dump()) for a in self.actions) > 180:
             raise ValueError("Body program exceeds 180 seconds")
         phases = [cue.phase for cue in self.cues]
         if len(set(phases)) != len(phases) or any(

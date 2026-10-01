@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from .activity_progress import is_observed, phase_index
 from .contracts import Contract
 from .motion_timing import planned_duration
 
@@ -83,6 +84,12 @@ def phase_anchor(program: dict | None, elapsed: float) -> SpeechAnchor:
     """A started phase is committed; a later cue can only gate its successor."""
     if not program:
         return SpeechAnchor()
+    if is_observed(program):
+        if program.get("phase_elapsed", 0) > 0:
+            return SpeechAnchor()
+        phase = phase_index(program)
+        cue = next((c for c in program.get("cues", []) if c["phase"] == phase), None)
+        return SpeechAnchor.model_validate(cue["start"]) if cue else SpeechAnchor()
     boundary = 0.0
     for index, action in enumerate(program.get("actions", [])):
         duration = planned_duration(action)

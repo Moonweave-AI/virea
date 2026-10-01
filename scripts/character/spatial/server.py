@@ -15,6 +15,14 @@ from .engine import SpatialEngine
 from .program import generate_program
 
 
+class BoundarySample(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    position: dict[str, float]
+    yaw: float = 0
+    pelvis_height: float | None = None
+    pose: dict[str, tuple[float, float, float, float]]
+
+
 class GenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     action: dict | None = None
@@ -26,6 +34,7 @@ class GenerateRequest(BaseModel):
     guidance: float = Field(default=2, ge=1, le=8)
     history_frames: int = Field(default=40, ge=4, le=160, multiple_of=4)
     max_seconds: float | None = Field(default=None, ge=0.2, le=12)
+    end_pose_samples: list[BoundarySample] = Field(default_factory=list, max_length=8)
 
 
 def create_app(engine):
@@ -42,6 +51,7 @@ def create_app(engine):
             device="cuda",
             history_frames=engine.history_frames,
             continuous_program=True,
+            full_body_boundary_constraints=True,
             physics=False,
         )
 
@@ -64,6 +74,7 @@ def create_app(engine):
                     end_state=body.end_state,
                     history_frames=body.history_frames,
                     max_seconds=body.max_seconds,
+                    end_pose_samples=[s.model_dump() for s in body.end_pose_samples],
                 ):
                     yield json.dumps(packet, allow_nan=False) + "\n"
                 yield json.dumps({"done": True}) + "\n"

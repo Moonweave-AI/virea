@@ -11,6 +11,7 @@ const eventLabels: Record<string, string> = {
   body_error: "身体任务失败", interrupted: "已打断", error: "执行错误",
   speech_timing_planned: "话语时机规划", speech_waiting: "话语等待动作条件", speech_released: "话语条件已满足",
   timing_observed: "已执行动作事件", timing_error: "时序依赖冲突",
+  activity_reviewed: "执行层活动完成判断",
 };
 const owners: Record<string, string> = { ardy: "ARDY", sentiavatar: "SentiAvatar", hold: "保持姿态", retraction: "手势收尾" };
 const text = (tag: string, value: string, className = "") => {

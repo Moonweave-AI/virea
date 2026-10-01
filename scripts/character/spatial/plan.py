@@ -68,13 +68,9 @@ class SpatialPlan:
         self.kind = action["kind"]
         self.entry_velocity = np.zeros(3)
         self.exit_velocity = np.zeros(3)
-        delta = self.target[[0, 2]] - self.origin[[0, 2]]
-        distance = float(np.linalg.norm(delta))
-        self.duration = action.get("duration_seconds") or (
-            min(30, max(2.4, distance / 0.65 + 1.6)) if self.kind == "move_to" else 4.8
-        )
-        if self.kind == "reach":
-            self.duration = max(2.4, self.duration)
+        # No inferred semantic duration. A caption-only call produces one native
+        # window; continuing/completing the activity belongs to its caller.
+        self.duration = action.get("duration_seconds") or engine.horizon / engine.fps
         self.frames = (
             math.ceil(self.duration * engine.fps / engine.token_frames - 1e-9)
             * engine.token_frames

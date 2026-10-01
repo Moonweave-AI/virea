@@ -1,4 +1,10 @@
 export interface Position { x: number; y: number; z: number }
+export interface BodyProgram {
+  completion_mode?: "duration" | "observed";
+  completions?: string[];
+  phase_index?: number;
+  phase_elapsed?: number;
+}
 export interface BodyState {
   position: Position;
   yaw: number;

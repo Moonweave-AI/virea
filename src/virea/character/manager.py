@@ -11,6 +11,7 @@ import httpx
 from .contracts import CharacterConfig, SessionRequest
 from .providers.language import LanguageProvider
 from .providers.motion import CAPABILITIES, MotionProvider
+from .providers.resident_motion import ResidentMotion
 from .providers.speech import SpeechProvider
 from .session import CharacterSession
 
@@ -31,7 +32,7 @@ class CharacterManager:
         self.client = httpx.AsyncClient(trust_env=False)
         self.language = LanguageProvider(self.config, self.client)
         self.speech = SpeechProvider(self.config, self.client)
-        self.motion = MotionProvider(control, self.config)
+        self.motion = ResidentMotion(MotionProvider(control, self.config))
         self.sessions: dict[str, CharacterSession] = {}
         self.generation_slot = asyncio.Semaphore(1)
         self._reaper = asyncio.create_task(self._expire())
@@ -84,6 +85,7 @@ class CharacterManager:
             await self._reaper
         for session_id in list(self.sessions):
             await self.remove(session_id)
+        await self.motion.close()
         await self.client.aclose()
 
     async def _expire(self) -> None:

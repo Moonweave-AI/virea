@@ -302,7 +302,7 @@ export class CharacterStage {
     const speaking = () => Boolean(this.source) && this.audibleTime() < this.speechInfo.end;
     const speechReady = () => speaking() && Boolean(this.authority?.speechReady);
     const needed = () => speaking() || Boolean(this.activity && ["ready", "playing", "settling"].includes(this.activity.status)
-      && (Boolean(this.activity.ending) || this.activity.recovery_required || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) - 1e-5));
+      && (this.activity.completion_mode === "observed" || Boolean(this.activity.ending) || this.activity.recovery_required || this.activityElapsed < this.activity.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) - 1e-5));
     if (this.behavior?.running || !needed() || this.disposed) return;
     const player = this.behavior = new BehaviorPlayer({
       state: () => this.state(), hipHeight: () => this.hipHeight, needed,
@@ -315,7 +315,8 @@ export class CharacterStage {
       },
       play: async ({ slot, windows }, current) => {
         this.tape.driver(this.audibleTime(), slot.owner, slot.reason, slot.id);
-        const total = slot.settling ? slot.seconds : this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) ?? slot.seconds;
+        const total = slot.settling ? slot.seconds : this.activity?.completion_mode === "observed"
+          ? slot.activity_end : this.activity?.actions.reduce((sum, a) => sum + (a.duration_seconds ?? 0), 0) ?? slot.seconds;
         const progress = (elapsed: number) => {
           this.canvas.dataset.bodyStatus = slot.settling ? "settling" : slot.advances_activity ? "playing" : "idle";
           this.canvas.dataset.bodyElapsed = ((slot.settling ? 0 : slot.activity_start) + (slot.advances_activity || slot.settling ? elapsed : 0)).toFixed(3);
