@@ -42,10 +42,22 @@ def current_session(request, session_id):
         raise HTTPException(404, "character session not found") from exc
 
 
+def reservation_released(program, slot):
+    """Release cancels unfinished activity, not later companion expression."""
+    return bool(
+        program
+        and program.get("finish_requested")
+        and not slot.get("settling")
+        and (
+            slot.get("advances_activity")
+            or program.get("status") not in {"completed", "failed", "interrupted"}
+        )
+    )
+
+
 def slot_for(current, slot_id):
     slot = current.behavior_slots.get(slot_id)
     program_id = (current.body_program or {}).get("id")
-    released = bool((current.body_program or {}).get("finish_requested"))
     if (
         not slot
         or (
@@ -54,10 +66,9 @@ def slot_for(current, slot_id):
         )
         or current.status == "closed"
         or (
-            released
-            and slot
+            slot
             and slot["program_id"] == program_id
-            and not slot.get("settling")
+            and reservation_released(current.body_program, slot)
             and slot["status"] not in {"playing", "completed"}
         )
         or (
@@ -103,7 +114,7 @@ async def plan_behavior(session_id: str, body: BehaviorRequest, request: Request
                 and s["program_id"] == program_id
                 and s["status"] in {"planned", "generating", "ready"}
                 and s["epoch"] == current.epoch
-                and (not (program or {}).get("finish_requested") or s.get("settling"))
+                and not reservation_released(program, s)
             ),
             None,
         )

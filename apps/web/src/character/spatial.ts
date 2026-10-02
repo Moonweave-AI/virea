@@ -24,6 +24,8 @@ export class SpatialPlayer {
   private start = 0;
   private current: SpatialWindow | null = null;
   private previous: SpatialWindow | null = null;
+  private packetId: string | null = null;
+  private successor: { id: string; first: SpatialWindow; readyAt: number; startAt: number | null } | null = null;
   private bridges = new Map<string, RotationBridge>();
   private recording: { id: string; windows: SpatialWindow[] } | null = null;
   private holding = false;
@@ -48,14 +50,28 @@ export class SpatialPlayer {
   stop(): void {
     this.abort?.abort(); this.abort = null; this.active = this.holding = false;
     this.queue = []; this.current = null; this.bridges.clear(); this.joints.clear();
+    this.previous = null; this.packetId = null; this.successor = null;
   }
 
   export(): SpatialWindow[] { return this.recording?.windows ?? []; }
 
+  /** Look ahead across HTTP reservations just as we do across native windows. */
+  buffer(after: string | null, id: string, windows: SpatialWindow[], startAt: number | null = null): void {
+    if (after !== this.packetId || !this.active || !windows.length) return;
+    for (const window of windows) validateSpatialWindow(window);
+    this.successor = { id, first: windows[0]!, readyAt: this.clock(), startAt };
+  }
+
   async run(packet: Expression, body: BodyState, hipHeight: number,
-    onProgress: (elapsed: number, duration: number) => void = () => {}): Promise<void> {
+    onProgress: (elapsed: number, duration: number) => void = () => {}, after: string | null = null): Promise<void> {
+    const adjacent = packet.temporal && this.holding && after !== null && after === this.packetId;
+    const previous = adjacent ? this.current : null;
+    const deadline = Math.max(this.start + this.total, this.successor?.startAt ?? -Infinity);
+    const continuous = adjacent && this.successor?.id === packet.id && this.successor.readyAt <= deadline;
+    const origin = continuous ? deadline : null;
     this.stop();
-    this.previous = null;
+    this.previous = previous;
+    this.packetId = packet.id;
     const controller = this.abort = new AbortController();
     if (!packet.preview) this.recording = null;
     this.contactError = null; this.contactState = null; this.stalledAt = null;
@@ -112,7 +128,7 @@ export class SpatialPlayer {
       if (controller.signal.aborted) throw new DOMException("Interrupted", "AbortError");
       this.current = this.queue.shift() ?? null;
       this.total = this.current?.total_seconds ?? 0;
-      this.start = this.clock(); this.underruns = 0; this.elapsed = 0;
+      this.start = origin ?? this.clock(); this.underruns = 0; this.elapsed = 0;
       if (this.current && !packet.temporal) for (const [name, values] of Object.entries(this.current.rotations)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (bone) this.bridges.set(name, new RotationBridge(bone.quaternion, this.quaternion(values[0]!), undefined, undefined, .35));
@@ -122,7 +138,7 @@ export class SpatialPlayer {
         if (failure) throw failure;
         const now = this.clock();
         this.elapsed = (this.stalledAt ?? now) - this.start;
-        if (this.current && this.elapsed >= this.current.offset + this.current.seconds) {
+        while (this.current && this.elapsed >= this.current.offset + this.current.seconds) {
           if (this.queue.length) {
             if (this.queue[0]!.phase_index !== this.current.phase_index) {
               this.checkContact(); this.phaseContactError = Infinity;
@@ -134,8 +150,12 @@ export class SpatialPlayer {
             if (!packet.temporal || (this.current.phase_offset ?? 0) + (this.current.phase_seconds ?? 0) <= this.total + 1e-5) this.checkContact();
             break;
           }
-          else if (this.stalledAt === null) { this.stalledAt = now; this.underruns++; }
+          else {
+            if (this.stalledAt === null) { this.stalledAt = now; this.underruns++; }
+            break;
+          }
         }
+        if (ended && !this.queue.length && this.current && this.elapsed >= this.current.offset + this.current.seconds) break;
         this.phase = this.current?.phase_label ?? "生成动作";
         this.phaseIndex = this.current?.phase_index ?? 0;
         onProgress(Math.min(this.elapsed, this.total), this.total);
@@ -164,20 +184,26 @@ export class SpatialPlayer {
   }
 
   update(_speaking: boolean): void {
-    const window = this.current;
+    let window = this.current;
     if (!this.active || !window) return;
     const elapsed = this.holding ? this.total : (this.stalledAt ?? this.clock()) - this.start;
+    // Rendering and the async pump have separate RAF callbacks. Sample the
+    // window at THIS clock instant even when the pump has not advanced yet.
+    let previous = this.previous, index = 0;
+    while (elapsed >= window.offset + window.seconds && this.queue[index]) {
+      previous = window; window = this.queue[index++]!;
+    }
     const cursor = THREE.MathUtils.clamp((elapsed - window.offset) * window.fps, 0, window.root.length - 1);
-    const next = this.queue[0];
+    const next = this.queue[index] ?? this.successor?.first;
     for (const [name, values] of Object.entries(window.rotations)) {
       const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
       if (!bone) continue;
-      const q = sampleRotation(values, cursor, this.previous?.rotations[name], next?.rotations[name]);
+      const q = sampleRotation(values, cursor, previous?.rotations[name], next?.rotations[name]);
       if (this.vrm.meta.metaVersion === "0") { q.x *= -1; q.z *= -1; }
       if (name === "chest" && !this.vrm.humanoid.getNormalizedBoneNode("upperChest")) {
         const extra = window.rotations.upperChest;
         if (extra) {
-          const upper = sampleRotation(extra, cursor, this.previous?.rotations.upperChest, next?.rotations.upperChest);
+          const upper = sampleRotation(extra, cursor, previous?.rotations.upperChest, next?.rotations.upperChest);
           if (this.vrm.meta.metaVersion === "0") { upper.x *= -1; upper.z *= -1; }
           q.multiply(upper);
         }
@@ -187,7 +213,7 @@ export class SpatialPlayer {
     }
     const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
     if (hips) {
-      const root = samplePosition(window.root, cursor, this.previous?.root, next?.root);
+      const root = samplePosition(window.root, cursor, previous?.root, next?.root);
       this.vrm.scene.updateMatrixWorld(true);
       const actual = hips.getWorldPosition(new THREE.Vector3());
       this.vrm.scene.position.x += root.x - actual.x;
@@ -198,7 +224,7 @@ export class SpatialPlayer {
     }
     this.joints.clear();
     for (const [name, rows] of Object.entries(window.joints ?? {})) {
-      this.joints.set(name, samplePosition(rows, cursor, this.previous?.joints?.[name], next?.joints?.[name]));
+      this.joints.set(name, samplePosition(rows, cursor, previous?.joints?.[name], next?.joints?.[name]));
     }
     this.support.align(this.joints);
     if (window.phase_kind === "reach" && window.target) {
@@ -214,7 +240,8 @@ export class SpatialPlayer {
           contactIK(chain, hand, target, THREE.MathUtils.smootherstep(elapsed, end - 1.2, end - .2));
         }
         const distance = hand.getWorldPosition(new THREE.Vector3()).distanceTo(target);
-        this.phaseContactError = Math.min(this.phaseContactError, distance);
+        if (window.phase_index === this.current?.phase_index)
+          this.phaseContactError = Math.min(this.phaseContactError, distance);
         this.contactError = this.phaseContactError;
         this.contactState = { target: target.toArray(), hand: hand.getWorldPosition(new THREE.Vector3()).toArray(), distance, closestDistance: this.phaseContactError };
       }

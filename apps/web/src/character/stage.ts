@@ -307,6 +307,11 @@ export class CharacterStage {
     const player = this.behavior = new BehaviorPlayer({
       state: () => this.state(), hipHeight: () => this.hipHeight, needed,
       canStart: () => true,
+      buffer: ({ slot, windows }) => {
+        if (windows) this.spatial?.buffer(slot.after, slot.id, windows,
+          slot.boundary_clock == null ? null : slot.boundary_clock - slot.seconds);
+      },
+      cancel: () => this.spatial?.stop(),
       speech: () => this.speechClock.observe(this.audibleTime(), Boolean(this.authority?.speechReady)),
       report: slot => {
         this.canvas.dataset.behaviorSlot = slot.id;
@@ -325,7 +330,7 @@ export class CharacterStage {
         };
         if (windows) {
           await this.spatial!.run({ id: slot.id, epoch: this.epoch, text: "", audio_url: null, audio_seconds: 0,
-            motion: null, actions: [], spatial_windows: windows, temporal: true, end_state: "hold" }, this.state(), this.hipHeight, progress);
+            motion: null, actions: [], spatial_windows: windows, temporal: true, end_state: "hold" }, this.state(), this.hipHeight, progress, slot.after);
           if (current() && slot.program_id === this.recordingId) {
             const offset = this.bodyRecording.reduce((sum, window) => sum + window.seconds, 0);
             const total = offset + windows.reduce((sum, window) => sum + window.seconds, 0);

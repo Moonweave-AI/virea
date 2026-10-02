@@ -20,7 +20,12 @@ async def review_predecessor(current, client, previous, observation):
         and previous["program_id"] == program["id"]
     ):
         return program
-    if not previous.get("activity_review"):
+    # An explicit user budget or release already ends the projected program.
+    # Re-asking the LLM cannot extend it, but can strand a short last window
+    # while its recovery waits. Commit still belongs to the playback receipt.
+    if not previous.get("activity_review") and not activity_done(
+        after_window(program, previous)
+    ):
         started = monotonic()
         review = await review_activity(
             current.config,

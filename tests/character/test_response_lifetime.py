@@ -60,6 +60,28 @@ def test_response_release_invalidates_prepared_activity_but_keeps_active_owner(
         )
 
 
+@pytest.mark.parametrize("status", ["completed", "failed", "interrupted"])
+def test_terminal_release_allows_later_companion_without_reviving_activity(
+    monkeypatch, status
+):
+    client, current = setup(monkeypatch)
+    current.body_program = dict(
+        id="p", actions=[], status=status, finish_requested=True
+    )
+    with client:
+        first = client.post("/s/behavior/plan", json={"body": {}}).json()
+        duplicate = client.post("/s/behavior/plan", json={"body": {}}).json()
+        assert first["id"] == duplicate["id"]
+        path = f"/s/behavior/{first['id']}/feedback"
+        slot = current.behavior_slots[first["id"]]
+        slot["advances_activity"] = True
+        assert client.post(path, json={"body": {}, "status": "playing"}).status_code == 409
+        slot["advances_activity"] = False
+        assert client.post(path, json={"body": {}, "status": "playing"}).status_code == 200
+        assert client.post(path, json={"body": {}, "status": "completed"}).status_code == 200
+        assert current.body_program["status"] == status
+
+
 def test_unspecified_pose_duration_cannot_expand_to_180_seconds(monkeypatch):
     async def complete(*args, **kwargs):
         return native_plan(

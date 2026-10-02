@@ -186,3 +186,32 @@ def test_old_review_cannot_mutate_a_replacement_program(monkeypatch):
         )
     )
     assert "activity_review" not in s and p["phase_index"] == 0
+
+
+def test_explicit_budget_prepares_recovery_without_a_redundant_llm_wait(monkeypatch):
+    from types import SimpleNamespace
+
+    from virea_api.routes import behavior_progress
+
+    p, s = program(), slot()
+    p.update(total_duration_seconds=20, elapsed=19.2, phase_elapsed=19.2)
+    s.update(epoch=1, activity_start=19.2, activity_end=20, phase_elapsed_end=20)
+    s.pop("activity_review")
+    timing = TurnTiming(1, lambda *a, **k: None)
+    timing.set_body(p)
+    current = SimpleNamespace(body_program=p, epoch=1, timing=timing)
+
+    async def unnecessary_review(*a, **k):
+        raise AssertionError("The user budget already determines this boundary")
+
+    monkeypatch.setattr(behavior_progress, "review_activity", unnecessary_review)
+    observation = SimpleNamespace(body=BodyState(), speech=SpeechObservation())
+    projected = asyncio.run(
+        behavior_progress.review_predecessor(current, None, s, observation)
+    )
+    assert projected["phase_index"] == 2
+    assert p["elapsed"] == 19.2 and p["phase_index"] == 0
+    assert "objective:0:end" not in timing.facts
+    s["status"] = "completed"
+    asyncio.run(behavior_progress.review_predecessor(current, None, s, observation))
+    assert p["elapsed"] == 20 and p["status"] == "completed"
