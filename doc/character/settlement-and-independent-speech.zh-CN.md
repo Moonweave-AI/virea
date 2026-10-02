@@ -3,7 +3,7 @@ type: explanation
 status: Active
 owner: VIREA maintainers
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-02
 last_reviewed: 2026-09-29
 review_cycle_days: 90
 summary: 支撑感知的活动收势、VRM 高度修正和独立语音流水线。
@@ -57,7 +57,7 @@ superseded_by: []
 可复现的原生测试：
 
 ```powershell
-.venv/Scripts/python.exe scripts/character/benchmarks/evaluate_settlement.py --neutral D:/AI-Program-Project/VIREA-Data/homes/character-5090/characters/neutral-pose.json --output D:/AI-Program-Project/VIREA-Data/evidence/settlement-20260929/native.json
+.venv/Scripts/python.exe scripts/character/benchmarks/evaluate_settlement.py --neutral <DATA_ROOT>/homes/character-5090/characters/neutral-pose.json --output <DATA_ROOT>/evidence/settlement-20260929/native.json
 ```
 
 跳跃、舞蹈、盘腿坐姿已重复测试两轮，共六次；六次都在首个 4 秒收势窗口达到稳定判据。坐姿保留低骨盆姿态。首轮生成每个 4 秒窗口耗时 0.37–0.41 秒；与浏览器负载并行时最高约 1.28 秒。它们是本机测量，不是论文宣称的延迟。

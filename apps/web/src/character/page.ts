@@ -4,6 +4,7 @@ import { StudioHistory, downloadJSON } from "./ui/history";
 import { StudioPreferences } from "./ui/preferences";
 import { StudioDiagnostics } from "./ui/diagnostics";
 import { CharacterStage } from "./stage";
+import { downloadVideo } from "./video";
 import type { Expression, Session, PlaybackProgress } from "./contracts";
 
 const root = document.querySelector<HTMLDivElement>("#character")!;
@@ -116,6 +117,7 @@ function renderState(value: Session): void {
   element<HTMLButtonElement>("#replay-audio").disabled = !idle || !stage.recordedAudio;
   element<HTMLButtonElement>("#replay-motion").disabled = !idle || !stage.replayAvailable;
   element<HTMLButtonElement>("#export-motion").disabled = !idle || !stage.motionRecording().length;
+  element<HTMLButtonElement>("#export-video").disabled = !idle || !stage.replayAvailable;
   element<HTMLButtonElement>("#replay-sync").disabled = !idle || !stage.replayAvailable || !stage.recordedAudio;
   if (!playing && !previewing) {
     element("#motion-state").textContent = value.status === "generating" ? "动作生成中…" : latest?.motion || stage.motionRecording().length ? "动作已就绪 · 可重播" : "保留当前姿态";
@@ -253,7 +255,7 @@ element("#pause").onclick = async () => {
 };
 element<HTMLInputElement>("#volume").oninput = event => stage.setVolume(Number((event.target as HTMLInputElement).value));
 
-async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> {
+async function replay(kind: "audio" | "motion" | "synchronized", record = false): Promise<void> {
   if (!stage.replayAvailable || playing || stage.bodyRunning || previewing || mutating) return;
   previewing = true;
   const generation = ++playbackGeneration;
@@ -262,7 +264,9 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
   element("#playback-note").textContent = kind === "audio" ? "正在单独重播语音。" : kind === "motion" ? "正在单独预览动作（无声音）。" : "正在同步重播语音、动作与字幕。";
   try {
     await stage.unlockAudio();
-    await stage.replay(kind, text => { element("#subtitle").textContent = text; }, showProgress);
+    const caption = (text: string) => { element("#subtitle").textContent = text; };
+    if (record) await downloadVideo(await stage.recordVideo(caption, showProgress), session?.id);
+    else await stage.replay(kind, caption, showProgress);
     if (generation === playbackGeneration) element("#playback-note").textContent = "回放结束。";
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) showError(error);
@@ -276,6 +280,7 @@ async function replay(kind: "audio" | "motion" | "synchronized"): Promise<void> 
 element("#replay-audio").onclick = () => { void replay("audio"); };
 element("#replay-motion").onclick = () => { void replay("motion"); };
 element("#replay-sync").onclick = () => { void replay("synchronized"); };
+element("#export-video").onclick = () => { void replay("synchronized", true); };
 
 element("#export-motion").onclick = () => {
   const windows = stage.motionRecording();

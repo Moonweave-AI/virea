@@ -15,6 +15,7 @@ import { BehaviorPlayer, reservationMatches } from "./behavior_player";
 import { SpeechClock, cueReached } from "./speech_clock";
 import { MotionInspection } from "./inspection";
 import { PerformanceRecording, mixRecordedAudio } from "./recording";
+import { captureVideo } from "./video";
 import type { BodyState, Expression, FaceTrack, PlaybackProgress, BodyProgram, Session } from "./contracts";
 
 export class CharacterStage {
@@ -186,6 +187,15 @@ export class CharacterStage {
         this.spatial?.stop(); this.replaying = false; caption("");
       }
     }
+  }
+
+  async recordVideo(caption: (text: string) => void, progress: (value: PlaybackProgress) => void): Promise<Blob> {
+    let text = "", elapsed = 0;
+    return captureVideo(this.canvas, this.audio, this.gain,
+      () => this.replay("synchronized", value => { text = value; caption(value); }, value => {
+        elapsed = value.elapsed; progress(value);
+      }), () => ({ caption: text,
+        label: `${this.tape.drivers.filter(driver => driver.at <= elapsed).at(-1)?.owner ?? "hold"}  ·  ${elapsed.toFixed(1)}s` }));
   }
 
   private audibleTime(): number {

@@ -3,7 +3,7 @@ type: explanation
 status: Active
 owner: VIREA maintainers
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-02
 last_reviewed: 2026-09-29
 review_cycle_days: 90
 summary: 从真实 Miku 会话定位动作断档、错误身体承诺与收势问题，记录论文依据、实现和 GPU 验证。
@@ -74,7 +74,7 @@ SentiAvatar 和 ARDY 按时间段独占全身，语音和面部继续沿统一�
 - 最终构建再测完整中文故事：直接讲完，没有中途再确认；49.275 秒语音、11/11 动作窗口可用、0 错误/过期，动作生成 1.032–1.625 秒。完整录制 51.021 秒，无 ARDY 任务；头部峰值 137.1°/秒，结束后头部和关节速度为 0，目视双臂下垂、双脚落地。字幕窗口覆盖全文，没有重复整句。
 - 将三维世界四元数归一化后再计角度，保证测量公式前提；这一步本身没有消除第二轮跳变。实际原因是上面的 PropertyMixer 源缓存错误，不能把归一化当作动作修复证据。
 
-本机证据目录：`D:/AI-Program-Project/VIREA-Data/evidence/planned-expression-20260929/`。保留了修复前失败、修复后执行链、原失败输入回放和 Miku 结束截图。
+本机证据目录：`<DATA_ROOT>/evidence/planned-expression-20260929/`。保留了修复前失败、修复后执行链、原失败输入回放和 Miku 结束截图。
 
 自动验证：角色与驻留生命周期 126 项、任务取消与进程恢复 39 项通过；Web 119 项通过；SentiAvatar Runtime 22 项及 CPU/CUDA 两个子测试通过；TypeScript/Vite 构建和修改文件 Ruff 检查通过。基础 API 虚拟环境缺少音频与 sklearn 依赖，因此 Runtime 测试在实际 GPU Runtime 中执行。现有 WebGL 依赖打包体积提示仍在。最终 Miku 会话的 9.2 秒完整音画录制也通过 UI 同步回放，正常结束。
 

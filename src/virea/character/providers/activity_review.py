@@ -141,5 +141,7 @@ activity_progress accumulates this activity across windows, retaining its origin
     return ActivityReview(
         evidence=choice.evidence,
         decision="complete" if choice.next_step == "advance_program" else "continue",
-        continuation=choice.continuation,
+        continuation=choice.continuation
+        if choice.next_step == "extend_activity"
+        else None,
     )

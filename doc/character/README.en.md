@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-28
-last_reviewed: 2026-09-28
+updated: 2026-10-03
+last_reviewed: 2026-10-03
 review_cycle_days: 30
 summary: Deployment and acceptance boundaries for persistent character sessions.
 canonical: doc/character/README.en.md
@@ -17,9 +17,11 @@ superseded_by: []
 
 # Persistent character sessions (experimental)
 
-The latest [Motion Studio routing and continuous-motion evaluation](motion-studio-upgrade.zh-CN.md)
-documents intent-first routing, dedicated ARDY programs, the seeded history-length ablation,
-pause-aware playback, local history and recording export. Earlier [semantic streaming work](semantic-spatial-upgrade.zh-CN.md)
+Start with the [eight recorded performances](showcase.en.md),
+[coarse activity execution](coarse-activity-execution.zh-CN.md) and
+[window continuity measurements](window-continuity.zh-CN.md).
+The earlier [Motion Studio evaluation](motion-studio-upgrade.zh-CN.md) covers routing,
+history-length ablation and playback. Earlier [semantic streaming work](semantic-spatial-upgrade.zh-CN.md)
 documents single-response generation, batched SentiAvatar infill, the resident NF4 text encoder,
 native eight-frame spatial windows, installation and verified limitations. Install the optional
 spatial worker with `scripts/character/install_spatial.ps1 -DataRoot <DATA_ROOT>` before using
@@ -30,8 +32,8 @@ the updated RTX 5090 stack. This kinematic integration does not provide universa
 [Continuous generation, natural stance and measured results (Chinese)](streaming-upgrade.zh-CN.md)
 
 Open `/app/character.html`, load a VRM, start a session and enter text. The character
-chooses `SPEAK`, `ACT_SILENTLY` or `WAIT`. Subtitle, TTS and motion share the exact
-final response; users never specify a response duration. Executed pose and world
+plans the response and coarse activities, with speech-before-action, concurrent speech,
+or speech released by a completed objective. Users need not specify a response duration. Executed pose and world
 position survive response completion and interruption within the live API process.
 
 The page presents separate audio, motion and text sections, with pause, volume,
@@ -39,10 +41,14 @@ audio replay, motion preview and synchronized replay. The API-only **voice-first
 mode displays finalized text and plays speech as soon as TTS is ready. Late motion
 is available for explicit preview; it is never automatically played with mismatched
 speech. Interim mouth movement is an amplitude-based approximation, not phoneme alignment.
-**Synchronized** mode is the page default. It incrementally prepares contextual
-windows and displays one shared timeline, using the audible audio clock for motion, face and scene movement.
+The page uses plan-driven timing. Its API mode is still named **synchronized**:
+this means shared playback clocks, not mandatory simultaneous speech and body activity.
+It incrementally prepares contextual windows. SentiAvatar and ARDY take turns owning
+the body; the execution LLM reviews continuation from observed progress.
 Subtitles start and end with speech. Set `playback_mode` when creating a session; the API default remains
-`synchronized`. Replays do not trigger autonomous responses.
+`synchronized`. Replays do not trigger autonomous responses. “导出视频” captures a real-time
+replay with sound, captions and body-owner labels as WebM. Save the file before ending
+the session; the temporary Runtime copy is limited to 128 MiB and removed with that session.
 
 ## Run locally
 

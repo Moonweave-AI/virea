@@ -30,7 +30,7 @@ superseded_by: []
 
 自动化覆盖：延迟回执下无播放间隙、后台回执顺序与观察时刻、异步失败取消、旧失败隔离、窗口边界位置/角速度、RAF 调用顺序、迟到数据、取消、回放及明确预算的投影与提交。另运行前端全量与角色后端回归及生产构建。
 
-真实测试使用本机 RTX 5090、现有 Qwen/ARDY/SentiAvatar/Kokoro 服务和 `miku.vrm`，保留用户角色设定与 `zf_040` 声线。证据目录：`D:/AI-Program-Project/VIREA-Data/evidence/window-continuity-20261002`。
+真实测试使用本机 RTX 5090、现有 Qwen/ARDY/SentiAvatar/Kokoro 服务和 `miku.vrm`，保留用户角色设定与 `zf_040` 声线。证据目录：`<DATA_ROOT>/evidence/window-continuity-20261002`。
 
 第一轮真实舞蹈的主时段开始为 0、6.405、12.808、19.205 秒；最后 0.8 秒窗之后等待冗余完成判断，恢复到 23.856 秒才开始。这一负例保留在 `browser-dance-initial.json`，用于验证预算收尾修复，不能当作全程无停顿的成功证据。
 

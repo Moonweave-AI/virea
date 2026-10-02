@@ -2,7 +2,7 @@
   "schema_version": "virea.showcase_publication.v2",
   "decision": "selective-allowlist",
   "public_embed_allowed": true,
-  "reviewed_at": "2026-08-21",
+  "reviewed_at": "2026-10-03",
   "scope": "Only files listed in public_media_allowlist may be embedded or linked. An allowlist entry records the repository publication decision and does not imply that upstream legal permission was verified.",
   "public_media_manifest": "doc/showcase/media/manifest.json",
   "vrm": {
@@ -270,6 +270,198 @@
       "dataset": "susuinteracts",
       "role": "facing",
       "public_embed_allowed": true
+    },
+    "doc/assets/character-demos/01-host.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/01-host.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/01-host.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/02-warmup.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/02-warmup.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/02-warmup.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/03-story.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/03-story.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/03-story.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/04-dance.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/04-dance.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/04-dance.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/05-fashion.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/05-fashion.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/05-fashion.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/06-celebration.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/06-celebration.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/06-celebration.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/07-tour.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/07-tour.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/07-tour.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/08-boxing.mp4": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/08-boxing.gif": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
+    },
+    "doc/assets/character-demos/08-boxing.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-to-record-eight-demos-and-publish-in-README-2026-10-02",
+      "provenance": "doc/assets/character-demos/README.md"
     }
   }
 }

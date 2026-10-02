@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
@@ -167,3 +169,40 @@ async def close_character(session_id: str, request: Request) -> dict:
     session(request, session_id)
     await request.app.state.characters.remove(session_id)
     return {"closed": True}
+
+
+@router.put("/{session_id}/recording")
+async def save_recording(session_id: str, request: Request) -> dict:
+    current = session(request, session_id)
+    if request.headers.get("content-type", "").split(";")[0] != "video/webm":
+        raise HTTPException(415, "WebM recording required")
+    size, header = 0, b""
+    with NamedTemporaryFile(
+        dir=current.directory, suffix=".part", delete=False
+    ) as stream:
+        temporary = Path(stream.name)
+        try:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > 128 * 1024 * 1024:
+                    raise HTTPException(413, "Recording exceeds 128 MiB")
+                header = (header + chunk)[:4]
+                stream.write(chunk)
+            if header != b"\x1a\x45\xdf\xa3":
+                raise HTTPException(422, "Invalid WebM header")
+            stream.close()
+            temporary.replace(current.directory / "recording.webm")
+        finally:
+            stream.close()
+            temporary.unlink(missing_ok=True)
+    return {"url": f"/api/v1/characters/{session_id}/recording"}
+
+
+@router.get("/{session_id}/recording")
+async def character_recording(session_id: str, request: Request) -> FileResponse:
+    path = session(request, session_id).directory / "recording.webm"
+    if not path.is_file():
+        raise HTTPException(404, "No recording has been saved")
+    return FileResponse(
+        path, media_type="video/webm", filename="virea-performance.webm"
+    )

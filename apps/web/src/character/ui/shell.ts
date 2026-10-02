@@ -46,7 +46,7 @@ export const studioShell = `
               <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
               <div class="track"><strong>动作</strong><span id="motion-state">自然站姿</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
               <label class="volume">音量<input id="volume" type="range" min="0" max="1" step="0.05" value="1"></label>
-              <div class="buttons"><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>重播动作</button><button id="replay-sync" disabled>同步重播</button><button id="export-motion" disabled>导出动作</button></div>
+              <div class="buttons"><button id="replay-audio" disabled>重播语音</button><button id="replay-motion" disabled>重播动作</button><button id="replay-sync" disabled>同步重播</button><button id="export-motion" disabled>导出动作</button><button id="export-video" disabled>导出视频</button></div>
               <p id="playback-note" class="hint">语音、动作与字幕共用时间轴。</p>
             </div></details>
           </section>

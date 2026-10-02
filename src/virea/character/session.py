@@ -269,6 +269,7 @@ class CharacterSession:
             self._closed = True
             self.status = "closed"
             self.record("closed")
+            (self.directory / "recording.webm").unlink(missing_ok=True)
             self.directory.rmdir()
 
     def _ensure_open(self) -> None:

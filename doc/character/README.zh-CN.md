@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-28
-last_reviewed: 2026-09-28
+updated: 2026-10-03
+last_reviewed: 2026-10-03
 review_cycle_days: 30
 summary: 持续角色的部署、状态反馈、播放与测量。
 canonical: doc/character/README.zh-CN.md
@@ -19,24 +19,24 @@ superseded_by: []
 
 [English](README.en.md)
 
-[Motion Studio、意图路由与连续动作实测](motion-studio-upgrade.zh-CN.md) · [此前语义流与空间控制](semantic-spatial-upgrade.zh-CN.md) · [连续生成与自然姿态](streaming-upgrade.zh-CN.md)
+[八段真实表演与录制方法](showcase.zh-CN.md) · [粗粒度活动执行](coarse-activity-execution.zh-CN.md) · [窗口连续播放实测](window-continuity.zh-CN.md)
 
 打开 `/app/character.html`，载入 VRM，点击「开始会话」，输入文本。
-角色先按最新用户意图选择 SentiAvatar 对话表达或 ARDY 全身动作；ARDY 使用专门的英文动作描述序列。
-用户不填写回应时长。语音、字幕、动作使用同一份最终文本；讲话结束后保留已执行姿态与世界位置。
-完整表达末尾沿当前速度减速收势，回到从真实 idle 动作提取的放松站姿，再进入轻微呼吸待机。
-内部推理窗口连续衔接；收势、声音、身体和面部共用时间轴，暂停、打断同样生效。
-详见[当前生成与播放体系](streaming-upgrade.zh-CN.md)。
+LLM 根据对话生成回答与粗粒度活动计划，决定先说后做、边说边做或完成目标后再说。
+SentiAvatar 与 ARDY 分时接管身体；ARDY 接收英文当前活动描述，执行层根据运动观测判断继续或完成。
+用户无需填写回应时长；内部原生推理窗口不等于语义活动边界。讲话结束后保留身体状态与世界位置。
+最终恢复和中间连续运动分开，暂停与打断作用于实际播放。较早的实现记录见 [Motion Studio 升级](motion-studio-upgrade.zh-CN.md)。
 
 页面分别显示语音进度、动作进度和完整文本，提供暂停/继续、音量、语音重播、动作预览与同步重播。
-页面使用严格同步；API 仍兼容两种播放方式：
+页面使用按计划编排；API 仍保留两种模式名称：
 
 - **语音优先**（API 可选）：文本生成后立即显示，TTS 就绪后开口。动作后台生成，完成后供预览；
   不在语音结束后自动追播错位的口型。等待原生面部时按音量近似驱动嘴部，不宣称音素级唇形。
-- **严格同步**（页面与 API 默认）：等待音频、动作和面部就绪，共用音频输出时钟播放；暂停会冻结各播放轨。
-  页面显示统一总时间轴，骨骼、面部和场景移动使用同一时钟；字幕在语音起播时显示、语音结束时消失。
+- **synchronized**（页面与 API 默认）：共用播放时钟，按照事件依赖安排讲话与动作，并不要求两者同时发生。
+  暂停冻结各播放轨；字幕跟随语音，身体时段保持单一驱动源。
 
 重播属于本地预览，不触发新的自主回应。初次载入建立放松手臂姿态，之后持续保留实际执行状态。
+「导出视频」按原速录制完整回放，包含声音、字幕与身体驱动标签。WebM 暂存在本地 Runtime，单段上限 128 MiB；结束会话时删除临时副本，因此请先保存视频。
 
 ## 部署
 

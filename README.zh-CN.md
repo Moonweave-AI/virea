@@ -3,10 +3,10 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-03
+last_reviewed: 2026-10-03
 review_cycle_days: 14
-summary: VIREA 的中文项目入口：从 clean clone、环境检测和显式执行域选择，到模型安装、生成和浏览器播放。
+summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
 related:
   - README.md
@@ -17,16 +17,82 @@ supersedes: []
 superseded_by: []
 ---
 
-<p align="center">
-  <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA：多模型动作生成到可审计 VRMA 浏览器播放">
-</p>
-
 # VIREA
 
-> [English](README.md) · [简体中文](README.zh-CN.md)
+### 能说、能动、能继续的三维对话。
 
-VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VRMA 和真实 VRM 浏览器播放串成一条可审计链。
-模型资产不属于某个操作系统：用户先选择实际运行的执行域，VIREA 再为该域构建或复用对应 Runtime。
+> [English](README.md) · [简体中文](README.zh-CN.md) · [真实演示](#motion-studio-演示) · [部署角色](doc/character/README.zh-CN.md)
+
+VIREA 是一个实验性的持续角色运行系统：把对话、声音、表情、手势与空间动作组织成由 VRM 角色实际完成的表演。
+
+## 从动作生成，走向持续的具身对话
+
+VIREA 已经历动作数据与重定向、多模型隔离生成两个基础阶段，现在进入 **Motion Studio：与一个持续运动的角色交互**。
+原有的原生骨骼、Motion IR、VRMA、隔离 Worker 与执行证据，成为这个新阶段的底层基础。
+
+LLM 同时组织回答和粗粒度活动计划；Kokoro 生成声音；SentiAvatar 负责随声表达；ARDY 负责连续的全身活动与位移。
+执行层根据身体历史和播放回执决定继续、切换或结束活动。角色可以先说后做、边说边做，也可以完成动作后再开口。
+两个动作模型分时接管身体，同一帧只保留一个身体驱动源。
+
+这一阶段仍为**实验性能力**。下面展示的是本机真实运行与录制，并保留实际时序与已知限制；它不等于全场景物理交互、任意地形运动或生产级可靠性。
+
+## Motion Studio 演示
+
+<!-- BEGIN CHARACTER_DEMOS -->
+**8 段真实录制 · 两列四行。** 图片为原速 5 秒预览，点击观看完整有声视频。模型自主编排，视频保留实际播放内的停顿；生成前等待另见实测。
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>01 · 主持入场</strong><br>开场介绍 → 走位、转身与致意 → 邀请观众开始。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/01-host.mp4"><img src="doc/assets/character-demos/01-host.gif" width="100%" alt="主持入场 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/01-host.mp4">▶ 完整视频 · 39.2s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>02 · 热身教练</strong><br>讲解要领 → 侧步与伸展示范 → 总结和鼓励。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/02-warmup.mp4"><img src="doc/assets/character-demos/02-warmup.gif" width="100%" alt="热身教练 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/02-warmup.mp4">▶ 完整视频 · 42.3s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>03 · 故事表演</strong><br>讲述雨后花园 → 无声寻找与发现 → 温暖结局。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/03-story.mp4"><img src="doc/assets/character-demos/03-story.gif" width="100%" alt="故事表演 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/03-story.mp4">▶ 完整视频 · 54.6s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>04 · 舞步教学</strong><br>节奏与重心讲解 → 即兴舞步组合 → 常见错误点评。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/04-dance.mp4"><img src="doc/assets/character-demos/04-dance.gif" width="100%" alt="舞步教学 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/04-dance.mp4">▶ 完整视频 · 49.9s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>05 · 服装展示</strong><br>介绍搭配与材质 → 台步、转身与换姿势 → 表达心情。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/05-fashion.mp4"><img src="doc/assets/character-demos/05-fashion.gif" width="100%" alt="服装展示 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/05-fashion.mp4">▶ 完整视频 · 51.6s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>06 · 情绪转折</strong><br>回应不安 → 身体动作表达庆祝 → 温暖地收尾。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/06-celebration.mp4"><img src="doc/assets/character-demos/06-celebration.gif" width="100%" alt="情绪转折 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/06-celebration.mp4">▶ 完整视频 · 32.2s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>07 · 行走导览</strong><br>介绍入口作品 → 边走边讲、转身示意 → 总结主题。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/07-tour.mp4"><img src="doc/assets/character-demos/07-tour.gif" width="100%" alt="行走导览 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/07-tour.mp4">▶ 完整视频 · 55.3s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>08 · 拳击练习</strong><br>讲解站姿与守势 → 直拳、闪避与恢复 → 呼吸和节奏总结。<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/08-boxing.mp4"><img src="doc/assets/character-demos/08-boxing.gif" width="100%" alt="拳击练习 — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/08-boxing.mp4">▶ 完整视频 · 48.1s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+</table>
+
+[任务、实测与已知限制](doc/character/showcase.zh-CN.md) · [双列视频画廊](doc/assets/character-demos/index.html)（本地 HTTP 打开） · [执行清单](doc/assets/character-demos/manifest.json)
+<!-- END CHARACTER_DEMOS -->
+
+## 现在的系统如何工作
+
+```mermaid
+flowchart LR
+    U[用户消息 + 对话 + 身体与场景状态] --> L[LLM：回答 A + 粗计划 P]
+    L --> V[Kokoro：语音 V]
+    L --> E[活动执行与事件依赖]
+    V --> S[SentiAvatar：语音 + 表达 + 原生历史]
+    E --> S
+    E --> A[ARDY：活动描述 + 最近身体历史]
+    S --> B[身体按时段独占]
+    A --> B
+    B --> R[VRM：身体 + 表情 + 字幕 + 声音]
+    V --> R
+    R --> F[实际进度与播放回执]
+    F --> E
+```
+
+| 层次 | 职责 |
+|---|---|
+| 对话理解 | 根据对话组织台词、行为意图与先后关系。 |
+| 粗粒度规划 | 为活动选择执行模型及输入描述，不为每个动作凭空填写秒数。 |
+| 滚动执行 | 提前准备原生窗口，携带运动历史，判断完成并生成有约束的模型交接。 |
+| 呈现与反馈 | 一个身体驱动源、独立的发言时机、连续采样时钟和可检查的执行链。 |
+| 运行基础 | 隔离模型环境，保留原生身份，经 Motion IR 重定向到真实 VRM。 |
+
+实现与实测见[粗粒度活动执行](doc/character/coarse-activity-execution.zh-CN.md)和[动作窗口连续播放](doc/character/window-continuity.zh-CN.md)。
+
+模型资产依然独立于操作系统：用户选择执行域，VIREA 为该域构建或复用 Runtime。
+模型安装、生成、重定向与验证的完整工作流仍保留在下方入口。
 
 ## 从这里开始
 

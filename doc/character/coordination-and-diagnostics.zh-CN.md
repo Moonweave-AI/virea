@@ -3,7 +3,7 @@ type: explanation
 status: Active
 owner: VIREA maintainers
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-02
 last_reviewed: 2026-09-29
 review_cycle_days: 90
 summary: 身体源采样隔离、回应生命周期、完整表达回放和执行链诊断。
@@ -67,7 +67,7 @@ superseded_by: []
 
 最终联合测试首段语音就绪约 9.80 秒，单次 SentiAvatar 指标约 1.34 秒，累计动作生成 RTF 约 0.35。延迟随模型生成、输入长度和负载改变，当前不能称为即时响应。实播总时长包含静音等待；它不等于纯音频时长，执行链会显示其来源。
 
-本机证据目录为 `D:/AI-Program-Project/VIREA-Data/evidence/coordination-20260929/`，包括 `conversation-trace.json`、`jump-trace.json`、`final-trace.json`、`final-live-samples.json`、`final-replay-samples.json`。早期失败回放的样本也保留，未计入通过结果。
+本机证据目录为 `<DATA_ROOT>/evidence/coordination-20260929/`，包括 `conversation-trace.json`、`jump-trace.json`、`final-trace.json`、`final-live-samples.json`、`final-replay-samples.json`。早期失败回放的样本也保留，未计入通过结果。
 
 最后的短句回归确认了 hold 唤醒修复：`response_finished` 到收势实际开始约 0.50 秒，不再等待旧 hold 预算。该次第一轮模型收势的根速度仍不满足稳定判据，因此执行了第二轮；3.25 秒语音的全程录制为 12.206 秒，其中收势实际占 8 秒。没有通过放宽稳定阈值掩盖这段时间，诊断中明确列出两轮的原因和测量。`wake-trace.json` 保存了这些事实。同步重播在 1.40 秒暂停后，音频/动作进度与身体位置在 1.5 秒观察期间均不变，继续后正常完成；见 `pause-proof.json`。
 

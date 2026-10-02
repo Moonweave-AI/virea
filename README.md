@@ -1,15 +1,11 @@
-<p align="center">
-  <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA — multi-model motion generation to auditable VRMA playback">
-</p>
-
 <div align="center">
 
 # VIREA
 
-### Cross-platform motion generation, one auditable motion contract, real VRM playback
+### Conversation that speaks, moves, and continues.
 
-VIREA detects the machine, installs each model into an isolated Runtime, preserves its native skeleton and representation,
-converts the result through Motion IR, and exports validated VRMA for browser playback.
+An experimental embodied-character runtime: dialogue, voice, expressive gestures and spatial motion,
+planned together and performed by a persistent VRM character.
 
 [![Version](https://img.shields.io/badge/version-0.4.0-3456a4)](CHANGELOG.md)
 [![Canonical](https://img.shields.io/badge/canonical-211_v3-167d73)](doc/math-retarget/README.zh-CN.md)
@@ -18,6 +14,8 @@ converts the result through Motion IR, and exports validated VRMA for browser pl
 [![Docs](https://img.shields.io/badge/docs-bilingual-9f6a2e)](doc/README.en.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) ·
+[Live demos](#motion-studio-demos) ·
+[Character runtime](doc/character/README.en.md) ·
 [Get started](doc/getting-started.en.md) ·
 [CLI reference](doc/reference/cli.en.md) ·
 [Models](doc/models/README.en.md) ·
@@ -28,7 +26,77 @@ converts the result through Motion IR, and exports validated VRMA for browser pl
 
 </div>
 
-## What VIREA is
+## From motion generation to embodied conversation
+
+VIREA has grown from a motion-data and retargeting pipeline, through isolated multi-model generation,
+into **Motion Studio: an ongoing conversation with a moving character**. The earlier foundations still matter:
+native model histories, skeleton conversion, isolated workers and observable execution now support one performance.
+
+The language model composes the response and a coarse activity plan. Kokoro supplies the voice.
+SentiAvatar supplies speech-conditioned expression; ARDY supplies continuous full-body activity and travel.
+The execution layer decides when each activity continues, changes or finishes, using motion history and playback feedback.
+Speech can precede an action, accompany it, or wait for an observed outcome. The two motion models take turns owning the body.
+
+This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
+they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
+
+## Motion Studio demos
+
+<!-- BEGIN CHARACTER_DEMOS -->
+**8 real recordings · two columns, four rows.** Each image is a five-second preview at original speed; click for the full video with sound. Model-directed plans retain pauses within playback; generation latency is reported separately.
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>01 · Stage host</strong><br>Opening speech → walking, turning and greeting → invite the audience.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/01-host.mp4"><img src="doc/assets/character-demos/01-host.gif" width="100%" alt="Stage host — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/01-host.mp4">▶ Full video · 39.2s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>02 · Warm-up coach</strong><br>Explain the technique → side steps and stretching → review and encouragement.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/02-warmup.mp4"><img src="doc/assets/character-demos/02-warmup.gif" width="100%" alt="Warm-up coach — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/02-warmup.mp4">▶ Full video · 42.3s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>03 · Acted story</strong><br>Set a garden story → silently search and discover → tell the ending.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/03-story.mp4"><img src="doc/assets/character-demos/03-story.gif" width="100%" alt="Acted story — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/03-story.mp4">▶ Full video · 54.6s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>04 · Dance lesson</strong><br>Explain rhythm and balance → improvised combination → review common mistakes.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/04-dance.mp4"><img src="doc/assets/character-demos/04-dance.gif" width="100%" alt="Dance lesson — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/04-dance.mp4">▶ Full video · 49.9s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>05 · Fashion presentation</strong><br>Introduce colors and fabrics → walk, turn and pose → explain the mood.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/05-fashion.mp4"><img src="doc/assets/character-demos/05-fashion.gif" width="100%" alt="Fashion presentation — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/05-fashion.mp4">▶ Full video · 51.6s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>06 · From doubt to joy</strong><br>Respond to uncertainty → celebrate through movement → close with reassurance.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/06-celebration.mp4"><img src="doc/assets/character-demos/06-celebration.gif" width="100%" alt="From doubt to joy — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/06-celebration.mp4">▶ Full video · 32.2s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>07 · Walking guide</strong><br>Introduce an artwork → walk, speak and point → summarize the exhibition.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/07-tour.mp4"><img src="doc/assets/character-demos/07-tour.gif" width="100%" alt="Walking guide — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/07-tour.mp4">▶ Full video · 55.3s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>08 · Boxing practice</strong><br>Explain stance and guard → punches, evasion and recovery → review breathing and rhythm.<br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/08-boxing.mp4"><img src="doc/assets/character-demos/08-boxing.gif" width="100%" alt="Boxing practice — recorded preview"></a><br><a href="https://github.com/Moonweave-AI/virea/raw/refs/heads/codex/continuous-character/doc/assets/character-demos/08-boxing.mp4">▶ Full video · 48.1s</a><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+</table>
+
+[Tasks, measurements and limitations](doc/character/showcase.en.md) · [Two-column video gallery](doc/assets/character-demos/index.html) (serve locally over HTTP) · [Execution manifest](doc/assets/character-demos/manifest.json)
+<!-- END CHARACTER_DEMOS -->
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U[User + dialogue + body / scene state] --> L[LLM: reply A + coarse plan P]
+    L --> V[Kokoro: voice V]
+    L --> E[Activity execution and event dependencies]
+    V --> S[SentiAvatar: speech + expression + native history]
+    E --> S
+    E --> A[ARDY: activity text + recent body history]
+    S --> B[One body owner at a time]
+    A --> B
+    B --> R[VRM: body + face + subtitles + sound]
+    V --> R
+    R --> F[Observed progress + playback receipts]
+    F --> E
+```
+
+| Layer | Responsibility |
+|---|---|
+| Dialogue and intent | Understand the conversation; author the reply, activities and their ordering. |
+| Coarse planning | Choose each activity's executor and model input; avoid manufacturing a fixed duration for every action. |
+| Rolling execution | Prepare native windows ahead, retain motion history, review completion and apply boundary constraints. |
+| Presentation | Maintain one body owner, independent speech timing, continuous sample clocks and an inspectable execution trace. |
+| Runtime foundation | Keep model environments separate; retain native identities, retarget through Motion IR and play real VRM assets. |
+
+See the [coarse-activity design](doc/character/coarse-activity-execution.zh-CN.md) and
+[window-continuity measurements](doc/character/window-continuity.zh-CN.md) for the implementation and measured boundaries.
+
+## Motion infrastructure
 
 Motion generation projects usually ship incompatible Python stacks, output tensors, skeletons and coordinate conventions.
 VIREA treats every model as an isolated, versioned capability and makes the conversion path explicit:
@@ -59,7 +127,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
 | Explore datasets and retargeting | [Dataset pipeline](doc/pipeline.zh-CN.md) and [showcase](doc/showcase/README.md) |
 
-## Architecture
+## Runtime and retargeting foundation
 
 ```mermaid
 flowchart LR
@@ -86,6 +154,9 @@ checkpoint do not belong to an operating system: the selected execution domain d
 accelerator backend. Observed evidence reports where one exact configuration ran; it never chooses or hides domains.
 
 ## Model support
+
+<details>
+<summary>Expand the integrated model catalog and its evidence boundaries</summary>
 
 The table is generated from `plugins/models/*/manifest.yaml`; status, native skeleton and native representation are not
 hand-written README claims. Full task, license and upstream details are in the
@@ -128,7 +199,12 @@ telemetry contract and is never promotion evidence by itself.
 
 See [status semantics](doc/reference/status-semantics.en.md) ([中文](doc/reference/status-semantics.zh-CN.md)) for the complete contract.
 
+</details>
+
 ## Execution-domain selection and evidence
+
+<details>
+<summary>Expand execution domains, Runtime declarations and validation status</summary>
 
 VIREA treats Windows, Linux, WSL2 and macOS as first-class execution domains. The common flow is: detect available domains
 at startup → let the user select one → reuse the same OS-neutral model assets → resolve and lazily build or reuse the
@@ -164,6 +240,8 @@ real-checkpoint evidence remains a separate registry fact; manual assets, restri
 floors still apply. PRISM, for example, keeps its conservative fail-closed 96 GiB CPU RAM floor. An empty structured
 blocker list is not validation, so VIREA still cannot claim that every model has completed operation on every target
 system.
+
+</details>
 
 ## Quick start
 
@@ -355,7 +433,8 @@ The resulting filename carries a readable source → target identity while the r
 |---|---|
 | `apps/api` | FastAPI control plane and versioned result/artifact API |
 | `apps/cli` | setup, doctor, model lifecycle, generation, validation and support commands |
-| `apps/web` | model catalog, generation UI and real VRM/VRMA Viewer |
+| `apps/web` | Motion Studio, playback/recording, model catalog and VRM/VRMA Viewer |
+| `src/virea/character` | dialogue planning, event timing, native motion history and activity execution |
 | `packages/contracts` | Python and JSON contracts |
 | `packages/bootstrap` | machine detection and execution-domain/resource resolution |
 | `packages/model_pool` | artifact staging, installation transactions and READY verification |
@@ -413,13 +492,13 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-10-03
+last_reviewed: 2026-10-03
 review_cycle_days: 14
-title: VIREA — cross-platform multi-model motion generation
+title: VIREA — embodied conversation and continuous motion
 audience: Users, model integrators, motion engineers, researchers, reviewers
 visibility: Public
-summary: VIREA 的价值、模型/平台事实、真实生成流程、架构和文档入口。
+summary: Embodied conversation, recorded Motion Studio demonstrations, runtime architecture and model infrastructure.
 canonical: README.md
 related:
   - doc/README.zh-CN.md

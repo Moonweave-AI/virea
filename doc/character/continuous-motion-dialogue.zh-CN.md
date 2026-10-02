@@ -3,7 +3,7 @@ type: research-record
 status: Active
 owner: VIREA maintainers
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-10-02
 last_reviewed: 2026-09-28
 review_cycle_days: 30
 summary: ARDY 长动作窗口与连续性实测、完整对话规划、动态声线和行为规则清理。
@@ -75,7 +75,7 @@ superseded_by: []
 
 ## 复现与证据
 
-本机原始 JSON、WAV 和截图位于 `D:/AI-Program-Project/VIREA-Data/evidence/character-refinement-20260928/`，不提交模型输出到代码仓库。
+本机原始 JSON、WAV 和截图位于 `<DATA_ROOT>/evidence/character-refinement-20260928/`，不提交模型输出到代码仓库。
 
 ```powershell
 $env:PYTHONPATH = 'scripts/character'

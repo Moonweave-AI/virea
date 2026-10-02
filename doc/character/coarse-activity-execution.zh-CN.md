@@ -3,7 +3,7 @@ type: explanation
 status: Active
 owner: VIREA maintainers
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-02
 last_reviewed: 2026-10-01
 review_cycle_days: 90
 summary: 粗粒度活动计划、执行层完成判断、原生历史和跨模型运动学边界的实现与实测。
@@ -101,7 +101,7 @@ SentiAvatar 内部继续沿用前一窗口的 RVQ 尾部和最近规划历史。
 .venv/Scripts/python.exe scripts/character/benchmarks/verify_coarse_execution.py --help
 ```
 
-原始证据保存在 `D:/AI-Program-Project/VIREA-Data/evidence/coarse-plan-20261001`：规划 JSON、逐窗 native 输出、旋转误差、真实页面 trace 和测试日志。体积较大的模型输出、音频和用户角色设定不纳入源码提交。
+原始证据保存在 `<DATA_ROOT>/evidence/coarse-plan-20261001`：规划 JSON、逐窗 native 输出、旋转误差、真实页面 trace 和测试日志。体积较大的模型输出、音频和用户角色设定不纳入源码提交。
 
 最终角色回归 228 项通过，前端 124 项通过，常驻 worker 回归另 10 项通过；Ruff、TypeScript 与 Vite 构建通过。构建保留既有 viewer 大 chunk 提示。本次没有重跑全部仓库测试，也不覆盖先前报告的无关 API 路由清单失败。
 
