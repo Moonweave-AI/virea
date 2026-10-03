@@ -43,7 +43,7 @@ they are not a claim of universal physical interaction, all-terrain locomotion, 
 ## Motion Studio demos
 
 <!-- BEGIN CHARACTER_DEMOS -->
-**8 complete recordings · two columns, four rows.** Play each video directly here; use the player controls to enable sound and expand to full screen. Model-directed plans retain pauses within playback; generation latency is reported separately.
+**8 complete recordings · two columns, four rows.** Play each video directly here without downloading; use the player controls to enable sound and expand to full screen. Model-directed plans retain pauses within playback; generation latency is reported separately.
 
 <table>
 <tr>
