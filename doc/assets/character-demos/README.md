@@ -21,7 +21,9 @@ Recorded locally on 2026-10-02–03 at the repository owner's explicit request t
 
 Model and tooling credits: [SentiAvatar / SentiPulse](https://github.com/SentiAvatar/SentiAvatar), [ARDY / NVIDIA](https://github.com/nv-tlabs/ardy), [Qwen](https://github.com/QwenLM), [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M), [Three.js](https://threejs.org/) and [three-vrm / pixiv](https://github.com/pixiv/three-vrm). VIREA integrates their outputs, retargets motion to the provided VRM and records the result. Their individual license conditions remain with the respective projects.
 
-详细任务、实测和失败尝试见 [中文报告](../../character/showcase.zh-CN.md) / [English report](../../character/showcase.en.md)。[可播放画廊](index.html) · [时序与校验和](manifest.json)。
+详细任务、实测和失败尝试见 [中文报告](../../character/showcase.zh-CN.md) / [English report](../../character/showcase.en.md)。[GitHub 在线播放](../../../README.zh-CN.md#motion-studio-演示) · [本地画廊](index.html) · [时序与校验和](manifest.json) · [GitHub 附件映射](github-videos.json)。
+
+The eight complete MP4s were uploaded unchanged through GitHub’s README attachment picker on 2026-10-03. Both READMEs embed those attachment URLs as native video players. Committed MP4s remain the archival source; GIFs are optional five-second excerpts and are no longer the README playback surface.
 
 | Task / 任务 | Complete video | Five-second preview | Poster |
 | --- | --- | --- | --- |

@@ -1,0 +1,54 @@
+{
+  "uploaded_at": "2026-10-03",
+  "source_commit": "f840d0b744f9dee205c09a9576f5b70f96553c1f",
+  "assets": [
+    {
+      "id": "01-host",
+      "source": "doc/assets/character-demos/01-host.mp4",
+      "sha256": "8322a2b237fee90ccc901f95ed256882ae1f71d470b5c3d21721afe0122cfce5",
+      "url": "https://github.com/user-attachments/assets/7c4006eb-5662-4c46-8697-df720d7d2e9b"
+    },
+    {
+      "id": "02-warmup",
+      "source": "doc/assets/character-demos/02-warmup.mp4",
+      "sha256": "ecf0a6dde341b6cf65ba2800cdc52f2e8242a8d78a216ec20aeafde8e535da08",
+      "url": "https://github.com/user-attachments/assets/6707f2ec-8708-435c-92f1-bc16db2e3573"
+    },
+    {
+      "id": "03-story",
+      "source": "doc/assets/character-demos/03-story.mp4",
+      "sha256": "63d56f15dadffc25bfb86e0eeecde0938796465dfd834edd17f2d64b5045ed99",
+      "url": "https://github.com/user-attachments/assets/0d4e9132-0ebe-41f9-b0af-a43612a20026"
+    },
+    {
+      "id": "04-dance",
+      "source": "doc/assets/character-demos/04-dance.mp4",
+      "sha256": "5d4c50c69b205bea18d23d9b0323e584e5e006d19da66d946b32850752ff7bc8",
+      "url": "https://github.com/user-attachments/assets/1260333b-e3bc-4c8a-b017-a853a5236c78"
+    },
+    {
+      "id": "05-fashion",
+      "source": "doc/assets/character-demos/05-fashion.mp4",
+      "sha256": "9b8c413b213492467abacfef24f1254b035bb01a561d650cf27fc9a51f5d2c9a",
+      "url": "https://github.com/user-attachments/assets/5813e082-8c10-4b98-b369-ed1d321ed98c"
+    },
+    {
+      "id": "06-celebration",
+      "source": "doc/assets/character-demos/06-celebration.mp4",
+      "sha256": "89a5fbe7ddcb974ecb3e59f3fd807a1b8a79864a9bcc30aa5133645d0ff818da",
+      "url": "https://github.com/user-attachments/assets/9fedd92d-179b-4388-a4fc-a05de5c7a5ae"
+    },
+    {
+      "id": "07-tour",
+      "source": "doc/assets/character-demos/07-tour.mp4",
+      "sha256": "4849236a0274ea24900c2cce6fd286df425374826e6a93b39c335ea0f7e9249d",
+      "url": "https://github.com/user-attachments/assets/9fd17b2d-9e5b-473c-9a02-772050581b72"
+    },
+    {
+      "id": "08-boxing",
+      "source": "doc/assets/character-demos/08-boxing.mp4",
+      "sha256": "89ac787409a1bf8bc933ef360a869b5d97eca682c9120fca8ceb48af10d72317",
+      "url": "https://github.com/user-attachments/assets/e15d77f0-649d-4b88-adfc-4d40d6f8ef88"
+    }
+  ]
+}

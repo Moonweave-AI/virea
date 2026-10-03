@@ -19,7 +19,7 @@ These demos turn one conversation into narration, silent demonstrations, travel,
 
 ## Watch
 
-The README uses two columns and four rows of task cards. GIFs are five-second excerpts at original speed; each links to the full MP4. The [standalone gallery](../assets/character-demos/index.html) provides native video controls in a two-column layout. Serve it over HTTP; GitHub's README sanitizer does not retain video elements inside tables.
+The [README](../../README.md#motion-studio-demos) embeds all eight complete recordings in a two-column, four-row table. Videos are uploaded as GitHub attachments and play inline with seek, sound and full-screen controls; downloading is not required. GitHub initially mutes embedded players, so enable sound in the player. The [attachment manifest](../assets/character-demos/github-videos.json) maps each upload to its original MP4 and SHA-256. The [standalone gallery](../assets/character-demos/index.html) remains available for local playback over HTTP.
 
 ```powershell
 python -m http.server 8766 --bind 127.0.0.1 --directory doc/assets/character-demos

@@ -19,7 +19,7 @@ superseded_by: []
 
 ## 观看
 
-首页采用两列四行的任务卡片；GIF 是原速 5 秒预览，点击打开完整 MP4。仓库另附 [可播放的双列画廊](../assets/character-demos/index.html)，可通过 HTTP 服务打开。GitHub README 不保留表格中的 HTML video 元素，因此卡片使用受支持的图片链接，完整画廊使用原生视频控件。
+[README](../../README.zh-CN.md#motion-studio-演示) 以两列四行内嵌八段完整视频，可直接播放、拖动进度、开启声音和全屏观看，无需下载。视频已上传为 GitHub 原生附件；GitHub 默认将播放器静音，请按需开启声音。[附件清单](../assets/character-demos/github-videos.json) 记录每个上传地址、原始 MP4 与 SHA-256。仓库同时保留 [本地双列画廊](../assets/character-demos/index.html)，可通过 HTTP 服务打开。
 
 ```powershell
 python -m http.server 8766 --bind 127.0.0.1 --directory doc/assets/character-demos
