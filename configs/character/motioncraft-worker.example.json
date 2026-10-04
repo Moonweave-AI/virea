@@ -1,0 +1,9 @@
+{
+  "backend": "motioncraft",
+  "memory_strategy": "cuda_full",
+  "artifacts": {
+    "motioncraft-source": "D:/VireaData/artifacts/motioncraft-source",
+    "motioncraft-task-checkpoints": "D:/VireaData/artifacts/motioncraft-task-checkpoints",
+    "openai-clip-vit-b32": "D:/VireaData/artifacts/openai-clip-vit-b32"
+  }
+}

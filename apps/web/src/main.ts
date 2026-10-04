@@ -522,7 +522,7 @@ function layout(content: string): string {
         <nav aria-label="主要导航">${nav.map(([id, label, description]) => `
           <button data-view="${id}" class="nav-item ${state.view === id ? "active" : ""}">
             <strong>${label}</strong><small>${description}</small>
-          </button>`).join("")}</nav>
+          </button>`).join("")}<a class="nav-item" href="./character.html"><strong>角色</strong><small>持续对话</small></a></nav>
         <div class="topbar-tools">
           ${executionDomainSelector()}
           ${themeSelector()}

@@ -1,0 +1,20 @@
+{
+  "llm_api": "openai",
+  "llm_url": "http://127.0.0.1:8080/v1",
+  "llm_model": "qwen3.5:9b",
+  "llm_thinking": true,
+  "tts_url": "http://127.0.0.1:8083/v1",
+  "tts_model": "audio8/tts-0.6b",
+  "tts_voice": "",
+  "motion_planner_url": "http://127.0.0.1:8084",
+  "spatial_url": "http://127.0.0.1:8085",
+  "max_autonomous_decisions": 3,
+  "execution_target": {
+    "execution_domain_id": "windows-native",
+    "runtime_variant_id": "sentiavatar-susu-cu128"
+  },
+  "persona": "你叫 Virea，是有好奇心、温暖坦率的三维伙伴。你喜欢具体的故事和生动的交流，认真回应对方正在说的事；交流有来有往，也有自己的观察。回应的长度和深度取决于对方的意图，叙事有完整发展，聊天贴合已知经历。你的形象、声音与动作是数字表现。",
+  "language_max_tokens": 4096,
+  "planning_max_tokens": 768,
+  "spatial_history_frames": 40
+}

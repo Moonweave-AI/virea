@@ -1,0 +1,566 @@
+[
+  {
+    "id": "01-host",
+    "title": "主持入场 / Stage host",
+    "task": "请当一回活动主持人：先用中文做一段有开场、主题和欢迎词的介绍；介绍完，安静地向前走几步、转身向左右观众挥手致意，再走回面对镜头，动作从容、完整；动作结束后用两句话邀请大家开始。请直接完成整段表演。",
+    "duration_seconds": 39.195,
+    "audio_seconds": 22.55,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.166,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.579,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.383,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.161,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 16.05,
+        "owner": "ardy"
+      },
+      {
+        "at": 22.455,
+        "owner": "ardy"
+      },
+      {
+        "at": 28.854,
+        "owner": "ardy"
+      },
+      {
+        "at": 30.855,
+        "owner": "ardy"
+      },
+      {
+        "at": 34.921,
+        "owner": "ardy"
+      },
+      {
+        "at": 36.927,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 37.732,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 30.717999999999847,
+    "execution_errors": [],
+    "preview_start_seconds": 17.05,
+    "preview_seconds": 5,
+    "video": "01-host.mp4",
+    "sha256": "8322a2b237fee90ccc901f95ed256882ae1f71d470b5c3d21721afe0122cfce5"
+  },
+  {
+    "id": "02-warmup",
+    "title": "热身教练 / Warm-up coach",
+    "task": "请带我做一段完整的轻松热身。先用中文讲清楚侧步和伸展的要领；接着安静地完整示范：左右交替侧步、双臂向上伸展，再慢慢打开双臂；最后回到舒服的站姿，用三句话总结感受并鼓励我。",
+    "duration_seconds": 42.348,
+    "audio_seconds": 32.25,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.207,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.63,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.422,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.228,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 18.006,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 22.127,
+        "owner": "ardy"
+      },
+      {
+        "at": 28.531,
+        "owner": "ardy"
+      },
+      {
+        "at": 32.592,
+        "owner": "ardy"
+      },
+      {
+        "at": 34.622,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 38.371,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 41.033,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 31.592999999999847,
+    "execution_errors": [],
+    "preview_start_seconds": 23.127,
+    "preview_seconds": 5,
+    "video": "02-warmup.mp4",
+    "sha256": "ecf0a6dde341b6cf65ba2800cdc52f2e8242a8d78a216ec20aeafde8e535da08"
+  },
+  {
+    "id": "03-story",
+    "title": "故事表演 / Acted story",
+    "task": "请用中文表演一个在雨后花园找到丢失丝带的小故事。先讲清楚人物和寻找丝带的原因，然后用一段不说话的动作演出四处张望、走几步、弯腰寻找并开心发现丝带，最后讲完温暖的结局。让叙述、动作和情绪有完整起承转合。",
+    "duration_seconds": 54.632,
+    "audio_seconds": 25.15,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.243,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.662,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.445,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 14.279,
+        "owner": "ardy"
+      },
+      {
+        "at": 20.682,
+        "owner": "ardy"
+      },
+      {
+        "at": 27.085,
+        "owner": "ardy"
+      },
+      {
+        "at": 33.482,
+        "owner": "ardy"
+      },
+      {
+        "at": 39.885,
+        "owner": "ardy"
+      },
+      {
+        "at": 43.947,
+        "owner": "ardy"
+      },
+      {
+        "at": 45.977,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 49.751,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 53.279,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 37.016000000000076,
+    "execution_errors": [],
+    "preview_start_seconds": 15.279,
+    "preview_seconds": 5,
+    "video": "03-story.mp4",
+    "sha256": "63d56f15dadffc25bfb86e0eeecde0938796465dfd834edd17f2d64b5045ed99"
+  },
+  {
+    "id": "04-dance",
+    "title": "舞步教学 / Dance lesson",
+    "task": "请为我上一堂轻松的即兴舞步课。先用一段中文讲清楚节奏感、重心和手臂配合；接着安静地跳一段你自己的轻快舞步组合，用侧步、重心转换和摆臂表现轻松的感觉，充分展示节奏即可，不必追求特定角度或姿势；展示结束后，用几句话点评节奏和两个常见错误。",
+    "duration_seconds": 49.854,
+    "audio_seconds": 39.65,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.22,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.651,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.455,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.239,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 18.039,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 22.823,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 25.024,
+        "owner": "ardy"
+      },
+      {
+        "at": 31.43,
+        "owner": "ardy"
+      },
+      {
+        "at": 33.432,
+        "owner": "ardy"
+      },
+      {
+        "at": 37.505,
+        "owner": "ardy"
+      },
+      {
+        "at": 39.511,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 41.302,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 46.101,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 48.504,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 31.96900000000005,
+    "execution_errors": [],
+    "preview_start_seconds": 26.024,
+    "preview_seconds": 5,
+    "video": "04-dance.mp4",
+    "sha256": "5d4c50c69b205bea18d23d9b0323e584e5e006d19da66d946b32850752ff7bc8"
+  },
+  {
+    "id": "05-fashion",
+    "title": "服装展示 / Fashion presentation",
+    "task": "请做一段完整的服装展示。先用中文介绍你喜欢的粉黑搭配、材质与蝴蝶结细节；然后安静地完整走一轮台步，向前走、转身展示侧面、换一个自然姿势，再走回；最后面对观众，用两三句话说明这套搭配想表达的心情。",
+    "duration_seconds": 51.601,
+    "audio_seconds": 34.775,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.133,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.584,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.343,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.147,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 17.936,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 22.057,
+        "owner": "ardy"
+      },
+      {
+        "at": 28.464,
+        "owner": "ardy"
+      },
+      {
+        "at": 34.861,
+        "owner": "ardy"
+      },
+      {
+        "at": 38.924,
+        "owner": "ardy"
+      },
+      {
+        "at": 40.971,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 44.712,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 49.915,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 29.532000000000153,
+    "execution_errors": [],
+    "preview_start_seconds": 23.057,
+    "preview_seconds": 5,
+    "video": "05-fashion.mp4",
+    "sha256": "9b8c413b213492467abacfef24f1254b035bb01a561d650cf27fc9a51f5d2c9a"
+  },
+  {
+    "id": "06-celebration",
+    "title": "情绪转折 / From doubt to joy",
+    "task": "假设我刚完成一个很难的项目，但仍然没有信心。请先用中文认真回应我，具体肯定努力；然后邀请我一起庆祝，轻快侧步、挥舞双手和鼓掌表达开心；最后恢复轻松状态，用一段温暖的话提醒我休息。请把安慰、庆祝和收尾连成一个完整回应。",
+    "duration_seconds": 32.197,
+    "audio_seconds": 22.35,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.102,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.521,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.339,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 12.701,
+        "owner": "ardy"
+      },
+      {
+        "at": 19.108,
+        "owner": "ardy"
+      },
+      {
+        "at": 23.165,
+        "owner": "ardy"
+      },
+      {
+        "at": 25.209,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 28.928,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 31.006,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 30.23400000000038,
+    "execution_errors": [],
+    "preview_start_seconds": 13.701,
+    "preview_seconds": 5,
+    "video": "06-celebration.mp4",
+    "sha256": "89a5fbe7ddcb974ecb3e59f3fd807a1b8a79864a9bcc30aa5133645d0ff818da"
+  },
+  {
+    "id": "07-tour",
+    "title": "行走导览 / Walking guide",
+    "task": "请带我做一次想象中的展览导览。先用中文介绍入口处作品的颜色和气氛；接着一边慢慢行走一边介绍第二件作品，走动动作从容、完整，过程中转身朝向我、用手示意观看方向；最后停下来，面对我用两三句话总结这场展览的主题。",
+    "duration_seconds": 55.269,
+    "audio_seconds": 45,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.244,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.662,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.459,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.265,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 18.059,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 22.856,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 27.639,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 33.636,
+        "owner": "ardy"
+      },
+      {
+        "at": 40.04,
+        "owner": "ardy"
+      },
+      {
+        "at": 44.101,
+        "owner": "ardy"
+      },
+      {
+        "at": 46.152,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 49.98,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 54.008,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 33.60999999999967,
+    "execution_errors": [],
+    "preview_start_seconds": 34.636,
+    "preview_seconds": 5,
+    "video": "07-tour.mp4",
+    "sha256": "4849236a0274ea24900c2cce6fd286df425374826e6a93b39c335ea0f7e9249d"
+  },
+  {
+    "id": "08-boxing",
+    "title": "拳击练习 / Boxing practice",
+    "task": "请当一回轻松的拳击动作教练。先用中文解释站姿、护脸和出拳后收手；然后安静地完整示范轻缓的左右直拳、侧步闪避、恢复守势，动作连续；最后放松双臂，用几句话讲清楚节奏和呼吸，鼓励初学者慢慢练习。",
+    "duration_seconds": 48.12,
+    "audio_seconds": 38.2,
+    "models": [
+      "ardy",
+      "sentiavatar"
+    ],
+    "driver_sequence": [
+      {
+        "at": 0,
+        "owner": "hold"
+      },
+      {
+        "at": 1.267,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 3.701,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 8.498,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 13.29,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 18.094,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 22.869,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 24.357,
+        "owner": "ardy"
+      },
+      {
+        "at": 30.76,
+        "owner": "ardy"
+      },
+      {
+        "at": 34.822,
+        "owner": "ardy"
+      },
+      {
+        "at": 36.853,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 40.625,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 45.474,
+        "owner": "sentiavatar"
+      },
+      {
+        "at": 47.106,
+        "owner": "retraction"
+      }
+    ],
+    "first_audio_seconds": 31.71900000000005,
+    "execution_errors": [],
+    "preview_start_seconds": 25.357,
+    "preview_seconds": 5,
+    "video": "08-boxing.mp4",
+    "sha256": "89ac787409a1bf8bc933ef360a869b5d97eca682c9120fca8ceb48af10d72317"
+  }
+]

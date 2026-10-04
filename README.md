@@ -1,15 +1,11 @@
-<p align="center">
-  <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA — multi-model motion generation to auditable VRMA playback">
-</p>
-
 <div align="center">
 
 # VIREA
 
-### Cross-platform motion generation, one auditable motion contract, real VRM playback
+### Conversation that speaks, moves, and continues.
 
-VIREA detects the machine, installs each model into an isolated Runtime, preserves its native skeleton and representation,
-converts the result through Motion IR, and exports validated VRMA for browser playback.
+An experimental embodied-character runtime: dialogue, voice, expressive gestures and spatial motion,
+planned together and performed by a persistent VRM character.
 
 [![Version](https://img.shields.io/badge/version-0.4.0-3456a4)](CHANGELOG.md)
 [![Canonical](https://img.shields.io/badge/canonical-211_v3-167d73)](doc/math-retarget/README.zh-CN.md)
@@ -18,6 +14,8 @@ converts the result through Motion IR, and exports validated VRMA for browser pl
 [![Docs](https://img.shields.io/badge/docs-bilingual-9f6a2e)](doc/README.en.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) ·
+[Live demos](#motion-studio-demos) ·
+[Character runtime](doc/character/README.en.md) ·
 [Get started](doc/getting-started.en.md) ·
 [CLI reference](doc/reference/cli.en.md) ·
 [Models](doc/models/README.en.md) ·
@@ -28,7 +26,136 @@ converts the result through Motion IR, and exports validated VRMA for browser pl
 
 </div>
 
-## What VIREA is
+## From motion generation to embodied conversation
+
+VIREA has grown from a motion-data and retargeting pipeline, through isolated multi-model generation,
+into **Motion Studio: an ongoing conversation with a moving character**. The earlier foundations still matter:
+native model histories, skeleton conversion, isolated workers and observable execution now support one performance.
+
+The language model composes the response and a coarse activity plan. Audio8-TTS 0.6B clones the voice from a reference recording.
+Import audio and its exact transcript in Settings, then preview and select the voice. See the [deployment and migration guide](doc/character/audio8-tts.zh-CN.md).
+Choose **SentiAvatar + ARDY**, **MotionCraft**, or **SynTalker** before starting a session.
+The existing SentiAvatar + ARDY route retains activity execution and model handoffs. Each new route uses one motion family
+with independently timed motion segments and cloned speech: multiple actions can outlast speech, and speech can start anywhere
+or cross action boundaries. Native history continues between windows; audio EOF does not stop the body.
+See the [technical synopsis](doc/character/unified-motion.en.md) for implementation, setup and measured limitations.
+
+This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
+they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
+
+<!-- BEGIN UNIFIED_MOTION_DEMOS -->
+## Single-family routes: 16 complex task demos
+
+**Eight recordings per family, each in two columns × four rows.** Click a cover for the complete MP4. Audio8-TTS uses the supplied `audio_reference_chu2.mp3` and `chu2.txt` voice reference. These are actual Studio replays at normal speed; preparation latency is separate.
+
+These are actual model outputs, **not a certification of task fidelity or naturalness**. Complex travel, foot contact and fine gestures remain limited. See the [technical synopsis and reproduction guide](doc/character/unified-motion.en.md) for architecture, measured latency and limitations.
+
+### MotionCraft
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+### SynTalker
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)
+
+Avatar: Unnamed Character 6 — Reira. Source: `VRM-Model-1.vrm`.
+<!-- END UNIFIED_MOTION_DEMOS -->
+
+## Motion Studio demos
+
+These recordings used the earlier Kokoro stack. Current speech defaults to Audio8-TTS 0.6B; the historical timing measurements do not describe the new model.
+
+<!-- BEGIN CHARACTER_DEMOS -->
+**8 complete recordings · two columns, four rows.** Play each video directly here without downloading; use the player controls to enable sound and expand to full screen. Model-directed plans retain pauses within playback; generation latency is reported separately.
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>01 · Stage host</strong><br>Opening speech → walking, turning and greeting → invite the audience.<br><video src="https://github.com/user-attachments/assets/7c4006eb-5662-4c46-8697-df720d7d2e9b" controls width="100%"></video><br><sub>Full performance · 39.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>02 · Warm-up coach</strong><br>Explain the technique → side steps and stretching → review and encouragement.<br><video src="https://github.com/user-attachments/assets/6707f2ec-8708-435c-92f1-bc16db2e3573" controls width="100%"></video><br><sub>Full performance · 42.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>03 · Acted story</strong><br>Set a garden story → silently search and discover → tell the ending.<br><video src="https://github.com/user-attachments/assets/0d4e9132-0ebe-41f9-b0af-a43612a20026" controls width="100%"></video><br><sub>Full performance · 54.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>04 · Dance lesson</strong><br>Explain rhythm and balance → improvised combination → review common mistakes.<br><video src="https://github.com/user-attachments/assets/1260333b-e3bc-4c8a-b017-a853a5236c78" controls width="100%"></video><br><sub>Full performance · 49.9s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>05 · Fashion presentation</strong><br>Introduce colors and fabrics → walk, turn and pose → explain the mood.<br><video src="https://github.com/user-attachments/assets/5813e082-8c10-4b98-b369-ed1d321ed98c" controls width="100%"></video><br><sub>Full performance · 51.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>06 · From doubt to joy</strong><br>Respond to uncertainty → celebrate through movement → close with reassurance.<br><video src="https://github.com/user-attachments/assets/9fedd92d-179b-4388-a4fc-a05de5c7a5ae" controls width="100%"></video><br><sub>Full performance · 32.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>07 · Walking guide</strong><br>Introduce an artwork → walk, speak and point → summarize the exhibition.<br><video src="https://github.com/user-attachments/assets/9fd17b2d-9e5b-473c-9a02-772050581b72" controls width="100%"></video><br><sub>Full performance · 55.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>08 · Boxing practice</strong><br>Explain stance and guard → punches, evasion and recovery → review breathing and rhythm.<br><video src="https://github.com/user-attachments/assets/e15d77f0-649d-4b88-adfc-4d40d6f8ef88" controls width="100%"></video><br><sub>Full performance · 48.1s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+</table>
+
+[Tasks, measurements and limitations](doc/character/showcase.en.md) · [Two-column video gallery](doc/assets/character-demos/index.html) (serve locally over HTTP) · [Execution manifest](doc/assets/character-demos/manifest.json)
+<!-- END CHARACTER_DEMOS -->
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U[User request + conversation] --> L[LLM: motion intent + independent speech]
+    L --> V[Audio8-TTS: cloned voice / measured PCM duration]
+    L --> E{Selected motion route}
+    V --> E
+    E --> S[Existing: SentiAvatar + ARDY]
+    E --> M[MotionCraft: text backbone + speech control]
+    E --> T[SynTalker: latent diffusion + RVQ]
+    S --> R[VRM: one body source / shared playback clock]
+    M --> R
+    T --> R
+    V --> R
+    R --> F[Progress / pause / interruption / recording]
+```
+
+| Layer | Responsibility |
+|---|---|
+| Dialogue and intent | Understand the conversation; author the reply, activities and their ordering. |
+| Planning | Existing route: coarse activity execution. New routes: independently timed motion and speech tracks. |
+| Generation | Preserve native window history. New routes prepare the whole performance before playback; they do not claim online streaming. |
+| Presentation | Maintain one body owner, independent speech timing, continuous sample clocks and an inspectable execution trace. |
+| Runtime foundation | Keep model environments separate; retain native identities, retarget through Motion IR and play real VRM assets. |
+
+See the [coarse-activity design](doc/character/coarse-activity-execution.zh-CN.md) and
+[window-continuity measurements](doc/character/window-continuity.zh-CN.md) for the implementation and measured boundaries.
+
+## Motion infrastructure
 
 Motion generation projects usually ship incompatible Python stacks, output tensors, skeletons and coordinate conventions.
 VIREA treats every model as an isolated, versioned capability and makes the conversion path explicit:
@@ -50,6 +177,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | I want to… | Start here |
 |---|---|
 | Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
+| Run a persistent speaking VRM character | [Character deployment and capability boundaries](doc/character/README.en.md) |
 | Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
 | Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
 | Update an already-deployed device without redownloading models | [Persistent-root update procedure](doc/getting-started/persistent-data-root.en.md#update-another-device-that-is-already-deployed) |
@@ -58,7 +186,7 @@ logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
 | Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
 | Explore datasets and retargeting | [Dataset pipeline](doc/pipeline.zh-CN.md) and [showcase](doc/showcase/README.md) |
 
-## Architecture
+## Runtime and retargeting foundation
 
 ```mermaid
 flowchart LR
@@ -85,6 +213,9 @@ checkpoint do not belong to an operating system: the selected execution domain d
 accelerator backend. Observed evidence reports where one exact configuration ran; it never chooses or hides domains.
 
 ## Model support
+
+<details>
+<summary>Expand the integrated model catalog and its evidence boundaries</summary>
 
 The table is generated from `plugins/models/*/manifest.yaml`; status, native skeleton and native representation are not
 hand-written README claims. Full task, license and upstream details are in the
@@ -127,7 +258,12 @@ telemetry contract and is never promotion evidence by itself.
 
 See [status semantics](doc/reference/status-semantics.en.md) ([中文](doc/reference/status-semantics.zh-CN.md)) for the complete contract.
 
+</details>
+
 ## Execution-domain selection and evidence
+
+<details>
+<summary>Expand execution domains, Runtime declarations and validation status</summary>
 
 VIREA treats Windows, Linux, WSL2 and macOS as first-class execution domains. The common flow is: detect available domains
 at startup → let the user select one → reuse the same OS-neutral model assets → resolve and lazily build or reuse the
@@ -163,6 +299,8 @@ real-checkpoint evidence remains a separate registry fact; manual assets, restri
 floors still apply. PRISM, for example, keeps its conservative fail-closed 96 GiB CPU RAM floor. An empty structured
 blocker list is not validation, so VIREA still cannot claim that every model has completed operation on every target
 system.
+
+</details>
 
 ## Quick start
 
@@ -354,7 +492,8 @@ The resulting filename carries a readable source → target identity while the r
 |---|---|
 | `apps/api` | FastAPI control plane and versioned result/artifact API |
 | `apps/cli` | setup, doctor, model lifecycle, generation, validation and support commands |
-| `apps/web` | model catalog, generation UI and real VRM/VRMA Viewer |
+| `apps/web` | Motion Studio, playback/recording, model catalog and VRM/VRMA Viewer |
+| `src/virea/character` | dialogue planning, event timing, native motion history and activity execution |
 | `packages/contracts` | Python and JSON contracts |
 | `packages/bootstrap` | machine detection and execution-domain/resource resolution |
 | `packages/model_pool` | artifact staging, installation transactions and READY verification |
@@ -412,13 +551,13 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-10-03
+last_reviewed: 2026-10-03
 review_cycle_days: 14
-title: VIREA — cross-platform multi-model motion generation
+title: VIREA — embodied conversation and continuous motion
 audience: Users, model integrators, motion engineers, researchers, reviewers
 visibility: Public
-summary: VIREA 的价值、模型/平台事实、真实生成流程、架构和文档入口。
+summary: Embodied conversation, recorded Motion Studio demonstrations, runtime architecture and model infrastructure.
 canonical: README.md
 related:
   - doc/README.zh-CN.md

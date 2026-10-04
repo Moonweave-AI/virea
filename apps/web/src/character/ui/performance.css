@@ -1,0 +1,7 @@
+#performance-tracks { margin: .75rem 0; }
+.performance-track { display: grid; grid-template-columns: 2.5rem 1fr; gap: .5rem; align-items: center; margin: .3rem 0; font-size: .75rem; }
+.performance-lane { position: relative; height: 1.7rem; background: #e8edf1; border-radius: .3rem; overflow: hidden; }
+.performance-lane span { position: absolute; top: 0; height: 100%; box-sizing: border-box; padding: .25rem; border-right: 2px solid white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.motion-segment { background: #b8d5ac; color: #173019; }
+.speech-segment { background: #f2d393; color: #523705; }
+#motion-backend-status { font-size: .8rem; color: #667085; }

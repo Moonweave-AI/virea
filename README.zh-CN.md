@@ -3,10 +3,10 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-04
+last_reviewed: 2026-10-04
 review_cycle_days: 14
-summary: VIREA 的中文项目入口：从 clean clone、环境检测和显式执行域选择，到模型安装、生成和浏览器播放。
+summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
 related:
   - README.md
@@ -17,22 +17,148 @@ supersedes: []
 superseded_by: []
 ---
 
-<p align="center">
-  <img src="doc/assets/virea-hero.png" width="100%" alt="VIREA：多模型动作生成到可审计 VRMA 浏览器播放">
-</p>
-
 # VIREA
 
-> [English](README.md) · [简体中文](README.zh-CN.md)
+### 能说、能动、能继续的三维对话。
 
-VIREA 把不同模型的隔离运行环境、原生动作表示、Motion IR、VRMA 和真实 VRM 浏览器播放串成一条可审计链。
-模型资产不属于某个操作系统：用户先选择实际运行的执行域，VIREA 再为该域构建或复用对应 Runtime。
+> [English](README.md) · [简体中文](README.zh-CN.md) · [真实演示](#motion-studio-演示) · [部署角色](doc/character/README.zh-CN.md)
+
+VIREA 是一个实验性的持续角色运行系统：把对话、声音、表情、手势与空间动作组织成由 VRM 角色实际完成的表演。
+
+## 从动作生成，走向持续的具身对话
+
+VIREA 已经历动作数据与重定向、多模型隔离生成两个基础阶段，现在进入 **Motion Studio：与一个持续运动的角色交互**。
+原有的原生骨骼、Motion IR、VRMA、隔离 Worker 与执行证据，成为这个新阶段的底层基础。
+
+LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆声音。开始会话前可以选择 **SentiAvatar + ARDY、MotionCraft、SynTalker** 三条路线。
+在「角色与设置」中导入参考音频及逐字文本，保存、试听并选择声线，详见 [Audio8-TTS 0.6B 部署与迁移](doc/character/audio8-tts.zh-CN.md)。
+已有路线保留活动执行与双模型交接；两条新路线各由一个动作模型家族连续生成，多段动作与任意起点的语音共用播放时钟。
+语音可以跨动作边界，动作可以比声音长，音频结束不会停止身体。原生历史跨推理窗口延续，详见[技术梗概与部署说明](doc/character/unified-motion.zh-CN.md)。
+
+这一阶段仍为**实验性能力**。下面展示的是本机真实运行与录制，并保留实际时序与已知限制；它不等于全场景物理交互、任意地形运动或生产级可靠性。
+
+<!-- BEGIN UNIFIED_MOTION_DEMOS -->
+## 单模型路线：16 个复杂任务 Demo
+
+MotionCraft、SynTalker 各 8 段，分别按 **2 列 × 4 行** 排列。点击封面查看完整 MP4；音频来自用户提供的 `audio_reference_chu2.mp3` 与 `chu2.txt`，由 Audio8-TTS 克隆生成。录像为真实页面按正常速度回放，不包含准备等待。
+
+这些是实际模型输出，**不代表所有动作意图都被准确执行或已通过主观自然度验收**：复杂走位、脚部接触和精细手势仍有限制。技术梗概、配置、实测等待时间和能力边界见[完整技术说明](doc/character/unified-motion.zh-CN.md)。
+
+### MotionCraft
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+### SynTalker
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)
+
+Avatar: Unnamed Character 6 — Reira. Source: `VRM-Model-1.vrm`.
+<!-- END UNIFIED_MOTION_DEMOS -->
+
+## Motion Studio 演示
+
+以下为升级前使用 Kokoro 的历史录制；当前默认语音已改为 Audio8-TTS 0.6B，历史时延不代表新模型性能。
+
+<!-- BEGIN CHARACTER_DEMOS -->
+**8 段完整录制 · 两列四行。** 直接在下方播放，可通过播放器开启声音或进入全屏。模型自主编排，视频保留实际播放内的停顿；生成前等待另见实测。
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>01 · 主持入场</strong><br>开场介绍 → 走位、转身与致意 → 邀请观众开始。<br><video src="https://github.com/user-attachments/assets/7c4006eb-5662-4c46-8697-df720d7d2e9b" controls width="100%"></video><br><sub>完整表演 · 39.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>02 · 热身教练</strong><br>讲解要领 → 侧步与伸展示范 → 总结和鼓励。<br><video src="https://github.com/user-attachments/assets/6707f2ec-8708-435c-92f1-bc16db2e3573" controls width="100%"></video><br><sub>完整表演 · 42.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>03 · 故事表演</strong><br>讲述雨后花园 → 无声寻找与发现 → 温暖结局。<br><video src="https://github.com/user-attachments/assets/0d4e9132-0ebe-41f9-b0af-a43612a20026" controls width="100%"></video><br><sub>完整表演 · 54.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>04 · 舞步教学</strong><br>节奏与重心讲解 → 即兴舞步组合 → 常见错误点评。<br><video src="https://github.com/user-attachments/assets/1260333b-e3bc-4c8a-b017-a853a5236c78" controls width="100%"></video><br><sub>完整表演 · 49.9s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>05 · 服装展示</strong><br>介绍搭配与材质 → 台步、转身与换姿势 → 表达心情。<br><video src="https://github.com/user-attachments/assets/5813e082-8c10-4b98-b369-ed1d321ed98c" controls width="100%"></video><br><sub>完整表演 · 51.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>06 · 情绪转折</strong><br>回应不安 → 身体动作表达庆祝 → 温暖地收尾。<br><video src="https://github.com/user-attachments/assets/9fedd92d-179b-4388-a4fc-a05de5c7a5ae" controls width="100%"></video><br><sub>完整表演 · 32.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>07 · 行走导览</strong><br>介绍入口作品 → 边走边讲、转身示意 → 总结主题。<br><video src="https://github.com/user-attachments/assets/9fd17b2d-9e5b-473c-9a02-772050581b72" controls width="100%"></video><br><sub>完整表演 · 55.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+<td width="50%" valign="top"><strong>08 · 拳击练习</strong><br>讲解站姿与守势 → 直拳、闪避与恢复 → 呼吸和节奏总结。<br><video src="https://github.com/user-attachments/assets/e15d77f0-649d-4b88-adfc-4d40d6f8ef88" controls width="100%"></video><br><sub>完整表演 · 48.1s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
+</tr>
+</table>
+
+[任务、实测与已知限制](doc/character/showcase.zh-CN.md) · [双列视频画廊](doc/assets/character-demos/index.html)（本地 HTTP 打开） · [执行清单](doc/assets/character-demos/manifest.json)
+<!-- END CHARACTER_DEMOS -->
+
+## 现在的系统如何工作
+
+```mermaid
+flowchart LR
+    U[用户消息 + 对话 + 身体与场景状态] --> L[LLM：回答 A + 粗计划 P]
+    L --> V[Audio8-TTS 0.6B：克隆语音 V]
+    L --> E{选择本会话动作路线}
+    V --> E
+    E --> S[已有 SentiAvatar + ARDY]
+    E --> M[MotionCraft 文本骨干 + 语音控制]
+    E --> A[SynTalker 潜空间扩散 + RVQ]
+    S --> B[身体按时段独占]
+    A --> B
+    M --> B
+    B --> R[VRM：身体 + 表情 + 字幕 + 声音]
+    V --> R
+    R --> F[实际进度与播放回执]
+    F --> E
+```
+
+| 层次 | 职责 |
+|---|---|
+| 对话理解 | 根据对话组织台词、行为意图与先后关系。 |
+| 规划 | 已有路线保持粗粒度活动执行；新路线分别编排动作段与语音片段的时间。 |
+| 生成 | 保留原生窗口历史。新路线准备完整表演后播放，当前不宣称低延迟在线流式能力。 |
+| 呈现与反馈 | 一个身体驱动源、独立的发言时机、连续采样时钟和可检查的执行链。 |
+| 运行基础 | 隔离模型环境，保留原生身份，经 Motion IR 重定向到真实 VRM。 |
+
+实现与实测见[粗粒度活动执行](doc/character/coarse-activity-execution.zh-CN.md)和[动作窗口连续播放](doc/character/window-continuity.zh-CN.md)。
+
+模型资产依然独立于操作系统：用户选择执行域，VIREA 为该域构建或复用 Runtime。
+模型安装、生成、重定向与验证的完整工作流仍保留在下方入口。
 
 ## 从这里开始
 
 | 你的目标 | 中文文档 | English documentation |
 |---|---|---|
 | 从 clone 到第一个结果 | [中文教程](doc/getting-started.zh-CN.md) | [English tutorial](doc/getting-started.en.md) |
+| 部署持续对话的三维角色 | [角色架构与部署](doc/character/README.zh-CN.md) | [Character sessions](doc/character/README.en.md) |
 | 查看每个 CLI 命令和参数 | [中文 CLI 参考](doc/reference/cli.zh-CN.md) | [English CLI reference](doc/reference/cli.en.md) |
 | 选择 Windows、Linux、WSL2 或 macOS 执行域 | [平台指南](doc/platforms/README.zh-CN.md) | [Platform guide](doc/platforms/README.en.md) |
 | 选择模型、Runtime 与资源 profile | [模型目录](doc/models/README.zh-CN.md) | [Model catalog](doc/models/README.zh-CN.md) |

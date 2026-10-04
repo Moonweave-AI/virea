@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 from virea_core.paths import VireaPaths
 
+from virea.character.manager import CharacterManager
 from virea.resources import plugin_root as bundled_plugin_root
 from virea.resources import runtime_source_root as bundled_runtime_source_root
 from virea.resources import web_dist as bundled_web_dist
@@ -21,6 +22,8 @@ from .routes import (
     results_router,
     system_router,
 )
+from .routes.character_face import router as character_face_router
+from .routes.characters import router as characters_router
 from .service import ControlPlane
 
 _FRESH_WEB_HEADERS = {
@@ -108,15 +111,15 @@ def create_app(
         )
         app.state.control_plane = control
         try:
+            app.state.characters = CharacterManager(control)
             yield
         finally:
             try:
-                control.close()
+                if hasattr(app.state, "characters"):
+                    await app.state.characters.close()
+                    del app.state.characters
             finally:
-                # StateStore does not retain a long-lived SQLite connection;
-                # releasing the control plane here also prevents a stopped
-                # TestClient/server lifespan from retaining worker and store
-                # objects through app.state.
+                control.close()
                 del app.state.control_plane
 
     application = FastAPI(
@@ -129,6 +132,8 @@ def create_app(
     application.include_router(jobs_router, prefix="/api/v1")
     application.include_router(avatars_router, prefix="/api/v1")
     application.include_router(results_router, prefix="/api/v1")
+    application.include_router(characters_router, prefix="/api/v1")
+    application.include_router(character_face_router, prefix="/api/v1")
     if include_legacy_preview:
         _include_legacy_preview(application)
     web_dist = _web_dist()

@@ -1,0 +1,309 @@
+{
+  "schema_version": "virea.character_endings.v1",
+  "created_at": "2026-09-26T16:03:33.218Z",
+  "baseline_commit": "31a9defc2127fb9edfd9c8de7d4d102c6ab7aefa",
+  "source_sha256": {
+    "apps/web/src/character/stage.ts": "e92139a2e15e86912eece0cf4dfb2434b8c2b81fafbf2249ddeffeed808de76e",
+    "apps/web/src/character/recovery.ts": "f6c22c87f0aeb9b945a8672eec1ee0b0c4064ba99b76048ffa7ae69691ce009c",
+    "apps/web/src/character/continuity.ts": "c44261f4810a8a0b9beda023d6dd0722e1a26fb4c10b6a2fab4d05d1d361050e",
+    "src/virea/character/session.py": "f00de5541dff97397e95f6524159e8ed65e685baa6d1b7ab84b467f65d412760"
+  },
+  "hardware": "RTX 5090 Laptop GPU, 24463 MiB, Windows, Chrome",
+  "comparison": "Same captured WAV/VRMA/face assets, sequential greeting/explanation/farewell. Fixed-resource replay; not new model samples.",
+  "velocity_measurement": "Maximum local joint angle / elapsed delta for spine, chest, neck, head, upper/lower arms and hands. Last adjacent frame interval with dt >= 0.001s. Degrees/second. Recovery is sampled at the final clock time.",
+  "assets": [
+    {
+      "capture": "1/audio.wav",
+      "sha256": "6d3bc1e6c62f4154af3c57a9a6c31342fcaab6c51cf1d389dfd580fec2a40d63",
+      "bytes": 136844
+    },
+    {
+      "capture": "1/motion.vrma",
+      "sha256": "fa7db0699593e9dc7ca34af0fbe749a616ec88ea65b47e999ce0f4c6f5b69111",
+      "bytes": 65780
+    },
+    {
+      "capture": "1/face.json",
+      "sha256": "df90e410f305548c2bfe71b1c9f1cc0044d305eca03c65549da58bcae9e60a68",
+      "bytes": 8224
+    },
+    {
+      "capture": "1/packet.json",
+      "sha256": "9fc92121cd613e978a82511e164e1190552550b8c45d67d1f6b129b0f633e8a8",
+      "bytes": 1174
+    },
+    {
+      "capture": "2/audio.wav",
+      "sha256": "4552483b9fd5ee51ad80ef556714110273c3ca7180aa3d4d20835ac4c75b482f",
+      "bytes": 220844
+    },
+    {
+      "capture": "2/motion.vrma",
+      "sha256": "57c83b202d44a4db9f41de1634a3421527dc093e5921bfa0037680e35e4f020e",
+      "bytes": 96408
+    },
+    {
+      "capture": "2/face.json",
+      "sha256": "0309ed5602237d856997ce8353ff3b22e542e413ac51e33ea6efd0e88fabf04c",
+      "bytes": 13186
+    },
+    {
+      "capture": "2/packet.json",
+      "sha256": "32988476875e8efa47bbcdba962417ec6ba3c707480c296781496d2aa31c28fd",
+      "bytes": 1206
+    },
+    {
+      "capture": "3/audio.wav",
+      "sha256": "e47f09a6f8b55771d1ccd467759ddc3dcd2b565d9a04568ed9c85311c98066e4",
+      "bytes": 199244
+    },
+    {
+      "capture": "3/motion.vrma",
+      "sha256": "84a9ad43ba1b10bf0584a1aee4a24588efe1faa86ba676175a680b075611e094",
+      "bytes": 87912
+    },
+    {
+      "capture": "3/face.json",
+      "sha256": "e0cd26a5973c03b0317fde5103e0e4fb1cf99791a4aa6fc4b3168dfb95828f3d",
+      "bytes": 11805
+    },
+    {
+      "capture": "3/packet.json",
+      "sha256": "5fc6e8ec098547771b794c6c1a172ebba37faa4b0d3827eaf4b9de39662548c0",
+      "bytes": 1201
+    }
+  ],
+  "trials": [
+    {
+      "trial": 1,
+      "before": {
+        "audio_seconds": 2.85,
+        "motion_seconds": 2.85,
+        "last_velocity_deg_s": 22.70419135566708,
+        "peak_final_150ms_deg_s": 28.431452898944894
+      },
+      "final": {
+        "audio_seconds": 2.85,
+        "motion_seconds": 3.760254425981424,
+        "last_velocity_deg_s": 0.16938275818614476,
+        "peak_final_150ms_deg_s": 32.348572906999266
+      },
+      "text": "你好，很高兴见到你。",
+      "final_face": {
+        "blinkLeft": 0,
+        "blinkRight": 0,
+        "aa": 0,
+        "oh": 0,
+        "ou": 0,
+        "happy": 3.6256779439099336e-16,
+        "sad": 1.5186105468284466e-18
+      },
+      "raw_trajectory_sha256": {
+        "before": "2db0e315e29adc02f1a3c6d197b5b82c90345a3bc3580467115817bfb6453b71",
+        "final": "2377d6618aa3711e4c316532bfea71f84e16046daecb167c0716bfe908649d0d"
+      },
+      "raw_frame_counts": {
+        "before": 685,
+        "final": 904
+      }
+    },
+    {
+      "trial": 2,
+      "before": {
+        "audio_seconds": 4.6,
+        "motion_seconds": 4.6,
+        "last_velocity_deg_s": 122.48129955816802,
+        "peak_final_150ms_deg_s": 125.29212915688429
+      },
+      "final": {
+        "audio_seconds": 4.6,
+        "motion_seconds": 5.87238119268784,
+        "last_velocity_deg_s": 0.9382523375967987,
+        "peak_final_150ms_deg_s": 40.40439237402784
+      },
+      "text": "我们可以先看看周围，再决定往哪里走。",
+      "final_face": {
+        "blinkLeft": 0,
+        "blinkRight": 0,
+        "aa": 0,
+        "oh": 0,
+        "ou": 0,
+        "happy": 0,
+        "sad": 0
+      },
+      "raw_trajectory_sha256": {
+        "before": "bb86b23cdf0eec886ac62edc0164b76f94b2a0c397ed680ad9480a4d92d0571e",
+        "final": "e08864956e64164ff684187f192fe9a384ac3d44d07b82ec24851bfeb33a697f"
+      },
+      "raw_frame_counts": {
+        "before": 1105,
+        "final": 1411
+      }
+    },
+    {
+      "trial": 3,
+      "before": {
+        "audio_seconds": 4.15,
+        "motion_seconds": 4.15,
+        "last_velocity_deg_s": 69.64920433207784,
+        "peak_final_150ms_deg_s": 69.66246877606608
+      },
+      "final": {
+        "audio_seconds": 4.15,
+        "motion_seconds": 5.535444688297108,
+        "last_velocity_deg_s": 0.4677382482239378,
+        "peak_final_150ms_deg_s": 46.065281654442735
+      },
+      "text": "今天聊得很开心，我们下次再见。",
+      "final_face": {
+        "blinkLeft": 0,
+        "blinkRight": 0,
+        "aa": 0,
+        "oh": 0,
+        "ou": 0,
+        "happy": 0,
+        "sad": 0
+      },
+      "raw_trajectory_sha256": {
+        "before": "5f74341a896ddf11a9bc9919b7fc69e9a3e8769a301ec30e555df28ff87e7a8b",
+        "final": "d0fc367f0c1c8eea85b583fb71a8983ec8376c36a3c7af15cb256db0de2369a2"
+      },
+      "raw_frame_counts": {
+        "before": 998,
+        "final": 1328
+      }
+    }
+  ],
+  "pause_in_recovery": {
+    "elapsed": 4.410666666666668,
+    "observed_ms": 400,
+    "unchanged": true
+  },
+  "interruption_in_recovery": {
+    "unchanged": true,
+    "completed": false
+  },
+  "continuing_packet": {
+    "audio_seconds": 4.15,
+    "motion_seconds": 4.15
+  },
+  "continuous": {
+    "outcome": "passed",
+    "first_playback_seconds": 7.8495088,
+    "gaps_seconds": [
+      0.10499999999999865,
+      0.10499999999999865
+    ],
+    "continues": [
+      true,
+      true,
+      false
+    ],
+    "native_history_applied": [
+      false,
+      true,
+      true
+    ],
+    "feedback": [
+      {
+        "status": "completed",
+        "audio_seconds": 5.775,
+        "motion_seconds": 5.775
+      },
+      {
+        "status": "completed",
+        "audio_seconds": 9.375,
+        "motion_seconds": 9.375
+      },
+      {
+        "status": "completed",
+        "audio_seconds": 7.05,
+        "motion_seconds": 8.51900161002047
+      }
+    ],
+    "pause": {
+      "before": [
+        0.381,
+        0.381
+      ],
+      "after": [
+        0.381,
+        0.381
+      ]
+    },
+    "after_interrupt_metrics": {
+      "generated_seconds": 30.475,
+      "generation_seconds": 29.87600000000384,
+      "first_expression_seconds": 4.875,
+      "rtf": 0.9803445447089038,
+      "first_audio_seconds": 3,
+      "language_seconds": 2.9060000000026776,
+      "tts_seconds": 0.09399999999732245,
+      "motion_seconds": 1.875
+    },
+    "errors": []
+  },
+  "failed_runs": [
+    {
+      "label": "continuous while full browser suite also running",
+      "outcome": "failed",
+      "error": "AssertionError [ERR_ASSERTION]: successor gaps: 5.275666666666666,0.10500000000000043",
+      "gaps_seconds": [
+        5.275666666666666,
+        0.10500000000000043
+      ],
+      "feedback": [
+        {
+          "audio_seconds": 5.775,
+          "motion_seconds": 5.775
+        },
+        {
+          "audio_seconds": 9.375,
+          "motion_seconds": 9.375
+        },
+        {
+          "audio_seconds": 7.05,
+          "motion_seconds": 8.375869415847875
+        }
+      ]
+    },
+    {
+      "label": "first full web test run",
+      "passed": 91,
+      "failed": 1,
+      "failure": "bootstrap-browser: background polling must not supersede explicit pre-submission authority barrier (2 != 1)",
+      "rerun": "focused 13/13 and full 92/92 passed; no studio implementation changes"
+    }
+  ],
+  "checks": {
+    "character_tests": 42,
+    "web_tests": 92,
+    "build": "passed",
+    "ruff": "passed"
+  },
+  "limits": [
+    "Three generated examples with one VRM, not a universal naturalness evaluation.",
+    "Recovery is renderer-side, not learned or fed back as native motion codes.",
+    "No foot IK, contact constraints or breathing idle added.",
+    "Generation underruns remain possible under load."
+  ],
+  "additional_continuous_confirmation": {
+    "outcome": "passed",
+    "first_playback_seconds": 7.695654200000001,
+    "gaps_seconds": [
+      0.10500000000000043,
+      0.10500000000000043
+    ],
+    "errors": []
+  },
+  "harness_teardown": "The continuous_e2e assertions and observations completed, but Chrome teardown hung on Windows in these runs. Owned test runner processes were stopped after saving their observations. The ending_e2e fixed-asset replay and lifecycle checks exited normally.",
+  "graph_check": {
+    "scope": "all",
+    "risk": "medium",
+    "changed_symbols": 101,
+    "affected_processes": 2,
+    "partial": false,
+    "truncated": false,
+    "limitation": "Graph index has dynamic receiver, cross-language, and process-walk coverage limits; counts do not prove all callers are known."
+  }
+}

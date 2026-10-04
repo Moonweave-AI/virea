@@ -539,6 +539,19 @@ def _load_json(path: Path, label: str, errors: list[str]) -> dict[str, object] |
     return value
 
 
+def owner_directed_recording(asset_policy: dict) -> bool:
+    """Publication direction is explicit and is not a claim of verified rights."""
+    return (
+        asset_policy.get("kind") == "owner-directed-recorded-performance"
+        and asset_policy.get("decision")
+        == "owner-directed-display-permission-unverified"
+        and asset_policy.get("legal_permission_verified") is False
+        and bool(asset_policy.get("publication_basis"))
+        and bool(asset_policy.get("provenance"))
+        and (ROOT / asset_policy["provenance"]).is_file()
+    )
+
+
 def check_showcase() -> list[str]:
     errors: list[str] = []
     showcase = ROOT / "doc" / "showcase"
@@ -794,9 +807,12 @@ def check_showcase() -> list[str]:
                 errors.append(
                     f"showcase: owner-directed asset must not claim verified permission ({asset})"
                 )
-        elif not str(asset_policy.get("kind", "")).startswith("project-owned-"):
+        elif not (
+            str(asset_policy.get("kind", "")).startswith("project-owned-")
+            or owner_directed_recording(asset_policy)
+        ):
             errors.append(
-                f"showcase: non-gallery media must be project-owned ({asset})"
+                f"showcase: non-gallery media needs project ownership or explicit recording provenance ({asset})"
             )
     expected_public_media = {
         path

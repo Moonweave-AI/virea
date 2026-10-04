@@ -1,0 +1,90 @@
+export interface Position { x: number; y: number; z: number }
+export interface BodyProgram {
+  completion_mode?: "duration" | "observed";
+  completions?: string[];
+  phase_index?: number;
+  phase_elapsed?: number;
+}
+export interface BodyState {
+  position: Position;
+  yaw: number;
+  pelvis_height?: number;
+  pose: Record<string, [number, number, number, number]>;
+  gaze_target: string | null;
+  behavior: string;
+  history?: Omit<BodyState, "history" | "gaze_target" | "behavior">[];
+}
+export interface BodyProgram { id: string; continuation_of?: string | null; actions: SceneAction[]; executors?: string[]; ending_executor?: string | null; ending_seconds?: number | null; recovery_required?: boolean; cues?: { phase: number; start: import("./speech_clock").SpeechAnchor }[]; elapsed?: number; ending?: string | null; start_with_reply?: boolean; scope?: "response" | "activity"; finish_requested?: boolean; origin_epoch?: number; goal?: string; duration_source?: string | null; end_state: "hold" | "relaxed"; status: "ready" | "playing" | "settling" | "completed" | "failed" | "interrupted" }
+export interface SceneAction {
+  kind: "look_at" | "move_to" | "reach" | "sit" | "stand" | "perform" | "stop";
+  target_id: string | null;
+  position: Position | null;
+  description?: string | null;
+  label?: string | null;
+  duration_seconds?: number | null;
+  transition_description?: string | null;
+  continuation_description?: string | null;
+}
+export interface Expression {
+  performance?: Performance;
+  id: string;
+  session_id?: string;
+  body_program_id?: string;
+  spatial_windows?: import("./spatial").SpatialWindow[];
+  temporal?: boolean;
+  epoch: number;
+  text: string;
+  actions: SceneAction[];
+  audio_url: string | null;
+  audio_seconds: number;
+  motion: { vrma_url: string; result_id: string } | null;
+  independent_speech?: boolean;
+  motion_status?: string;
+  /** Internal windows continue on one clock; only the final window retracts. */
+  continues?: boolean;
+  stream_id?: string;
+  sequence?: number;
+  offset_seconds?: number;
+  parent_id?: string | null;
+  caption?: string;
+  speech_marks?: { name: string; offset_seconds: number }[];
+  route?: { engine: "sentiavatar" | "ardy" | "hybrid" | "temporal" | "motioncraft" | "syntalker"; reason: string } | null;
+  end_state?: "relaxed" | "hold";
+  preview?: boolean;
+}
+export interface FaceTrack { fps: number; names: string[]; values: number[][];
+  arkit?: { names: string[]; values: number[][] } }
+export interface PlaybackProgress {
+  elapsed: number; audioDuration: number; motionDuration: number; paused: boolean;
+  caption?: string;
+}
+export interface Performance {
+  id: string; backend: "motioncraft" | "syntalker"; duration_seconds: number; asset_url: string;
+  motions: { id: string; start_seconds: number; duration_seconds: number; prompt: string; label: string }[];
+  speech: { id: string; start_seconds: number; duration_seconds: number; text: string }[];
+}
+export interface Session {
+  motion_backend?: "sentiavatar_ardy" | "motioncraft" | "syntalker";
+  performance?: Performance | null;
+  id: string;
+  epoch: number;
+  status: string;
+  body: BodyState;
+  pending: Expression | null;
+  buffered: Expression | null;
+  ready?: Expression[];
+  latest_expression: Expression | null;
+  draft_text: string;
+  route?: Expression["route"];
+  body_program?: BodyProgram | null;
+  timing?: { epoch: number; observed: string[]; waiting: Record<string, string>; error: string | null } | null;
+  behavior_timeline?: { id: string; owner: string; seconds: number; status: string; reason: string; [key: string]: unknown }[];
+  motion_plan?: SceneAction[];
+  playback_mode: "voice_first" | "synchronized";
+  events: { sequence: number; kind: string; message?: string; text?: string; epoch?: number; at_seconds?: number; [key: string]: unknown;
+    interrupted?: boolean; feedback?: { status: string } }[];
+  history: { role: string; content: string }[];
+  metrics: { first_expression_seconds: number | null; rtf: number | null;
+    first_audio_seconds: number | null; language_seconds: number | null;
+    tts_seconds: number | null; motion_seconds: number | null };
+}

@@ -1,0 +1,183 @@
+{
+  "date": "2026-09-27",
+  "base_commit": "47b87575a5a920f782cd0465a75fd59c1224f035",
+  "hardware": "NVIDIA RTX 5090 Laptop GPU, 24463 MiB",
+  "scope": "Local Windows real-model observations, not a subjective quality evaluation",
+  "current_audio_window_targets_seconds": [
+    3.2,
+    4.8
+  ],
+  "long_response_trials": [
+    {
+      "evidence": "run4",
+      "sha256": "58655658b4d1299293886c21c23b9c82406f011fb42427fdfe2fa0fc6c41c407",
+      "outcome": "passed",
+      "first_playback_seconds": 9.3379593,
+      "audio_seconds": 28.275,
+      "windows": 7,
+      "first_window_seconds": 2.4,
+      "maximum_absolute_gap_seconds": 4.440892098500626e-15,
+      "underruns": 0,
+      "motion_pipeline_rtf": 0.485800176834623,
+      "pause_passed": true,
+      "text_conservation_passed": true,
+      "native_and_planner_history_passed": true,
+      "terminal_recovery_passed": true,
+      "interruption_and_warm_continuation_passed": true
+    },
+    {
+      "evidence": "run5",
+      "sha256": "16e35ec687907a1ae5a0213ad42ee0e09d51768f0c7cc46531717b465971e556",
+      "outcome": "passed",
+      "first_playback_seconds": 11.080800900000002,
+      "audio_seconds": 28.275,
+      "windows": 7,
+      "first_window_seconds": 3.2,
+      "maximum_absolute_gap_seconds": 4.440892098500626e-15,
+      "underruns": 0,
+      "motion_pipeline_rtf": 0.6509637488948781,
+      "pause_passed": true,
+      "text_conservation_passed": true,
+      "native_and_planner_history_passed": true,
+      "terminal_recovery_passed": true,
+      "interruption_and_warm_continuation_passed": true
+    },
+    {
+      "evidence": "run6",
+      "sha256": "283ac1fd99847e7379a88bf355f8c2a80a9ca788c984c56870af86314e799423",
+      "outcome": "passed",
+      "first_playback_seconds": 11.5258078,
+      "audio_seconds": 28.275,
+      "windows": 7,
+      "first_window_seconds": 3.2,
+      "maximum_absolute_gap_seconds": 4.440892098500626e-15,
+      "underruns": 0,
+      "motion_pipeline_rtf": 0.6045977011494664,
+      "pause_passed": true,
+      "text_conservation_passed": true,
+      "native_and_planner_history_passed": true,
+      "terminal_recovery_passed": true,
+      "interruption_and_warm_continuation_passed": true
+    }
+  ],
+  "expression_trials": [
+    {
+      "kind": "joy",
+      "first_playback_seconds": 6.981825499999999,
+      "windows": 2,
+      "audio_seconds": 6.2,
+      "underruns": 0,
+      "native_and_planner_history_passed": true
+    },
+    {
+      "kind": "comfort",
+      "first_playback_seconds": 7.169115999999998,
+      "windows": 2,
+      "audio_seconds": 6.75,
+      "underruns": 0,
+      "native_and_planner_history_passed": true
+    },
+    {
+      "kind": "explain",
+      "first_playback_seconds": 7.005839,
+      "windows": 2,
+      "audio_seconds": 6.9,
+      "underruns": 0,
+      "native_and_planner_history_passed": true
+    }
+  ],
+  "expression_evidence_sha256": "eb153a3df87b43c90303bbb23e9296a7ee5660fa83b8b2214fbba8b6358f3933",
+  "planner_comparison": [
+    {
+      "mode": "transformers_bf16",
+      "index": 0,
+      "seconds": 2.302357000000484,
+      "duration": 2.8,
+      "native_history": false,
+      "planner_history": false
+    },
+    {
+      "mode": "transformers_bf16",
+      "index": 1,
+      "seconds": 1.835009699998409,
+      "duration": 4.6,
+      "native_history": true,
+      "planner_history": true
+    },
+    {
+      "mode": "transformers_bf16",
+      "index": 2,
+      "seconds": 1.6220530999999028,
+      "duration": 4.1,
+      "native_history": true,
+      "planner_history": true
+    },
+    {
+      "mode": "llama_cpp_f16",
+      "index": 0,
+      "seconds": 0.46365200000036566,
+      "duration": 2.8,
+      "native_history": false,
+      "planner_history": false
+    },
+    {
+      "mode": "llama_cpp_f16",
+      "index": 1,
+      "seconds": 0.5929394000013417,
+      "duration": 4.6,
+      "native_history": true,
+      "planner_history": true
+    },
+    {
+      "mode": "llama_cpp_f16",
+      "index": 2,
+      "seconds": 0.6699698000011267,
+      "duration": 4.1,
+      "native_history": true,
+      "planner_history": true
+    }
+  ],
+  "native_vocabulary_ids_verified": 2548,
+  "rest_evidence": {
+    "artifact": "neutral-replay3/observation.json",
+    "sha256": "ed6f0b32cb38949d7532e3b6a4c077338a8ffa0651822ef6bddbb3c3ce94fda1",
+    "outcome": "passed",
+    "complete_expressions": 3,
+    "max_pose_error_radians": 1e-06,
+    "idle_deviation_limit_radians": 0.015,
+    "interruption_and_pause_passed": true
+  },
+  "checks": {
+    "character_pytest_passed": 50,
+    "model_runtime_pytest_passed": 19,
+    "documentation_and_public_contract_pytest_passed": 15,
+    "web_serial_tests_passed": 94,
+    "web_parallel_tests": "93 passed, 1 timing-sensitive bootstrap-browser failure; no test or assertion was weakened",
+    "ruff": "passed",
+    "web_build": "passed; existing bundle-size warning"
+  },
+  "preserved_failed_experiments": {
+    "run1": "tiny independent windows could not keep up",
+    "run2": "immutable upstream asset verification rejected generated __pycache__; removed only those diagnostic cache files",
+    "run3": "one 0.2213 second audio underrun before fast planner backend",
+    "rest_replays": "two harness assumptions corrected: expression/window distinction and capture after preload"
+  },
+  "limits": [
+    "bounded-lookahead window production, not sample-causal or frame-streaming worker protocol",
+    "not a blind MOS or multi-avatar quality evaluation",
+    "upstream fixed hand resource; standard VRM face mapping is approximate",
+    "first playback remains approximately 7 seconds for these short expressions and 11 seconds for these long-response trials",
+    "timings depend on model sampling, system load and startup buffering",
+    "graph impact is critical; process extraction has global ranking/depth limits, so graph coverage is not a proof of absence"
+  ],
+  "planner_provenance": {
+    "source": "https://huggingface.co/Chuhaojin/SentiAvatar/tree/242b2031a913dd1b25f43fe1f3e112611864c9cc",
+    "converter": "https://github.com/ggml-org/llama.cpp/tree/b11146",
+    "modification": "BF16 safetensors converted to FP16 GGUF; no fine-tuning",
+    "weights_sha256": "148ea91b5a9c20a6e388e4145b24228b178174c5d04cf2a24c8ee45d2a8426c7",
+    "tokenizer_sha256": "77ea10323ffa96cd0baf4ad882dc2bced4d304f9fafd10ee05b4950d98c1179b",
+    "converter_sha256": "e9a1da876330bbce9687541ab31736542a01b4ac43c6686126514a50f122fb7f",
+    "gguf_sha256": "43301fd0de9d011fe1524ed436755738eac8c549329e93e93389c0347f9fadda",
+    "license": "SentiPulse Non-Commercial Source License v1.0"
+  }
+}

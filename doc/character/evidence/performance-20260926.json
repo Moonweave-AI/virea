@@ -1,0 +1,3436 @@
+{
+  "schema": "virea.character_upgrade_research.v1",
+  "date": "2026-09-26",
+  "code_baseline": "f4a85d8",
+  "environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+    "gpu_total_mib": 24463,
+    "ollama_version": "0.34.4",
+    "language_device": "CPU; every tested model reports size_vram=0",
+    "torch": "2.8.0+cu128"
+  },
+  "limitations": [
+    "Small synthetic diagnostic set, not a held-out evaluation",
+    "Models run in fixed order in a desktop environment; CPU not isolated",
+    "Resident timings exclude admission, retargeting, export, network, browser decoding and playback",
+    "Boundary angles are measured before renderer blending",
+    "No production model, prompt, worker residency or playback configuration changed"
+  ],
+  "language_production": {
+    "schema": "virea.character_language_comparison.v1",
+    "temperature": 0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "rounds": 2,
+    "prompt_variant": "production",
+    "compact_rules": null,
+    "cases": [
+      {
+        "id": "greeting",
+        "user": "你好，简短打个招呼。",
+        "mode": "SPEAK"
+      },
+      {
+        "id": "wait",
+        "user": "先安静等待，不要说话，也不要做动作。",
+        "mode": "WAIT"
+      },
+      {
+        "id": "look",
+        "user": "不要说话，看向杯子。",
+        "mode": "ACT_SILENTLY",
+        "action": "look_at",
+        "target": "cup"
+      },
+      {
+        "id": "move",
+        "user": "安静走到杯子的位置。",
+        "mode": "ACT_SILENTLY",
+        "action": "move_to",
+        "target": "cup"
+      },
+      {
+        "id": "stop",
+        "user": "马上停止移动，不要说话。",
+        "mode": "ACT_SILENTLY",
+        "action": "stop",
+        "behavior": "walking"
+      },
+      {
+        "id": "completion",
+        "user": "简单打个招呼，然后等待。",
+        "assistant": "你好，很高兴见到你。",
+        "mode": "WAIT"
+      },
+      {
+        "id": "missing_target",
+        "user": "走到那只猫旁边。",
+        "mode": "SPEAK",
+        "targets": {},
+        "clarification": true
+      },
+      {
+        "id": "verbatim",
+        "user": "只说“好的”，不做场景动作。",
+        "mode": "SPEAK",
+        "text": "好的"
+      }
+    ],
+    "models": [
+      {
+        "model": "qwen3.5:2b",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "2.3B",
+          "quantization_level": "Q8_0"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3281968400,
+              "load_duration": 8151100,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1964320000,
+              "eval_count": 38,
+              "eval_duration": 1304560000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.2978610999998637
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1380281200,
+              "load_duration": 7498800,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 49025000,
+              "eval_count": 38,
+              "eval_duration": 1317849000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.39358970000103
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3184284900,
+              "load_duration": 7425600,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 2054025999,
+              "eval_count": 32,
+              "eval_duration": 1116933000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.1983118999996805
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 3154129600,
+              "load_duration": 7996500,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1954764000,
+              "eval_count": 35,
+              "eval_duration": 1186080000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.168780899999547
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静走到杯子的位置。",
+              "motion_intent": "walking",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 5039759700,
+              "load_duration": 8419200,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 2005975000,
+              "eval_count": 76,
+              "eval_duration": 3020405000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 5.227820399999473
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 3435033000,
+              "load_duration": 8423100,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 2275098000,
+              "eval_count": 32,
+              "eval_duration": 1145653000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.4489343000022927
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3596620600,
+              "load_duration": 7990100,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 2396854000,
+              "eval_count": 32,
+              "eval_duration": 1185674000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.6117489999996906
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 3771250000,
+              "load_duration": 10147000,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 2246155000,
+              "eval_count": 39,
+              "eval_duration": 1509073000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.788460700001451
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3742901300,
+              "load_duration": 9128900,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 2348551000,
+              "eval_count": 38,
+              "eval_duration": 1377671000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.759214300000167
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3723069100,
+              "load_duration": 9584700,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 2329003000,
+              "eval_count": 38,
+              "eval_duration": 1378046000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.739066100002674
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3576465300,
+              "load_duration": 8288200,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 2391924000,
+              "eval_count": 32,
+              "eval_duration": 1170240000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.7641736999976274
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 3598776000,
+              "load_duration": 9069400,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 2345080000,
+              "eval_count": 35,
+              "eval_duration": 1238490000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.614729900000384
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静走到杯子的位置。",
+              "motion_intent": "walking",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 5199557900,
+              "load_duration": 8494000,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 2389696000,
+              "eval_count": 76,
+              "eval_duration": 2794983000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 5.217523200000869
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 3478345600,
+              "load_duration": 8572200,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 2331901000,
+              "eval_count": 32,
+              "eval_duration": 1131497000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.4951375000018743
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3563998100,
+              "load_duration": 9438900,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 2382670000,
+              "eval_count": 32,
+              "eval_duration": 1165736000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.580601800000295
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 3597841700,
+              "load_duration": 8124400,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 2205451000,
+              "eval_count": 39,
+              "eval_duration": 1378486000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.613876400002482
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3786348000,
+              "load_duration": 7841900,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 2376446000,
+              "eval_count": 38,
+              "eval_duration": 1396045000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.988592300000164
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:00:45.019112+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T18:57:35.5576843+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T18:57:03.8666289+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 8,
+          "count": 16,
+          "median_seconds": 3.614303150001433,
+          "max_seconds": 5.227820399999473
+        }
+      },
+      {
+        "model": "qwen3.5:2b-q4_K_M",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "2.3B",
+          "quantization_level": "Q4_K_M"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2602293600,
+              "load_duration": 8313000,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1403246000,
+              "eval_count": 43,
+              "eval_duration": 1184578000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.62122790000285
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1206883800,
+              "load_duration": 10054000,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 43073000,
+              "eval_count": 43,
+              "eval_duration": 1148038000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.2224550999999337
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2240976200,
+              "load_duration": 7412100,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 1398928000,
+              "eval_count": 31,
+              "eval_duration": 828616000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.256909600000654
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "looking_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2366177100,
+              "load_duration": 8664600,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1383962000,
+              "eval_count": 35,
+              "eval_duration": 967681000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.3816155000022263
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静地走到杯子位置。",
+              "motion_intent": "silent",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2574852700,
+              "load_duration": 8631000,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1382403000,
+              "eval_count": 43,
+              "eval_duration": 1177157000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.590648200002761
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2230271700,
+              "load_duration": 8359900,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 1390409000,
+              "eval_count": 31,
+              "eval_duration": 825090000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.246437199999491
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "idle",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2310605500,
+              "load_duration": 9123600,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 1418723000,
+              "eval_count": 33,
+              "eval_duration": 875924000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.326915099998587
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，猫。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 2479362400,
+              "load_duration": 9016400,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 1311389000,
+              "eval_count": 42,
+              "eval_duration": 1152167000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.4945729999999458
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2441530500,
+              "load_duration": 7920900,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 1386785000,
+              "eval_count": 38,
+              "eval_duration": 1040994999,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.639492100002826
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2572309400,
+              "load_duration": 8268300,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1393193000,
+              "eval_count": 43,
+              "eval_duration": 1164537000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.5884254000011424
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2269388600,
+              "load_duration": 8635200,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 1411870000,
+              "eval_count": 31,
+              "eval_duration": 842575000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.2852811999982805
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "looking_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2350812700,
+              "load_duration": 9078400,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1383736000,
+              "eval_count": 35,
+              "eval_duration": 952186000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.3681724999987637
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静地走到杯子位置。",
+              "motion_intent": "silent",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2571261000,
+              "load_duration": 10058600,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1393229000,
+              "eval_count": 43,
+              "eval_duration": 1161880000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.5872162000014214
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 2230167200,
+              "load_duration": 9383900,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 1389098000,
+              "eval_count": 31,
+              "eval_duration": 825388000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.245285099998
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "idle",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2328582900,
+              "load_duration": 9014000,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 1428963000,
+              "eval_count": 33,
+              "eval_duration": 884742000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.3431532999966294
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，猫。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 2456155900,
+              "load_duration": 8664100,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 1310106000,
+              "eval_count": 42,
+              "eval_duration": 1131031000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.471117299999605
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "neutral",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2453514000,
+              "load_duration": 8445600,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 1406140000,
+              "eval_count": 38,
+              "eval_duration": 1033246000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.4693675999988045
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T19:01:25.2190024+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:00:45.019112+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T18:57:35.5576843+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 8,
+          "count": 16,
+          "median_seconds": 2.374894000000495,
+          "max_seconds": 2.639492100002826
+        }
+      },
+      {
+        "model": "qwen3.5:0.8b",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "873.44M",
+          "quantization_level": "Q8_0"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1874578400,
+              "load_duration": 7961800,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1008136000,
+              "eval_count": 44,
+              "eval_duration": 853145000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8897895000009157
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 898351300,
+              "load_duration": 7284800,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 33497000,
+              "eval_count": 44,
+              "eval_duration": 851173000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 0.913456700000097
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静等待。",
+              "motion_intent": "wait",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 832931200,
+              "load_duration": 8363500,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 34111000,
+              "eval_count": 40,
+              "eval_duration": 778291000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 0.8586826999999175
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "不要说话，看向杯子。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1671564000,
+              "load_duration": 8830400,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1006516000,
+              "eval_count": 33,
+              "eval_duration": 632703000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.687036999999691
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静走到杯子的位置。",
+              "motion_intent": "move_to",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1878652100,
+              "load_duration": 8350200,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1006905000,
+              "eval_count": 44,
+              "eval_duration": 857311000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8959899000001315
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "马上停止移动，不要说话。",
+              "motion_intent": "stop",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1707968000,
+              "load_duration": 9114700,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 1017990000,
+              "eval_count": 33,
+              "eval_duration": 674996000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.724207600000227
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，很高兴见到你。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1909827900,
+              "load_duration": 7320800,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 1043386000,
+              "eval_count": 44,
+              "eval_duration": 853073000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9266334999992978
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "走到那只猫旁边。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 1812305800,
+              "load_duration": 8620400,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 968274000,
+              "eval_count": 43,
+              "eval_duration": 829831000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8288266999988991
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1573782400,
+              "load_duration": 6393500,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 1024262999,
+              "eval_count": 26,
+              "eval_duration": 537337000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.5904225999984192
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，简短打个招呼。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1878247900,
+              "load_duration": 8469500,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1014333000,
+              "eval_count": 44,
+              "eval_duration": 849013000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.894556499999453
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静等待。",
+              "motion_intent": "wait",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 836423800,
+              "load_duration": 8723000,
+              "prompt_eval_count": 431,
+              "prompt_eval_duration": 32805999,
+              "eval_count": 40,
+              "eval_duration": 783062000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 0.8534963999991305
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "不要说话，看向杯子。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1665226400,
+              "load_duration": 9140100,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1009435000,
+              "eval_count": 33,
+              "eval_duration": 624825000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.6815243999990344
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "安静走到杯子的位置。",
+              "motion_intent": "move_to",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1910915000,
+              "load_duration": 8977300,
+              "prompt_eval_count": 426,
+              "prompt_eval_duration": 1027662000,
+              "eval_count": 44,
+              "eval_duration": 868008000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9285202999999456
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "马上停止移动，不要说话。",
+              "motion_intent": "stop",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1748800600,
+              "load_duration": 9682400,
+              "prompt_eval_count": 427,
+              "prompt_eval_duration": 1063296000,
+              "eval_count": 33,
+              "eval_duration": 669531000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9811466000028304
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，很高兴见到你。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1936602000,
+              "load_duration": 9734500,
+              "prompt_eval_count": 438,
+              "prompt_eval_duration": 1058827000,
+              "eval_count": 44,
+              "eval_duration": 861882000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9542051999997057
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "走到那只猫旁边。",
+              "motion_intent": "look_at",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 1853275900,
+              "load_duration": 8908500,
+              "prompt_eval_count": 405,
+              "prompt_eval_duration": 978386000,
+              "eval_count": 43,
+              "eval_duration": 859700000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8702174000027298
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1601584800,
+              "load_duration": 9052800,
+              "prompt_eval_count": 429,
+              "prompt_eval_duration": 1036637000,
+              "eval_count": 26,
+              "eval_duration": 549289000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.617433899999014
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:01:53.5548969+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T19:01:25.2190024+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:00:45.019112+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 4,
+          "count": 16,
+          "median_seconds": 1.7765171499995631,
+          "max_seconds": 1.9811466000028304
+        }
+      }
+    ]
+  },
+  "language_compact": {
+    "schema": "virea.character_language_comparison.v1",
+    "temperature": 0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "rounds": 2,
+    "prompt_variant": "compact_chinese",
+    "compact_rules": "你是生活在三维场景中的角色，用中文简洁交流。只输出符合 schema 的 JSON。\nmode 有且只有三种：\nSPEAK：现在需要讲话，text 是实际说出的内容，不含动作旁白。\nACT_SILENTLY：现在需要执行场景动作且不讲话，text 必须为空，actions 必须包含动作。\nWAIT：现在不讲话也不发起动作，text 为空，actions=[]。\nactions 的 kind：look_at 看向目标；move_to 移动到目标；stop 停止移动。\nlook_at/move_to 的 target_id 必须来自 Current state 的 targets，也可以用明确的 position；两者只选一个。\nstop 没有目标。如果用户指定的目标不在场景里，简短询问位置，不能假装已经找到或执行。\n用户要求安静执行动作时，使用 ACT_SILENTLY；不能回答“我会执行”代替执行。\nmotion_intent 仅描述讲话期间的肢体表情，不能代替 actions 中的场景动作。\n普通交流用 SPEAK，actions=[]；明确要求等待用 WAIT。\nbehavior_completed 表示上一段已实际结束，默认 WAIT，不重复 assistant 历史。\nCurrent state 是状态反馈，不是新用户要求。以最新用户意图结合状态决定下一步。",
+    "cases": [
+      {
+        "id": "greeting",
+        "user": "你好，简短打个招呼。",
+        "mode": "SPEAK"
+      },
+      {
+        "id": "wait",
+        "user": "先安静等待，不要说话，也不要做动作。",
+        "mode": "WAIT"
+      },
+      {
+        "id": "look",
+        "user": "不要说话，看向杯子。",
+        "mode": "ACT_SILENTLY",
+        "action": "look_at",
+        "target": "cup"
+      },
+      {
+        "id": "move",
+        "user": "安静走到杯子的位置。",
+        "mode": "ACT_SILENTLY",
+        "action": "move_to",
+        "target": "cup"
+      },
+      {
+        "id": "stop",
+        "user": "马上停止移动，不要说话。",
+        "mode": "ACT_SILENTLY",
+        "action": "stop",
+        "behavior": "walking"
+      },
+      {
+        "id": "completion",
+        "user": "简单打个招呼，然后等待。",
+        "assistant": "你好，很高兴见到你。",
+        "mode": "WAIT"
+      },
+      {
+        "id": "missing_target",
+        "user": "走到那只猫旁边。",
+        "mode": "SPEAK",
+        "targets": {},
+        "clarification": true
+      },
+      {
+        "id": "verbatim",
+        "user": "只说“好的”，不做场景动作。",
+        "mode": "SPEAK",
+        "text": "好的"
+      }
+    ],
+    "models": [
+      {
+        "model": "qwen3.5:2b",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "2.3B",
+          "quantization_level": "Q8_0"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3626132600,
+              "load_duration": 6753000,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2627651000,
+              "eval_count": 28,
+              "eval_duration": 967486000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.643188400001236
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1022220800,
+              "load_duration": 8566700,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 54606000,
+              "eval_count": 28,
+              "eval_duration": 952035000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.0391385000002629
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3470224100,
+              "load_duration": 8529700,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 2629140000,
+              "eval_count": 24,
+              "eval_duration": 824906000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.486810399997921
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "look_at",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4488128800,
+              "load_duration": 9222300,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2597957000,
+              "eval_count": 55,
+              "eval_duration": 1873851000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.505309700001817
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4447208100,
+              "load_duration": 8365000,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2562972000,
+              "eval_count": 55,
+              "eval_duration": 1870061000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.670947599999636
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "stop",
+                  "target_id": null,
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4391313200,
+              "load_duration": 9150900,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 2590920000,
+              "eval_count": 52,
+              "eval_duration": 1785032000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.4066005000022415
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3474812800,
+              "load_duration": 9013400,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 2647818000,
+              "eval_count": 24,
+              "eval_duration": 810789000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.4922086000005947
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cat",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode",
+              "unexpected_scene_action",
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 4422427200,
+              "load_duration": 9046300,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 2530355000,
+              "eval_count": 55,
+              "eval_duration": 1876442000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.439142100000026
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3601502100,
+              "load_duration": 8923600,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 2631108000,
+              "eval_count": 28,
+              "eval_duration": 954598000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.618061299999681
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3565230000,
+              "load_duration": 7971800,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2602984000,
+              "eval_count": 28,
+              "eval_duration": 948060000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.761451299997134
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3420983700,
+              "load_duration": 7477000,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 2610444000,
+              "eval_count": 24,
+              "eval_duration": 795826000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.4372945000031905
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "look_at",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4540980700,
+              "load_duration": 8468100,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2636298000,
+              "eval_count": 55,
+              "eval_duration": 1889716000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.557914600001823
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4501144600,
+              "load_duration": 8647900,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 2607622000,
+              "eval_count": 55,
+              "eval_duration": 1878300000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.517707899998641
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "stop",
+                  "target_id": null,
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 4450456600,
+              "load_duration": 9521700,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 2620389000,
+              "eval_count": 52,
+              "eval_duration": 1814385000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.4681788999987475
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3536094200,
+              "load_duration": 7928800,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 2699883000,
+              "eval_count": 24,
+              "eval_duration": 822061000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.7510239999974146
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cat",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode",
+              "unexpected_scene_action",
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 4481483500,
+              "load_duration": 10642700,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 2542155000,
+              "eval_count": 55,
+              "eval_duration": 1921932000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 4.500575599999138
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3674007200,
+              "load_duration": 9357000,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 2697027000,
+              "eval_count": 28,
+              "eval_duration": 960441000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.693517499999871
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:03:00.567703+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:01:53.5548969+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T19:01:25.2190024+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 14,
+          "count": 16,
+          "median_seconds": 4.084025899999688,
+          "max_seconds": 4.670947599999636
+        }
+      },
+      {
+        "model": "qwen3.5:2b-q4_K_M",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "2.3B",
+          "quantization_level": "Q4_K_M"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "微笑",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2551990000,
+              "load_duration": 10513600,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1610937000,
+              "eval_count": 31,
+              "eval_duration": 904505000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.571229899996979
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "微笑",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 946227100,
+              "load_duration": 10980300,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 43270000,
+              "eval_count": 31,
+              "eval_duration": 884966000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 0.9657406000005722
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2239317600,
+              "load_duration": 10180800,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 1613278000,
+              "eval_count": 24,
+              "eval_duration": 609122000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.257507099999202
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "looking at cup",
+              "actions": [
+                {
+                  "kind": "look_at",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3380118400,
+              "load_duration": 11843700,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1602870000,
+              "eval_count": 66,
+              "eval_duration": 1758750000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.3985624999986612
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3004580600,
+              "load_duration": 9732600,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1577627000,
+              "eval_count": 55,
+              "eval_duration": 1411515000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.2389041999995243
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "stop",
+                  "target_id": null,
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2956967700,
+              "load_duration": 10493200,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 1599586000,
+              "eval_count": 52,
+              "eval_duration": 1340508000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.975465900002746
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2275185500,
+              "load_duration": 10862300,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 1641381000,
+              "eval_count": 24,
+              "eval_duration": 616714000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.2936219000002893
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cat",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode",
+              "unexpected_scene_action",
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 2976167300,
+              "load_duration": 10167000,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 1529061000,
+              "eval_count": 55,
+              "eval_duration": 1430248000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.9963274000001547
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2359422800,
+              "load_duration": 11193500,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 1619156000,
+              "eval_count": 28,
+              "eval_duration": 721964000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.38099240000156
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好！",
+              "motion_intent": "微笑",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2535097700,
+              "load_duration": 12254600,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1606670000,
+              "eval_count": 31,
+              "eval_duration": 909271000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.5540022999994108
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2202221300,
+              "load_duration": 10221000,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 1585555000,
+              "eval_count": 24,
+              "eval_duration": 599875000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.2217920999974012
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "looking at cup",
+              "actions": [
+                {
+                  "kind": "look_at",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 3347731900,
+              "load_duration": 9459400,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1546053000,
+              "eval_count": 66,
+              "eval_duration": 1785290000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.3655622999976913
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2983188800,
+              "load_duration": 8860400,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1563120000,
+              "eval_count": 55,
+              "eval_duration": 1404743000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 3.185959599999478
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "stop",
+                  "target_id": null,
+                  "position": null
+                }
+              ]
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2920203500,
+              "load_duration": 9912300,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 1564918000,
+              "eval_count": 52,
+              "eval_duration": 1339178000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.9386054999995395
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2217342100,
+              "load_duration": 9720100,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 1601860000,
+              "eval_count": 24,
+              "eval_duration": 598292000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.23757950000072
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "ACT_SILENTLY",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cat",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode",
+              "unexpected_scene_action",
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 2917370200,
+              "load_duration": 10654200,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 1494356000,
+              "eval_count": 55,
+              "eval_duration": 1405660000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.9335766000003787
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 2289775300,
+              "load_duration": 9669800,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 1572356000,
+              "eval_count": 28,
+              "eval_duration": 701370000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 2.3075845999992453
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T19:03:45.4621629+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:03:00.567703+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:01:53.5548969+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 14,
+          "count": 16,
+          "median_seconds": 2.7437894499998947,
+          "max_seconds": 3.3985624999986612
+        }
+      },
+      {
+        "model": "qwen3.5:0.8b",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "873.44M",
+          "quantization_level": "Q8_0"
+        },
+        "runs": [
+          {
+            "round": -1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，我是你的助手。有什么我可以帮你的吗？",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1937848000,
+              "load_duration": 9213000,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1170211000,
+              "eval_count": 31,
+              "eval_duration": 736046000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9572121999990486
+          },
+          {
+            "round": 0,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，我是你的助手。有什么我可以帮你的吗？",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 811922000,
+              "load_duration": 10828800,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 66509000,
+              "eval_count": 31,
+              "eval_duration": 727649000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 0.831177399999433
+          },
+          {
+            "round": 0,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1502607900,
+              "load_duration": 8449500,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 1179964000,
+              "eval_count": 16,
+              "eval_duration": 307472000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.5323494000003848
+          },
+          {
+            "round": 0,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1497757600,
+              "load_duration": 9898900,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1168215000,
+              "eval_count": 16,
+              "eval_duration": 312498000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.517993999997998
+          },
+          {
+            "round": 0,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我会走到杯子位置。",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1916370300,
+              "load_duration": 9475800,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1179526000,
+              "eval_count": 39,
+              "eval_duration": 719341000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9355030000006082
+          },
+          {
+            "round": 0,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1500441800,
+              "load_duration": 8918300,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 1177823000,
+              "eval_count": 16,
+              "eval_duration": 307410000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.6983246999989206
+          },
+          {
+            "round": 0,
+            "case": "completion",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我在。",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1871101500,
+              "load_duration": 10119800,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 1218509000,
+              "eval_count": 32,
+              "eval_duration": 635281000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8898340999985521
+          },
+          {
+            "round": 0,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我会走到那只猫旁边。",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 1665096200,
+              "load_duration": 10145800,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 1131779000,
+              "eval_count": 27,
+              "eval_duration": 516725000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.682896599999367
+          },
+          {
+            "round": 0,
+            "case": "verbatim",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "verbatim_text"
+            ],
+            "ollama": {
+              "total_duration": 1541789900,
+              "load_duration": 10743200,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 1194803000,
+              "eval_count": 16,
+              "eval_duration": 329132000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.5587989999985439
+          },
+          {
+            "round": 1,
+            "case": "greeting",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "你好，我是你的助手。有什么我可以帮你的吗？",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1935156400,
+              "load_duration": 8748800,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1179421000,
+              "eval_count": 31,
+              "eval_duration": 739830000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.9538619999984803
+          },
+          {
+            "round": 1,
+            "case": "wait",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [],
+            "ollama": {
+              "total_duration": 1536108300,
+              "load_duration": 10198200,
+              "prompt_eval_count": 474,
+              "prompt_eval_duration": 1211365000,
+              "eval_count": 16,
+              "eval_duration": 307731000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.554418200001237
+          },
+          {
+            "round": 1,
+            "case": "look",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1511033800,
+              "load_duration": 10059500,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1184160000,
+              "eval_count": 16,
+              "eval_duration": 309231000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.5292875000013737
+          },
+          {
+            "round": 1,
+            "case": "move",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我会走到杯子位置。",
+              "motion_intent": "自然说话",
+              "actions": [
+                {
+                  "kind": "move_to",
+                  "target_id": "cup",
+                  "position": null
+                }
+              ]
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1923937800,
+              "load_duration": 10127800,
+              "prompt_eval_count": 469,
+              "prompt_eval_duration": 1178249000,
+              "eval_count": 39,
+              "eval_duration": 728615000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.942148800000723
+          },
+          {
+            "round": 1,
+            "case": "stop",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "action"
+            ],
+            "ollama": {
+              "total_duration": 1520255800,
+              "load_duration": 10657400,
+              "prompt_eval_count": 470,
+              "prompt_eval_duration": 1182757000,
+              "eval_count": 16,
+              "eval_duration": 320235000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.5389704999979585
+          },
+          {
+            "round": 1,
+            "case": "completion",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我在。",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode"
+            ],
+            "ollama": {
+              "total_duration": 1850131500,
+              "load_duration": 11144500,
+              "prompt_eval_count": 481,
+              "prompt_eval_duration": 1215076000,
+              "eval_count": 32,
+              "eval_duration": 617087000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.8687754000020504
+          },
+          {
+            "round": 1,
+            "case": "missing_target",
+            "decision": {
+              "mode": "SPEAK",
+              "text": "好的，我会走到那只猫旁边。",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "missing_clarification"
+            ],
+            "ollama": {
+              "total_duration": 1662253000,
+              "load_duration": 9054900,
+              "prompt_eval_count": 448,
+              "prompt_eval_duration": 1136552000,
+              "eval_count": 27,
+              "eval_duration": 509397000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.6791928999991796
+          },
+          {
+            "round": 1,
+            "case": "verbatim",
+            "decision": {
+              "mode": "WAIT",
+              "text": "",
+              "motion_intent": "自然说话",
+              "actions": []
+            },
+            "failures": [
+              "mode",
+              "verbatim_text"
+            ],
+            "ollama": {
+              "total_duration": 1556571500,
+              "load_duration": 10676300,
+              "prompt_eval_count": 472,
+              "prompt_eval_duration": 1199829000,
+              "eval_count": 16,
+              "eval_duration": 339378000,
+              "done_reason": "stop"
+            },
+            "wall_seconds": 1.575059599999804
+          }
+        ],
+        "residency": {
+          "models": [
+            {
+              "name": "qwen3.5:0.8b",
+              "model": "qwen3.5:0.8b",
+              "size": 1196939016,
+              "digest": "f3817196d142eaf72ce79dfebe53dcb20bd21da87ce13e138a8f8e10a866b3a4",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "873.44M",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:04:13.7797532+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b-q4_K_M",
+              "model": "qwen3.5:2b-q4_K_M",
+              "size": 1705718576,
+              "digest": "124a03c347777e8e4e5955c33610ae01d9d90d8c2a718bfba069c498d5c7f3c9",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-26T19:03:45.4621629+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            },
+            {
+              "name": "qwen3.5:2b",
+              "model": "qwen3.5:2b",
+              "size": 2474691786,
+              "digest": "324d162be6ca5629ae4517c8710434d0bd2d665bc94dbad46e9af8fbf8a2f0df",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen35",
+                "families": [
+                  "qwen35"
+                ],
+                "parameter_size": "2.3B",
+                "quantization_level": "Q8_0"
+              },
+              "expires_at": "2026-09-26T19:03:00.567703+08:00",
+              "size_vram": 0,
+              "context_length": 8192
+            }
+          ]
+        },
+        "summary": {
+          "passed": 4,
+          "count": 16,
+          "median_seconds": 1.6271262499994918,
+          "max_seconds": 1.9538619999984803
+        }
+      }
+    ]
+  },
+  "session": {
+    "schema": "virea.character_session_profile.v1",
+    "turns": [
+      {
+        "turn": "first_response",
+        "metrics": {
+          "generated_seconds": 2.85,
+          "generation_seconds": 36.6880000000001,
+          "first_expression_seconds": 36.6880000000001,
+          "rtf": 12.872982456140386,
+          "first_audio_seconds": 7.265999999999622,
+          "language_seconds": 6.765999999999622,
+          "tts_seconds": 0.5,
+          "motion_seconds": 29.42200000000048
+        },
+        "motion": {
+          "job_id": "01M3EAKV82PP6MX7D3J0230HJD",
+          "result_id": "01M3EAMQSXPSTMRGR9PC9EG47P",
+          "vrma_url": "/api/v1/results/01M3EAMQSXPSTMRGR9PC9EG47P/artifacts/sentiavatar-susu__susu.body25_hands40.v1__to__vrm1.humanoid52.v1__actor-0__01M3EAMQSXPSTMRGR9PC9EG47P.vrma",
+          "native_history_applied": false,
+          "executed_pose_conditioning": false
+        },
+        "events": [
+          {
+            "state": "QUEUED",
+            "event_type": "job.created",
+            "created_at": "2026-09-26T07:41:58.914442+00:00",
+            "seconds_until_next": 7.626803
+          },
+          {
+            "state": "ADMITTED",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:06.541245+00:00",
+            "seconds_until_next": 6.198247
+          },
+          {
+            "state": "STARTING_WORKER",
+            "event_type": "job.runtime_selected",
+            "created_at": "2026-09-26T07:42:12.739492+00:00",
+            "seconds_until_next": 13.118588
+          },
+          {
+            "state": "LOADING_MODEL",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:25.858080+00:00",
+            "seconds_until_next": 0.031048
+          },
+          {
+            "state": "RUNNING",
+            "event_type": "job.worker_attested",
+            "created_at": "2026-09-26T07:42:25.889128+00:00",
+            "seconds_until_next": 2.003391
+          },
+          {
+            "state": "DECODING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:27.892519+00:00",
+            "seconds_until_next": 0.039448
+          },
+          {
+            "state": "NORMALIZING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:27.931967+00:00",
+            "seconds_until_next": 0.198977
+          },
+          {
+            "state": "RETARGETING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:28.130944+00:00",
+            "seconds_until_next": 0.018029
+          },
+          {
+            "state": "VALIDATING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:28.148973+00:00",
+            "seconds_until_next": 0.025558
+          },
+          {
+            "state": "EXPORTING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:28.174531+00:00",
+            "seconds_until_next": 0.073947
+          },
+          {
+            "state": "SUCCEEDED",
+            "event_type": "job.succeeded",
+            "created_at": "2026-09-26T07:42:28.248478+00:00",
+            "seconds_until_next": 0
+          }
+        ]
+      },
+      {
+        "turn": "second_response",
+        "metrics": {
+          "generated_seconds": 7.925000000000001,
+          "generation_seconds": 71.35900000000038,
+          "first_expression_seconds": 34.67100000000028,
+          "rtf": 9.004290220820236,
+          "first_audio_seconds": 6.859000000000378,
+          "language_seconds": 6.125,
+          "tts_seconds": 0.7340000000003783,
+          "motion_seconds": 27.811999999999898
+        },
+        "motion": {
+          "job_id": "01M3EAN2JN78YJX26XKK5T17GY",
+          "result_id": "01M3EANXHX8K5RYF59EEBD988Z",
+          "vrma_url": "/api/v1/results/01M3EANXHX8K5RYF59EEBD988Z/artifacts/sentiavatar-susu__susu.body25_hands40.v1__to__vrm1.humanoid52.v1__actor-0__01M3EANXHX8K5RYF59EEBD988Z.vrma",
+          "native_history_applied": false,
+          "executed_pose_conditioning": false
+        },
+        "events": [
+          {
+            "state": "QUEUED",
+            "event_type": "job.created",
+            "created_at": "2026-09-26T07:42:39.189524+00:00",
+            "seconds_until_next": 5.749132
+          },
+          {
+            "state": "ADMITTED",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:42:44.938656+00:00",
+            "seconds_until_next": 5.972764
+          },
+          {
+            "state": "STARTING_WORKER",
+            "event_type": "job.runtime_selected",
+            "created_at": "2026-09-26T07:42:50.911420+00:00",
+            "seconds_until_next": 12.664903
+          },
+          {
+            "state": "LOADING_MODEL",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:03.576323+00:00",
+            "seconds_until_next": 0.015924
+          },
+          {
+            "state": "RUNNING",
+            "event_type": "job.worker_attested",
+            "created_at": "2026-09-26T07:43:03.592247+00:00",
+            "seconds_until_next": 2.836369
+          },
+          {
+            "state": "DECODING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:06.428616+00:00",
+            "seconds_until_next": 0.043034
+          },
+          {
+            "state": "NORMALIZING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:06.471650+00:00",
+            "seconds_until_next": 0.318933
+          },
+          {
+            "state": "RETARGETING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:06.790583+00:00",
+            "seconds_until_next": 0.011692
+          },
+          {
+            "state": "VALIDATING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:06.802275+00:00",
+            "seconds_until_next": 0.029969
+          },
+          {
+            "state": "EXPORTING",
+            "event_type": "job.state_changed",
+            "created_at": "2026-09-26T07:43:06.832244+00:00",
+            "seconds_until_next": 0.067751
+          },
+          {
+            "state": "SUCCEEDED",
+            "event_type": "job.succeeded",
+            "created_at": "2026-09-26T07:43:06.899995+00:00",
+            "seconds_until_next": 0
+          }
+        ]
+      }
+    ],
+    "raw_clip_boundary": {
+      "scope": "22 body joints; local quaternion geodesics; before renderer blending",
+      "median_degrees": 10.921517985925515,
+      "max_degrees": 60.36939433531507,
+      "max_joint": "rightLowerArm",
+      "internal_step_median_degrees": 0.25255164805016433,
+      "internal_step_p95_degrees": 3.2958709141550395,
+      "per_joint_degrees": {
+        "hips": 9.856433035558426,
+        "spine": 12.072299275081596,
+        "chest": 10.318621528411342,
+        "upperChest": 20.339117814596705,
+        "neck": 0.0,
+        "head": 11.024129388963365,
+        "leftShoulder": 4.538901475382244,
+        "leftUpperArm": 17.217664777336232,
+        "leftLowerArm": 52.81885681538829,
+        "leftHand": 8.020590206146348,
+        "rightShoulder": 29.514025467733966,
+        "rightUpperArm": 48.91958676873136,
+        "rightLowerArm": 60.36939433531507,
+        "rightHand": 20.54547566325045,
+        "leftUpperLeg": 3.90600423932237,
+        "leftLowerLeg": 12.665154073861023,
+        "leftFoot": 0.0,
+        "leftToes": 11.92039515088733,
+        "rightUpperLeg": 2.643696548240369,
+        "rightLowerLeg": 10.818906582887664,
+        "rightFoot": 0.0,
+        "rightToes": 0.09150535670817742
+      }
+    }
+  },
+  "resident": [
+    {
+      "schema": "virea.sentiavatar_resident_profile.v1",
+      "scope": "backend only; no transport, retarget, export or playback",
+      "audio": "hello.wav",
+      "action": "动作：点头微笑。你好，很高兴见到你。",
+      "import_seconds": 2.3370938999978534,
+      "torch": "2.8.0+cu128",
+      "runs": [
+        {
+          "index": 0,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.2275253999978304,
+            "_audio_tokens": 0.0019482999996398576,
+            "planner_generate": 1.4621968999999808,
+            "infill": 0.11912500000107684,
+            "_decode_body": 0.05341529999714112,
+            "_face": 0.007560899997770321
+          },
+          "planner_new_tokens": 41,
+          "seconds": 2.0204755999984627,
+          "output_seconds": 2.8,
+          "peak_allocated_mib": 1891.099609375,
+          "peak_reserved_mib": 1976.0,
+          "rtf": 0.7215984285708796
+        },
+        {
+          "index": 1,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.008192699999199249,
+            "_audio_tokens": 0.0014700000028824434,
+            "planner_generate": 0.9587381000019377,
+            "infill": 0.09798450000016601,
+            "_decode_body": 0.0031011999999464024,
+            "_face": 0.0014526999984809663
+          },
+          "planner_new_tokens": 41,
+          "seconds": 1.0743839999995544,
+          "output_seconds": 2.8,
+          "peak_allocated_mib": 1899.224609375,
+          "peak_reserved_mib": 1976.0,
+          "rtf": 0.3837085714284123
+        },
+        {
+          "index": 2,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.00785389999873587,
+            "_audio_tokens": 0.001977600000827806,
+            "planner_generate": 0.946741399999155,
+            "infill": 0.09834369999953196,
+            "_decode_body": 0.0030196000006981194,
+            "_face": 0.0013223999994806945
+          },
+          "planner_new_tokens": 41,
+          "seconds": 1.063645500002167,
+          "output_seconds": 2.8,
+          "peak_allocated_mib": 1899.224609375,
+          "peak_reserved_mib": 1976.0,
+          "rtf": 0.37987339285791677
+        },
+        {
+          "index": 3,
+          "generate_steps": 4,
+          "stages": {
+            "_audio_features": 0.007624300000315998,
+            "_audio_tokens": 0.0015734000007796567,
+            "planner_generate": 0.9550392999990436,
+            "infill": 0.07012400000166963,
+            "_decode_body": 0.0033378000007360242,
+            "_face": 0.0013286000030348077
+          },
+          "planner_new_tokens": 41,
+          "seconds": 1.0420496000006096,
+          "output_seconds": 2.8,
+          "peak_allocated_mib": 1899.224609375,
+          "peak_reserved_mib": 1976.0,
+          "rtf": 0.37216057142878917
+        },
+        {
+          "index": 4,
+          "generate_steps": 2,
+          "stages": {
+            "_audio_features": 0.008396899997023866,
+            "_audio_tokens": 0.0015231999968818855,
+            "planner_generate": 0.9492875000032654,
+            "infill": 0.030648200001451187,
+            "_decode_body": 0.00325900000098045,
+            "_face": 0.001251800000318326
+          },
+          "planner_new_tokens": 41,
+          "seconds": 0.9976793999994698,
+          "output_seconds": 2.8,
+          "peak_allocated_mib": 1899.224609375,
+          "peak_reserved_mib": 1976.0,
+          "rtf": 0.35631407142838206
+        }
+      ],
+      "load_seconds": 12.192831799999112,
+      "device": {
+        "device": "cuda:0",
+        "memory_strategy": "cuda_full",
+        "implicit_network_access": false,
+        "external_vllm_service": false,
+        "source_revision": "71c61b05a0609a41c17aa146c9f4ee7778ebc649",
+        "checkpoint_revision": "242b2031a913dd1b25f43fe1f3e112611864c9cc"
+      },
+      "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+      "audio_sha256": "66c22ee269c6fb81d6f584738e7092ba814bce6229529613883165fde1d0487c",
+      "output_sha256": {
+        "run-0.npz": "37c006a14e1f7f87d1dedc4a0d0b5ea93888a8e4c1702e034afa2154d0ee803a",
+        "run-1.npz": "37c006a14e1f7f87d1dedc4a0d0b5ea93888a8e4c1702e034afa2154d0ee803a",
+        "run-2.npz": "37c006a14e1f7f87d1dedc4a0d0b5ea93888a8e4c1702e034afa2154d0ee803a",
+        "run-3.npz": "4a0c9b50f50c029a8dba30b369a1dacc38043362bf36946e151936eea5adc83c",
+        "run-4.npz": "a1770ddd705943d95848a0f3a0931ade307c63384ca6eee4796ff24e56932779"
+      }
+    },
+    {
+      "schema": "virea.sentiavatar_resident_profile.v1",
+      "scope": "backend only; no transport, retarget, export or playback",
+      "audio": "long.wav",
+      "action": "动作：自然说话。今天我们一起慢慢整理桌面，先看看杯子，再把注意力转回到你身上。",
+      "import_seconds": 2.066767800002708,
+      "torch": "2.8.0+cu128",
+      "runs": [
+        {
+          "index": 0,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.2064239000028465,
+            "_audio_tokens": 0.002011199998378288,
+            "planner_generate": 2.5468259999979637,
+            "infill": 0.3086604999989504,
+            "_decode_body": 0.05735089999870979,
+            "_face": 0.008710999998584157
+          },
+          "planner_new_tokens": 92,
+          "seconds": 3.1920599000004586,
+          "output_seconds": 6.7,
+          "peak_allocated_mib": 1963.51806640625,
+          "peak_reserved_mib": 2074.0,
+          "rtf": 0.4764268507463371
+        },
+        {
+          "index": 1,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.011554799999430543,
+            "_audio_tokens": 0.0017869000002974644,
+            "planner_generate": 2.004814700001589,
+            "infill": 0.28306639999937033,
+            "_decode_body": 0.0033559000003151596,
+            "_face": 0.0013350999979593325
+          },
+          "planner_new_tokens": 92,
+          "seconds": 2.311053499997797,
+          "output_seconds": 6.7,
+          "peak_allocated_mib": 1971.64306640625,
+          "peak_reserved_mib": 2074.0,
+          "rtf": 0.3449333582086264
+        },
+        {
+          "index": 2,
+          "generate_steps": 6,
+          "stages": {
+            "_audio_features": 0.013040400001045782,
+            "_audio_tokens": 0.0015911000009509735,
+            "planner_generate": 1.9999237000010908,
+            "infill": 0.2872955999991973,
+            "_decode_body": 0.003074899999774061,
+            "_face": 0.001407600000675302
+          },
+          "planner_new_tokens": 92,
+          "seconds": 2.3102462999995623,
+          "output_seconds": 6.7,
+          "peak_allocated_mib": 1971.64306640625,
+          "peak_reserved_mib": 2074.0,
+          "rtf": 0.3448128805969496
+        }
+      ],
+      "load_seconds": 7.064853800002311,
+      "device": {
+        "device": "cuda:0",
+        "memory_strategy": "cuda_full",
+        "implicit_network_access": false,
+        "external_vllm_service": false,
+        "source_revision": "71c61b05a0609a41c17aa146c9f4ee7778ebc649",
+        "checkpoint_revision": "242b2031a913dd1b25f43fe1f3e112611864c9cc"
+      },
+      "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+      "audio_sha256": "b514905be2dd6f11c8d5eb641295bfbdcdbcd6842da6d868ba8752f0ac9573ad",
+      "output_sha256": {
+        "run-0.npz": "e242111c1a4909edf671c81cad08240a1d832c7611fe5aaeadc01d421054d4f0",
+        "run-1.npz": "e242111c1a4909edf671c81cad08240a1d832c7611fe5aaeadc01d421054d4f0",
+        "run-2.npz": "e242111c1a4909edf671c81cad08240a1d832c7611fe5aaeadc01d421054d4f0"
+      }
+    }
+  ],
+  "scripts": {
+    "scripts/character/benchmarks/analyze_session.py": "5dbbef967083bf3a472b383fbc14108dd8ba17a6e7eeabf912459ab83703a833",
+    "scripts/character/benchmarks/compare_language.py": "788e530d3c6b844c4c4dd9d160b7393356d5a3ad23e67e4302d9b5328f112119",
+    "scripts/character/benchmarks/profile_sentiavatar.py": "606a155bcd351966d8073d8e92702b5ecb8bf6e34c67a1643951794da8d0e894"
+  }
+}

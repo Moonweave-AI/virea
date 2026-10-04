@@ -1,0 +1,554 @@
+{
+  "schema": "virea.unified_motion_verification.v1",
+  "recorded_date": "2026-10-04",
+  "branch": "feat/three-motion-lines/detail-technical-method",
+  "base_revision": "4b087e2340b616639bd14c7e884c218ca7c03cc6",
+  "scope": "Verified branch implementation including existing voice/UI changes. See the corresponding Git commit; these results are local reproduction evidence, not perceptual certification.",
+  "pytest": {
+    "command": ".venv/Scripts/python.exe -m pytest -q",
+    "outcome": "passed",
+    "passed": 1110,
+    "failed": 0,
+    "skipped": 34,
+    "duration_seconds": 400.31,
+    "log_sha256": "8dd8b4cf7f918d5449a199651405df322572a9ea6e91e87e4c200410303deda0"
+  },
+  "startup_regression": {
+    "failure": "Immediate SciPy native import delayed managed CLI API startup on Windows.",
+    "fix": "Import SciPy only when reconcile_palms runs; preserve numerical behavior and the existing 20-second readiness deadline.",
+    "targeted_tests": 3,
+    "targeted_outcome": "passed",
+    "log_sha256": "8059e93f56a0ea6dc65aba4f0e512c9acd3b36f4a7e99cc474715183b51c9e52"
+  },
+  "web_tests": {
+    "command": "pnpm --filter @virea/web exec node --test --test-concurrency=1 tests/*.test.mjs",
+    "passed": 142,
+    "failed": 0,
+    "skipped": 0,
+    "log_sha256": "3e40a443ad0d4125ac72787a30c7c44b2fd2f34c575172aa7f5f06773e265454"
+  },
+  "build": {
+    "command": "pnpm --filter @virea/web build",
+    "outcome": "passed",
+    "warning": "Existing large bundle chunk warning remains.",
+    "log_sha256": "e74b4748507f444a6785e897f3673ac5cd01b395563b6a444a8de4cb260360b1"
+  },
+  "lint": {
+    "ruff_check": "passed",
+    "ruff_format_check_files": 705,
+    "git_diff_check": "passed"
+  },
+  "documentation": {
+    "markdown_files": 218,
+    "public_media_allowlist": "passed"
+  },
+  "avatar": {
+    "name": "Unnamed Character 6",
+    "authors": [
+      "Reira"
+    ],
+    "source_filename": "VRM-Model-1.vrm",
+    "license_url": "https://hub.vroid.com/license?allowed_to_use_user=everyone&characterization_allowed_user=everyone&corporate_commercial_use=disallow&credit=necessary&modification=allow&personal_commercial_use=disallow&redistribution=disallow&sexual_expression=disallow&version=1&violent_expression=allow",
+    "sha256": "f7c947ef380b9478db166db0366cec1dc3ceebafecf76a1b986fe104e793d998"
+  },
+  "demos": {
+    "motioncraft": {
+      "count": 8,
+      "performance_seconds": 276,
+      "preparation_seconds_range": [
+        53.59399999999732,
+        144.75
+      ]
+    },
+    "syntalker": {
+      "count": 8,
+      "performance_seconds": 276,
+      "preparation_seconds_range": [
+        58.90600000000268,
+        117.73399999999674
+      ]
+    }
+  },
+  "browser_gallery": {
+    "outcome": "passed",
+    "desktop": [
+      {
+        "count": 8,
+        "columns": 2
+      },
+      {
+        "count": 8,
+        "columns": 2
+      }
+    ],
+    "mobile": {
+      "columns": [
+        1,
+        1
+      ],
+      "overflow": false
+    },
+    "media": [
+      {
+        "src": "motioncraft-01-introduction.mp4",
+        "duration": 32.194333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 16,
+        "seekTimes": [
+          0.0125,
+          0.013342,
+          0.028141
+        ],
+        "audioBytes": 285
+      },
+      {
+        "src": "motioncraft-02-warmup.mp4",
+        "duration": 36.212833,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 16,
+        "seekTimes": [
+          0.018858,
+          0.018311,
+          0.032644
+        ],
+        "audioBytes": 285
+      },
+      {
+        "src": "motioncraft-03-story.mp4",
+        "duration": 35.193833,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.017842,
+          0.032655,
+          0.032779
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "motioncraft-04-dance.mp4",
+        "duration": 32.193333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.012957,
+          0.028882,
+          0.031919
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "motioncraft-05-fashion.mp4",
+        "duration": 34.187333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.017986,
+          0.028518,
+          0.028457
+        ],
+        "audioBytes": 279
+      },
+      {
+        "src": "motioncraft-06-emotion.mp4",
+        "duration": 33.223333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.016857,
+          0.02846,
+          0.027986
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "motioncraft-07-tour.mp4",
+        "duration": 38.189333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.016832,
+          0.03091,
+          0.028491
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "motioncraft-08-boxing.mp4",
+        "duration": 36.222333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.016049,
+          0.02791,
+          0.02847
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-01-introduction.mp4",
+        "duration": 32.189833,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.013207,
+          0.028562,
+          0.028531
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-02-warmup.mp4",
+        "duration": 36.144333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.015521,
+          0.02851,
+          0.028458
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-03-story.mp4",
+        "duration": 35.198333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.015102,
+          0.031588,
+          0.028507
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-04-dance.mp4",
+        "duration": 32.197333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.01387,
+          0.031449,
+          0.029761
+        ],
+        "audioBytes": 285
+      },
+      {
+        "src": "syntalker-05-fashion.mp4",
+        "duration": 34.187333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.014083,
+          0.028883,
+          0.028569
+        ],
+        "audioBytes": 279
+      },
+      {
+        "src": "syntalker-06-emotion.mp4",
+        "duration": 33.153333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.015128,
+          0.029021,
+          0.028483
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-07-tour.mp4",
+        "duration": 38.196333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.013403,
+          0.028598,
+          0.028698
+        ],
+        "audioBytes": 297
+      },
+      {
+        "src": "syntalker-08-boxing.mp4",
+        "duration": 36.152333,
+        "width": 960,
+        "height": 720,
+        "decodedFrames": 15,
+        "seekTimes": [
+          0.013285,
+          0.028574,
+          0.028542
+        ],
+        "audioBytes": 297
+      }
+    ],
+    "errors": []
+  },
+  "browser_gallery_report_sha256": "f6e14078706d1786a6dff92a4677a3f1446a08ab87e39ba48fb7980521bbffc8",
+  "playback_controls": {
+    "motioncraft": {
+      "outcome": "passed",
+      "started_at": "2026-10-04T03:44:01.553Z",
+      "pause": {
+        "before": 6.351,
+        "after": 6.351,
+        "wall_wait_ms": 800
+      },
+      "interruption": {
+        "epoch_before": 2,
+        "epoch_after": 3,
+        "status": "waiting"
+      },
+      "source_report_sha256": "6190f5cfd5c26f39e1ad1bef9cdfbc771c28a471acecf8d6a2c1e4476e104032",
+      "avatar_sha256": "f7c947ef380b9478db166db0366cec1dc3ceebafecf76a1b986fe104e793d998"
+    },
+    "syntalker": {
+      "outcome": "passed",
+      "started_at": "2026-10-04T04:34:46.966Z",
+      "pause": {
+        "before": 6.511,
+        "after": 6.511,
+        "wall_wait_ms": 800
+      },
+      "interruption": {
+        "epoch_before": 2,
+        "epoch_after": 3,
+        "status": "waiting"
+      },
+      "source_report_sha256": "91642d11c11cf7f364cc149cb34c2825b1e4ea2d80f282c851cce0460bdb8c7f",
+      "avatar_sha256": "f7c947ef380b9478db166db0366cec1dc3ceebafecf76a1b986fe104e793d998"
+    }
+  },
+  "syntalker_decoder_probe": {
+    "seconds": 12,
+    "frames": 360,
+    "seam_frames": [
+      112,
+      224,
+      336
+    ],
+    "comparison": "Identical sampled latent sequence, window decoding versus complete temporal RVQ decoding before retargeting.",
+    "results": {
+      "window_decode": {
+        "sha256": "99a1ae1b2980790c4bdc17934ec3d1943db970db5ec1d01fe899dcb181637196",
+        "ric_seam_l2": [
+          0.5883712923926748,
+          0.5446606288820113,
+          0.9338676996507728
+        ]
+      },
+      "complete_decode": {
+        "sha256": "f17995c9206bec15012e39467df26a155c719699655f08f23b05c9865c69daa4",
+        "ric_seam_l2": [
+          0.10325982421636581,
+          0.04048100486397743,
+          0.10312293469905853
+        ]
+      }
+    },
+    "scope": "Controlled seam probe only; not a dataset benchmark or full perceptual evaluation."
+  },
+  "checkpoint_evidence": "Each of the 16 manifest entries contains official source revision and asset receipts. MotionCraft uses its official T2M and S2G checkpoints; SynTalker uses the complete H3D model. All videos are actual outputs, not mock motion.",
+  "rendering": {
+    "outcome": "passed",
+    "avatar_sha256": "f7c947ef380b9478db166db0366cec1dc3ceebafecf76a1b986fe104e793d998",
+    "replays": 16,
+    "minimum_measured_ground_clearance": -0.0034810850081205894,
+    "clearance_tolerance_metres": 0.005,
+    "method": "CharacterStage at normal speed, with shader and audio preparation before capture. Shared stage lighting reduced to preserve pale avatar detail. Source trajectories, PCM, avatar, renderer and video hashes are recorded per demo. Penetration correction preserves airborne poses; it does not lock feet."
+  },
+  "full_media_decode": [
+    {
+      "id": "motioncraft-01-introduction",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-02-warmup",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-03-story",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-04-dance",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-05-fashion",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-06-emotion",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-07-tour",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "motioncraft-08-boxing",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-01-introduction",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-02-warmup",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-03-story",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-04-dance",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-05-fashion",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-06-emotion",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-07-tour",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    },
+    {
+      "id": "syntalker-08-boxing",
+      "full_audio_video_decode": "passed",
+      "sha256_matches_manifest": true
+    }
+  ],
+  "graph_analysis": {
+    "scope": "all",
+    "index_rebuilt": true,
+    "summary": {
+      "changed_count": 587,
+      "affected_count": 46,
+      "changed_files": 134,
+      "risk_level": "critical"
+    },
+    "partial_flag": null,
+    "truncated_flag": null,
+    "returned_symbols": 587,
+    "affected_processes": [
+      "Perform → Checked",
+      "Perform → LoadAudio",
+      "Playback_windows → Normalize_quat_xyzw",
+      "Playback_windows → _validated_basis_matrix",
+      "Playback_windows → _normalize_vec3",
+      "Playback_windows → _rest_offset",
+      "Perform → Schedule",
+      "Generate → _install_vis_boundary",
+      "Generate → _load_checkpoint_state",
+      "Generate → _model_options",
+      "Generate → Unload",
+      "Delete_voice → List",
+      "Delete_voice → Path",
+      "Playback_windows → Rotate_positions_by_matrix",
+      "LoadAvatar → Cancel",
+      "LoadAvatar → Release",
+      "LoadAvatar → Stop",
+      "LoadAvatar → Reset",
+      "LoadAvatar → Stop",
+      "Constructor → Values",
+      "Constructor → Element",
+      "Generate → Beat_audio_features",
+      "Generate → _seed",
+      "Voice_preview → Pcm_wave",
+      "Play → Quaternion",
+      "Play → Clock",
+      "Main → Digest",
+      "Playback_windows → Reconcile_palms",
+      "Playback_windows → Position_directions",
+      "LoadAvatar → Stop",
+      "Perform → ResourceKey",
+      "Constructor → Checked",
+      "Generate → Connect_native_clip",
+      "Speech → List",
+      "Speech → Path",
+      "Perform → Cancel",
+      "Perform → Release",
+      "Play → Stop",
+      "ExecuteActions → Quaternion",
+      "ExecuteActions → Clock",
+      "Perform → Stop",
+      "Speech_stream → List",
+      "Speech_stream → Path",
+      "ExecuteActions → Stop",
+      "Main → List",
+      "Main → Path"
+    ],
+    "limitations": "Counts include the existing branch changes. Rebuilt-index MCP results were cross-checked against a fresh CLI process. The index reports callable, cross-language and process traversal limits; absent flows are not proof of no impact."
+  },
+  "sampled_visual_review": {
+    "method": "Eight sampled frames per recording, with additional full-resolution avatar lighting comparison. This does not certify temporal smoothness.",
+    "examples": [
+      "motioncraft-01-introduction",
+      "motioncraft-02-warmup",
+      "motioncraft-03-story",
+      "motioncraft-04-dance",
+      "motioncraft-05-fashion",
+      "motioncraft-06-emotion",
+      "motioncraft-07-tour",
+      "motioncraft-08-boxing",
+      "syntalker-01-introduction",
+      "syntalker-02-warmup",
+      "syntalker-03-story",
+      "syntalker-04-dance",
+      "syntalker-05-fashion",
+      "syntalker-06-emotion",
+      "syntalker-07-tour",
+      "syntalker-08-boxing"
+    ],
+    "observations": [
+      "MotionCraft samples now show walking, bending, lateral steps, turns and overhead arm extension instead of the previous S2G-only small gestures.",
+      "SynTalker samples show articulated whole-body and arm poses; palms now use a body-anchored fit and constrained unobservable degrees of freedom.",
+      "Complex boxing combinations, exact walking paths, foot contact and fine finger intent remain unverified; sampling cannot establish every requested action or continuous naturalness."
+    ],
+    "user_requested_all_natural_and_semantically_complete_acceptance": "not_certified"
+  },
+  "limitations": [
+    "Numerical and functional checks pass; complete prompt fidelity and subjective naturalness are not certified. Complex locomotion, hands and foot contact can remain imperfect.",
+    "Native history is retained within a performance; executed pose is not re-encoded for the next turn or interruption.",
+    "Playback begins after complete preparation. GPU MotionCraft and CPU SynTalker timings are not a controlled speed comparison.",
+    "Mouth animation is an audio-envelope preview; phoneme alignment and equivalent facial expressions are not implemented.",
+    "Japanese-reference to Chinese-output voice similarity has not been separately quantified."
+  ]
+}

@@ -193,9 +193,7 @@ def test_every_registered_uv_runtime_refreshes_its_local_core(tmp_path) -> None:
         )
         if spec.backend.value != "uv-native" or spec.availability == "fixture_only":
             continue
-        plan = UvNativeBackend(source_root=REPO_ROOT).plan(
-            spec, tmp_path / spec.id
-        )
+        plan = UvNativeBackend(source_root=REPO_ROOT).plan(spec, tmp_path / spec.id)
         sync = next(command for command in plan.commands if "sync" in command)
         refreshed = {
             sync[index + 1]

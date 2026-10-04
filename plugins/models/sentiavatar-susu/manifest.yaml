@@ -2,7 +2,7 @@ schema_version: virea.model_plugin.v1.0.0
 model:
   id: sentiavatar-susu
   display_name: SentiAvatar SuSu
-  plugin_version: 0.2.0
+  plugin_version: 0.3.0
   upstream:
     repository: https://github.com/SentiAvatar/SentiAvatar
     revision: 71c61b05a0609a41c17aa146c9f4ee7778ebc649
@@ -44,6 +44,7 @@ inputs:
       generate_steps: {type: integer, default: 6, minimum: 1, maximum: 24, ui: {hidden: true}}
       planner_max_new_tokens: {type: integer, default: 1024, minimum: 64, maximum: 1024, ui: {hidden: true}}
       generate_face: {type: boolean, default: true, ui: {hidden: true}}
+      motion_prefix: {type: array, required: false, maximum_items: 8, ui: {hidden: true}}
   - schema_version: virea.job_request.v1.0.0
     task: streaming_dialogue_avatar_motion
     presentation:
@@ -94,7 +95,7 @@ runtime_variants:
     environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
     working_directory: plugins/models/sentiavatar-susu/runtime-cu128
     project_package: virea-model-sentiavatar-susu-cu128-runtime
-    project_version: 0.2.0
+    project_version: 0.3.0
     runtime_core_epoch: virea-runtime-core-20260826.1
     availability: pinned_official_cuda_graph_and_lock_requires_real_checkpoint_acceptance
   - schema_version: virea.runtime_spec.v1.0.0
@@ -112,7 +113,7 @@ runtime_variants:
     environment_allowlist: [VIREA_ARTIFACT_ROOTS_JSON, VIREA_RESOURCE_PROFILE, VIREA_MEMORY_STRATEGY, VIREA_RUNTIME_ID, HF_HOME, HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, TOKENIZERS_PARALLELISM]
     working_directory: plugins/models/sentiavatar-susu/runtime-cpu
     project_package: virea-model-sentiavatar-susu-cpu-runtime
-    project_version: 0.2.0
+    project_version: 0.3.0
     runtime_core_epoch: virea-runtime-core-20260826.1
     availability: pinned_official_cpu_graph_and_lock_requires_real_checkpoint_acceptance
 artifacts:

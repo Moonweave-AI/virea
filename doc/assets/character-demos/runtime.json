@@ -1,0 +1,18 @@
+{
+  "recorded_dates": "2026-10-02 to 2026-10-03",
+  "base_commit": "14cce7659c46efe7d9c881ccdce2644844ab8a6d",
+  "working_tree": true,
+  "sources": {
+    "configs/character/rtx5090.json": "1651db4da91c9b9b7bb0848fd0e7107dabcc8c40ee30b63fe479021b36be064a",
+    "src/virea/character/providers/activity_review.py": "6bb8599497a89f5a57d7d82fa50a08861f68aa7dad3c6d604e5093cbbf4ca0e7",
+    "apps/web/src/character/stage.ts": "e12de38229a53143a2cbd0b9cef514be9c2f87f5980f94274a84b2294fe8a8cd",
+    "apps/web/src/character/video.ts": "4cbb675004444a1044a1747e425205ead4c2bb02f6865ce196dc9cd87e91b5ee",
+    "apps/api/src/virea_api/routes/characters.py": "7559a3e788d9c5912c8ec5a034666a38f4870ef07f1de0ead7f495aba22a92b3"
+  },
+  "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU (24 GB)",
+  "language_model": "Qwen3.5-9B Q4_K_M",
+  "voice": "zf_040",
+  "avatar": "owner-provided miku.vrm",
+  "capture": "browser MediaRecorder, original performance replay, WebM VP9/Opus",
+  "distribution": "MP4 H.264/AAC at original playback speed"
+}

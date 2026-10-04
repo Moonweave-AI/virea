@@ -1,0 +1,10 @@
+[
+  {"id":"turn","request":"先跟我说一句话，说完后安静地转一圈，转完再跟我说一句再见。","expect":{"operation":"replace","activities":1,"speech":true,"speech_after_body":true,"body_after_speech":true},"review":"先听到开场，再完整转圈，再听到告别；不额外规划站立。"},
+  {"id":"dance","request":"请全程不要说话，只跳一段12秒的活泼舞蹈。","expect":{"operation":"replace","activities":1,"speech":false,"duration":12},"review":"十二秒持续舞蹈，原生窗口之间不插入恢复；最终姿态另行检查。"},
+  {"id":"parallel","request":"一边跳一段12秒的舞，一边给我讲个完整的小故事。","expect":{"operation":"replace","activities":1,"speech":true,"duration":12},"review":"舞蹈与有发展和结局的故事并行；不能把故事替换成承诺以后讲。"},
+  {"id":"story","request":"给我讲个温暖的小故事吧。","expect":{"operation":"keep","activities":0,"speech":true},"review":"完整故事，不增加独立背景站姿；伴随表情与手势仍可执行。"},
+  {"id":"quoted","request":"我写了一句话：“她转了一圈，然后坐下来。”你觉得这个描写怎么样？","expect":{"operation":"keep","activities":0,"speech":true},"review":"评价描写，而不是模仿引号内的人物动作。"},
+  {"id":"pose","request":"请安静地站着保持雕像的姿态4秒。","expect":{"operation":"replace","activities":1,"speech":false,"duration":4},"review":"有意静止是合法活动；不能通过屏蔽站立词来伪造通过。"},
+  {"id":"sequence","request":"先安静地走几步，再挥挥手，全程不用说话。","expect":{"operation":"replace","activities":2,"speech":false},"review":"两个实际身体任务均完成，没有口头确认和中途恢复。"},
+  {"id":"followup","request":"继续刚才的舞蹈，同时告诉我你的心情。","history":[{"role":"user","content":"跳12秒舞吧。"},{"role":"assistant","content":"好呀！"}],"context":{"body_program":{"id":"ongoing","status":"playing","elapsed":3,"goal":"跳舞","scope":"activity","actions":[{"kind":"perform","duration_seconds":12,"description":"A person dances with rhythmic steps."}],"objective_groups":[[0]],"cues":[],"executors":["ardy"]}},"expect":{"operation":"keep","activities":0,"speech":true},"review":"继续已有进度，回答角色当下心情；不重置十二秒预算，不复述请求，不朗读舞台说明。"}
+]

@@ -99,6 +99,7 @@ from .coordination import (
     ResourceLeaseCancelled,
     ResourceLeaseManager,
 )
+from .residency import ResidentWorker, ResidentWorkers, canonical_result
 
 DEFAULT_INFERENCE_TIMEOUT_SECONDS = 1800.0
 MAX_INFERENCE_TIMEOUT_SECONDS = 7200.0
@@ -550,7 +551,10 @@ class ControlPlane:
             self._model_root_overrides: dict[str, dict[str, Path]] = {}
             self._inference_timeouts: dict[str, float] = {}
             self._cancel_events: dict[str, threading.Event] = {}
+            self._resident_jobs: set[str] = set()
+            self._draining_jobs: set[str] = set()
             self._lock = threading.RLock()
+            self.residents = ResidentWorkers(self.supervisor, self.store, self._closing)
             self.recover_interrupted_jobs()
         except Exception as exc:
             unresolved_workers = self.store.worker_instances(
@@ -587,8 +591,13 @@ class ControlPlane:
         request: JobRequest,
         *,
         inference_timeout: float = DEFAULT_INFERENCE_TIMEOUT_SECONDS,
+        keep_worker_alive: bool = False,
     ) -> dict[str, Any]:
-        return self._submit(request, inference_timeout=inference_timeout)
+        return self._submit(
+            request,
+            inference_timeout=inference_timeout,
+            keep_worker_alive=keep_worker_alive,
+        )
 
     def source_skeleton_preview(self, result_id: str) -> dict[str, Any]:
         """Return the immutable pre-retarget skeleton, rebuilding legacy results.
@@ -698,6 +707,7 @@ class ControlPlane:
         inference_timeout: float = DEFAULT_INFERENCE_TIMEOUT_SECONDS,
         acceptance_installation_id: str | None = None,
         acceptance_artifact_identity: dict[str, str] | None = None,
+        keep_worker_alive: bool = False,
     ) -> dict[str, Any]:
         inference_timeout = validate_inference_timeout(inference_timeout)
         acceptance_context_declared = (
@@ -806,6 +816,7 @@ class ControlPlane:
                 allow_unready_model,
                 acceptance_installation_id,
                 acceptance_artifact_identity,
+                keep_worker_alive,
             ),
             name=f"virea-job-{job_id}",
             daemon=True,
@@ -821,6 +832,8 @@ class ControlPlane:
             self._threads[job_id] = thread
             self._inference_timeouts[job_id] = inference_timeout
             self._cancel_events[job_id] = threading.Event()
+            if keep_worker_alive:
+                self._resident_jobs.add(job_id)
             if model_roots is not None:
                 self._model_root_overrides[job_id] = {
                     key: value.resolve(strict=True)
@@ -836,6 +849,7 @@ class ControlPlane:
         allow_unready_model: bool = False,
         acceptance_installation_id: str | None = None,
         acceptance_artifact_identity: dict[str, str] | None = None,
+        keep_worker_alive: bool = False,
     ) -> None:
         handle: WorkerHandle | None = None
         resource_lease: ResourceLease | None = None
@@ -844,6 +858,11 @@ class ControlPlane:
         worker_termination_uncertain = False
         result_dir: Path | None = None
         result_published = False
+        resident: ResidentWorker | None = None
+        resident_borrowed = False
+        resident_reused = False
+        inference_started = False
+        inference_completed = False
         with self._lock:
             cancel_event = self._cancel_events[job_id]
         try:
@@ -855,196 +874,244 @@ class ControlPlane:
                 self.store.transition_job(job_id, JobState.CANCELLED)
                 return
             manifest = self.catalog.get(request.model_id)
-            if manifest.model.adapter_family != "fake-root-translation":
-                # Resolve the requested OS/Runtime/profile before reading a
-                # multi-gigabyte snapshot. The resulting immutable selection is
-                # handed to runtime preparation, avoiding a duplicate initial
-                # machine probe while retaining the final post-lease recheck.
-                initial_admission = self._select_worker_admission(
-                    manifest,
-                    execution_target=request.execution_target,
-                    cancel_event=cancel_event,
-                )
+            resident_key = manifest.model_dump_json() + str(request.execution_target)
+            if keep_worker_alive:
+                resident = self.residents.borrow(resident_key, cancel_event)
+                resident_borrowed = True
+                resident_reused = resident is not None
+            else:
+                self.residents.evict_idle()
+            if resident is not None:
+                prepared = resident.prepared
+                runtime = prepared.runtime
+                execution_domain = prepared.execution_domain
+                selected_profile = prepared.selected_profile
+                selected_strategy = prepared.selected_strategy
+                selected_accelerator = prepared.selected_accelerator
+                handle = resident.handle
                 with self._lock:
-                    staged_roots = self._model_root_overrides.get(job_id)
-                if allow_unready_model:
-                    if staged_roots is None:
-                        raise _ModelInstallationNotReady(
-                            "unready-model execution requires explicit staged artifact roots"
-                        )
-                    if acceptance_installation_id is None:
-                        if not (self.allow_test_models and manifest.test_only):
-                            raise _ModelInstallationNotReady(
-                                "acceptance execution requires installation binding"
-                            )
-                        verified_artifact_roots = dict(staged_roots)
-                    else:
-                        if acceptance_artifact_identity is None:
-                            raise _ModelInstallationNotReady(
-                                "acceptance execution requires artifact binding"
-                            )
-                        transaction = self.store.installation_transaction(
-                            acceptance_installation_id
-                        )
-                        if transaction is None:
-                            raise _ModelInstallationNotReady(
-                                "acceptance installation transaction is missing"
-                            )
-                        transaction_payload = json.loads(transaction["payload_json"])
-                        staged_outcome = InstallOutcome(
-                            installation_id=acceptance_installation_id,
-                            model_id=request.model_id,
-                            state=InstallationState.BUILDING_RUNTIME,
-                            locator=transaction_payload.get("locator"),
-                        )
-                        verified_artifact_roots = (
-                            self.model_pool.verify_staged_artifacts(
-                                staged_outcome,
-                                cancel_event=cancel_event,
-                            )
-                        )
-                        if verified_artifact_roots != staged_roots:
-                            raise _ModelInstallationNotReady(
-                                "acceptance artifact roots differ from staged installation"
-                            )
-                        if (
-                            self.model_pool.acceptance_artifact_identity(staged_outcome)
-                            != acceptance_artifact_identity
-                        ):
-                            raise _ModelInstallationNotReady(
-                                "acceptance artifact identity differs after verification"
-                            )
-                else:
-                    verified = self._verify_installed_model(
-                        request.model_id,
+                    self._handles[job_id] = handle
+                self._raise_if_cancelled(job_id)
+                job_root = self.paths.jobs
+                worker_request = _request_for_execution_domain(
+                    request, manifest, execution_domain
+                )
+                self.store.transition_job(job_id, JobState.ADMITTED)
+                self.store.transition_job(
+                    job_id,
+                    JobState.STARTING_WORKER,
+                    event_type="job.resident_worker_reused",
+                    payload={
+                        "instance_id": handle.instance_id,
+                        "runtime_id": runtime.id,
+                    },
+                )
+            else:
+                if manifest.model.adapter_family != "fake-root-translation":
+                    # Resolve the requested OS/Runtime/profile before reading a
+                    # multi-gigabyte snapshot. The resulting immutable selection is
+                    # handed to runtime preparation, avoiding a duplicate initial
+                    # machine probe while retaining the final post-lease recheck.
+                    initial_admission = self._select_worker_admission(
+                        manifest,
+                        execution_target=request.execution_target,
                         cancel_event=cancel_event,
                     )
-                    verified_artifact_roots = dict(verified.artifact_roots)
-            self._raise_if_cancelled(job_id)
-            self.store.transition_job(job_id, JobState.ADMITTED)
-            self._raise_if_cancelled(job_id)
-            job_root = self.paths.job_directory(job_id)
-            job_root.mkdir(parents=True, exist_ok=True)
-            prepared = self._prepare_runtime_for_worker(
-                job_id=job_id,
-                manifest=manifest,
-                execution_target=request.execution_target,
-                cancel_event=cancel_event,
-                initial_admission=initial_admission,
-            )
-            runtime = prepared.runtime
-            execution_domain = prepared.execution_domain
-            runtime_python = prepared.runtime_python
-            selected_profile = prepared.selected_profile
-            selected_strategy = prepared.selected_strategy
-            selected_accelerator = prepared.selected_accelerator
-            resource_lease = prepared.resource_lease
-            worker_request = _request_for_execution_domain(
-                request,
-                manifest,
-                execution_domain,
-            )
-            self.store.transition_job(
-                job_id,
-                JobState.STARTING_WORKER,
-                event_type="job.runtime_selected",
-                payload={
-                    "runtime_id": runtime.id,
-                    "runtime_project_package": runtime.project_package,
-                    "runtime_project_version": runtime.project_version,
-                    "runtime_core_epoch": runtime.runtime_core_epoch,
-                    "execution_domain": execution_domain.id,
-                    "resource_profile": selected_profile,
-                    "memory_strategy": selected_strategy,
-                    "selected_accelerator": (
-                        selected_accelerator.as_dict()
-                        if selected_accelerator is not None
-                        else None
-                    ),
-                    "resource_lease": (
-                        resource_lease.as_dict() if resource_lease is not None else None
-                    ),
-                    "runtime_candidates": list(prepared.runtime_candidates),
-                    "execution_target": {
-                        "requested": (
-                            request.execution_target.model_dump(mode="json")
-                            if request.execution_target is not None
+                    with self._lock:
+                        staged_roots = self._model_root_overrides.get(job_id)
+                    if allow_unready_model:
+                        if staged_roots is None:
+                            raise _ModelInstallationNotReady(
+                                "unready-model execution requires explicit staged artifact roots"
+                            )
+                        if acceptance_installation_id is None:
+                            if not (self.allow_test_models and manifest.test_only):
+                                raise _ModelInstallationNotReady(
+                                    "acceptance execution requires installation binding"
+                                )
+                            verified_artifact_roots = dict(staged_roots)
+                        else:
+                            if acceptance_artifact_identity is None:
+                                raise _ModelInstallationNotReady(
+                                    "acceptance execution requires artifact binding"
+                                )
+                            transaction = self.store.installation_transaction(
+                                acceptance_installation_id
+                            )
+                            if transaction is None:
+                                raise _ModelInstallationNotReady(
+                                    "acceptance installation transaction is missing"
+                                )
+                            transaction_payload = json.loads(
+                                transaction["payload_json"]
+                            )
+                            staged_outcome = InstallOutcome(
+                                installation_id=acceptance_installation_id,
+                                model_id=request.model_id,
+                                state=InstallationState.BUILDING_RUNTIME,
+                                locator=transaction_payload.get("locator"),
+                            )
+                            verified_artifact_roots = (
+                                self.model_pool.verify_staged_artifacts(
+                                    staged_outcome,
+                                    cancel_event=cancel_event,
+                                )
+                            )
+                            if verified_artifact_roots != staged_roots:
+                                raise _ModelInstallationNotReady(
+                                    "acceptance artifact roots differ from staged installation"
+                                )
+                            if (
+                                self.model_pool.acceptance_artifact_identity(
+                                    staged_outcome
+                                )
+                                != acceptance_artifact_identity
+                            ):
+                                raise _ModelInstallationNotReady(
+                                    "acceptance artifact identity differs after verification"
+                                )
+                    else:
+                        verified = self._verify_installed_model(
+                            request.model_id,
+                            cancel_event=cancel_event,
+                        )
+                        verified_artifact_roots = dict(verified.artifact_roots)
+                self._raise_if_cancelled(job_id)
+                self.store.transition_job(job_id, JobState.ADMITTED)
+                self._raise_if_cancelled(job_id)
+                job_root = (
+                    self.paths.jobs
+                    if keep_worker_alive
+                    else self.paths.job_directory(job_id)
+                )
+                job_root.mkdir(parents=True, exist_ok=True)
+                prepared = self._prepare_runtime_for_worker(
+                    job_id=job_id,
+                    manifest=manifest,
+                    execution_target=request.execution_target,
+                    cancel_event=cancel_event,
+                    initial_admission=initial_admission,
+                )
+                runtime = prepared.runtime
+                execution_domain = prepared.execution_domain
+                runtime_python = prepared.runtime_python
+                selected_profile = prepared.selected_profile
+                selected_strategy = prepared.selected_strategy
+                selected_accelerator = prepared.selected_accelerator
+                resource_lease = prepared.resource_lease
+                worker_request = _request_for_execution_domain(
+                    request,
+                    manifest,
+                    execution_domain,
+                )
+                self.store.transition_job(
+                    job_id,
+                    JobState.STARTING_WORKER,
+                    event_type="job.runtime_selected",
+                    payload={
+                        "runtime_id": runtime.id,
+                        "runtime_project_package": runtime.project_package,
+                        "runtime_project_version": runtime.project_version,
+                        "runtime_core_epoch": runtime.runtime_core_epoch,
+                        "execution_domain": execution_domain.id,
+                        "resource_profile": selected_profile,
+                        "memory_strategy": selected_strategy,
+                        "selected_accelerator": (
+                            selected_accelerator.as_dict()
+                            if selected_accelerator is not None
                             else None
                         ),
-                        "resolved": _resolved_execution_target(
-                            runtime=runtime,
-                            domain=execution_domain,
-                            profile_id=selected_profile,
-                            memory_strategy=selected_strategy,
-                            selected_accelerator=selected_accelerator,
+                        "resource_lease": (
+                            resource_lease.as_dict()
+                            if resource_lease is not None
+                            else None
                         ),
+                        "runtime_candidates": list(prepared.runtime_candidates),
+                        "execution_target": {
+                            "requested": (
+                                request.execution_target.model_dump(mode="json")
+                                if request.execution_target is not None
+                                else None
+                            ),
+                            "resolved": _resolved_execution_target(
+                                runtime=runtime,
+                                domain=execution_domain,
+                                profile_id=selected_profile,
+                                memory_strategy=selected_strategy,
+                                selected_accelerator=selected_accelerator,
+                            ),
+                        },
+                        "acceptance_installation_id": acceptance_installation_id,
+                        "acceptance_artifact_identity": acceptance_artifact_identity,
                     },
-                    "acceptance_installation_id": acceptance_installation_id,
-                    "acceptance_artifact_identity": acceptance_artifact_identity,
-                },
-            )
-            self._raise_if_cancelled(job_id)
-            entrypoint = list(runtime.entrypoint_argv)
-            if not entrypoint or entrypoint[0] != "python":
-                raise ValueError(
-                    "the local Python runtime entrypoint must begin with 'python'"
                 )
-            entrypoint[0] = str(runtime_python.executable)
-            entrypoint.extend(
-                (
-                    "--host",
-                    "{host}",
-                    "--port",
-                    "{port}",
-                    "--job-root",
-                    "{job_root}",
-                    "--model-id",
-                    "{model_id}",
-                    "--instance-id",
-                    "{instance_id}",
-                    "--job-id",
-                    "{job_id}",
-                    "--runtime-id",
-                    "{runtime_id}",
+                self._raise_if_cancelled(job_id)
+                entrypoint = list(runtime.entrypoint_argv)
+                if not entrypoint or entrypoint[0] != "python":
+                    raise ValueError(
+                        "the local Python runtime entrypoint must begin with 'python'"
+                    )
+                entrypoint[0] = str(runtime_python.executable)
+                entrypoint.extend(
+                    (
+                        "--host",
+                        "{host}",
+                        "--port",
+                        "{port}",
+                        "--job-root",
+                        "{job_root}",
+                        "--model-id",
+                        "{model_id}",
+                        "--instance-id",
+                        "{instance_id}",
+                        "--job-id",
+                        "{job_id}",
+                        "--runtime-id",
+                        "{runtime_id}",
+                    )
                 )
-            )
-            worker_environment = self._worker_environment(
-                job_id=job_id,
-                model_id=request.model_id,
-                adapter_family=manifest.model.adapter_family,
-                artifact_roots=verified_artifact_roots,
-            )
-            worker_environment.update(
-                {
-                    "VIREA_RESOURCE_PROFILE": selected_profile,
-                    "VIREA_MEMORY_STRATEGY": selected_strategy,
-                    "VIREA_RUNTIME_CORE_EPOCH": (
-                        runtime.runtime_core_epoch or CONTROL_PLANE_RUNTIME_CORE_EPOCH
-                    ),
-                }
-            )
-            worker_environment.update(
-                _selected_accelerator_environment(selected_accelerator)
-            )
-            try:
-                handle = self.supervisor.start(
-                    model_id=request.model_id,
-                    runtime_id=runtime.id,
-                    entrypoint_argv=tuple(entrypoint),
+                worker_environment = self._worker_environment(
                     job_id=job_id,
-                    job_root=job_root,
-                    environment_allowlist=runtime.environment_allowlist,
-                    environment=worker_environment,
-                    readiness_timeout=runtime.startup_timeout_seconds,
-                    cancel_event=cancel_event,
-                    execution_domain=runtime_python.execution_domain,
-                    resource_lease=(
-                        resource_lease.as_dict() if resource_lease is not None else None
-                    ),
+                    model_id=request.model_id,
+                    adapter_family=manifest.model.adapter_family,
+                    artifact_roots=verified_artifact_roots,
                 )
-            except WorkerStartError as exc:
-                worker_termination_uncertain = not exc.process_termination_proven
-                raise
+                worker_environment.update(
+                    {
+                        "VIREA_RESOURCE_PROFILE": selected_profile,
+                        "VIREA_MEMORY_STRATEGY": selected_strategy,
+                        "VIREA_RUNTIME_CORE_EPOCH": (
+                            runtime.runtime_core_epoch
+                            or CONTROL_PLANE_RUNTIME_CORE_EPOCH
+                        ),
+                    }
+                )
+                worker_environment.update(
+                    _selected_accelerator_environment(selected_accelerator)
+                )
+                try:
+                    handle = self.supervisor.start(
+                        model_id=request.model_id,
+                        runtime_id=runtime.id,
+                        entrypoint_argv=tuple(entrypoint),
+                        job_id=job_id,
+                        job_root=job_root,
+                        environment_allowlist=runtime.environment_allowlist,
+                        environment=worker_environment,
+                        readiness_timeout=runtime.startup_timeout_seconds,
+                        cancel_event=cancel_event,
+                        execution_domain=runtime_python.execution_domain,
+                        resource_lease=(
+                            resource_lease.as_dict()
+                            if resource_lease is not None
+                            else None
+                        ),
+                    )
+                except WorkerStartError as exc:
+                    worker_termination_uncertain = not exc.process_termination_proven
+                    raise
+                if keep_worker_alive:
+                    resident = ResidentWorker(resident_key, handle, prepared)
             with self._lock:
                 self._handles[job_id] = handle
             self._raise_if_cancelled(job_id)
@@ -1110,7 +1177,15 @@ class ControlPlane:
                     "worker_runtime_core_identity": worker_runtime_core_identity,
                 },
             )
-            model_result = client.infer(job_id, worker_request)
+            inference_started = True
+            model_result = client.infer(
+                job_id,
+                worker_request,
+                staging_locator=f"{job_id}/staging" if keep_worker_alive else "staging",
+            )
+            if keep_worker_alive:
+                model_result = canonical_result(model_result, job_id)
+            inference_completed = True
             self._raise_if_cancelled(job_id)
             result_runtime_core_identity = _validate_runtime_core_identity(
                 model_result.provenance.generation_parameters.get(
@@ -1139,7 +1214,7 @@ class ControlPlane:
                 selected_runtime_id=runtime.id,
             )
             native_path, native = self._load_native_artifact(
-                job_root=job_root,
+                job_root=self.paths.job_directory(job_id),
                 job_id=job_id,
                 model_result=model_result,
                 adapter_family=manifest.model.adapter_family,
@@ -1418,6 +1493,28 @@ class ControlPlane:
         except Exception as exc:
             self._finish_failure(job_id, type(exc).__name__.upper(), str(exc))
         finally:
+            if resident_borrowed and resident is not None:
+                try:
+                    self.residents.finish(
+                        resident,
+                        keep=(result_published and not cancel_event.is_set())
+                        or (
+                            job_id in self._draining_jobs
+                            and (
+                                inference_completed
+                                or (resident_reused and not inference_started)
+                            )
+                        ),
+                    )
+                except Exception as exc:
+                    self.result_quarantine_errors.append(
+                        f"{job_id}: resident release: {exc}"
+                    )
+                # The pool owns this process and its original resource lease even
+                # after a failed reap; ordinary job cleanup must not release it.
+                handle = None
+                resource_lease = None
+                resident_borrowed = False
             worker_stopped_safely = handle is None and not worker_termination_uncertain
             if handle is not None:
                 try:
@@ -1470,6 +1567,10 @@ class ControlPlane:
                 self._model_root_overrides.pop(job_id, None)
                 self._inference_timeouts.pop(job_id, None)
                 self._cancel_events.pop(job_id, None)
+                self._resident_jobs.discard(job_id)
+                self._draining_jobs.discard(job_id)
+            if resident_borrowed:
+                self.residents.finish(None, keep=False)
 
     def _quarantine_untracked_results(self, *, reason: str) -> list[dict[str, str]]:
         recovered: list[dict[str, str]] = []
@@ -3242,6 +3343,64 @@ class ControlPlane:
         finally:
             runtime_lock.release()
 
+    def discard(self, job_id: str, *, grace_seconds: float = 5.0) -> dict[str, Any]:
+        """Discard a character's stale result while a resident finishes bounded work.
+
+        A worker is reusable only after infer returns successfully. Ordinary jobs,
+        startup and a missed grace deadline retain the forced cancellation path.
+        """
+        with self._lock:
+            current = self.store.get_job(job_id)
+            thread = self._threads.get(job_id)
+            can_drain = (
+                job_id in self._resident_jobs
+                and thread is not None
+                and current is not None
+                and current["state"]
+                in {
+                    "QUEUED",
+                    "ADMITTED",
+                    "STARTING_WORKER",
+                    "LOADING_MODEL",
+                    "RUNNING",
+                    "DECODING",
+                    "NORMALIZING",
+                    "RETARGETING",
+                    "VALIDATING",
+                    "EXPORTING",
+                }
+                and not self._closing.is_set()
+            )
+            if can_drain:
+                try:
+                    current = self.store.transition_job(
+                        job_id,
+                        JobState.CANCELLING,
+                        event_type="job.stale_expression_discarded",
+                    )
+                except Exception:
+                    can_drain = False  # Completion/cancellation can win this race.
+                else:
+                    self._draining_jobs.add(job_id)
+                    self._cancel_events[job_id].set()
+        if not can_drain:
+            return self.cancel(job_id)
+
+        def deadline():
+            thread.join(max(0.0, min(5.0, grace_seconds)))
+            if thread.is_alive():
+                try:
+                    self.cancel(job_id)
+                except Exception as exc:
+                    self.result_quarantine_errors.append(
+                        f"{job_id}: stale expression cancellation: {exc}"
+                    )
+
+        threading.Thread(
+            target=deadline, name=f"virea-discard-{job_id}", daemon=True
+        ).start()
+        return current
+
     def cancel(self, job_id: str) -> dict[str, Any]:
         deadline = time.monotonic() + CANCEL_JOIN_TIMEOUT_SECONDS
         current = self.store.get_job(job_id)
@@ -3398,6 +3557,7 @@ class ControlPlane:
                 "control plane did not stop all related processes before the "
                 f"deadline: job threads={thread_ids}; workers={worker_ids}{details}"
             )
+        self.residents.close()
         unresolved_workers = self.supervisor.recovery_blocked_instances()
         unresolved_resources = self.resource_leases.diagnostics()
         if (

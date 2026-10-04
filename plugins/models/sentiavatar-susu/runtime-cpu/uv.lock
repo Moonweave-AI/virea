@@ -848,7 +848,7 @@ requires-dist = [
 
 [[package]]
 name = "virea-model-sentiavatar-susu-cpu-runtime"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "torch", version = "2.2.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
@@ -867,7 +867,7 @@ requires-dist = [
 
 [[package]]
 name = "virea-model-sentiavatar-susu-runtime"
-version = "0.2.0"
+version = "0.3.0"
 source = { directory = "../runtime" }
 dependencies = [
     { name = "accelerate" },
