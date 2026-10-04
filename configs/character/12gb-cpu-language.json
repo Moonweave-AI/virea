@@ -2,6 +2,7 @@
   "llm_url": "http://127.0.0.1:8080/v1",
   "llm_model": "Qwen3.5-2B",
   "tts_url": "http://127.0.0.1:8081/v1",
-  "tts_voice": "zf_001",
+  "tts_model": "audio8/tts-0.6b",
+  "tts_voice": "",
   "max_autonomous_decisions": 3
 }

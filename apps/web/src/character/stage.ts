@@ -16,9 +16,11 @@ import { SpeechClock, cueReached } from "./speech_clock";
 import { MotionInspection } from "./inspection";
 import { PerformanceRecording, mixRecordedAudio } from "./recording";
 import { captureVideo } from "./video";
+import { speechAt, validatePerformance } from "./performance";
 import type { BodyState, Expression, FaceTrack, PlaybackProgress, BodyProgram, Session } from "./contracts";
 
 export class CharacterStage {
+  private performanceOwner: "motioncraft" | "syntalker" | null = null;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(35, 1, 0.05, 100);
   private readonly renderer: THREE.WebGLRenderer;
@@ -85,8 +87,8 @@ export class CharacterStage {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene.background = new THREE.Color("#f3f4f6");
     this.scene.fog = new THREE.Fog(0xf3f4f6, 8, 25);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 2.6));
-    const light = new THREE.DirectionalLight(0xffffff, 2.2);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 1.7));
+    const light = new THREE.DirectionalLight(0xffffff, 1.4);
     light.position.set(2, 4, 3);
     this.scene.add(light, this.grid, this.inspection.object);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 1 }));
@@ -214,7 +216,7 @@ export class CharacterStage {
     return buffer;
   }
 
-  async loadAvatar(file: File): Promise<void> {
+  async loadAvatar(file: File, motionBackend = "sentiavatar_ardy"): Promise<void> {
     this.stop();
     const epoch = this.epoch;
     const url = URL.createObjectURL(file);
@@ -228,7 +230,7 @@ export class CharacterStage {
         if (!vrm) throw new Error("请选择包含 humanoid 的 VRM 文件");
         return;
       }
-      const reference = await fetch("/api/v1/characters/neutral-pose");
+      const reference = await fetch(`/api/v1/characters/neutral-pose?motion_backend=${encodeURIComponent(motionBackend)}`);
       if (!reference.ok) {
         VRMUtils.deepDispose(vrm.scene);
         throw new Error("自然站姿资源未就绪，请运行角色环境初始化。");
@@ -273,6 +275,8 @@ export class CharacterStage {
   }
 
   stopSpeech(): BodyState {
+    if (this.performanceOwner) this.spatial?.stop();
+    this.performanceOwner = null;
     this.epoch++;
     this.replaying = false;
     this.speechClock.reset();
@@ -295,7 +299,7 @@ export class CharacterStage {
     return body;
   }
 
-  get bodyRunning(): boolean { return Boolean(this.behavior?.running || this.authority?.retracting); }
+  get bodyRunning(): boolean { return Boolean(this.performanceOwner || this.behavior?.running || this.authority?.retracting); }
 
   syncBody(program: BodyProgram | null, sessionId: string,
     onProgress: (value: PlaybackProgress) => void, onFinish: (id: string, status: string, message: string) => void): void {
@@ -419,6 +423,7 @@ export class CharacterStage {
     onProgress: (value: PlaybackProgress) => void = () => {},
     prepared?: [null, AudioBuffer | null, FaceTrack | null]): Promise<{ audio_seconds: number; motion_seconds: number }> {
     if (!this.vrm || !this.authority) throw new Error("请先载入 VRM");
+    if (packet.performance) return this.performPerformance(packet, onStart, onProgress);
     const epoch = this.epoch;
     const current = () => epoch === this.epoch && !this.disposed;
     let [gltf, audio, face] = prepared ?? await this.preload(packet).catch(error => {
@@ -558,6 +563,74 @@ export class CharacterStage {
     this.renderer.dispose(); void this.audio.close();
   }
 
+  private async performPerformance(packet: Expression, onStart: () => void,
+    onProgress: (value: PlaybackProgress) => void): Promise<{ audio_seconds: number; motion_seconds: number }> {
+    const performance = packet.performance!, epoch = this.epoch;
+    const current = () => epoch === this.epoch && !this.disposed;
+    const [response, audio] = await Promise.all([fetch(performance.asset_url),
+      packet.audio_url ? this.loadAudio(packet.audio_url) : null]);
+    if (!response.ok) throw new Error(`表演资源读取失败 (${response.status})`);
+    const { windows } = await response.json() as { windows: SpatialWindow[] };
+    validatePerformance(performance, windows);
+    if (audio && Math.abs(audio.duration - performance.duration_seconds) > 1 / 16000 + 1e-6)
+      throw new Error("语音混音与表演时间轴长度不一致");
+    if (!current()) throw new DOMException("Interrupted", "AbortError");
+    if (this.audio.state !== "running") throw new Error("请先继续播放时钟");
+    this.behavior?.stop(); this.activity = null; this.idle?.stop(); this.authority!.release();
+    const start = this.audio.currentTime + .06;
+    let began = false;
+    const progress = (elapsed: number) => {
+      if (elapsed >= 0 && !began) { began = true; onStart(); }
+      const time = Math.max(0, Math.min(elapsed, performance.duration_seconds));
+      const speech = speechAt(performance, time);
+      this.speechInfo = { text: speech?.text ?? "", end: speech ? start + speech.start_seconds + speech.duration_seconds : 0,
+        packet_id: speech?.id ?? null, stream_id: packet.id };
+      this.canvas.dataset.bodyStatus = "playing";
+      this.canvas.dataset.bodyElapsed = time.toFixed(3);
+      this.canvas.dataset.bodyDuration = performance.duration_seconds.toFixed(3);
+      onProgress({ elapsed: time, audioDuration: packet.audio_seconds, motionDuration: performance.duration_seconds,
+        paused: this.audio.state !== "running", caption: speech?.text ?? "" });
+    };
+    const sample = () => {
+      if (!current()) return;
+      this.analyser.getFloatTimeDomainData(this.waveform);
+      const active = speechAt(performance, this.audibleTime() - start);
+      const rms = Math.sqrt(this.waveform.reduce((sum, x) => sum + x * x, 0) / this.waveform.length);
+      this.vrm?.expressionManager?.setValue("aa", active ? Math.min(1, rms * 5) : 0);
+    };
+    this.sampleExpression = sample;
+    try {
+      this.performanceOwner = performance.backend;
+      this.tape.driver(start, performance.backend, "独立语音与动作轨道", packet.id);
+      if (audio) for (const clip of performance.speech) {
+        const begin = Math.round(clip.start_seconds * audio.sampleRate);
+        const count = Math.round(clip.duration_seconds * audio.sampleRate);
+        const buffer = this.audio.createBuffer(1, count, audio.sampleRate);
+        buffer.copyToChannel(audio.getChannelData(0).slice(begin, begin + count), 0);
+        this.tape.addSpeech({ ...packet, id: clip.id, text: clip.text }, start + clip.start_seconds, buffer.duration, buffer);
+      }
+      if (audio) {
+        this.source = this.audio.createBufferSource(); this.source.buffer = audio;
+        this.source.connect(this.analyser); this.source.start(start);
+      }
+      await this.spatial!.run({ ...packet, spatial_windows: windows, temporal: true, end_state: "hold" },
+        this.state(), this.hipHeight, progress, null, start);
+      if (!current()) throw new DOMException("Interrupted", "AbortError");
+      this.authority!.render(performance.backend, 0, () => this.spatial!.update(false), true);
+      this.authority!.commitRest();
+      this.bodyRecording = windows;
+      return { audio_seconds: packet.audio_seconds, motion_seconds: performance.duration_seconds };
+    } finally {
+      if (this.sampleExpression === sample) this.sampleExpression = null;
+      if (current()) {
+        if (this.source) { this.source.stop(); this.source.disconnect(); this.source = null; }
+        this.spatial?.stop(); this.performanceOwner = null;
+        this.speechInfo.end = 0; this.vrm?.expressionManager?.setValue("aa", 0);
+        this.canvas.dataset.bodyStatus = "completed";
+      }
+    }
+  }
+
   private rootPosition(): THREE.Vector3 {
     const hips = this.vrm?.humanoid.getNormalizedBoneNode("hips");
     this.vrm?.scene.updateMatrixWorld(true);
@@ -642,7 +715,7 @@ export class CharacterStage {
     this.lastFrame = now;
     if (this.vrm) {
       this.sampleExpression?.();
-      const owner = this.behavior?.running ? this.behavior.owner : this.spatial?.active ? "ardy" : this.previewSpeech ? "sentiavatar" : "hold";
+      const owner = this.performanceOwner ?? (this.behavior?.running ? this.behavior.owner : this.spatial?.active ? "ardy" : this.previewSpeech ? "sentiavatar" : "hold");
       this.authority?.render(owner, this.audio.state === "running" ? dt : 0,
         () => this.spatial?.update(false), Boolean(this.spatial?.active));
       this.bodyRecovery?.();

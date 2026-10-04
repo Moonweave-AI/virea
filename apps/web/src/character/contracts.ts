@@ -26,6 +26,7 @@ export interface SceneAction {
   continuation_description?: string | null;
 }
 export interface Expression {
+  performance?: Performance;
   id: string;
   session_id?: string;
   body_program_id?: string;
@@ -47,7 +48,7 @@ export interface Expression {
   parent_id?: string | null;
   caption?: string;
   speech_marks?: { name: string; offset_seconds: number }[];
-  route?: { engine: "sentiavatar" | "ardy" | "hybrid" | "temporal"; reason: string } | null;
+  route?: { engine: "sentiavatar" | "ardy" | "hybrid" | "temporal" | "motioncraft" | "syntalker"; reason: string } | null;
   end_state?: "relaxed" | "hold";
   preview?: boolean;
 }
@@ -55,8 +56,16 @@ export interface FaceTrack { fps: number; names: string[]; values: number[][];
   arkit?: { names: string[]; values: number[][] } }
 export interface PlaybackProgress {
   elapsed: number; audioDuration: number; motionDuration: number; paused: boolean;
+  caption?: string;
+}
+export interface Performance {
+  id: string; backend: "motioncraft" | "syntalker"; duration_seconds: number; asset_url: string;
+  motions: { id: string; start_seconds: number; duration_seconds: number; prompt: string; label: string }[];
+  speech: { id: string; start_seconds: number; duration_seconds: number; text: string }[];
 }
 export interface Session {
+  motion_backend?: "sentiavatar_ardy" | "motioncraft" | "syntalker";
+  performance?: Performance | null;
   id: string;
   epoch: number;
   status: string;

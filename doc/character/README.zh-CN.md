@@ -17,7 +17,13 @@ superseded_by: []
 
 # 持续角色（实验功能）
 
+新增两条可选路线：[MotionCraft / SynTalker 独立轨道、部署与 16 个真实 Demo](unified-motion.zh-CN.md)。
+已有 SentiAvatar + ARDY 路线继续保留。
+
 [English](README.en.md)
+
+当前语音使用 **Audio8-TTS 0.6B**。请先在「角色与设置 → 声音克隆」导入参考音频及逐字文本。
+部署、平台兼容性和迁移步骤见 [Audio8-TTS 0.6B 语音克隆](audio8-tts.zh-CN.md)。
 
 [八段真实表演与录制方法](showcase.zh-CN.md) · [粗粒度活动执行](coarse-activity-execution.zh-CN.md) · [窗口连续播放实测](window-continuity.zh-CN.md)
 
@@ -44,24 +50,24 @@ SentiAvatar 与 ARDY 分时接管身体；ARDY 接收英文当前活动描述，
 并通过 `virea model install` 安装 `sentiavatar-susu`。NVIDIA 选择 `sentiavatar-susu-cu128` / `cuda-full`。
 SentiAvatar 源代码和权重采用上游非商业许可证，安装流程保留许可确认与真实验收。
 
-本轮在 RTX 5090 Laptop 上验证的配置是 `configs/character/rtx5090.json`：
-Qwen3.5-9B Q4_K_M（llama.cpp CUDA）、CUDA Kokoro、SentiAvatar 0.3.0 常驻 Worker，
+当前配置是 `configs/character/rtx5090.json`：
+Qwen3.5-9B Q4_K_M（llama.cpp CUDA）、WSL CUDA Audio8-TTS 0.6B、SentiAvatar 0.3.0 常驻 Worker，
 以及 ARDY 原生空间动作 Worker（NF4 文本编码器）。首次使用空间控制，先按[部署说明](semantic-spatial-upgrade.zh-CN.md#部署与检查)运行 `install_spatial.ps1`。
 按[升级记录中的启动命令](performance-upgrade.zh-CN.md#部署与复现)准备模型后，
 按[当前部署说明](streaming-upgrade.zh-CN.md#部署与复现)准备本机动作规划器 GGUF 后，
-`scripts/character/start_gpu_stack.ps1` 会启动动作规划服务、准备自然姿态并预热，再报告页面就绪。
+`scripts/character/start_gpu_stack.ps1` 会启动动作规划服务、准备自然姿态；已有参考声线时预热表达，再报告页面就绪。
+旧记录中的 Kokoro 延迟和显存结论不适用于 Audio8-TTS 0.6B，须按新模型重新分配资源。
 空闲 15 分钟、模型切换或推理失败会回收动作 Worker；下一次需要重新预热。
 播放打断允许正在推理的 Worker 最多 5 秒收尾后复用，旧结果不会发布；超时则强制取消。
 
-以下保留 CPU 语音 / Ollama 备选部署。独立终端启动中文语音服务
-（锁文件与脚本一同提供；权重缓存位于 `HF_HOME`）：
+以下为 Ollama 文本模型备选部署。先按 Audio8 部署说明准备 WSL CUDA 环境，再启动语音服务：
 
 ```powershell
-uv run --locked --script scripts/character/serve_kokoro.py
+./scripts/character/start_audio8_tts.ps1 -VireaHome $env:VIREA_HOME -HfHome $env:HF_HOME -Model '<DATA_ROOT>/models/audio8-tts-0.6b' -Port 8081
 ```
 
-该进程只使用 CPU，提供 `127.0.0.1:8081/v1/audio/speech`。返回单声道 PCM16 WAV，
-实际长度由音频采样数决定。中文默认声音为 `zf_001`，模型为 `hexgrad/Kokoro-82M-v1.1-zh`。
+该进程使用 GPU，提供 `127.0.0.1:8081/v1/audio/speech`。返回 44.1 kHz 单声道 PCM16 WAV，
+实际长度由音频采样数决定。模型为 `Edge0/Audio8-TTS-Preview-0.6b`，需导入参考声线。
 
 使用已有 Ollama 部署小型 Qwen：
 
@@ -102,7 +108,7 @@ src/virea/character/
   face.py                   可审计的 ARKit51 → VRM 近似映射
   providers/
     language.py             Qwen / OpenAI-compatible 结构化决策
-    speech.py               Kokoro HTTP → 实际音频
+    speech.py               Audio8-TTS 0.6B HTTP → 实际音频
     motion.py               既有 ControlPlane → SentiAvatar → VRMA
 apps/api/src/virea_api/routes/
   characters.py             会话与回执接口
@@ -117,8 +123,9 @@ apps/web/src/character/
   interaction.ts            末端接触修正与可达误差
   page.ts                   会话 UI、输入、中断、回执
 scripts/character/
-  serve_kokoro.py            独立 CPU TTS 服务
-  serve_kokoro_cuda.py       独立 CUDA TTS，自适应 FP32 / FP16
+  serve_audio8_tts.py        Audio8 CUDA 后端与参考声线网关
+  start_audio8_tts.ps1       Windows → WSL 启动及路径映射
+  dots_service.py            克隆声线、合成与流式接口
   start_gpu_stack.ps1        GPU 服务启动、预热和进程记录
   spatial/                  ARDY 模型、约束、流式服务与固定版本清单
   install_spatial.ps1        独立空间模型与原生求解器安装
@@ -126,7 +133,7 @@ scripts/character/
   measure.py                 同机 GPU 与完整表达包观测
 ```
 
-控制面不导入 torch、Kokoro 或 Transformers。动作模型继续使用既有资源预检、隔离 Worker、
+控制面不导入 torch、Audio8-TTS 0.6B 或 Transformers。动作模型继续使用既有资源预检、隔离 Worker、
 原生产物校验、Motion IR、重定向与导出，不创建第二套动作任务系统。
 `apps/api/src/virea_api/residency.py` 管理单个可复用 Worker；GPU 租约随进程保留，
 确认进程退出后才释放。普通模型任务仍采用原生命周期，并可请求回收闲置常驻 Worker。

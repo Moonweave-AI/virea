@@ -23,5 +23,11 @@ def test_coordinates_are_explicit_recent_and_inside_the_scene():
 def test_empty_scene_cannot_decode_a_fabricated_destination():
     schema = decision_schema([], [])
     variants = schema["$defs"]["SceneAction"]["oneOf"]
-    assert [action["properties"]["kind"]["const"] for action in variants] == ["stop", "stand", "perform"]
-    assert all(action["properties"]["position"] == {"type": "null"} for action in variants)
+    assert [action["properties"]["kind"]["const"] for action in variants] == [
+        "stop",
+        "stand",
+        "perform",
+    ]
+    assert all(
+        action["properties"]["position"] == {"type": "null"} for action in variants
+    )

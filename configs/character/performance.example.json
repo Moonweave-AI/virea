@@ -1,0 +1,14 @@
+{
+  "motions": [
+    { "id": "stand", "start_seconds": 0, "duration_seconds": 3, "prompt": "A person stands up.", "label": "起身" },
+    { "id": "walk", "start_seconds": 3, "duration_seconds": 8, "prompt": "A person walks forward slowly.", "label": "行走" },
+    { "id": "wave", "start_seconds": 11, "duration_seconds": 5, "prompt": "A person waves their right hand.", "label": "挥手" },
+    { "id": "sit", "start_seconds": 16, "duration_seconds": 6, "prompt": "A person sits down on the ground and settles comfortably.", "label": "坐下" }
+  ],
+  "speech": [
+    { "id": "greeting", "text": "你好，我正在向前走。", "start_seconds": 5 },
+    { "id": "wave_words", "text": "现在我向你挥挥手。", "start_seconds": 10 }
+  ],
+  "idle_prompt": "A person maintains their current comfortable posture, breathing naturally.",
+  "seed": 42
+}

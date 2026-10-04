@@ -12,8 +12,9 @@ const eventLabels: Record<string, string> = {
   speech_timing_planned: "话语时机规划", speech_waiting: "话语等待动作条件", speech_released: "话语条件已满足",
   timing_observed: "已执行动作事件", timing_error: "时序依赖冲突",
   activity_reviewed: "执行层活动完成判断",
+  motion_window_generated: "原生动作窗口生成完成", speech_clip_ready: "独立语音片段就绪",
 };
-const owners: Record<string, string> = { ardy: "ARDY", sentiavatar: "SentiAvatar", hold: "保持姿态", retraction: "手势收尾" };
+const owners: Record<string, string> = { ardy: "ARDY", sentiavatar: "SentiAvatar", motioncraft: "MotionCraft", syntalker: "SynTalker", hold: "保持姿态", retraction: "手势收尾" };
 const text = (tag: string, value: string, className = "") => {
   const node = document.createElement(tag); node.textContent = value; node.className = className; return node;
 };
@@ -47,6 +48,8 @@ export class StudioDiagnostics {
     const slots = (session.behavior_timeline ?? []).filter(s => s.epoch === session.epoch);
     const motions = events.filter(e => e.kind === "motion_ready");
     const ready = motions.filter(e => e.status === "ready");
+    const unified = session.motion_backend === "motioncraft" || session.motion_backend === "syntalker";
+    const nativeWindows = events.filter(e => e.kind === "motion_window_generated");
     const owner = playback.retracting ? owners.retraction : owners[playback.body_owner] ?? playback.body_owner;
     const body = session.body_program;
     const remainder = playback.body_active ? Math.max(0, playback.body_duration - playback.body_elapsed) : 0;
@@ -61,7 +64,8 @@ export class StudioDiagnostics {
       + `身体：${playback.retracting ? "手势回收进行中" : `${playback.body_status}，当前时段剩余 ${remainder.toFixed(2)} 秒`}\n`
       + `任务范围：${body && ["completed", "failed", "interrupted"].includes(body.status) ? "空间任务已结束，当前为对话表达" : body?.scope === "activity" ? "独立活动，可持续到目标完成" : "本次回应及最终收势"}\n`
       + `实播录制：${recording.duration_seconds.toFixed(2)} 秒 / ${recording.speech.length} 个语音窗口\n`
-      + `动作交付：${ready.length}/${motions.length} 个窗口及时就绪，${motions.length - ready.length} 个过期\n`
+      + (unified ? `动作交付：${nativeWindows.length} 个原生窗口，完整表演准备后播放\n`
+        : `动作交付：${ready.length}/${motions.length} 个窗口及时就绪，${motions.length - ready.length} 个过期\n`)
       + `失败：${events.filter(e => ["motion_error", "body_error", "timing_error", "error"].includes(e.kind)).length}（展开执行事件查看原因）\n`
       + `头部角速度：${playback.head_speed_deg_s.toFixed(1)}°/s（本轮峰值 ${playback.peak_head_speed_deg_s.toFixed(1)}）\n`
       + `峰值采样：旋转 ${playback.peak_head_delta_deg.toFixed(2)}° / ${(playback.peak_head_frame_seconds * 1000).toFixed(2)} ms\n`
@@ -71,7 +75,7 @@ export class StudioDiagnostics {
     this.data = { schema: "virea.execution_trace.v1", session_id: session.id, epoch: session.epoch,
       event_range: { first: session.events[0]?.sequence, last: session.events.at(-1)?.sequence,
         earlier_events_expired: (session.events[0]?.sequence ?? 1) > 1 },
-      route: session.route, body_program: body, timing: session.timing, metrics: session.metrics,
+      route: session.route, performance: session.performance, body_program: body, timing: session.timing, metrics: session.metrics,
       behavior_timeline: session.behavior_timeline, events: facts(session.events), playback,
       expressions: [...(session.ready ?? []), ...(session.latest_expression ? [session.latest_expression] : [])].map(
         ({ id, stream_id, sequence, offset_seconds, audio_seconds, motion, motion_status }) =>
@@ -82,8 +86,9 @@ export class StudioDiagnostics {
     const signature = JSON.stringify([session.events.at(-1)?.sequence, session.behavior_timeline, recording.speech.length, recording.drivers.length, playback.synchronization.marks]);
     if (signature === this.signature) return;
     this.signature = signature;
-    this.el("#trace-plan").replaceChildren(interactionPlan(
-      events.filter(event => event.kind === "dialogue_appraised").at(-1)?.appraisal));
+    this.el("#trace-plan").replaceChildren(unified
+      ? text("pre", JSON.stringify(session.performance ?? events.find(e => e.kind === "performance_planned")?.plan ?? {}, null, 2))
+      : interactionPlan(events.filter(event => event.kind === "dialogue_appraised").at(-1)?.appraisal));
     const entries: HTMLElement[] = [];
     for (const event of events) {
       const row = document.createElement("details"), title = document.createElement("summary");

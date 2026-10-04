@@ -34,7 +34,7 @@ def text_chunks(text: str, limit: int = 80) -> list[str]:
     return chunks
 
 
-def pcm_wave(payload: bytes) -> tuple[bytes, float]:
+def pcm_wave(payload: bytes, *, pad: bool = True) -> tuple[bytes, float]:
     """Validate PCM and pad only sub-600ms tails for SentiAvatar's input contract."""
     if not payload or len(payload) > 8 * 1024 * 1024:
         raise ValueError("TTS WAV must contain 1 byte to 8 MiB")
@@ -45,7 +45,7 @@ def pcm_wave(payload: bytes) -> tuple[bytes, float]:
         audio = source.readframes(frames)
     if not frames or len(audio) != frames * width or frames / rate > 30:
         raise ValueError("TTS returned empty, truncated or >30-second audio")
-    padded = max(frames, int(rate * 0.6))
+    padded = max(frames, int(rate * 0.6)) if pad else frames
     output = io.BytesIO()
     with wave.open(output, "wb") as target:
         target.setparams((1, 2, rate, padded, "NONE", "not compressed"))

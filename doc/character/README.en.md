@@ -17,6 +17,9 @@ superseded_by: []
 
 # Persistent character sessions (experimental)
 
+[MotionCraft / SynTalker: independent tracks, setup and 16 real demos](unified-motion.en.md)
+adds two selectable motion families alongside the existing SentiAvatar + ARDY route.
+
 Start with the [eight recorded performances](showcase.en.md),
 [coarse activity execution](coarse-activity-execution.zh-CN.md) and
 [window continuity measurements](window-continuity.zh-CN.md).
@@ -52,26 +55,33 @@ the session; the temporary Runtime copy is limited to 128 MiB and removed with t
 
 ## Run locally
 
+Speech now uses **Audio8-TTS 0.6B** with imported reference audio and its exact transcript.
+Use Settings → Voice cloning to import, preview, select or delete a voice.
+CUDA uses the official SGLang Omni streaming adapter with BF16 weights, one request
+at a time and a 2,048-token KV cache. Existing reference voices remain compatible.
+See [deployment and migration](audio8-tts.zh-CN.md) for the pinned runtime and Windows/WSL setup.
+
 Follow the [getting-started guide](../getting-started.en.md) to build the workspace
 and install `sentiavatar-susu` under an explicit external `VIREA_HOME`. Its upstream
 noncommercial license and the existing installation acceptance procedure still apply.
 
-The tested RTX 5090 Laptop configuration is `configs/character/rtx5090.json`:
-Qwen3.5-9B Q4_K_M on llama.cpp CUDA, adaptive FP32/FP16 CUDA Kokoro, and a resident
+The current RTX 5090 Laptop configuration is `configs/character/rtx5090.json`:
+Qwen3.5-9B Q4_K_M on llama.cpp CUDA, Audio8-TTS 0.6B in WSL CUDA, and a resident
 SentiAvatar 0.3.0 worker with an optional FP16 llama.cpp motion planner using the same
 weights. `scripts/character/start_gpu_stack.ps1` checks language, speech, motion-planner
-and API services and warms inference before reporting readiness.
+and API services and warms inference when a reference voice is present. Re-evaluate GPU
+memory placement: historical Kokoro measurements do not describe Audio8.
 See the [upgrade record](streaming-upgrade.zh-CN.md)
 for pinned artifacts, commands and measurements. Motion residency expires after 15 idle
 minutes and is retired on failures or model changes. Playback interruption discards
 stale output and allows at most five seconds for healthy inference to finish and
 remain resident; the deadline falls back to forced cancellation.
 
-The following CPU speech / Ollama alternative remains available. Run these in
-separate terminals after setting `VIREA_HOME` and `HF_HOME`:
+For the Ollama language alternative, start Audio8 in WSL CUDA and the API
+in a separate terminal after setting `VIREA_HOME` and `HF_HOME`:
 
 ```powershell
-uv run --locked --script scripts/character/serve_kokoro.py
+./scripts/character/start_audio8_tts.ps1 -VireaHome $env:VIREA_HOME -HfHome $env:HF_HOME -Model '<DATA_ROOT>/models/audio8-tts-0.6b' -Port 8081
 ```
 
 ```powershell
@@ -80,7 +90,8 @@ $env:VIREA_CHARACTER_CONFIG = (Resolve-Path configs/character/ollama-gpu.json).P
 uv run virea serve --virea-home $env:VIREA_HOME
 ```
 
-Kokoro uses CPU and serves PCM16 mono WAV on port 8081. The example selects Windows
+Audio8-TTS 0.6B serves 44.1 kHz PCM16 mono WAV and requires an imported reference voice.
+The current streaming deployment requires CUDA. The example selects Windows
 CUDA for SentiAvatar; on Linux/WSL set the execution domain to the exact ID returned
 by `doctor`. Use one API worker. For another OpenAI-compatible text-only Qwen service,
 edit `configs/character/12gb-cpu-language.json`. That filename expresses a placement

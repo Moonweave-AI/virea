@@ -75,10 +75,17 @@ def test_terminal_release_allows_later_companion_without_reviving_activity(
         path = f"/s/behavior/{first['id']}/feedback"
         slot = current.behavior_slots[first["id"]]
         slot["advances_activity"] = True
-        assert client.post(path, json={"body": {}, "status": "playing"}).status_code == 409
+        assert (
+            client.post(path, json={"body": {}, "status": "playing"}).status_code == 409
+        )
         slot["advances_activity"] = False
-        assert client.post(path, json={"body": {}, "status": "playing"}).status_code == 200
-        assert client.post(path, json={"body": {}, "status": "completed"}).status_code == 200
+        assert (
+            client.post(path, json={"body": {}, "status": "playing"}).status_code == 200
+        )
+        assert (
+            client.post(path, json={"body": {}, "status": "completed"}).status_code
+            == 200
+        )
         assert current.body_program["status"] == status
 
 

@@ -42,6 +42,7 @@ export const studioShell = `
           <section class="expression-panel" aria-label="语音、动作与文本">
             <p id="current-driver" class="current-driver" role="status">等待行为</p>
             <div class="track timeline"><strong id="active-phase">播放时间轴</strong><span id="timeline-state">等待生成</span><button id="pause" disabled>暂停</button><progress id="timeline-progress" max="1" value="0" aria-label="统一播放进度"></progress></div>
+            <div id="performance-tracks" aria-label="独立动作与语音轨道" hidden></div>
             <details class="playback-tools"><summary>播放与导出</summary><div class="settings-content">
               <div class="track"><strong>语音</strong><span id="audio-state">等待语音</span><progress id="audio-progress" max="1" value="0" aria-label="语音进度"></progress></div>
               <div class="track"><strong>动作</strong><span id="motion-state">自然站姿</span><progress id="motion-progress" max="1" value="0" aria-label="动作进度"></progress></div>
@@ -82,10 +83,27 @@ export const studioShell = `
     <div class="dialog-heading"><div><span class="eyebrow">WORKSPACE SETTINGS</span><h2 id="settings-title">角色与设置</h2></div><button id="settings-close" class="icon-button" aria-label="关闭设置">${icon("close")}</button></div>
     <section id="session-tools" class="settings">
       <label class="file"><span class="file-icon">${icon("body")}</span><strong>选择 VRM 角色</strong><span>在本地载入，保留你的角色形象</span><input id="avatar" type="file" accept=".vrm,.glb"></label>
+      <label class="mode">动作路线<select id="motion-backend"><option value="sentiavatar_ardy">SentiAvatar + ARDY</option></select></label>
+      <p id="motion-backend-status">正在读取动作路线…</p>
       <label class="mode">播放方式<select id="playback-mode"><option value="synchronized">按计划编排 · 语音与动作独立执行</option></select></label>
-      <label class="mode">声线<select id="voice" disabled aria-label="声线"></select></label>
-      <div class="voice-preview"><input id="voice-sample" aria-label="试听文本" maxlength="120" value="你好，很高兴见到你。今天有什么想和我聊的吗？"><button id="voice-preview">试听</button></div>
+      <div class="voice-heading"><strong>声音克隆</strong><span>Audio8-TTS 0.6B</span></div>
+      <label class="mode">参考声线<select id="voice" disabled aria-label="声线"></select></label>
+      <p id="voice-status" class="hint" role="status">正在读取声线…</p>
+      <div class="voice-preview"><input id="voice-sample" aria-label="试听文本" maxlength="120" value="你好，很高兴见到你。今天有什么想和我聊的吗？"><button id="voice-preview" disabled>试听克隆</button></div>
       <audio id="voice-player" controls hidden aria-label="声线试听"></audio>
+      <div class="buttons"><button id="voice-refresh" type="button">刷新声线</button><button id="voice-delete" type="button" disabled>删除所选声线</button></div>
+      <details class="voice-import" open><summary>导入参考音频</summary>
+        <div class="voice-import-fields">
+          <p class="hint">使用约 10 秒、单人、清晰无背景音乐的录音。准确填写录音中的每一个字，可以提高声音克隆的相似度与稳定性。</p>
+          <label>声线名称<input id="voice-name" maxlength="80" placeholder="例如：我的角色声音"></label>
+          <label>参考音频<input id="voice-reference" type="file" accept=".wav,.flac,.mp3,.ogg,audio/wav,audio/flac,audio/mpeg,audio/ogg" aria-describedby="voice-file-hint"></label>
+          <small id="voice-file-hint">WAV、FLAC、MP3 或 OGG · 3–30 秒 · 最大 12 MiB</small>
+          <audio id="voice-reference-player" controls hidden aria-label="参考录音试听"></audio>
+          <label>录音逐字文本<textarea id="voice-transcript" maxlength="2000" placeholder="填写参考录音中实际说出的内容，保留标点。"></textarea></label>
+          <button id="voice-import" type="button">导入并使用</button>
+          <p id="voice-import-status" class="hint" role="status" aria-live="polite"></p>
+        </div>
+      </details>
       <label class="persona-label">角色设定<textarea id="persona" aria-label="角色设定" maxlength="4000"></textarea><small>声线与设定从下一次回复开始生效。</small></label>
       <div class="buttons"><button id="start" class="primary" disabled>开始会话</button><button id="sound">继续声音</button></div>
     </section>

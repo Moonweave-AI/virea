@@ -125,7 +125,10 @@ def test_silent_action_never_calls_tts_or_motion(tmp_path):
         session = make_session(
             tmp_path,
             Decision(
-                mode="ACT_SILENTLY", actions=[{"kind": "look_at", "target_id": "cup", "duration_seconds": 1.2}]
+                mode="ACT_SILENTLY",
+                actions=[
+                    {"kind": "look_at", "target_id": "cup", "duration_seconds": 1.2}
+                ],
             ),
         )
         await session.environment_event(
@@ -188,7 +191,9 @@ def test_new_user_cancels_inflight_generation(tmp_path):
 
 def test_autonomous_repetition_and_budget_are_bounded(tmp_path):
     async def run():
-        action = Decision(mode="ACT_SILENTLY", actions=[{"kind": "stop", "duration_seconds": 0.8}])
+        action = Decision(
+            mode="ACT_SILENTLY", actions=[{"kind": "stop", "duration_seconds": 0.8}]
+        )
         session = make_session(tmp_path, action, action, action)
         await session.message("动一下")
         await until(lambda: session.pending is not None)
@@ -197,7 +202,9 @@ def test_autonomous_repetition_and_budget_are_bounded(tmp_path):
         assert len(session.language.contexts) == 1
         assert session.events[-1]["kind"] == "response_finished"
         # A new environment event still has independent authority to act.
-        await session.environment_event(EnvironmentEvent(kind="target_changed", silent=False))
+        await session.environment_event(
+            EnvironmentEvent(kind="target_changed", silent=False)
+        )
         await until(lambda: len(session.language.contexts) == 2)
         await until(lambda: session.status == "waiting")
         assert session.events[-1]["kind"] == "repetition_stopped"

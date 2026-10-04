@@ -32,15 +32,74 @@ VIREA has grown from a motion-data and retargeting pipeline, through isolated mu
 into **Motion Studio: an ongoing conversation with a moving character**. The earlier foundations still matter:
 native model histories, skeleton conversion, isolated workers and observable execution now support one performance.
 
-The language model composes the response and a coarse activity plan. Kokoro supplies the voice.
-SentiAvatar supplies speech-conditioned expression; ARDY supplies continuous full-body activity and travel.
-The execution layer decides when each activity continues, changes or finishes, using motion history and playback feedback.
-Speech can precede an action, accompany it, or wait for an observed outcome. The two motion models take turns owning the body.
+The language model composes the response and a coarse activity plan. Audio8-TTS 0.6B clones the voice from a reference recording.
+Import audio and its exact transcript in Settings, then preview and select the voice. See the [deployment and migration guide](doc/character/audio8-tts.zh-CN.md).
+Choose **SentiAvatar + ARDY**, **MotionCraft**, or **SynTalker** before starting a session.
+The existing SentiAvatar + ARDY route retains activity execution and model handoffs. Each new route uses one motion family
+with independently timed motion segments and cloned speech: multiple actions can outlast speech, and speech can start anywhere
+or cross action boundaries. Native history continues between windows; audio EOF does not stop the body.
+See the [technical synopsis](doc/character/unified-motion.en.md) for implementation, setup and measured limitations.
 
 This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
 they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
 
+<!-- BEGIN UNIFIED_MOTION_DEMOS -->
+## Single-family routes: 16 complex task demos
+
+**Eight recordings per family, each in two columns × four rows.** Click a cover for the complete MP4. Audio8-TTS uses the supplied `audio_reference_chu2.mp3` and `chu2.txt` voice reference. These are actual Studio replays at normal speed; preparation latency is separate.
+
+These are actual model outputs, **not a certification of task fidelity or naturalness**. Complex travel, foot contact and fine gestures remain limited. See the [technical synopsis and reproduction guide](doc/character/unified-motion.en.md) for architecture, measured latency and limitations.
+
+### MotionCraft
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+### SynTalker
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)
+
+Avatar: Unnamed Character 6 — Reira. Source: `VRM-Model-1.vrm`.
+<!-- END UNIFIED_MOTION_DEMOS -->
+
 ## Motion Studio demos
+
+These recordings used the earlier Kokoro stack. Current speech defaults to Audio8-TTS 0.6B; the historical timing measurements do not describe the new model.
 
 <!-- BEGIN CHARACTER_DEMOS -->
 **8 complete recordings · two columns, four rows.** Play each video directly here without downloading; use the player controls to enable sound and expand to full screen. Model-directed plans retain pauses within playback; generation latency is reported separately.
@@ -71,25 +130,25 @@ they are not a claim of universal physical interaction, all-terrain locomotion, 
 
 ```mermaid
 flowchart LR
-    U[User + dialogue + body / scene state] --> L[LLM: reply A + coarse plan P]
-    L --> V[Kokoro: voice V]
-    L --> E[Activity execution and event dependencies]
-    V --> S[SentiAvatar: speech + expression + native history]
-    E --> S
-    E --> A[ARDY: activity text + recent body history]
-    S --> B[One body owner at a time]
-    A --> B
-    B --> R[VRM: body + face + subtitles + sound]
+    U[User request + conversation] --> L[LLM: motion intent + independent speech]
+    L --> V[Audio8-TTS: cloned voice / measured PCM duration]
+    L --> E{Selected motion route}
+    V --> E
+    E --> S[Existing: SentiAvatar + ARDY]
+    E --> M[MotionCraft: text backbone + speech control]
+    E --> T[SynTalker: latent diffusion + RVQ]
+    S --> R[VRM: one body source / shared playback clock]
+    M --> R
+    T --> R
     V --> R
-    R --> F[Observed progress + playback receipts]
-    F --> E
+    R --> F[Progress / pause / interruption / recording]
 ```
 
 | Layer | Responsibility |
 |---|---|
 | Dialogue and intent | Understand the conversation; author the reply, activities and their ordering. |
-| Coarse planning | Choose each activity's executor and model input; avoid manufacturing a fixed duration for every action. |
-| Rolling execution | Prepare native windows ahead, retain motion history, review completion and apply boundary constraints. |
+| Planning | Existing route: coarse activity execution. New routes: independently timed motion and speech tracks. |
+| Generation | Preserve native window history. New routes prepare the whole performance before playback; they do not claim online streaming. |
 | Presentation | Maintain one body owner, independent speech timing, continuous sample clocks and an inspectable execution trace. |
 | Runtime foundation | Keep model environments separate; retain native identities, retarget through Motion IR and play real VRM assets. |
 

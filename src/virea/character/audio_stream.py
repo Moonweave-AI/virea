@@ -18,6 +18,7 @@ class PCMWindows:
         self.first = True
         self.position = 0
         self.marks = deque()
+        self.rate = None
 
     def mark(self, name: str):
         """Place an event at an exact PCM boundary, before reblocking."""
@@ -25,9 +26,20 @@ class PCMWindows:
 
     def push(self, unit):
         with wave.open(io.BytesIO(unit["audio"]), "rb") as source:
-            if source.getparams()[:3] != (1, 2, 24000):
-                raise ValueError("stream requires mono PCM16 at 24 kHz")
+            channels, width, rate, frames, compression, _ = source.getparams()
+            if (
+                channels != 1
+                or width != 2
+                or compression != "NONE"
+                or rate not in (24000, 44100, 48000)
+            ):
+                raise ValueError("stream requires mono PCM16 at 24, 44.1 or 48 kHz")
+            if self.rate is not None and rate != self.rate:
+                raise ValueError("speech sample rate changed within a stream")
+            self.rate = rate
             pcm = source.readframes(source.getnframes())
+            if not frames or len(pcm) != frames * 2:
+                raise ValueError("empty or truncated speech audio")
         self.parts.append(dict(unit, pcm=pcm))
         self.frames += len(pcm) // 2
         return self.take()
@@ -35,13 +47,14 @@ class PCMWindows:
     def take(self, final=False):
         windows = []
         while self.frames:
-            target = 57_600 if self.first else 115_200
-            if not final and self.frames < target + 14_400:
+            target = round(self.rate * (2.4 if self.first else 4.8))
+            tail = round(self.rate * 0.6)
+            if not final and self.frames < target + tail:
                 break
             count = min(target, self.frames)
-            if self.frames - count < 14_400:
+            if self.frames - count < tail:
                 count = self.frames
-            remaining, chunks, texts = count, [], []
+            remaining, chunks, texts, captions = count, [], [], []
             decision = self.parts[0].get("decision")
             speech_start = self.parts[0].get("speech_start")
             dominant_frames = 0
@@ -53,20 +66,24 @@ class PCMWindows:
                 end = round(len(part["text"]) * size * 2 / len(part["pcm"]))
                 chunks.append(part["pcm"][: size * 2])
                 texts.append(part["text"][:end])
+                if part.get("caption") and (
+                    not captions or captions[-1] != part["caption"]
+                ):
+                    captions.append(part["caption"])
                 part["pcm"], part["text"] = part["pcm"][size * 2 :], part["text"][end:]
                 remaining -= size
                 if not part["pcm"]:
                     self.parts.popleft()
             buffer = io.BytesIO()
             with wave.open(buffer, "wb") as stream:
-                stream.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
+                stream.setparams((1, 2, self.rate, 0, "NONE", "not compressed"))
                 stream.writeframes(b"".join(chunks))
             windows.append(
                 dict(
                     audio=buffer.getvalue(),
-                    seconds=count / 24000,
+                    seconds=count / self.rate,
                     text="".join(texts),
-                    caption="".join(texts),
+                    caption="".join(texts) or "".join(captions),
                     decision=decision,
                     speech_start=speech_start,
                     continues=not (final and count == self.frames),
@@ -76,7 +93,7 @@ class PCMWindows:
             while self.marks and self.marks[0][1] <= self.position + count:
                 name, at = self.marks.popleft()
                 windows[-1]["speech_marks"].append(
-                    {"name": name, "offset_seconds": (at - self.position) / 24000}
+                    {"name": name, "offset_seconds": (at - self.position) / self.rate}
                 )
             self.position += count
             self.frames -= count

@@ -3,7 +3,7 @@ import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { RotationBridge, rotationVector } from "./continuity";
 import { GroundSupport } from "./support";
 
-export type BodyOwner = "ardy" | "sentiavatar" | "hold";
+export type BodyOwner = "ardy" | "sentiavatar" | "motioncraft" | "syntalker" | "hold";
 type Pose = Map<string, { q: THREE.Quaternion; p: THREE.Vector3 }>;
 
 /** One body source per frame. Handoffs decay the old boundary error, not another animation. */
@@ -67,15 +67,16 @@ export class BodyAuthority {
   }
 
   render(requested: BodyOwner, dt: number, sampleArdy: () => void, ardyReady: boolean): void {
-    const owner = requested === "ardy" && ardyReady ? "ardy"
+    const spatialOwner = requested === "ardy" || requested === "motioncraft" || requested === "syntalker";
+    const owner = spatialOwner && ardyReady ? requested
       : requested === "sentiavatar" && this.speech ? "sentiavatar" : "hold";
     this.restore(this.last);
     if (owner !== "hold") this.retraction = null;
     if (owner !== "hold") this.gestureNeedsRetraction = owner === "sentiavatar";
-    if (owner === "ardy") {
+    if (owner === "ardy" || owner === "motioncraft" || owner === "syntalker") {
       // Source sampling must never inherit the last rendered correction. Sparse
       // tracks otherwise integrate that error repeatedly (notably head/fingers).
-      if (this.owner !== "ardy" || !this.ardy) this.ardy = this.snapshot();
+      if (this.owner !== owner || !this.ardy) this.ardy = this.snapshot();
       this.restore(this.ardy); sampleArdy(); this.ardy = this.snapshot();
     }
     if (owner === "sentiavatar") this.restore(this.speech!);

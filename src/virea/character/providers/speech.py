@@ -23,15 +23,40 @@ class SpeechProvider:
         return response.json()["voices"]
 
     async def validate_voice(self, voice: str) -> None:
-        if voice not in {entry["id"] for entry in await self.voices()}:
-            raise ValueError("所选声线未安装")
+        voices = await self.voices()
+        if not voices:
+            raise ValueError("请先在角色与设置中导入参考音频和对应文本")
+        if voice and voice not in {entry["id"] for entry in voices}:
+            raise ValueError("所选参考声线不存在，请在设置中重新选择或导入")
+
+    async def import_voice(self, payload: dict) -> dict:
+        response = await self.client.post(
+            self.config.tts_url.rstrip("/") + "/audio/voices",
+            json=payload,
+            timeout=self.config.provider_timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def delete_voice(self, voice: str) -> None:
+        from urllib.parse import quote
+
+        response = await self.client.delete(
+            self.config.tts_url.rstrip("/") + "/audio/voices/" + quote(voice, safe=""),
+            timeout=self.config.provider_timeout,
+        )
+        response.raise_for_status()
 
     async def stream(self, text: str):
         received = ""
         async with self.client.stream(
             "POST",
             self.config.tts_url.rstrip("/") + "/audio/speech/stream",
-            json={"model": "kokoro", "input": text, "voice": self.config.tts_voice},
+            json={
+                "model": self.config.tts_model,
+                "input": text,
+                "voice": self.config.tts_voice or None,
+            },
             timeout=self.config.provider_timeout,
         ) as response:
             response.raise_for_status()
@@ -39,8 +64,10 @@ class SpeechProvider:
                 if not line:
                     continue
                 item = json.loads(line)
+                if "error" in item:
+                    raise ValueError(item["error"])
                 audio, duration = pcm_wave(
-                    base64.b64decode(item["audio"], validate=True)
+                    base64.b64decode(item["audio"], validate=True), pad=False
                 )
                 received += item["text"]
                 if not text.startswith(received):
@@ -59,9 +86,9 @@ class SpeechProvider:
             "POST",
             self.config.tts_url.rstrip("/") + "/audio/speech",
             json={
-                "model": "kokoro",
+                "model": self.config.tts_model,
                 "input": final_text,
-                "voice": self.config.tts_voice,
+                "voice": self.config.tts_voice or None,
                 "response_format": "wav",
             },
             timeout=self.config.provider_timeout,

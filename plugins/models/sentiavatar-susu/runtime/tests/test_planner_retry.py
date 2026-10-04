@@ -32,10 +32,18 @@ def test_short_plan_retries_once_with_same_context(monkeypatch, recovers):
         return [[1, 2, 3, 4]] * 3
 
     backend._planner_tokens = planner
-    monkeypatch.setattr(module, "interpolate_batched", lambda *args, **kwargs: [[1, 2, 3, 4]] * 12)
+    monkeypatch.setattr(
+        module, "interpolate_batched", lambda *args, **kwargs: [[1, 2, 3, 4]] * 12
+    )
     backend._decode_body = lambda _: np.zeros((24, 153))
-    kwargs = dict(seed=42, temperature=.5, top_p=.7, generate_steps=6,
-                  max_new_tokens=512, generate_face=False)
+    kwargs = dict(
+        seed=42,
+        temperature=0.5,
+        top_p=0.7,
+        generate_steps=6,
+        max_new_tokens=512,
+        generate_face=False,
+    )
     if recovers:
         body, face, tail, history = backend._generate_chunk("audio", "intent", **kwargs)
         assert body.shape == (24, 153) and face is None
@@ -46,4 +54,4 @@ def test_short_plan_retries_once_with_same_context(monkeypatch, recovers):
     assert len(calls) == 2
     assert calls[0][0] == calls[1][0]
     assert [call[2] for call in calls] == [42, 43]
-    assert calls[1][1]["temperature"] == .2
+    assert calls[1][1]["temperature"] == 0.2

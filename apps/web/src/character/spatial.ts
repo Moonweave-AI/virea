@@ -7,6 +7,7 @@ import { samplePosition, sampleRotation } from "./motion_sampling";
 import { GroundSupport } from "./support";
 
 export interface SpatialWindow {
+  grounding?: "prevent_penetration";
   sequence: number; offset: number; seconds: number; fps: number;
   root: number[][]; rotations: Record<string, number[][]>;
   joints?: Record<string, number[][]>;
@@ -63,7 +64,8 @@ export class SpatialPlayer {
   }
 
   async run(packet: Expression, body: BodyState, hipHeight: number,
-    onProgress: (elapsed: number, duration: number) => void = () => {}, after: string | null = null): Promise<void> {
+    onProgress: (elapsed: number, duration: number) => void = () => {}, after: string | null = null,
+    startAt: number | null = null): Promise<void> {
     const adjacent = packet.temporal && this.holding && after !== null && after === this.packetId;
     const previous = adjacent ? this.current : null;
     const deadline = Math.max(this.start + this.total, this.successor?.startAt ?? -Infinity);
@@ -128,7 +130,7 @@ export class SpatialPlayer {
       if (controller.signal.aborted) throw new DOMException("Interrupted", "AbortError");
       this.current = this.queue.shift() ?? null;
       this.total = this.current?.total_seconds ?? 0;
-      this.start = origin ?? this.clock(); this.underruns = 0; this.elapsed = 0;
+      this.start = startAt ?? origin ?? this.clock(); this.underruns = 0; this.elapsed = 0;
       if (this.current && !packet.temporal) for (const [name, values] of Object.entries(this.current.rotations)) {
         const bone = this.vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
         if (bone) this.bridges.set(name, new RotationBridge(bone.quaternion, this.quaternion(values[0]!), undefined, undefined, .35));
@@ -226,7 +228,8 @@ export class SpatialPlayer {
     for (const [name, rows] of Object.entries(window.joints ?? {})) {
       this.joints.set(name, samplePosition(rows, cursor, previous?.joints?.[name], next?.joints?.[name]));
     }
-    this.support.align(this.joints);
+    if (this.joints.size) this.support.align(this.joints);
+    else if (window.grounding === "prevent_penetration") this.support.preventPenetration();
     if (window.phase_kind === "reach" && window.target) {
       const target = new THREE.Vector3(window.target.x, window.target.y, window.target.z);
       const hand = this.vrm.humanoid.getNormalizedBoneNode("rightHand");

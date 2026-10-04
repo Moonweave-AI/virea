@@ -13,7 +13,9 @@ from .providers.language import LanguageProvider
 from .providers.motion import CAPABILITIES, MotionProvider
 from .providers.resident_motion import ResidentMotion
 from .providers.speech import SpeechProvider
+from .providers.unified import UnifiedMotionProvider
 from .session import CharacterSession
+from .unified_session import UnifiedCharacterSession
 
 
 def load_config() -> CharacterConfig:
@@ -35,9 +37,20 @@ class CharacterManager:
         self.motion = ResidentMotion(MotionProvider(control, self.config))
         self.sessions: dict[str, CharacterSession] = {}
         self.generation_slot = asyncio.Semaphore(1)
+        self.speech_generation_slot = asyncio.Semaphore(1)
         self._reaper = asyncio.create_task(self._expire())
 
     def create(self, request: SessionRequest) -> CharacterSession:
+        backend = request.motion_backend or self.config.motion_backend
+        if backend != "sentiavatar_ardy":
+            if not getattr(self.config, f"{backend}_url"):
+                raise ValueError(
+                    f"{backend} is not configured; start its motion worker and set {backend}_url"
+                )
+            if request.playback_mode != "synchronized":
+                raise ValueError(
+                    "independent performance tracks require synchronized playback"
+                )
         if request.require_native_history and (
             not CAPABILITIES["native_history"]
             or request.playback_mode != "synchronized"
@@ -52,11 +65,25 @@ class CharacterManager:
             for key, value in {
                 "tts_voice": request.voice,
                 "persona": request.persona,
+                "motion_backend": backend,
             }.items()
             if value is not None
         }
         config = self.config.model_copy(update=overrides)
-        session = CharacterSession(
+        session_type = (
+            CharacterSession
+            if backend == "sentiavatar_ardy"
+            else UnifiedCharacterSession
+        )
+        extra = (
+            {}
+            if backend == "sentiavatar_ardy"
+            else {
+                "unified": UnifiedMotionProvider(config, self.client),
+                "speech_generation_slot": self.speech_generation_slot,
+            }
+        )
+        session = session_type(
             config=config,
             directory=self.directory,
             language=self.language,
@@ -65,6 +92,7 @@ class CharacterManager:
             generation_slot=self.generation_slot,
             avatar_id=request.avatar_id,
             playback_mode=request.playback_mode,
+            **extra,
         )
         self.sessions[session.id] = session
         return session
@@ -72,7 +100,8 @@ class CharacterManager:
     def get(self, session_id: str) -> CharacterSession:
         session = self.sessions[session_id]
         session.last_seen = monotonic()
-        self.motion.control.residents.touch(self.config.motion_model_id)
+        if session.config.motion_backend == "sentiavatar_ardy":
+            self.motion.control.residents.touch(self.config.motion_model_id)
         return session
 
     async def remove(self, session_id: str) -> None:

@@ -3,8 +3,8 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-10-03
-last_reviewed: 2026-10-03
+updated: 2026-10-04
+last_reviewed: 2026-10-04
 review_cycle_days: 14
 summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
@@ -30,13 +30,70 @@ VIREA 是一个实验性的持续角色运行系统：把对话、声音、表�
 VIREA 已经历动作数据与重定向、多模型隔离生成两个基础阶段，现在进入 **Motion Studio：与一个持续运动的角色交互**。
 原有的原生骨骼、Motion IR、VRMA、隔离 Worker 与执行证据，成为这个新阶段的底层基础。
 
-LLM 同时组织回答和粗粒度活动计划；Kokoro 生成声音；SentiAvatar 负责随声表达；ARDY 负责连续的全身活动与位移。
-执行层根据身体历史和播放回执决定继续、切换或结束活动。角色可以先说后做、边说边做，也可以完成动作后再开口。
-两个动作模型分时接管身体，同一帧只保留一个身体驱动源。
+LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆声音。开始会话前可以选择 **SentiAvatar + ARDY、MotionCraft、SynTalker** 三条路线。
+在「角色与设置」中导入参考音频及逐字文本，保存、试听并选择声线，详见 [Audio8-TTS 0.6B 部署与迁移](doc/character/audio8-tts.zh-CN.md)。
+已有路线保留活动执行与双模型交接；两条新路线各由一个动作模型家族连续生成，多段动作与任意起点的语音共用播放时钟。
+语音可以跨动作边界，动作可以比声音长，音频结束不会停止身体。原生历史跨推理窗口延续，详见[技术梗概与部署说明](doc/character/unified-motion.zh-CN.md)。
 
 这一阶段仍为**实验性能力**。下面展示的是本机真实运行与录制，并保留实际时序与已知限制；它不等于全场景物理交互、任意地形运动或生产级可靠性。
 
+<!-- BEGIN UNIFIED_MOTION_DEMOS -->
+## 单模型路线：16 个复杂任务 Demo
+
+MotionCraft、SynTalker 各 8 段，分别按 **2 列 × 4 行** 排列。点击封面查看完整 MP4；音频来自用户提供的 `audio_reference_chu2.mp3` 与 `chu2.txt`，由 Audio8-TTS 克隆生成。录像为真实页面按正常速度回放，不包含准备等待。
+
+这些是实际模型输出，**不代表所有动作意图都被准确执行或已通过主观自然度验收**：复杂走位、脚部接触和精细手势仍有限制。技术梗概、配置、实测等待时间和能力边界见[完整技术说明](doc/character/unified-motion.zh-CN.md)。
+
+### MotionCraft
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+### SynTalker
+
+<table>
+<tr>
+<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
+</tr>
+</table>
+
+[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)
+
+Avatar: Unnamed Character 6 — Reira. Source: `VRM-Model-1.vrm`.
+<!-- END UNIFIED_MOTION_DEMOS -->
+
 ## Motion Studio 演示
+
+以下为升级前使用 Kokoro 的历史录制；当前默认语音已改为 Audio8-TTS 0.6B，历史时延不代表新模型性能。
 
 <!-- BEGIN CHARACTER_DEMOS -->
 **8 段完整录制 · 两列四行。** 直接在下方播放，可通过播放器开启声音或进入全屏。模型自主编排，视频保留实际播放内的停顿；生成前等待另见实测。
@@ -68,13 +125,15 @@ LLM 同时组织回答和粗粒度活动计划；Kokoro 生成声音；SentiAvat
 ```mermaid
 flowchart LR
     U[用户消息 + 对话 + 身体与场景状态] --> L[LLM：回答 A + 粗计划 P]
-    L --> V[Kokoro：语音 V]
-    L --> E[活动执行与事件依赖]
-    V --> S[SentiAvatar：语音 + 表达 + 原生历史]
-    E --> S
-    E --> A[ARDY：活动描述 + 最近身体历史]
+    L --> V[Audio8-TTS 0.6B：克隆语音 V]
+    L --> E{选择本会话动作路线}
+    V --> E
+    E --> S[已有 SentiAvatar + ARDY]
+    E --> M[MotionCraft 文本骨干 + 语音控制]
+    E --> A[SynTalker 潜空间扩散 + RVQ]
     S --> B[身体按时段独占]
     A --> B
+    M --> B
     B --> R[VRM：身体 + 表情 + 字幕 + 声音]
     V --> R
     R --> F[实际进度与播放回执]
@@ -84,8 +143,8 @@ flowchart LR
 | 层次 | 职责 |
 |---|---|
 | 对话理解 | 根据对话组织台词、行为意图与先后关系。 |
-| 粗粒度规划 | 为活动选择执行模型及输入描述，不为每个动作凭空填写秒数。 |
-| 滚动执行 | 提前准备原生窗口，携带运动历史，判断完成并生成有约束的模型交接。 |
+| 规划 | 已有路线保持粗粒度活动执行；新路线分别编排动作段与语音片段的时间。 |
+| 生成 | 保留原生窗口历史。新路线准备完整表演后播放，当前不宣称低延迟在线流式能力。 |
 | 呈现与反馈 | 一个身体驱动源、独立的发言时机、连续采样时钟和可检查的执行链。 |
 | 运行基础 | 隔离模型环境，保留原生身份，经 Motion IR 重定向到真实 VRM。 |
 

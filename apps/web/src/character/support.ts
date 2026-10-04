@@ -20,6 +20,10 @@ export class GroundSupport {
     this.vrm.scene.updateMatrixWorld(true);
     return Math.min(...this.feet.map(({ bone }) => bone.getWorldPosition(new THREE.Vector3()).y)) - this.vrm.scene.position.y - this.sole;
   }
+  preventPenetration(): void {
+    const clearance = this.clearance();
+    if (clearance !== null && clearance < 0) this.align();
+  }
   align(native?: ReadonlyMap<string, THREE.Vector3>): void {
     const hips = this.vrm.humanoid.getNormalizedBoneNode("hips");
     if (!hips?.parent || !this.feet.length) return;

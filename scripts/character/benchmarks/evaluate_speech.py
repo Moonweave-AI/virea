@@ -23,6 +23,8 @@ def main():
         "--endpoint", action="append", required=True, help="NAME=BASE_URL"
     )
     parser.add_argument("--rounds", type=int, default=3)
+    parser.add_argument("--model", default="audio8/tts-0.6b")
+    parser.add_argument("--voice", required=True, help="Imported reference voice ID")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     endpoints = [value.split("=", 1) for value in args.endpoint]
@@ -36,9 +38,9 @@ def main():
                     response = client.post(
                         url.rstrip("/") + "/audio/speech",
                         json={
-                            "model": "kokoro",
+                            "model": args.model,
                             "input": text,
-                            "voice": "zf_001",
+                            "voice": args.voice,
                             "response_format": "wav",
                         },
                     )

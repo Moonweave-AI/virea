@@ -110,7 +110,7 @@ class PlaybackFeedback(Contract):
     status: Literal["completed", "interrupted", "failed"]
     body: BodyState
     message: str = Field(default="", max_length=500)
-    audio_seconds: float = Field(default=0, ge=0, le=60)
+    audio_seconds: float = Field(default=0, ge=0, le=180)
     motion_seconds: float = Field(default=0, ge=0, le=600)
 
 
@@ -133,6 +133,9 @@ class VoicePreview(Contract):
 
 
 class SessionRequest(Contract):
+    motion_backend: Literal["sentiavatar_ardy", "motioncraft", "syntalker"] | None = (
+        None
+    )
     avatar_id: str | None = None
     require_native_history: bool = False
     playback_mode: Literal["synchronized", "voice_first"] = "synchronized"
@@ -141,6 +144,11 @@ class SessionRequest(Contract):
 
 
 class CharacterConfig(Contract):
+    motion_backend: Literal["sentiavatar_ardy", "motioncraft", "syntalker"] = (
+        "sentiavatar_ardy"
+    )
+    motioncraft_url: str | None = None
+    syntalker_url: str | None = None
     settlement: SettlementPolicy = Field(default_factory=SettlementPolicy)
     expression_lead_seconds: float = Field(default=1.8, ge=0, le=5)
     llm_api: Literal["openai", "ollama"] = "openai"
@@ -148,7 +156,9 @@ class CharacterConfig(Contract):
     llm_model: str = "Qwen3.5-2B"
     llm_thinking: bool = False
     tts_url: str = "http://127.0.0.1:8081/v1"
-    tts_voice: str = "zf_001"
+    tts_model: str = "audio8/tts-0.6b"
+    # Empty selects the first imported reference voice.
+    tts_voice: str = ""
     motion_planner_url: str | None = None
     motion_model_id: str = "sentiavatar-susu"
     motion_temperature: float = Field(default=0.5, ge=0, le=2)

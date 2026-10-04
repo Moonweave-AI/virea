@@ -3,6 +3,7 @@ import { studioShell } from "./ui/shell";
 import { StudioHistory, downloadJSON } from "./ui/history";
 import { StudioPreferences } from "./ui/preferences";
 import { StudioDiagnostics } from "./ui/diagnostics";
+import { MotionBackendPicker, renderPerformanceTracks } from "./ui/performance";
 import { CharacterStage } from "./stage";
 import { downloadVideo } from "./video";
 import type { Expression, Session, PlaybackProgress } from "./contracts";
@@ -14,6 +15,7 @@ function element<T extends HTMLElement>(selector: string): T { return root.query
 const stage = new CharacterStage(element("canvas"));
 const history = new StudioHistory(root);
 const preferences = new StudioPreferences(root, showError);
+const motionBackend = new MotionBackendPicker(root, showError);
 const diagnostics = new StudioDiagnostics(root);
 let session: Session | null = null;
 let playing: string | null = null;
@@ -48,7 +50,8 @@ function showProgress(value: PlaybackProgress): void {
     const recorded = stage.diagnostics().recording;
     element("#timeline-state").textContent = `${value.paused ? "已暂停 · " : ""}本轮已播放 ${recorded.duration_seconds.toFixed(1)} 秒`;
   }
-  if (value.elapsed >= value.audioDuration) element("#subtitle").textContent = "";
+  if (value.caption !== undefined) element("#subtitle").textContent = value.caption;
+  else if (value.elapsed >= value.audioDuration) element("#subtitle").textContent = "";
   for (const [name, duration] of [["audio", value.audioDuration], ["motion", bodyDuration]] as const) {
     const elapsed = Math.min(name === "motion" ? bodyElapsed : value.elapsed, duration);
     const bar = element<HTMLProgressElement>(`#${name}-progress`);
@@ -83,6 +86,7 @@ function showError(error: unknown): void {
 }
 
 function renderState(value: Session): void {
+  renderPerformanceTracks(root, value.performance);
   stage.track(value);
   diagnostics.update(value, stage.diagnostics());
   root.dataset.sessionId = value.id;
@@ -93,7 +97,8 @@ function renderState(value: Session): void {
   element("#response-text").textContent = value.draft_text || (value.route?.engine === "ardy" ? "" : ["thinking", "routing"].includes(value.status) ? "正在准备…" : "和角色聊聊。");
   element("#reply-owner").textContent = "VIREA";
   element("#route-card").hidden = !value.route;
-  element("#route-model").textContent = value.route?.engine === "temporal" ? "对话 · 行为调度" : value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
+  element("#route-model").textContent = value.route?.engine === "motioncraft" ? "MotionCraft" : value.route?.engine === "syntalker" ? "SynTalker"
+    : value.route?.engine === "temporal" ? "对话 · 行为调度" : value.route?.engine === "ardy" ? "ARDY" : "SentiAvatar";
   element("#route-reason").textContent = value.route?.reason ?? "";
   const body = value.body_program;
   const archivedPlan = body && (body.origin_epoch ?? value.epoch) < value.epoch
@@ -136,7 +141,8 @@ async function play(packet: Expression, sessionId: string): Promise<void> {
   if (handled.size > 128) handled.delete(handled.values().next().value!);
   const generation = playbackGeneration;
   element<HTMLButtonElement>("#pause").disabled = false;
-  element("#playback-note").textContent = packet.motion
+  element("#playback-note").textContent = packet.performance ? "同一模型连续生成动作，语音在独立轨道的指定位置播放。"
+    : packet.motion
     ? "身体按时段选择一个动作模型；语音、口型与表情使用统一时钟。"
     : packet.route?.engine === "ardy" ? "动作序列连续生成，共用一条时间轴。" : "语音与字幕同步播放。";
   let status = "completed";
@@ -189,7 +195,8 @@ element<HTMLInputElement>("#avatar").onchange = async (event) => {
   if (!file) return;
   try {
     if (session) return;
-    await stage.loadAvatar(file);
+    await motionBackend.ready;
+    await stage.loadAvatar(file, motionBackend.value);
     element("#avatar-name").textContent = file.name.replace(/\.vrm$/i, "");
     root.classList.add("avatar-loaded");
     element<HTMLButtonElement>("#start").disabled = false;
@@ -203,8 +210,10 @@ element("#start").onclick = async () => {
   setMutating(true);
   try {
     await stage.unlockAudio();
-    await preferences.ready;
-    session = await request<Session>("", "POST", { playback_mode: element<HTMLSelectElement>("#playback-mode").value, ...preferences.values() });
+    await Promise.all([preferences.ready, motionBackend.ready]);
+    session = await request<Session>("", "POST", { motion_backend: motionBackend.value,
+      playback_mode: element<HTMLSelectElement>("#playback-mode").value, ...preferences.values() });
+    motionBackend.locked = true;
     element<HTMLSelectElement>("#playback-mode").disabled = true;
     await request(`/${session.id}/environment`, "POST", { kind: "context", silent: true,
       summary: "平坦地面 y=0。用户在正前方；杯子在左侧小圆台上，cup 是接触点，cup_side 是杯子旁的地面站位。move_to 只能选择地面站位；reach 选择杯子接触点。",
@@ -285,7 +294,7 @@ element("#export-video").onclick = () => { void replay("synchronized", true); };
 element("#export-motion").onclick = () => {
   const windows = stage.motionRecording();
   downloadJSON("virea-motion.json", {
-    schema: "virea.spatial_recording.v1", fps: 20, coordinate_system: "right-handed-y-up", quaternion_order: "xyzw",
+    schema: "virea.spatial_recording.v1", fps: windows[0]?.fps ?? 30, coordinate_system: "right-handed-y-up", quaternion_order: "xyzw",
     phases: windows.filter((w, i) => !i || w.phase_index !== windows[i - 1]!.phase_index)
       .map(w => ({ label: w.phase_label, description: w.prompt, kind: w.phase_kind, seconds: w.phase_seconds, offset: w.phase_offset, target: w.target })),
     windows,
@@ -325,7 +334,7 @@ element("#close").onclick = async () => {
   try { await request(`/${session.id}`, "DELETE"); }
   catch (error) { showError(error); }
   finally {
-    session = null; closing = false; setMutating(false); handled.clear();
+    session = null; motionBackend.locked = false; closing = false; setMutating(false); handled.clear();
     root.classList.remove("connected");
     element("#status").textContent = "已结束";
     element("#subtitle").textContent = "";
@@ -351,7 +360,7 @@ async function poll(): Promise<void> {
         const value = await request<Session>(`/${id}`);
         if (session?.id === id && generation === playbackGeneration && !mutating) {
           session = value; renderState(value);
-          if (!previewing) stage.syncBody(value.body_program ?? null, id, showProgress, (programId, status, message) => {
+          if (!previewing && (!value.motion_backend || value.motion_backend === "sentiavatar_ardy")) stage.syncBody(value.body_program ?? null, id, showProgress, (programId, status, message) => {
             if (session?.id !== id || closing) return;
             if (status === "failed") showError(new Error(message));
           });
@@ -371,7 +380,7 @@ async function poll(): Promise<void> {
       } catch (error) {
         if (error instanceof RequestError && error.status === 404 && session?.id === id) {
           playbackGeneration++; stage.stop(); playing = null; previewing = false;
-          session = null; handled.clear();
+          session = null; motionBackend.locked = false; handled.clear();
           element("#status").textContent = "会话已结束";
           element("#subtitle").textContent = "";
           element<HTMLInputElement>("#avatar").disabled = false;

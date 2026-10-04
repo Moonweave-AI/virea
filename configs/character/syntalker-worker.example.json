@@ -1,0 +1,8 @@
+{
+  "backend": "syntalker",
+  "source": "D:/VireaData/SynTalker",
+  "assets": "D:/VireaData/SynTalker-assets",
+  "device": "cuda",
+  "prompt_scale": 1.0,
+  "audio_scale": 1.0
+}

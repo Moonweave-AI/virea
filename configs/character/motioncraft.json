@@ -1,0 +1,13 @@
+{
+  "motion_backend": "motioncraft",
+  "motioncraft_url": "http://127.0.0.1:18086",
+  "llm_api": "openai",
+  "llm_url": "http://127.0.0.1:8080/v1",
+  "llm_model": "qwen3.5:9b",
+  "tts_url": "http://127.0.0.1:8083/v1",
+  "tts_model": "audio8/tts-0.6b",
+  "tts_voice": "",
+  "motion_timeout": 1800,
+  "language_max_tokens": 4096,
+  "persona": "你叫 Virea，是温暖坦率的三维伙伴。根据用户意图分别安排语言和动作；用户没有要求说话时允许安静行动。"
+}
