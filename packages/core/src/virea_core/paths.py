@@ -133,7 +133,15 @@ class VireaPaths:
 
     def ensure_layout(self) -> None:
         checkout = _virea_source_checkout_containing(self.root)
-        if checkout is not None:
+        local_runtime = (
+            checkout is not None
+            and os.getenv("VIREA_ALLOW_CHECKOUT_RUNTIME") == "1"
+            and self.root.is_relative_to(checkout / ".virea-runtime")
+            and (checkout / ".gitignore").is_file()
+            and "/.virea-runtime/"
+            in (checkout / ".gitignore").read_text(encoding="utf-8").splitlines()
+        )
+        if checkout is not None and not local_runtime:
             raise ValueError(
                 "VIREA_HOME must be outside the VIREA source checkout; "
                 f"move runtime data away from {checkout}"

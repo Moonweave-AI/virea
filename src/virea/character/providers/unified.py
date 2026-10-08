@@ -74,6 +74,16 @@ class UnifiedMotionProvider:
         return value
 
     async def plan(self, history, context):
+        # The bridge's goal planner has selected an unfinished step. This is a
+        # transient planning instruction, not a fabricated user/history message.
+        environment = context.get("environment", "")
+        if (
+            context.get("trigger") == "context"
+            and isinstance(environment, str)
+            and environment.startswith("VIREA_AUTONOMOUS_STEP\n")
+        ):
+            instruction = environment.split("\n", 1)[1]
+            history = [*history, {"role": "user", "content": instruction}]
         requested_duration = requested_motion_duration(history)
         schema = PerformancePlan.model_json_schema()
         # Optional API defaults are not optional output fields for a constrained LLM.

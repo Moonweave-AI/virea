@@ -782,6 +782,18 @@
       "provenance": "doc/assets/unified-motion-demos/manifest.json",
       "avatar_credit": "Unnamed Character 6 — Reira",
       "avatar_license_url": "https://hub.vroid.com/license?allowed_to_use_user=everyone&characterization_allowed_user=everyone&corporate_commercial_use=disallow&credit=necessary&modification=allow&personal_commercial_use=disallow&redistribution=disallow&sexual_expression=disallow&version=1&violent_expression=allow"
+    },
+    "doc/assets/vrchat/live-views.jpg": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "reviewed_at": "2026-10-08",
+      "description": "VIREA conversation with two local VRChat window feeds; actual menus, not an accepted avatar/voice demo.",
+      "avatar_credit": "Unnamed Character 6 by Reira; noncommercial rendering with credit; no model redistribution.",
+      "avatar_permission_url": "https://hub.vroid.com/license?allowed_to_use_user=everyone&characterization_allowed_user=everyone&corporate_commercial_use=disallow&credit=necessary&modification=allow&personal_commercial_use=disallow&redistribution=disallow&sexual_expression=disallow&version=1&violent_expression=allow",
+      "decision": "owner-directed-display-permission-unverified",
+      "legal_permission_verified": false,
+      "publication_basis": "Explicit repository owner request for real VRChat integration demos and README publication",
+      "provenance": "doc/quality/vrchat-evidence.json"
     }
   }
 }

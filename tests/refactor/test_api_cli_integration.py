@@ -214,6 +214,17 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("PUT", "/api/v1/characters/{session_id}/recording"),
         ("GET", "/api/v1/characters/{session_id}/audio/{packet_id}"),
         ("GET", "/api/v1/characters/results/{result_id}/face"),
+        ("GET", "/api/v1/vrchat"),
+        ("GET", "/api/v1/vrchat/audio-devices"),
+        ("GET", "/api/v1/vrchat/avatar-preview"),
+        ("GET", "/api/v1/vrchat/views/{role}/frame"),
+        ("POST", "/api/v1/vrchat/connect"),
+        ("POST", "/api/v1/vrchat/bind-avatar"),
+        ("POST", "/api/v1/vrchat/messages"),
+        ("POST", "/api/v1/vrchat/performance"),
+        ("POST", "/api/v1/vrchat/environment"),
+        ("POST", "/api/v1/vrchat/control"),
+        ("POST", "/api/v1/vrchat/expression"),
     }
     for path in (
         "/api/v1/jobs/{job_id}/result",

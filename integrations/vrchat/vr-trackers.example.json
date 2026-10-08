@@ -1,0 +1,23 @@
+{
+  "mode": "vr_trackers",
+  "send_port": 19010,
+  "receive_port": 19011,
+  "audio_enabled": false,
+  "locomotion": false,
+  "tracker_bones": [
+    "hips",
+    "leftFoot",
+    "rightFoot"
+  ],
+  "head_alignment": false,
+  "scale": 1.0,
+  "origin": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "yaw_degrees": 0.0,
+  "target_role": "independent_ai",
+  "avatar_id": null,
+  "oscquery": false
+}

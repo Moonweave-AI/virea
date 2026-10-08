@@ -24,6 +24,8 @@ from .routes import (
 )
 from .routes.character_face import router as character_face_router
 from .routes.characters import router as characters_router
+from .routes.vrchat import router as vrchat_router
+from .routes.vrchat_views import router as vrchat_views_router
 from .service import ControlPlane
 
 _FRESH_WEB_HEADERS = {
@@ -112,12 +114,27 @@ def create_app(
         app.state.control_plane = control
         try:
             app.state.characters = CharacterManager(control)
+            # Delay bridge imports until lifespan startup; audio devices stay lazy.
+            from virea.vrchat.service import VRChatService
+            from virea.vrchat.views import WindowViews
+
+            app.state.vrchat = VRChatService(app.state.characters)
+            app.state.vrchat_views = WindowViews()
+            app.state.vrchat_views.start()
             yield
         finally:
             try:
-                if hasattr(app.state, "characters"):
-                    await app.state.characters.close()
-                    del app.state.characters
+                try:
+                    if hasattr(app.state, "vrchat_views"):
+                        await app.state.vrchat_views.close()
+                        del app.state.vrchat_views
+                    if hasattr(app.state, "vrchat"):
+                        await app.state.vrchat.close()
+                        del app.state.vrchat
+                finally:
+                    if hasattr(app.state, "characters"):
+                        await app.state.characters.close()
+                        del app.state.characters
             finally:
                 control.close()
                 del app.state.control_plane
@@ -134,6 +151,8 @@ def create_app(
     application.include_router(results_router, prefix="/api/v1")
     application.include_router(characters_router, prefix="/api/v1")
     application.include_router(character_face_router, prefix="/api/v1")
+    application.include_router(vrchat_router, prefix="/api/v1")
+    application.include_router(vrchat_views_router, prefix="/api/v1")
     if include_legacy_preview:
         _include_legacy_preview(application)
     web_dist = _web_dist()

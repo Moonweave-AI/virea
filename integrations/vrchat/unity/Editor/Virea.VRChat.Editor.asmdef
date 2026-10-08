@@ -1,0 +1,15 @@
+{
+  "name": "Virea.VRChat.Editor",
+  "rootNamespace": "Virea.VRChat.Editor",
+  "references": [
+    "VRM",
+    "UniVRM.Editor",
+    "UniGLTF",
+    "UniGLTF.Utils",
+    "UniGLTF.Editor",
+    "Esperecyan.Unity.VRMConverterForVRChat.Editor",
+    "Esperecyan.UniVRMExtensions"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

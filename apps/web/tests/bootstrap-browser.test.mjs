@@ -1041,6 +1041,10 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     });
     await generate.click();
     await blockedStateRequest;
+    // A scheduled poll may run between installing the counter and clicking.
+    // Assert that no NEW read can supersede the now-observed explicit barrier.
+    const stateReadsAtBarrier = await page.evaluate(() => window.__vireaStateFetchCountDuringSubmit);
+    assert.ok(stateReadsAtBarrier >= 1, "the explicit authority read must have started");
     stateSocketRoute.send(JSON.stringify({
       schema_version: "virea.state_revision.v1.0.0",
       observed_at: new Date().toISOString(),
@@ -1057,7 +1061,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
     assert.equal(
       await page.evaluate(() => window.__vireaStateFetchCountDuringSubmit),
-      1,
+      stateReadsAtBarrier,
       "background polling must not supersede the explicit pre-submission authority barrier",
     );
     releaseBlockedStateResponse();

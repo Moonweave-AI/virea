@@ -43,6 +43,20 @@ See the [technical synopsis](doc/character/unified-motion.en.md) for implementat
 This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
 they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
 
+## VRChat execution bridge
+
+VIREA now includes a native, browser-independent bridge for **Steam VRChat desktop**, with MotionCraft/SynTalker sessions, cloned speech through an explicitly selected audio endpoint, timed captions, optional locomotion, custom face/hand parameters, pause/interrupt and an isolated OSC watchdog. VR mode adds calibrated body tracker output and requires head/hand devices; standard desktop OSC cannot reproduce arbitrary full-body animation.
+
+Open `/app/vrchat.html` after installing the `vrchat` extra, or use `scripts/vrchat/launch.ps1` with the local stack configuration. The [setup and technical guide](doc/character/vrchat.en.md) covers two accounts, project-local Unity assets, the API and replay CLI. **On 2026-10-08, the user published VIREA Independent AI, both accounts joined the same private instance, and the AI client exposed all nine control parameters.** A local mirror comparison confirmed the smile parameter changes the rendered face. The observer briefly displayed the custom avatar, but a later reconnect failed its avatar security-result fetch while that client's API returned 401; remote visibility is not yet reliable. Hands, remote expression synchronization and virtual-microphone audio still need acceptance. The page distinguishes local OSC, matching room records and audio status. See the [verification evidence](doc/quality/vrchat-evidence.json). The Studio videos below are not VRChat recordings.
+
+The top-right **live views** button opens the actual observer window above the AI window. The panel sits beside the conversation on wide screens and overlays it on narrow screens; closing it stops capture. Window ownership is checked against each client's OSC port. See the [capture design and recovery guide](doc/character/vrchat-views.md).
+
+![VRChat conversation with the observer and AI windows streamed into the side panel](doc/assets/vrchat/live-views.jpg)
+
+*Actual local capture on 2026-10-08; game menus and loading failures are shown as they appear. This screenshot demonstrates the two live views, not completed remote-avatar or speech acceptance. Avatar used for local testing: Unnamed Character 6 by Reira; noncommercial rendering with credit, no model redistribution.*
+
+Validation: **1,207 Python tests passed, 34 skipped; 159 web tests passed; TypeScript/Vite build passed**. VB-CABLE is installed and its playback/recording endpoints support 48 kHz stereo. Per the user’s public-area requirement, all active playback endpoints are muted and VIREA speech stays disabled; audible observer-side acceptance is deferred. Sequential client restarts recovered both accounts from the post-login UI exception; each entered Home without new 401 responses. Restoring the shared room and remote-avatar acceptance remain pending. These external steps are not counted as passed tests.
+
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## Single-family routes: 16 complex task demos
 

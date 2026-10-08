@@ -3,8 +3,8 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-10-04
-last_reviewed: 2026-10-04
+updated: 2026-10-08
+last_reviewed: 2026-10-08
 review_cycle_days: 14
 summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
@@ -36,6 +36,20 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 语音可以跨动作边界，动作可以比声音长，音频结束不会停止身体。原生历史跨推理窗口延续，详见[技术梗概与部署说明](doc/character/unified-motion.zh-CN.md)。
 
 这一阶段仍为**实验性能力**。下面展示的是本机真实运行与录制，并保留实际时序与已知限制；它不等于全场景物理交互、任意地形运动或生产级可靠性。
+
+## VRChat 执行桥接
+
+新增独立于浏览器的 **Steam VRChat 桌面版桥接**：接入 MotionCraft/SynTalker 会话、指定音频设备上的克隆语音、时序字幕、可选移动、自定义表情与手势、暂停／急停和独立 OSC 看门狗。VR 模式提供经过坐标转换的身体追踪输出，仍需要头显和双手设备；标准桌面 OSC 无法复现任意全身骨骼动作。
+
+安装 `vrchat` 可选依赖后打开 `/app/vrchat.html`，或用 `scripts/vrchat/launch.ps1` 按本机配置启动。[接入与技术梗概](doc/character/vrchat.zh-CN.md)包含双账号隔离、仓库内角色工程、API 与离线回放。**2026-10-08，用户已发布 VIREA Independent AI，两个账号进入同一私有房间，AI 客户端的 9 个控制参数全部可用。** 本地镜面开关对照已确认笑脸参数改变实际表情。观察者曾显示自定义角色，但再次入房时，其 API 返回 401，角色安全检查结果获取失败，远端可见性尚不稳定。手势、远端表情同步和虚拟麦克风仍待验收。页面分别显示本机 OSC、同房间记录和语音状态。详见[验证记录](doc/quality/vrchat-evidence.json)。下面的 Studio 视频不作为 VRChat 实机 Demo。
+
+右上角的**实时双视角**按钮可展开侧栏：上方是你的 VRChat 窗口，下方是 AI 的 VRChat 窗口。宽屏与聊天区并排，窄屏覆盖展开，收起即停止采集；按两个客户端各自的 OSC 端口绑定窗口。详见[采集设计与恢复说明](doc/character/vrchat-views.md)。
+
+![VRChat 对话与实时双视角侧栏：上方观察者，下方 AI](doc/assets/vrchat/live-views.jpg)
+
+*2026-10-08 本机实拍；菜单、加载失败等均按游戏实际画面展示。这张图证明双窗口实时接入，不代表远端角色与语音已经验收通过。本地测试角色：Reira 的 Unnamed Character 6，非商业渲染并署名，不分发模型文件。*
+
+验证结果：**Python 1,207 通过、34 跳过；Web 159 通过；TypeScript/Vite 构建通过**。VB-CABLE 已安装，播放／录音端点支持 48 kHz 双声道。按用户的公共区域要求，所有当前播放端点静音，VIREA 语音关闭，有声验收暂缓。逐个重启后，两端已从登录后界面异常中恢复，各自进入 Home 且未新增 401；恢复同房间与远端角色验收仍待完成。这些外部步骤没有计作测试通过。
 
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## 单模型路线：16 个复杂任务 Demo
