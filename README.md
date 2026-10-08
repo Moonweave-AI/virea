@@ -55,7 +55,14 @@ The top-right **live views** button opens the actual observer window above the A
 
 *Actual local capture on 2026-10-08; game menus and loading failures are shown as they appear. This screenshot demonstrates the two live views, not completed remote-avatar or speech acceptance. Avatar used for local testing: Unnamed Character 6 by Reira; noncommercial rendering with credit, no model redistribution.*
 
-Validation: **1,207 Python tests passed, 34 skipped; 159 web tests passed; TypeScript/Vite build passed**. VB-CABLE is installed and its playback/recording endpoints support 48 kHz stereo. Per the user’s public-area requirement, all active playback endpoints are muted and VIREA speech stays disabled; audible observer-side acceptance is deferred. Sequential client restarts recovered both accounts from the post-login UI exception; each entered Home without new 401 responses. Restoring the shared room and remote-avatar acceptance remain pending. These external steps are not counted as passed tests.
+Validation: **1,207 Python tests passed, 34 skipped; 159 web tests passed; TypeScript/Vite build passed**. VB-CABLE is installed and its playback/recording endpoints support 48 kHz stereo. Per the user’s public-area requirement, all active playback endpoints are muted and VIREA speech stays disabled; audible observer-side acceptance is deferred. Sequential client restarts recovered both accounts from the post-login UI exception; each entered Home without new 401 responses. Both rejoined the same private room at 21:15; the observer loads the published avatar and both live views reconnect to the new processes. Remote rendered gesture/face quality remains unaccepted. These external steps are not counted as passed tests.
+
+<details>
+<summary>Recovered clients in the same room (2026-10-08)</summary>
+
+![Actual observer and AI game feeds after recovery](doc/assets/vrchat/recovered-views.jpg)
+
+</details>
 
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## Single-family routes: 16 complex task demos

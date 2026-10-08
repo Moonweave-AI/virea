@@ -227,7 +227,7 @@
     "web_build": "passed; existing bundle-size warning remains",
     "ruff_check": "passed repository-wide",
     "ruff_format": "Connection, login diagnostic, sender and corresponding tests formatted",
-    "documentation": "Latest public Markdown and media provenance checks: 2 passed after README screenshot update.",
+    "documentation": "Final public Markdown/media provenance and capture tests: 8 passed. Full Python/web results above remain the code regression baseline.",
     "diff_whitespace": "git diff --check HEAD passed after LF normalization",
     "latest_vrchat": {
       "command": "uv run pytest tests/vrchat -q",
@@ -407,9 +407,9 @@
     },
     "observer_avatar": {
       "initial_render": "custom avatar visible at approximately 17:53",
-      "latest_render": "fallback robot after AI rejoined at 18:09",
-      "error": "FailedFetchingSecurityScan; observer API requests also return 401 Missing Credentials",
-      "recovery": "Both accounts recovered after sequential restart; current same-room/avatar acceptance pending.",
+      "latest_render": "After recovery the observer unpacks the custom avatar; rendered pose quality has not been accepted.",
+      "error": "Historical FailedFetchingSecurityScan with API 401 before reauthentication; zero recurrences in latest client logs through 21:20.",
+      "recovery": "Both accounts recovered after sequential restart and rejoined the same private instance. Current asset-load verification passed; visual pose acceptance remains false.",
       "remote_visual_acceptance": false
     },
     "input_types": {
@@ -553,18 +553,30 @@
       "windows-capture": "2.0.1",
       "opencv-python": "5.0.0.93"
     },
-    "boundary": "No vision-model input, mouse forwarding or audio capture from these views."
+    "boundary": "No vision-model input, mouse forwarding or audio capture from these views.",
+    "post_restart": {
+      "checked_at_local": "2026-10-08T21:20:59+08:00",
+      "observer_pid": 53080,
+      "ai_pid": 32996,
+      "both_frame_http_status": 200,
+      "different_processes": true,
+      "both_browser_labels": "real-time",
+      "proof": "doc/assets/vrchat/recovered-views.jpg",
+      "visible_scene": "Both clients in the same Home; game menus remain visible."
+    }
   },
   "online_api_recovery": {
-    "checked_at_local": "2026-10-08T21:05:00+08:00",
-    "scene_connection": "Both logged in and entered separate Home instances; same-room restoration pending.",
+    "checked_at_local": "2026-10-08T21:20:59+08:00",
+    "scene_connection": "Both authenticated accounts in the same private Home instance; full instance keys match in current live-client logs.",
     "observer_latest_401_local": "2026-10-08T20:36:39+08:00",
     "ai_latest_401_local": "2026-10-08T20:38:10+08:00",
-    "status": "Both profiles authenticated after sequential client restart; zero subsequent 401 in current logs at this check.",
+    "status": "Recovered. Zero API 401 and zero FailedFetchingSecurityScan after latest authentication in both current client logs.",
     "root_cause": "Old client post-login flow threw UI null-reference exceptions. Fresh processes enter worlds; original authentication-loss cause remains unknown.",
-    "next_step": "Restore same private room and validate remote avatar visibility without audio.",
+    "next_step": "Remote rendered gesture/face appearance remains unaccepted. Audible voice acceptance is deferred at user request.",
     "client_windows_preserved": "Clients sequentially restarted with their existing isolated profile/OSC settings; AI remained running while observer restarted.",
     "ai_authenticated_local": "2026-10-08T21:02:15+08:00",
-    "observer_authenticated_local": "2026-10-08T21:04:38+08:00"
+    "observer_authenticated_local": "2026-10-08T21:04:38+08:00",
+    "same_instance_restored_local": "2026-10-08T21:15:46+08:00",
+    "observer_avatar_asset": "Observer recognizes MoonweaveAI as a remote player and unpacks VIREA Independent AI at 21:15:46. This is asset-load evidence, not a rendered pose-quality acceptance."
   }
 }
