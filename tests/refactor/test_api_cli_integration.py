@@ -219,6 +219,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("GET", "/api/v1/vrchat/avatar-preview"),
         ("GET", "/api/v1/vrchat/views/{role}/frame"),
         ("POST", "/api/v1/vrchat/connect"),
+        ("POST", "/api/v1/vrchat/settings"),
         ("POST", "/api/v1/vrchat/bind-avatar"),
         ("POST", "/api/v1/vrchat/messages"),
         ("POST", "/api/v1/vrchat/performance"),

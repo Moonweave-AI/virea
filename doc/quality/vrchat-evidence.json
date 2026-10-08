@@ -196,15 +196,19 @@
     "frame requests stop when hidden or closed"
   ],
   "tests": {
-    "status": "Latest full Python and web regressions passed, including live-view capture contracts and request cancellation. Game authentication and audible remote speech are separate pending acceptance steps.",
+    "status": "Full Python run completed; its sole route-contract failure was corrected and the entire 46-test API integration file passed on rerun. 1,220 unique Python cases verified, 34 skipped. Web: 162 passed. No unresolved test failures; no audible acceptance claimed.",
     "unresolved_failures": 0,
     "python_full_regression": {
       "command": "uv run pytest -q",
       "date": "2026-10-08",
-      "passed": 1207,
-      "failed": 0,
+      "passed": 1219,
+      "failed": 1,
       "skipped": 34,
-      "seconds": 809.41
+      "seconds": 843.63,
+      "failure": "Versioned route contract omitted the newly added POST /api/v1/vrchat/settings.",
+      "resolution": "Route contract corrected. Entire tests/refactor/test_api_cli_integration.py rerun: 46 passed, including the failed case; no application behavior changed for this correction.",
+      "verified_unique_passes_after_correction": 1220,
+      "full_suite_repeated_after_correction": false
     },
     "correction_verification": {
       "command": "uv run pytest tests/vrchat tests/refactor/test_api_cli_integration.py -q",
@@ -219,21 +223,21 @@
       ]
     },
     "web": {
-      "passed": 159,
+      "passed": 162,
       "skipped": 0,
       "failed": 0,
-      "seconds": 23.453
+      "seconds": 22.877
     },
     "web_build": "passed; existing bundle-size warning remains",
     "ruff_check": "passed repository-wide",
-    "ruff_format": "Connection, login diagnostic, sender and corresponding tests formatted",
-    "documentation": "Final public Markdown/media provenance and capture tests: 8 passed. Full Python/web results above remain the code regression baseline.",
+    "ruff_format": "All 10 changed Python files pass ruff format --check.",
+    "documentation": "2 documentation/publication contract tests passed, including the actual clap screenshot and its provenance.",
     "diff_whitespace": "git diff --check HEAD passed after LF normalization",
     "latest_vrchat": {
       "command": "uv run pytest tests/vrchat -q",
-      "passed": 83,
+      "passed": 102,
       "failed": 0,
-      "seconds": 26.36
+      "seconds": 32.87
     },
     "resource_coordination": {
       "command": "uv run pytest tests/refactor/test_resource_coordination.py -q",
@@ -249,30 +253,47 @@
       "skipped": 34,
       "seconds": 557.38,
       "date": "2026-10-04"
+    },
+    "latest_character": {
+      "command": "uv run pytest tests/character -q",
+      "passed": 285,
+      "failed": 0,
+      "seconds": 29.51
+    },
+    "web_fixture_correction": "Deep-link result now exists in authoritative jobs collection; collection responses held until authority loss, avoiding transient-state timing assertions.",
+    "latest_api_integration": {
+      "command": "uv run pytest tests/refactor/test_api_cli_integration.py -q",
+      "passed": 46,
+      "failed": 0,
+      "seconds": 115.59,
+      "correction": "Added the new /vrchat/settings route to the versioned public route contract."
+    },
+    "previous_python_baseline": {
+      "command": "uv run pytest -q",
+      "date": "2026-10-08",
+      "passed": 1207,
+      "failed": 0,
+      "skipped": 34,
+      "seconds": 809.41
     }
   },
   "graph_change_analysis": {
     "scope": "all",
-    "changed_count": 557,
-    "affected_count": 9,
-    "changed_files": 71,
-    "risk_level": "high",
+    "changed_count": 94,
+    "affected_count": 1,
+    "changed_files": 23,
+    "risk_level": "medium",
     "partial": false,
     "truncated": false,
     "listed_processes": [
-      "LoadAvatar → Clear",
-      "Selected_client_status → Accept",
-      "Setup_apply → _virea_source_checkout_containing",
-      "Main → From_motion_ir",
-      "Main → String",
-      "Play → Clear",
-      "Run → _virea_source_checkout_containing",
-      "ExecuteActions → Clear",
-      "Collect_retention_candidates → _virea_source_checkout_containing"
+      "Configure → Voices"
     ],
-    "limitations": "Static analysis has dynamic-dispatch and cross-language boundaries. Index extraction reported 600 flows with 1506 entry candidates omitted, 39 walks budget-cut and a C# directory-scan cap. Listed flows are not proof that unlisted consumers are unaffected.",
-    "status": "Final force index refreshed 2026-10-08T12:45:32.451Z (15861 nodes, 37088 edges); complete detect_changes result reviewed before commit. HIGH impact communicated to user.",
-    "review": "Reviewed API lifecycle/loopback routes, per-process log identity and session reset, model-to-OSC playback/input release, and checkout-local storage opt-in. The three Clear flows are conservative name matches: the new clear callback is lexically scoped inside mountViews; unrelated clear methods remain unchanged. Full Python and web regressions passed."
+    "indexed_at": "2026-10-08T14:23:43.936Z",
+    "index_nodes": 15913,
+    "index_edges": 37238,
+    "review": "Reviewed configure -> validate_voice -> voices, current-task cancellation and provider replacement; API and browser dynamic callers confirmed by text inspection and real hot-switch tests.",
+    "limitations": "The completed diff analysis is not truncated. The global index still reports C# directory-scan caps, 1,510 entry candidates omitted, 39 budget-cut walks, 10 depth-capped traces and 1,407 callee cuts; dynamic and cross-language callers were checked manually.",
+    "recovery": "Initial incremental index hit its 256 MiB LadybugDB buffer limit. Forced rebuild with a 4 GiB buffer succeeded."
   },
   "not_verified": [
     "virtual microphone routing and audible VRChat lip sync",
@@ -578,5 +599,140 @@
     "observer_authenticated_local": "2026-10-08T21:04:38+08:00",
     "same_instance_restored_local": "2026-10-08T21:15:46+08:00",
     "observer_avatar_asset": "Observer recognizes MoonweaveAI as a remote player and unpacks VIREA Independent AI at 21:15:46. This is asset-load evidence, not a rendered pose-quality acceptance."
+  },
+  "response_fix_2026_10_08": {
+    "base_commit": "ce18fe4c471c33900be8052a69b32cfbbd14d706",
+    "root_causes": [
+      "Connected UI disabled all settings; provider selection fixed at connection creation.",
+      "Desktop player sent coarse finger controls but no body animation and omitted facial_messages during performance playback."
+    ],
+    "method_switches": [
+      {
+        "from": "syntalker",
+        "to": "motioncraft",
+        "before_status": "generating",
+        "after_status": "waiting",
+        "same_session": true,
+        "same_history": true,
+        "epoch_increment": 1,
+        "bridge_ready": true,
+        "audio_enabled": false,
+        "released_emote": 0,
+        "released_active": false
+      },
+      {
+        "from": "motioncraft",
+        "to": "syntalker",
+        "before_status": "awaiting_playback",
+        "after_status": "waiting",
+        "same_session": true,
+        "same_history": true,
+        "epoch_increment": 1,
+        "bridge_ready": true,
+        "audio_enabled": false,
+        "released_emote": 0,
+        "released_active": false
+      }
+    ],
+    "live_tasks": [
+      {
+        "status": "completed",
+        "frames": 361,
+        "motion_seconds": 12.0,
+        "audio_seconds": 0,
+        "execution": {
+          "mode": "desktop",
+          "generated_body_transmitted": false,
+          "body_representation": "SDK avatar presets",
+          "segments": [
+            {
+              "id": "m1",
+              "prompt": "A person claps hands together.",
+              "body_output": "avatar_preset:clap",
+              "face_cues": []
+            }
+          ],
+          "emotes_sent": [
+            2
+          ],
+          "emotes_observed": [
+            2
+          ],
+          "rendered_pose_verified": false
+        },
+        "backend": "syntalker",
+        "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+        "speech_clips": 0
+      },
+      {
+        "status": "completed",
+        "frames": 362,
+        "motion_seconds": 12.0,
+        "audio_seconds": 0,
+        "execution": {
+          "mode": "desktop",
+          "generated_body_transmitted": false,
+          "body_representation": "SDK avatar presets",
+          "segments": [
+            {
+              "id": "m_wave_01",
+              "prompt": "A person waves one hand gently.",
+              "body_output": "avatar_preset:wave",
+              "face_cues": []
+            }
+          ],
+          "emotes_sent": [
+            1
+          ],
+          "emotes_observed": [
+            1
+          ],
+          "rendered_pose_verified": false
+        },
+        "backend": "motioncraft",
+        "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+        "speech_clips": 0
+      }
+    ],
+    "visual_observation": "Observer actually saw MoonweaveAI clapping in the shared private room. MotionCraft wave has parameter feedback and a captured raised-hand pose, not an accepted full animation-quality evaluation.",
+    "observer_proof": "doc/assets/vrchat/desktop-clap.jpg",
+    "desktop_contract": "Opt-in SDK action presets from explicit clip intent. Unknown body actions remain not_transmitted; generated full-body skeleton is never claimed as desktop output.",
+    "silence": "audio_enabled=false throughout; no test sound or voice stream",
+    "limits": [
+      "Preset transitions/loops belong to the SDK controller, not exact generated motion timing.",
+      "Fine fingers and full facial quality remain unaccepted.",
+      "Arbitrary generated body streaming in desktop is not implemented."
+    ],
+    "final_runtime": {
+      "backend": "motioncraft",
+      "audio_enabled": false,
+      "desktop_emotes": true,
+      "ready": true,
+      "autonomous_decisions": 3,
+      "no_active_task": true
+    }
+  },
+  "previous_graph_change_analysis": {
+    "scope": "all",
+    "changed_count": 557,
+    "affected_count": 9,
+    "changed_files": 71,
+    "risk_level": "high",
+    "partial": false,
+    "truncated": false,
+    "listed_processes": [
+      "LoadAvatar → Clear",
+      "Selected_client_status → Accept",
+      "Setup_apply → _virea_source_checkout_containing",
+      "Main → From_motion_ir",
+      "Main → String",
+      "Play → Clear",
+      "Run → _virea_source_checkout_containing",
+      "ExecuteActions → Clear",
+      "Collect_retention_candidates → _virea_source_checkout_containing"
+    ],
+    "limitations": "Static analysis has dynamic-dispatch and cross-language boundaries. Index extraction reported 600 flows with 1506 entry candidates omitted, 39 walks budget-cut and a C# directory-scan cap. Listed flows are not proof that unlisted consumers are unaffected.",
+    "status": "Final force index refreshed 2026-10-08T12:45:32.451Z (15861 nodes, 37088 edges); complete detect_changes result reviewed before commit. HIGH impact communicated to user.",
+    "review": "Reviewed API lifecycle/loopback routes, per-process log identity and session reset, model-to-OSC playback/input release, and checkout-local storage opt-in. The three Clear flows are conservative name matches: the new clear callback is lexically scoped inside mountViews; unrelated clear methods remain unchanged. Full Python and web regressions passed."
   }
 }

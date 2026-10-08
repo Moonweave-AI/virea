@@ -101,6 +101,14 @@ class ClientQuery:
             "port": port,
             "parameters": parameters,
             "missing_parameters": sorted(supported - nodes.keys()),
+            "writable_parameters": sorted(
+                name
+                for name, node in nodes.items()
+                if name in supported | {"VRCEmote"}
+                and isinstance(node.get("ACCESS"), int)
+                and node["ACCESS"] & 2
+                and (name != "VRCEmote" or node.get("TYPE") == "i")
+            ),
             "local_avatar": avatar.startswith("local:sdk_"),
         }
         self.verified = True

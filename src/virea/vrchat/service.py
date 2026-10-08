@@ -7,6 +7,9 @@ import time
 from collections import deque
 
 from virea.character.contracts import EnvironmentEvent, PlaybackFeedback, SessionRequest
+from virea.character.providers.language import LanguageProvider
+from virea.character.providers.speech import SpeechProvider
+from virea.character.providers.unified import UnifiedMotionProvider
 
 from .autonomy import next_step
 from .player import PerformancePlayer
@@ -74,7 +77,7 @@ class VRChatService:
                 await self.session.environment_event(
                     EnvironmentEvent(
                         kind="context",
-                        summary="Execution endpoint: VRChat. No world positions, objects, collisions or other players are observed. Desktop supports locomotion inputs and coarse custom hand poses, NOT arbitrary generated body animation; VR trackers need external head/hand devices. Use short English action prompts and independent speech timing. Do not claim to have seen or reached objects.",
+                        summary=self.execution_context(),
                     )
                 )
                 self.pump = asyncio.create_task(
@@ -106,6 +109,16 @@ class VRChatService:
             "frames_sent": self.transport.frames_sent if self.transport else 0,
             "elapsed_seconds": self.player.elapsed if self.player else 0,
             "recent_performances": list(self.results),
+            "execution": self.player.output_status() if self.player else None,
+            "settings": {
+                "motion_backend": self.session.config.motion_backend,
+                "voice": self.session.config.tts_voice,
+                "persona": self.session.config.persona,
+                "autonomous_decisions": self.session.config.max_autonomous_decisions,
+                "desktop_emotes": self.config.desktop_emotes,
+            }
+            if self.session and hasattr(self.session.config, "motion_backend")
+            else None,
             "autonomy": {
                 "active": self.goal_active,
                 "remaining": max(
@@ -117,6 +130,73 @@ class VRChatService:
                 else 0,
             },
         }
+
+    def execution_context(self):
+        desktop = (
+            "Desktop body output uses the avatar's SDK emote presets: wave, clap, point, cheer, dance. "
+            "These are preset animations, not generated joint playback. Prefer these simple actions for greetings. "
+            if self.config.mode == "desktop" and self.config.desktop_emotes
+            else "Desktop has no full-body animation output; only custom finger poses are available. "
+        )
+        return (
+            "Execution endpoint: VRChat. No world positions, objects, collisions or other players are observed. "
+            + (
+                desktop
+                if self.config.mode == "desktop"
+                else "VR trackers need external head/hand devices. "
+            )
+            + "Facial cues support smile, sad, angry and surprised when the avatar has those bindings. "
+            "Use short English action prompts and independent speech timing. "
+            "Match spoken language to the user. Do not claim to have seen or reached objects."
+        )
+
+    async def configure(self, request):
+        # Preflight without holding the player lock: stop/pause remain responsive.
+        async with self.lock:
+            if not self.session or self.pump is None or self.pump.done():
+                raise ValueError("connect a running bridge first")
+            session, epoch = self.session, self.session.epoch
+            config = session.config.model_copy(
+                update={
+                    "motion_backend": request.motion_backend,
+                    "tts_voice": request.voice or self.characters.config.tts_voice,
+                    "persona": request.persona
+                    if request.persona is not None
+                    else self.characters.config.persona,
+                    "max_autonomous_decisions": request.autonomous_decisions,
+                }
+            )
+        if not getattr(config, f"{request.motion_backend}_url"):
+            raise ValueError(f"{request.motion_backend} is not configured")
+        unified = UnifiedMotionProvider(config, self.characters.client)
+        await unified.health()
+        speech = SpeechProvider(config, self.characters.client)
+        if config.tts_voice:
+            await speech.validate_voice(config.tts_voice)
+        async with self.lock:
+            if self.session is not session or session.epoch != epoch:
+                raise ValueError("conversation changed while checking settings; retry")
+            await self._stop_player()
+            await session.interrupt(session.body)
+            session.config = config
+            session.unified = unified
+            session.speech = speech
+            session.language = LanguageProvider(config, self.characters.client)
+            session.draft_text = ""
+            session.latest_expression = None
+            session.motion_plan = []
+            session.route = None
+            session._autonomous = 0
+            self.config.desktop_emotes = request.desktop_emotes
+            self.goal_active = False
+            self.error = None
+            self.completed_goal_outputs.clear()
+            await session.environment_event(
+                EnvironmentEvent(kind="context", summary=self.execution_context())
+            )
+            session.playback_clock.set_paused(self.paused)
+            session.record("settings_updated", motion_backend=request.motion_backend)
+            return self.snapshot()
 
     async def _stop_player(self):
         if self.decision:
@@ -228,6 +308,8 @@ class VRChatService:
             )
             try:
                 result = self.playing.result()
+                if result.get("execution", {}).get("mode") == "desktop":
+                    detail = "Desktop preset/finger output completed; generated full-body motion was not transmitted. Avatar/world pose is unobserved."
             except Exception as exc:
                 status, detail = "failed", str(exc)
                 self.error = detail

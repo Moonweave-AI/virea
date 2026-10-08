@@ -19,7 +19,7 @@ superseded_by: []
 
 VIREA 负责推理、语音克隆、动作生成与时间轴；VRChat 是执行端。新的原生桥接拥有独立会话和播放任务，关闭浏览器控制页不会中断任务。当前在线接入 MotionCraft、SynTalker 两条独立轨道路线；已有 SentiAvatar + ARDY Studio 路线保留，其转换后的 canonical Motion IR 可通过离线 CLI 接入。桥接不更换任何动作模型检查点。
 
-**2026-10-08，用户已发布 VIREA Independent AI，两个账号进入同一个在线私有房间，完整实例标识一致。** AI 客户端已穿戴发布角色，9 个参数全部可用；本地镜面 `AI_Smile=0/1` 对照已确认实际笑脸变化。观察者曾显示自定义角色，但 AI 再次入房时，观察者出现 `FailedFetchingSecurityScan` 与 API 401，显示替代机器人；认证失败的根因尚未确定。远端稳定可见性、手势、表情同步与虚拟麦克风仍未验收。401 可以与游戏场景在线同时出现，应仅恢复受影响客户端的登录会话，再走正常角色加载。标准 OSC 不提供世界画面、完整场景或其他玩家语音；本分支没有自动识别玩家对话、视觉导航或虚拟 HMD 驱动。
+**2026-10-08，用户已发布 VIREA Independent AI，两个账号恢复同一在线私有房间。** AI 客户端穿戴发布角色，9 个自定义参数以及可写 `VRCEmote` 均已确认。真实页面提交的 SynTalker 鼓掌、MotionCraft 挥手各完成 12 秒时间轴并收到游戏参数回传；观察者窗口实际看到 AI 鼓掌。生成中和播放中切换方法均保留会话与历史，动作参数随后归零。此前 API 401 与角色安全检查错误保留在历史证据中，不再当作当前未连接的依据。精细手部、完整表情同步、任意生成骨骼播放与有声语音仍未验收。标准 OSC 不提供世界画面、完整场景或其他玩家语音；本分支没有自动识别玩家对话、视觉导航或虚拟 HMD 驱动。
 
 ## 能力与执行契约
 
@@ -29,13 +29,22 @@ VIREA 负责推理、语音克隆、动作生成与时间轴；VRChat 是执行�
 | 嘴型 | VRChat 原生麦克风 lip sync | 相同 |
 | 字幕 | 可选聊天框，按语音片段时间发送 | 相同 |
 | 移动 | 可选 OSC 输入轴，速度限幅 | 相同 |
-| 表情 | 6 个自定义参数；外部 `/expression` 接口驱动 | 相同 |
+| 表情 | 动作短句中的明确面部提示；外部 `/expression` 接口也可驱动 6 个参数 | 相同 |
 | 手部 | 从模型手指旋转归类为 5 类手势；自定义 Gesture 层 | 可继续使用；精细骨骼手追踪需要其他驱动 |
 | 眼神 | `/expression` 的 pitch/yaw/blink；无输入时使用 VRChat 默认行为 | 相同 |
 | 全身动作 | 不支持通过标准 OSC 任意驱动全部骨骼 | FK → 最多 8 个身体追踪点；VRChat IK 重建 |
+| 身体预设 | 显式开启后，通过 `VRCEmote` 触发 SDK 动作预设 | 不使用桌面预设 |
 | 世界位置 | 未观测；不把积分出的命令当作真实位置 | 未观测；同样不伪造位置回执 |
 
-OSC 的 `GestureLeft`、`GestureRight`、`Viseme` 等内置参数只读；桥接仅写 `AI_*` 自定义参数。[官方参数说明](https://creators.vrchat.com/avatars/animator-parameters/)
+OSC 的 `GestureLeft`、`GestureRight`、`Viseme` 等内置参数只读；手指和表情写入 `AI_*` 自定义参数。`VRCEmote` 是可写整数，开启桌面预设前还会检查当前角色的 OSCQuery 写入能力。[官方参数说明](https://creators.vrchat.com/avatars/animator-parameters/) · [官方 VRCEmote OSC 示例](https://docs.vrchat.com/docs/osc-avatar-parameters)
+
+## 对话中切换与桌面动作
+
+顶部下拉框直接切换 MotionCraft / SynTalker，无需断开或新建聊天。设置中的声音、角色设定、自主跟进次数和桌面预设也可在线保存；端口、设备和运行模式仍需重新连接。`POST /settings` 先在锁外检查目标 worker 和声音，失败保留当前任务；成功后取消旧推理／播放、释放 OSC 输入，替换会话 provider，保留历史、会话 ID、角色绑定和暂停状态。预检期间发生新消息或停止操作时，旧设置请求会被拒绝。前端忽略旧 epoch 的轮询响应，避免选项回跳。
+
+已准备角色保留 SDK Action 层时，可勾选“桌面动作：使用角色的 SDK 预设动画”。短句中明确的 wave、clap、point、cheer、dance 分别映射到 1–5；未知、否定和多种预设混合的动作不会随意替换成其他动画。输出时钟取动作片段的起止时间，语音关闭或片段间存在静音不影响动作。间隙、暂停、切换、结束与看门狗超时均归零释放；预设期间不叠加生成根位移。SDK 预设有自身的进入／退出过渡与循环方式，不保证严格复现指定帧或完整动作时长。
+
+这是**动作意图到现有动画的映射**，不是模型骨骼流。生成的手指旋转仍仅归类到粗粒度手势。smile/sad/angry/surprised 的明确提示以短淡入淡出驱动已有面部绑定，不声称来自模型面部输出。`execution` 和播放结果分别记录 `emotes_sent`、`emotes_observed`、各段 `body_output`；`rendered_pose_verified=false` 保持不变，只有另行观察游戏画面才能提供视觉证据。其他角色默认关闭预设，因为同名整数参数不保证采用 SDK 的动作编号。
 
 身体追踪点不是完整骨骼传输，也不能代替头显与双手设备。`/tracking/trackers/head/*` 只用于追踪空间对齐；默认关闭。进入 `vr_trackers` 必须收到实际 `VRMode=1` 回传并完成 VRChat FBT 校准。[官方 OSC Trackers](https://docs.vrchat.com/docs/osc-trackers)
 
@@ -143,6 +152,7 @@ uv run --package virea-api python -m uvicorn virea_api.app:app --host 127.0.0.1 
 | `GET /avatar-preview` | 返回固定本机 VRM 文件；不存在时 404，不接受任意文件路径 |
 | `GET /views/{observer\|ai}/frame` | 按进程绑定的游戏窗口 JPEG；要求 `X-Virea-Capture: 1` 且同源 |
 | `POST /connect` | 配置桥接并创建专属角色会话 |
+| `POST /settings` | 在线切换动作方法、声音、角色设定、自主次数及桌面预设；保留会话与历史 |
 | `POST /bind-avatar` | 空闲时绑定 AI 客户端实际回传的 Avatar ID |
 | `POST /messages` | 用户目标；替换并取消当前任务 |
 | `POST /performance` | 直接提交 `PerformancePlan`；该次不自主跟进 |
@@ -150,7 +160,7 @@ uv run --package virea-api python -m uvicorn virea_api.app:app --host 127.0.0.1 
 | `POST /expression` | 6 个表情值及 pitch/yaw/blink，短暂诊断输出 |
 | `POST /control` | `pause` / `resume` / `interrupt` / `disconnect` |
 
-`/expression` 接口是可控输出，并不是从 MotionCraft/SynTalker 自动恢复语义表情；这两个路线当前不提供经过验证的面部模型输出。无外部眼神输入时，桥接不持续覆盖 VRChat 自动眼神。眼神协议只选用一类方向地址。[官方眼神协议](https://docs.vrchat.com/docs/osc-eye-tracking)
+`/expression` 接口和动作短句面部提示都是显式控制，不是从 MotionCraft/SynTalker 自动恢复语义表情；这两个路线当前不提供经过验证的面部模型输出。无外部眼神输入时，桥接不持续覆盖 VRChat 自动眼神。眼神协议只选用一类方向地址。[官方眼神协议](https://docs.vrchat.com/docs/osc-eye-tracking)
 
 显式时间轴示例（动作 8 秒，台词第 2 秒开始；实际 TTS 长度由服务测量）：
 

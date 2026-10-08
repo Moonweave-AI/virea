@@ -15,6 +15,7 @@ from virea.vrchat.contracts import (
     ConnectRequest,
     ControlRequest,
     MessageRequest,
+    SessionSettings,
     StrictModel,
 )
 
@@ -78,8 +79,12 @@ async def audio_devices():
 async def avatar_preview(request: Request):
     path = request.app.state.control_plane.paths.avatars / "vrchat.vrm"
     if not path.is_file():
-        raise HTTPException(404, "Run scripts/vrchat/launch.ps1 to prepare the imported avatar preview")
-    return FileResponse(path, media_type="model/gltf-binary", headers={"Cache-Control": "no-cache"})
+        raise HTTPException(
+            404, "Run scripts/vrchat/launch.ps1 to prepare the imported avatar preview"
+        )
+    return FileResponse(
+        path, media_type="model/gltf-binary", headers={"Cache-Control": "no-cache"}
+    )
 
 
 @router.post("/connect")
@@ -95,6 +100,14 @@ async def send_message(body: MessageRequest, request: Request):
     try:
         return await request.app.state.vrchat.message(body.text)
     except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/settings")
+async def settings(body: SessionSettings, request: Request):
+    try:
+        return await request.app.state.vrchat.configure(body)
+    except (ValueError, httpx.HTTPError) as exc:
         raise HTTPException(409, str(exc)) from exc
 
 

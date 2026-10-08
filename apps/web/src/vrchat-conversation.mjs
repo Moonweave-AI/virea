@@ -54,3 +54,20 @@ export function statusLabel(state) {
   }
   return ({thinking: "正在理解你的想法", generating: "正在准备声音与动作", awaiting_playback: "正在 VRChat 中执行", waiting: state.autonomy?.active ? "正在准备下一步" : "随时可以开始"})[state.session?.status] ?? "已连接 VRChat";
 }
+
+/** Describe transmitted controls separately from a model's generated motion. */
+export function executionNote(state) {
+  const event = [...(state.session?.events ?? [])].reverse().find(item => item.epoch === state.session?.epoch && item.kind === "playback_feedback");
+  const result = state.recent_performances?.find(item => item.packet_id === event?.feedback?.packet_id);
+  const output = state.execution ?? result?.execution;
+  if (!output) return "";
+  if (output.mode !== "desktop") return "输出已配置的身体追踪点；头手需要外部设备，画面效果需在观察者视角核对。";
+  const sent = output.emotes_sent?.length ?? 0, observed = output.emotes_observed?.length ?? 0;
+  const missing = (output.segments ?? []).filter(segment => segment.body_output === "not_transmitted").map(segment => segment.prompt);
+  return `${sent ? `桌面预设动画：${sent} 种已发送，${observed} 种收到游戏参数回传。` : "桌面端仅输出手指姿势与可用表情。"}模型生成的全身骨骼未传递。${missing.length ? `未映射的身体动作：${missing.join("；")}` : ""}`;
+}
+
+export function acceptSnapshot(current, incoming, busy) {
+  if (busy) return false;
+  return !current.session || incoming.session?.id !== current.session.id || !(incoming.session.epoch < current.session.epoch);
+}

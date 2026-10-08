@@ -41,7 +41,9 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 
 新增独立于浏览器的 **Steam VRChat 桌面版桥接**：接入 MotionCraft/SynTalker 会话、指定音频设备上的克隆语音、时序字幕、可选移动、自定义表情与手势、暂停／急停和独立 OSC 看门狗。VR 模式提供经过坐标转换的身体追踪输出，仍需要头显和双手设备；标准桌面 OSC 无法复现任意全身骨骼动作。
 
-安装 `vrchat` 可选依赖后打开 `/app/vrchat.html`，或用 `scripts/vrchat/launch.ps1` 按本机配置启动。[接入与技术梗概](doc/character/vrchat.zh-CN.md)包含双账号隔离、仓库内角色工程、API 与离线回放。**2026-10-08，用户已发布 VIREA Independent AI，两个账号进入同一私有房间，AI 客户端的 9 个控制参数全部可用。** 本地镜面开关对照已确认笑脸参数改变实际表情。观察者曾显示自定义角色，但再次入房时，其 API 返回 401，角色安全检查结果获取失败，远端可见性尚不稳定。手势、远端表情同步和虚拟麦克风仍待验收。页面分别显示本机 OSC、同房间记录和语音状态。详见[验证记录](doc/quality/vrchat-evidence.json)。下面的 Studio 视频不作为 VRChat 实机 Demo。
+安装 `vrchat` 可选依赖后打开 `/app/vrchat.html`，或用 `scripts/vrchat/launch.ps1` 按本机配置启动。[接入与技术梗概](doc/character/vrchat.zh-CN.md)包含双账号隔离、仓库内角色工程、API 与离线回放。**顶部方法选择器支持对话中切换 MotionCraft / SynTalker，包括生成和播放期间。** 切换成功会停止当前任务，保留聊天记录、会话和 OSC 连接；目标 worker 预检失败则保留原任务。连接后也可保存声音、角色设定和自主跟进次数。
+
+已准备的 **VIREA Independent AI** 角色可在输出设置开启**桌面动作：使用角色的 SDK 预设动画**。`A person claps.` 等简短动作按动作时间轴驱动挥手、鼓掌、指向、欢呼、跳舞预设；明确的 smile/sad/angry/surprised 提示也会在播放时发送面部参数。**这些预设不等于原样播放模型生成的全身骨骼。** 未映射的身体动作会注明未传递，执行详情分别显示指令发送与游戏参数回传，两者都不自动等于视觉验收。详见[验证记录](doc/quality/vrchat-evidence.json)。下面的 Studio 视频不作为 VRChat 实机 Demo。
 
 右上角的**实时双视角**按钮可展开侧栏：上方是你的 VRChat 窗口，下方是 AI 的 VRChat 窗口。宽屏与聊天区并排，窄屏覆盖展开，收起即停止采集；按两个客户端各自的 OSC 端口绑定窗口。详见[采集设计与恢复说明](doc/character/vrchat-views.md)。
 
@@ -49,7 +51,11 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 
 *2026-10-08 本机实拍；菜单、加载失败等均按游戏实际画面展示。这张图证明双窗口实时接入，不代表远端角色与语音已经验收通过。本地测试角色：Reira 的 Unnamed Character 6，非商业渲染并署名，不分发模型文件。*
 
-验证结果：**Python 1,207 通过、34 跳过；Web 159 通过；TypeScript/Vite 构建通过**。VB-CABLE 已安装，播放／录音端点支持 48 kHz 双声道。按用户的公共区域要求，所有当前播放端点静音，VIREA 语音关闭，有声验收暂缓。逐个重启后，两端已从登录后界面异常中恢复，各自进入 Home 且未新增 401；21:15 已恢复同一私有房间，观察者加载发布角色，两路画面重新绑定新进程；远端手势和表情的视觉质量仍未验收。这些外部步骤没有计作测试通过。
+本次修复验证：**Python 1,220 项验证通过、34 跳过；Web 162 项通过；TypeScript/Vite 构建通过**。完整 Python 运行中 1,219 项通过，唯一失败是 API 测试清单遗漏新增路由；补齐契约后，相关 API 集成测试 46 项复测全部通过。真实页面已验证在 SynTalker 生成中、MotionCraft 播放中切换，会话与历史保留。同一私有房间中，观察者实际看到 AI 鼓掌；SynTalker 鼓掌与 MotionCraft 挥手各运行 12 秒，并收到对应游戏参数回传。切换后确认 `VRCEmote=0`、`AI_Active=false`，动作已释放。精细手部／表情质量、任意生成骨骼播放与有声语音不在这些通过项内。VB-CABLE 已安装；公共区域静音要求保持生效，所有当前播放端点静音，桥接语音关闭。
+
+![真实观察者窗口中，AI 正在执行 SDK 鼓掌预设](doc/assets/vrchat/desktop-clap.jpg)
+
+*2026-10-08，MotionCraft 任务执行期间的真实观察者截图。画面展示 SDK 鼓掌预设，不是模型生成骨骼的原样播放。角色：Unnamed Character 6，作者 Reira；非商业署名展示，不分发模型。*
 
 <details>
 <summary>恢复后的同房间双视角（2026-10-08）</summary>

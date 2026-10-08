@@ -158,6 +158,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
   let generationSubmitCount = 0;
   let submittedGeneration = null;
   let includeResponsiveJob = false;
+  let includeDeepJob = false;
   let observeGenerationSubmit;
   const generationSubmitStarted = new Promise((resolveStarted) => {
     observeGenerationSubmit = resolveStarted;
@@ -315,6 +316,8 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
         task: "text_to_motion",
         state: "QUEUED",
         idempotency_key: submittedGeneration?.idempotency_key ?? "persisted-key",
+      }] : []), ...(includeDeepJob ? [{
+        id: "job-deep", model_id: "flood-diffusion-tiny", task: "text_to_motion", state: "SUCCEEDED",
       }] : [])]);
       return;
     }
@@ -614,12 +617,16 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     assert.equal(systemRequestCount, 2);
     assert.equal(executionDomainRequestCount, 4);
 
+    // The durable result must also exist in the authoritative collection;
+    // otherwise the normal reconciliation correctly removes it as stale.
+    includeDeepJob = true;
     const deepPage = await preparePage();
     await deepPage.goto(`http://127.0.0.1:${webAddress.port}/app/?job=job-deep`, {
       waitUntil: "domcontentloaded",
       timeout: 10_000,
     });
     await deepPage.locator("#vrm-canvas").waitFor({ state: "visible", timeout: 3_000 });
+    await deepPage.waitForFunction(() => document.querySelector(".viewer-readout")?.textContent?.includes("result-deep"));
     assert.match(await deepPage.locator(".viewer-readout").textContent(), /result-deep/);
     assert.equal(systemRequestCount, 2, "persisted deep-link bootstrap must not request /system");
     const expectedDiscoveryErrors = consoleErrors.filter((message) => (
@@ -688,6 +695,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
   let executionOptionsRequestCount = 0;
   let modelRequestCount = 0;
   let modelResponseDelayMs = 0;
+  let holdModelResponses = false;
+  const heldModelResponses = [];
   let jobsReadable = true;
   let generationPostCount = 0;
   let durableJobCount = 0;
@@ -801,6 +810,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     }
     if (path === "/api/v1/models") {
       modelRequestCount += 1;
+      if (holdModelResponses) { heldModelResponses.push(response); return; }
       const delayMs = modelResponseDelayMs;
       if (delayMs) setTimeout(() => respondJson(response, [modelManifest()]), delayMs);
       else respondJson(response, [modelManifest()]);
@@ -976,6 +986,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
 
     // Execution options can still be valid after a root switch. The explicit
     // pre-POST authority read must apply home C and require a retry, with 0 POST.
+    holdModelResponses = true;
     switchHomeAfterOptions = homeC;
     await generate.click();
     await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("已应用最新状态"));
@@ -1001,6 +1012,9 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.waitForResponse((item) => item.url().endsWith("/api/v1/state") && item.status() === 503),
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
+    holdModelResponses = false;
+    assert.ok(heldModelResponses.length, "collection reconciliation must be in flight during authority loss");
+    for (const response of heldModelResponses.splice(0)) respondJson(response, [modelManifest()]);
     await new Promise((resolveWait) => setTimeout(resolveWait, 300));
     assert.equal(
       await generate.isDisabled(),

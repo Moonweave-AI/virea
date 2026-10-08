@@ -10,9 +10,11 @@ AvatarId = Annotated[str, Field(pattern=AVATAR_ID_PATTERN, max_length=200)]
 
 
 def valid_avatar_id(value):
-    return isinstance(value, str) and len(value) <= 200 and re.fullmatch(
-        AVATAR_ID_PATTERN, value
-    ) is not None
+    return (
+        isinstance(value, str)
+        and len(value) <= 200
+        and re.fullmatch(AVATAR_ID_PATTERN, value) is not None
+    )
 
 
 class StrictModel(BaseModel):
@@ -33,6 +35,8 @@ class BridgeConfig(StrictModel):
     expressions: bool = True
     eyes: bool = True
     locomotion: bool = False
+    # Opt in only for avatars retaining the SDK's default VRCEmote Action layer.
+    desktop_emotes: bool = False
     walk_speed: float = Field(default=2.0, gt=0.1, le=10)
     turn_speed_degrees: float = Field(default=90, gt=1, le=360)
     max_axis: float = Field(default=0.65, gt=0, le=1)
@@ -90,6 +94,9 @@ class BridgeConfig(StrictModel):
             if self.mode == "vr_trackers"
             else "unavailable in desktop mode",
             "arbitrary_desktop_bone_animation": False,
+            "desktop_body": "SDK avatar emotes (not generated joint playback)"
+            if self.desktop_emotes and self.mode == "desktop"
+            else "no body-animation output",
             "world_position_observed": False,
             "voice": "selected audio endpoint" if self.audio_enabled else "disabled",
             "mouth": "VRChat microphone lip sync",
@@ -113,6 +120,14 @@ class ConnectRequest(StrictModel):
 
 class ControlRequest(StrictModel):
     action: Literal["pause", "resume", "interrupt", "disconnect"]
+
+
+class SessionSettings(StrictModel):
+    motion_backend: Literal["motioncraft", "syntalker"]
+    voice: str | None = Field(default=None, max_length=80)
+    persona: str | None = Field(default=None, max_length=4000)
+    autonomous_decisions: int = Field(default=3, ge=0, le=10)
+    desktop_emotes: bool = False
 
 
 class MessageRequest(StrictModel):

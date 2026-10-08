@@ -4,6 +4,7 @@ import asyncio
 import time
 
 from .audio import PlaybackClock
+from .desktop import DesktopTimeline
 from .mapping import chat_chunks, facial_messages, hand_messages, tracker_messages
 from .osc import message
 from .timeline import MotionTimeline, movement
@@ -22,6 +23,9 @@ class PerformancePlayer:
         self.config = config
         self.transport = transport
         self.timeline = MotionTimeline(windows, performance["duration_seconds"])
+        self.desktop = DesktopTimeline(performance)
+        self.emotes_sent = {}
+        self.emotes_observed = set()
         self.speech = performance.get("speech", [])
         for clip in self.speech:
             start, duration = clip["start_seconds"], clip["duration_seconds"]
@@ -61,6 +65,14 @@ class PerformancePlayer:
             self.transport.release()
 
     async def run(self):
+        use_emotes = self.config.mode == "desktop" and self.config.desktop_emotes
+        if use_emotes and any(c["emote"] for c in self.desktop.clips):
+            if "VRCEmote" not in self.transport.protocol.query_status.get(
+                "writable_parameters", []
+            ):
+                raise ValueError(
+                    "This avatar does not advertise a writable VRCEmote parameter; disable SDK emotes or use the prepared VIREA avatar"
+                )
         clock = self.clock_factory(
             self.timeline.duration,
             self.audio,
@@ -102,6 +114,21 @@ class PerformancePlayer:
                 self.elapsed = current
                 pose = self.timeline.sample(self.elapsed)
                 outgoing = []
+                emote, face = self.desktop.sample(self.elapsed)
+                if use_emotes:
+                    # Action owns the body while an emote is active. Do not mix a
+                    # generated root displacement into an unrelated preset clip.
+                    outgoing.append(message("/avatar/parameters/VRCEmote", emote))
+                    if emote:
+                        self.emotes_sent.setdefault(emote, time.monotonic())
+                    observed, when = self.transport.protocol.values.get(
+                        "VRCEmote", (None, 0)
+                    )
+                    if (
+                        observed in self.emotes_sent
+                        and when >= self.emotes_sent[observed]
+                    ):
+                        self.emotes_observed.add(observed)
                 if self.config.locomotion:
                     right, forward, turn = movement(
                         self.timeline,
@@ -109,6 +136,8 @@ class PerformancePlayer:
                         self.config,
                         self.transport.protocol.fresh(),
                     )
+                    if use_emotes and emote:
+                        right = forward = turn = 0.0
                     outgoing += [
                         message("/input/Horizontal", right),
                         message("/input/Vertical", forward),
@@ -127,6 +156,7 @@ class PerformancePlayer:
                 if self.config.expressions:
                     outgoing.append(message("/avatar/parameters/AI_Active", True))
                     outgoing += hand_messages(pose.rotations)
+                    outgoing += facial_messages(face)
                 speaking = any(
                     c["start_seconds"]
                     <= self.elapsed
@@ -167,6 +197,7 @@ class PerformancePlayer:
                 else 0,
                 "frames": self.frames,
                 "chat_dropped": self.chat_dropped,
+                "execution": self.output_status(),
             }
         finally:
             try:
@@ -174,6 +205,23 @@ class PerformancePlayer:
             finally:
                 self.transport.release()
                 self.clock = None
+
+    def output_status(self):
+        return {
+            "mode": self.config.mode,
+            "generated_body_transmitted": self.config.mode == "vr_trackers",
+            "body_representation": "configured_body_trackers"
+            if self.config.mode == "vr_trackers"
+            else "SDK avatar presets"
+            if self.config.desktop_emotes
+            else "none",
+            "segments": self.desktop.summary(self.config.desktop_emotes)
+            if self.config.mode == "desktop"
+            else [],
+            "emotes_sent": sorted(self.emotes_sent),
+            "emotes_observed": sorted(self.emotes_observed),
+            "rendered_pose_verified": False,
+        }
 
     def expression(self, weights, pitch=0.0, yaw=0.0, blink=0.0):
         outgoing = facial_messages(weights) if self.config.expressions else []

@@ -19,7 +19,7 @@ superseded_by: []
 
 The native bridge owns a VIREA conversation and plays independent motion/speech timelines outside the browser. MotionCraft and SynTalker are supported for live sessions. The existing SentiAvatar + ARDY Studio route remains available; its retargeted canonical Motion IR can be replayed through the CLI. Closing the control page does not stop the bridge.
 
-**On 2026-10-08, the user published VIREA Independent AI and both accounts joined the same online private instance; their full instance keys match.** The AI client wears the published avatar and exposes all nine parameters. A local mirror comparison confirmed `AI_Smile=0/1` changes the rendered face. The observer displayed the custom avatar once, but later reported `FailedFetchingSecurityScan` alongside API 401 errors and rendered a fallback robot after the AI rejoined. The cause of the authentication failure has not been established. Reliable remote visibility, hand poses, remote face synchronization and virtual-microphone audio remain unaccepted. API 401 errors can coexist with an active world connection: restore only the affected client's login session and retry normal avatar loading. This branch does not include a virtual HMD/controller driver, scene vision, player-speech recognition or autonomous visual navigation.
+**On 2026-10-08, both accounts recovered in the same private instance with the published VIREA Independent AI avatar.** The AI exposes all nine custom parameters plus writable `VRCEmote`. Real browser submissions completed 12-second SynTalker clap and MotionCraft wave timelines with matching game parameter feedback; the observer visibly saw the AI clap. Switching methods during generation and playback preserved the session and history, then released animation controls. Earlier API 401/security-fetch failures remain historical evidence, not a current disconnection claim. Detailed fingers, full face synchronization, arbitrary generated skeleton playback and audible speech remain unaccepted. This branch does not include a virtual HMD/controller driver, scene vision, player-speech recognition or autonomous visual navigation.
 
 ## Architecture and capabilities
 
@@ -31,12 +31,21 @@ VIREA plans short English action segments and independent speech clips, prepares
 | Mouth | Native VRChat microphone lip sync | Same |
 | Captions | Optional, scheduled per speech interval | Same |
 | Locomotion | Optional bounded input axes | Same |
-| Face and eyes | Explicit expression API, custom face parameters and OSC eye direction | Same |
+| Face and eyes | Explicit action-caption face cues, expression API and OSC eye direction | Same |
 | Hands | Five coarse avatar hand poses classified from generated finger rotations | Same, or future external skeletal driver |
 | Arbitrary body animation | Not available through standard desktop OSC | Up to eight body trackers reconstructed by VRChat IK; head/hands still require devices |
+| Body presets | Opt-in SDK animations through `VRCEmote` | Desktop presets unused |
 | World perception | Not provided by this bridge | Not provided |
 
-Built-in GestureLeft/Right and Viseme parameters are read-only; the bridge writes custom `AI_*` parameters. [Official avatar parameter contract](https://creators.vrchat.com/avatars/animator-parameters/)
+Built-in GestureLeft/Right and Viseme parameters are read-only; hands and face use custom `AI_*` parameters. `VRCEmote` is writable, and playback checks the current avatar's OSCQuery write capability. [Official avatar parameter contract](https://creators.vrchat.com/avatars/animator-parameters/) · [Official VRCEmote OSC example](https://docs.vrchat.com/docs/osc-avatar-parameters)
+
+## Live settings and desktop actions
+
+Use the top selector to switch MotionCraft / SynTalker without disconnecting or starting a new conversation. Voice, persona, autonomy and desktop presets can also be saved while connected; ports, devices and execution mode remain connection settings. `POST /api/v1/vrchat/settings` checks the worker and voice outside the player lock. Failure preserves the old task; success cancels old inference/playback, releases inputs and replaces providers while retaining session identity, history, avatar binding and pause state. Concurrent messages/stops invalidate an in-flight settings preflight. The browser discards older-epoch poll responses.
+
+Enable desktop presets only on a prepared avatar retaining the SDK Action layer. Explicit wave/clap/point/cheer/dance prompts map to 1–5; unknown, negated or mixed-preset prompts remain unmapped. Motion clip intervals drive the controls independently of speech; gaps, pause, switching, completion and the watchdog release them. Generated root motion is suppressed during presets. The SDK animations retain their own transitions and looping behavior, so this is not frame-exact duration control.
+
+This maps action intent to existing animations, **not generated skeletal playback**. Fingers remain coarse classifications. Explicit smile/sad/angry/surprised captions drive existing face bindings with short fades, not model-generated facial output. Execution reports separate `emotes_sent`, `emotes_observed` and per-segment `body_output`; `rendered_pose_verified` stays false because parameter feedback alone does not verify an image. Presets default off on other avatars: a writable integer does not guarantee the SDK mapping.
 
 OSC body trackers are not a full skeleton or a substitute for head/hand devices. Head tracker messages only align tracking spaces. VR mode requires `VRMode=1` feedback and FBT calibration. [Official tracker protocol](https://docs.vrchat.com/docs/osc-trackers)
 
@@ -106,6 +115,7 @@ All routes use `/api/v1/vrchat`, restricted to loopback clients, loopback Host a
 | `GET /avatar-preview` | Fixed local VRM asset; 404 when absent, no caller-supplied file path |
 | `GET /views/{observer\|ai}/frame` | On-demand JPEG for the process-bound game window; requires `X-Virea-Capture: 1` and same origin |
 | `POST /connect` | Config, model, voice, persona, autonomous_decisions |
+| `POST /settings` | Change model, voice, persona, autonomy or desktop presets while keeping the session/history |
 | `POST /bind-avatar` | Bind the ID actually observed from the AI client while idle |
 | `POST /messages` | Submit a goal, cancelling the previous task |
 | `POST /performance` | Explicit PerformancePlan, no autonomous follow-up |

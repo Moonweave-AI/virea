@@ -13,6 +13,10 @@ from .osc import bundle, decode, message, release_messages
 
 def reset_packet(config):
     messages = release_messages(config.microphone == "hold")
+    if config.mode == "desktop":
+        # Included even before opt-in so a live settings change is also covered
+        # by the child process's existing dead-man reset packet.
+        messages.append(message("/avatar/parameters/VRCEmote", 0))
     if config.eyes:
         messages += [
             message("/tracking/eye/EyesClosedAmount", 0.0),
@@ -101,6 +105,7 @@ class FeedbackProtocol(asyncio.DatagramProtocol):
                         "Grounded",
                         "InStation",
                         "AI_Active",
+                        "VRCEmote",
                         *FACE_PARAMETERS,
                         *HAND_PARAMETERS,
                     }
