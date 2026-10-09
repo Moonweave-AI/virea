@@ -69,3 +69,8 @@ id_ed25519*
 /cache/
 /tmp/
 *.log
+
+# ignore SF's unique agent settings
+progress.md
+思路草稿.md
+/docs
