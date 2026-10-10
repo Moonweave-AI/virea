@@ -119,13 +119,29 @@ voice/microphone acceptance and arbitrary-world grabbing are outside this
 silent run. See the [operations guide](../character/vrchat-operations.en.md)
 for recovery and the exact control map.
 
-The final pre-commit GitNexus scope-all report covered 130 changed files and
+The generated-VR feature commit's GitNexus scope-all report covered 130 changed files and
 reported CRITICAL impact across the control, session and deployment surface.
 It was neither partial nor truncated. The existing index has dynamic-dispatch
 gaps and incorrectly maps some README headings into unrelated flows; a forced
 index refresh failed locally. Unknown callers were checked against source
 references and regression tests. This is an impact review with stated index
 limits, not proof that every affected caller has been discovered.
+
+### CI portability follow-up
+
+The first pull-request run exposed test-environment assumptions: one test
+imported Python 3.11's `tomllib` on Python 3.10, two API cases relied on the
+developer machine having multiple execution domains, and the shared-runner
+browser hit short actionability deadlines. The TOML test now uses the existing
+`tomli` compatibility path; explicit-domain cases inject a Windows/WSL machine
+fixture; browser action waits allow ten seconds and each multi-page scenario
+allows sixty seconds. Their diagnostic timeout and functional assertions remain.
+
+The eight affected Python cases passed on both the primary interpreter and
+Python 3.10; the web suite passed **180/180** again. These follow-up changes
+affect tests only. Remote results are available in
+[PR #10 checks](https://github.com/Moonweave-AI/virea/pull/10/checks), separately
+from the local and real-game evidence above.
 
 The dated sections below preserve earlier failures and checks. A historical
 "0/4" or an earlier test count is not the current acceptance result.
