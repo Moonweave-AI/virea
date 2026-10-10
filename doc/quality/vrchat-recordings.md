@@ -157,6 +157,14 @@ environments: **346 passed, 1 skipped** on both Python 3.10 (146.07 seconds) and
 Python 3.12 (144.22 seconds). The skip is optional Zeroconf discovery without
 the VRChat extra, not a failed case. The minimum-Python CI job now also runs
 the VRChat suite to keep these deadlines covered.
+
+The Linux integration run then isolated a bit-preservation defect: reconstructing
+an already-neutral PIP after MCP abduction introduced a quaternion component of
+about `2.1e-9`. Geometry reconstruction now keeps the source quaternion when the
+candidate's chord distance lies below the solver's existing angular-change
+threshold, before the unchanged postcondition checks. The exact-equality test
+was retained. The final fix passed **69 hand-solver, biomechanics, batch-pipeline
+and performance cases** locally; the recorded video files were not altered.
 Remote results are available in
 [PR #10 checks](https://github.com/Moonweave-AI/virea/pull/10/checks), separately
 from the local and real-game evidence above.

@@ -1170,6 +1170,18 @@ def _compose_position_geometry_output(
                 -candidate,
                 candidate,
             )
+            # A straight PIP is rebuilt even when already neutral. The
+            # world/parent round trip can introduce platform-dependent float32
+            # noise; retain the source bits below the existing angular change
+            # threshold. For nearby unit quaternions chord distance is angle/2.
+            chord = np.linalg.norm(
+                candidate.astype(np.float64) - source[:, bone_index], axis=-1
+            )
+            candidate = np.where(
+                (chord <= _ANGLE_CHANGE_EPSILON_RAD / 2.0)[:, None],
+                source[:, bone_index],
+                candidate,
+            )
             mask = rebuild[:, bone_index, None]
             output[:, bone_index] = np.where(mask, candidate, output[:, bone_index])
         globals_xyzw[bone] = quat_multiply_xyzw(parent_global, output[:, bone_index])
