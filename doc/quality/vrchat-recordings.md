@@ -139,7 +139,25 @@ allows sixty seconds. Their diagnostic timeout and functional assertions remain.
 
 The eight affected Python cases passed on both the primary interpreter and
 Python 3.10; the web suite passed **180/180** again. These follow-up changes
-affect tests only. Remote results are available in
+fix the test environment. Native-setup unit tests also inject their OpenVR constants
+alongside their fake system, rather than importing the optional Windows SDK
+during Linux collection; real driver validation remains separate. Portable
+process and image/recording-test dependencies (psutil, OpenCV, Pillow and imageio-ffmpeg)
+are declared in the locked development extra so a clean CI environment runs
+them without the machine's preinstalled VRChat extras.
+
+Clean Python 3.10 validation additionally found that calibration and room-confirmation
+deadlines used the Python 3.11-only `asyncio.timeout`. They now use the standard
+library on 3.11+ and its conditional `async-timeout` backport on 3.10, with the
+correct version-compatible exception type. Timeout and cancellation still release
+inputs; no deadline or identity check was relaxed. See the
+[upstream compatibility guidance](https://github.com/aio-libs-abandoned/async-timeout#deprecated).
+After these fixes, the complete VRChat suite passed in two clean development
+environments: **346 passed, 1 skipped** on both Python 3.10 (146.07 seconds) and
+Python 3.12 (144.22 seconds). The skip is optional Zeroconf discovery without
+the VRChat extra, not a failed case. The minimum-Python CI job now also runs
+the VRChat suite to keep these deadlines covered.
+Remote results are available in
 [PR #10 checks](https://github.com/Moonweave-AI/virea/pull/10/checks), separately
 from the local and real-game evidence above.
 

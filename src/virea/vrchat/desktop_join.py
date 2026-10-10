@@ -8,6 +8,7 @@ import asyncio
 import threading
 import time
 
+from .async_compat import timeout
 from .menu_vision import LabelNotFound, join_label, read_labels
 from .room_feedback import reject_denied_room
 from .rooms import local_pair
@@ -202,7 +203,7 @@ async def confirm_desktop_room_join(
         return target, frame, join_label(labels, host.room)
 
     try:
-        async with asyncio.timeout(20):
+        async with timeout(20):
             while True:
                 try:
                     target, frame, button = await observe()
@@ -232,7 +233,7 @@ async def confirm_desktop_room_join(
                     return  # Arrival still requires fresh evidence from both clients.
                 except (LabelNotFound, ViewUnavailable):
                     await asyncio.sleep(0.2)
-    except TimeoutError as exc:
+    except asyncio.TimeoutError as exc:
         raise ValueError(
             "入房页面已请求，但未可靠识别观察者的目标实例和加入按钮；未点击"
         ) from exc

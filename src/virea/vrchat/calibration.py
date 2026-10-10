@@ -8,6 +8,7 @@ import numpy as np
 
 from virea.motion.rotation import quat_apply_xyzw
 
+from .async_compat import timeout
 from .manual import (
     POSE_FIELDS,
     ManualRig,
@@ -310,7 +311,7 @@ class AutoCalibration:
             raise LabelNotFound("未可靠识别校准入口；已停止输入，可重试自动校准")
 
         try:
-            async with asyncio.timeout(self.timeout_seconds):
+            async with timeout(self.timeout_seconds):
                 await self.rig.close()
                 if await self.identify(config) != self.pid:
                     raise ValueError("SteamVR 场景与 AI 客户端不一致")
@@ -419,7 +420,7 @@ class AutoCalibration:
         except asyncio.CancelledError:
             self.stage = "cancelled"
             raise
-        except TimeoutError:
+        except asyncio.TimeoutError:
             self.stage, self.error = (
                 "failed",
                 f"第 {self.step}/{len(STEPS)} 步「{self.step_label}」超时；已释放所有输入",

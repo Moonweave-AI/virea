@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import time
 
+from .async_compat import timeout
 from .calibration import menu_view
 from .manual import ManualRig, manual_client_pid
 from .menu_vision import LabelNotFound, join_label, read_labels
@@ -75,7 +76,7 @@ async def confirm_room_join(
                     await task
 
     try:
-        async with asyncio.timeout(35):
+        async with timeout(35):
             for pitch in (0, -20, 20):
                 rig.update(token, menu_view(pitch))
                 await hold(0.8)
@@ -111,7 +112,7 @@ async def confirm_room_join(
             # Travel may immediately unload the avatar. Arrival belongs to the
             # caller's log check, so do not reject a valid click during unload.
             await asyncio.sleep(0.25)
-    except TimeoutError as exc:
+    except asyncio.TimeoutError as exc:
         raise ValueError("入房确认超时，已释放输入；没有宣称同房间") from exc
     finally:
         await rig.close()

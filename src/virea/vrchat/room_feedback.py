@@ -4,6 +4,7 @@ import asyncio
 import re
 import time
 
+from .async_compat import timeout
 from .menu_vision import read_labels
 from .views import ViewUnavailable
 
@@ -47,12 +48,12 @@ async def check_room_rejection(config, views, role, guest, *, ocr=read_labels):
         # Local OCR takes ~3.2 s warm and ~7 s cold on the deployed host.
         # A 3 s deadline silently discarded every valid denial and queued
         # overlapping CPU OCR work on each retry. Allow one bounded read.
-        async with asyncio.timeout(12):
+        async with timeout(12):
             target, frame = await asyncio.to_thread(views.frame, role, config.send_port)
             if (target.pid, target.started) != (guest.pid, guest.started):
                 raise ValueError("入房提示画面的客户端身份已变化，操作停止")
             if time.monotonic() - frame.captured_at > 1:
                 return None
             return room_rejection(await ocr(frame.jpeg))
-    except (ViewUnavailable, TimeoutError):
+    except (ViewUnavailable, TimeoutError, asyncio.TimeoutError):
         return None

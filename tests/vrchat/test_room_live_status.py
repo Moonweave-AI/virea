@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from virea.vrchat.async_compat import timeout
 from virea.vrchat.client_query import ClientQuery
 from virea.vrchat.contracts import BridgeConfig
 from virea.vrchat.rooms import RoomCommands
@@ -127,7 +128,7 @@ def test_room_diagnostics_and_query_tree_publish_atomically(monkeypatch):
             assert await asyncio.to_thread(entered.wait, 3)
             assert protocol.query_status == old
             release.set()
-            async with asyncio.timeout(3):
+            async with timeout(3):
                 while protocol.query_status.get("online") != online:
                     await asyncio.sleep(0.01)
             assert protocol.snapshot()["query"]["last_checked_seconds_ago"] < 0.5

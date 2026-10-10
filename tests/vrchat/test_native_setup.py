@@ -1,17 +1,26 @@
 import json
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
-import openvr
 import pytest
 
 from virea.vrchat import native_setup
 
 
 @pytest.fixture
-def virtual_runtime(tmp_path):
+def virtual_runtime(tmp_path, monkeypatch):
+    # Unit tests exercise setup/identity policy without loading a native SDK.
+    # Real OpenVR deployment is validated separately on the Windows host.
+    openvr = SimpleNamespace(
+        TrackedDeviceClass_Controller=2,
+        TrackedDeviceClass_HMD=1,
+        Prop_SerialNumber_String=1002,
+        k_unMaxTrackedDeviceCount=64,
+    )
+    monkeypatch.setitem(sys.modules, "openvr", openvr)
     native_setup._configured.clear()
     bindings = tmp_path / "integrations/vrchat/openvr/resources/input/vrchat.json"
     bindings.parent.mkdir(parents=True)
