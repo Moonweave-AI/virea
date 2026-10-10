@@ -4,6 +4,7 @@ param(
     [string]$AvatarSource = (Join-Path $PSScriptRoot '../../.virea-runtime/vrchat/unity/avatar/Assets/VIREASetup/VireaSource.vrm'),
     [string]$VRChatExe,
     [ValidateRange(0, 99)][int]$AIProfile = 2,
+    [switch]$VR,
     [switch]$SkipWebBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,9 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $stack = Get-Content -LiteralPath $Settings -Raw | ConvertFrom-Json
 if (!$PSBoundParameters.ContainsKey('AIProfile') -and $null -ne $stack.ai_client.profile) {
     $AIProfile = [int]$stack.ai_client.profile
+}
+if (!$PSBoundParameters.ContainsKey('VR') -and $null -ne $stack.ai_client.vr) {
+    $VR = [bool]$stack.ai_client.vr
 }
 $sendPort = if ($null -ne $stack.ai_client.send_port) { [int]$stack.ai_client.send_port } else { 19010 }
 $receivePort = if ($null -ne $stack.ai_client.receive_port) { [int]$stack.ai_client.receive_port } else { 19011 }
@@ -37,7 +41,7 @@ if (!$SkipWebBuild) {
 if ($VRChatExe) {
     $running = @(Get-NetUDPEndpoint -LocalPort $sendPort -ErrorAction SilentlyContinue)
     if (!$running.Count) {
-        & (Join-Path $PSScriptRoot 'start_ai_client.ps1') -VRChatExe $VRChatExe -Profile $AIProfile -SendPort $sendPort -ReceivePort $receivePort
+        & (Join-Path $PSScriptRoot 'start_ai_client.ps1') -VRChatExe $VRChatExe -Profile $AIProfile -SendPort $sendPort -ReceivePort $receivePort -VR:$VR
     } else {
         $ownerIds = @($running | Select-Object -ExpandProperty OwningProcess -Unique)
         if ($ownerIds.Count -ne 1 -or (Get-Process -Id $ownerIds[0]).ProcessName -ne 'VRChat') {
@@ -46,4 +50,4 @@ if ($VRChatExe) {
         Write-Output 'AI VRChat client is already running; preserving both account windows.'
     }
 }
-Write-Output "Ready: $($stack.ui). The page restores its connection automatically."
+Write-Output "Services ready: $($stack.ui). The page restores its connection automatically; game login, VR tracking calibration and visual acceptance are separate checks."

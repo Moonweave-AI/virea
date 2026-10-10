@@ -2,6 +2,7 @@ import "./vrchat.css";
 import {acceptSnapshot, bridgeError, executionResult, executionNote, mergeTranscript, readConversations, statusLabel, type Conversation} from "./vrchat-conversation.mjs";
 import {connectionView, readConnectionSettings} from "./vrchat-connection.mjs";
 import {mountViews} from "./vrchat-view-panel";
+import {mountClientLaunchers} from "./vrchat-client-panel";
 
 const icon = (name: string) => ({menu: "☰", plus: "+", settings: "⚙", arrow: "↑", stop: "■", close: "×"})[name] ?? name;
 const root = document.querySelector<HTMLElement>("#vrchat")!;
@@ -32,7 +33,7 @@ root.innerHTML = `
   </div>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><h2 id="settings-title">角色与连接</h2><button id="close-settings" class="icon-button" aria-label="关闭设置">×</button></div><div class="dialog-tabs"><button id="configuration-tab" aria-selected="true">设置</button><button id="diagnostics-tab" aria-selected="false">诊断</button></div><div class="dialog-body"><section id="configuration-panel">  <form id="connect-form"><fieldset id="settings">
     <section class="setup-guide"><h3>AI 是独立角色，你是观察者</h3><p>保留你当前的 VRChat 窗口。AI 使用第二个客户端和专用端口，登录独立账号。两个账号进入同一在线房间后，才能从你的视角观察 AI。</p><ol><li>启动 AI 客户端，并登录 AI 账号。<button type="button" id="copy-launch">复制 AI 启动参数</button></li><li>在 AI 窗口开启 Action Menu → Options → OSC，换上准备好的 AI 角色。</li><li>本页面自动识别并绑定已安装 VIREA 参数的角色，可在下方核对。</li></ol><p>SDK Build &amp; Test 角色仅本客户端可见；跨账号展示自定义 VRM 需要有上传权限的 AI 账号发布角色。<a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" target="_blank" rel="noreferrer">官方角色导入流程 ↗</a></p></section>
-    <label>运行模式<select id="mode"><option value="desktop">Steam 桌面版</option><option value="vr_trackers">VR 设备 + 身体追踪</option></select></label>
+    <label>运行模式<select id="mode"><option value="generated_vr">模型姿态 → 虚拟 VR 设备</option><option value="desktop">桌面兼容模式（无生成全身动作）</option><option value="vr_trackers">实体 VR 设备 + 身体追踪</option></select></label>
     <p id="mode-note" class="note">桌面版输出移动、语音和自定义手势；不能通过 OSC 播放任意全身骨骼动画。</p>
     <label>动作模型<select id="backend"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label>
     <p class="note">可以随时切换；保存后停止当前任务，保留对话和 VRChat 连接。新消息使用新方法。</p>
@@ -43,7 +44,7 @@ root.innerHTML = `
     <label>每个任务的自主跟进次数<input id="autonomy" type="number" value="3" min="0" max="10" required></label>
     <label>虚拟声卡播放端<select id="audio"><option value="">关闭语音输出</option></select></label>
     <p class="note">选择虚拟线缆的播放端，并在 VRChat 里选择对应的录音端。不会自动选择默认扬声器。</p>
-    <div class="checks"><label><input type="checkbox" id="chatbox"> 发送字幕到聊天框</label><label><input type="checkbox" id="locomotion"> 允许角色移动</label></div>
+    <div class="checks"><label><input type="checkbox" id="chatbox" checked> AI 回复显示在 AI 头顶</label><label><input type="checkbox" id="observer-chatbox" checked> 我的消息显示在我的角色头顶</label><label><input type="checkbox" id="locomotion"> 允许输入控制角色移动</label></div>
     <label><input id="auto-bind" type="checkbox" checked> 自动绑定专用 AI 客户端中已安装 VIREA 参数的角色</label>
     <label>AI Avatar ID<input id="avatar-id" placeholder="自动识别本地测试或已发布角色"></label>
     <details><summary>OSC 与校准</summary><label>AI 客户端 Profile<input id="ai-profile" type="number" value="2" min="0" max="99" required></label><div class="pair"><label>AI 接收端口<input id="send-port" type="number" value="19010" min="1024" max="65535" required></label><label>AI 回传端口<input id="receive-port" type="number" value="19011" min="1024" max="65535" required></label></div>
@@ -83,7 +84,7 @@ let connectionError = "";
 let settingsReady = false;
 let hydratedSession = "";
 const settingsKey = "virea.vrchat.connection.v1";
-const settingIds = ["mode", "backend", "voice", "persona", "autonomy", "desktop-emotes", "audio", "avatar-id", "ai-profile", "send-port", "receive-port", "scale", "yaw", "chatbox", "locomotion", "hold", "auto-bind"];
+const settingIds = ["mode", "backend", "voice", "persona", "autonomy", "desktop-emotes", "audio", "avatar-id", "ai-profile", "send-port", "receive-port", "scale", "yaw", "chatbox", "observer-chatbox", "locomotion", "hold", "auto-bind"];
 const liveSettingIds = new Set(["backend", "voice", "persona", "autonomy", "desktop-emotes"]);
 let settingsSnapshotKey = "";
 const drafts = new Map<string, string>();
@@ -191,6 +192,8 @@ function renderTimeline() {
 }
 function render(next: any) {
   state = next;
+  liveViews.setCalibration(state.calibration ?? null, offline);
+  liveViews.setRooms(state.rooms ?? null, offline);
   if (state.session) {
     let owner = conversations.find(item => item.sessionId === state.session.id);
     if (!owner) { owner = createConversation(); owner.sessionId = state.session.id; active = owner; }
@@ -216,6 +219,10 @@ function render(next: any) {
   element<HTMLSelectElement>("model-choice").disabled = busy;
   element<HTMLFieldSetElement>("settings").disabled = busy;
   for (const id of settingIds) element<HTMLInputElement>(id).disabled = busy || (state.connected && !liveSettingIds.has(id));
+  const desktopMode = value("mode") === "desktop";
+  element<HTMLInputElement>("desktop-emotes").disabled = busy || !desktopMode;
+  if (!desktopMode) element<HTMLInputElement>("desktop-emotes").checked = false;
+  element("mode-note").textContent = value("mode") === "generated_vr" ? "模型每帧生成的头、手、手指和身体姿态进入 SteamVR / OSC；AI 客户端需要 VR 模式及 FBT 校准。观察者可继续使用桌面版。" : desktopMode ? "桌面兼容模式没有模型生成的全身姿态输出。" : "使用实体头手设备和模型身体追踪，需要 VRMode=1 及 FBT 校准。";
   element("connect").textContent = state.connected ? "保存对话设置" : "连接 VRChat 桥接";
   element("disconnect").hidden = !state.connected;
   element<HTMLButtonElement>("connect").disabled = busy; element<HTMLButtonElement>("disconnect").disabled = busy;
@@ -226,7 +233,7 @@ function render(next: any) {
   element("stop").hidden = !working() && !state.paused;
   element("pause").textContent = state.paused ? "继续" : "暂停";
   element("session-state").textContent = statusLabel(state);
-  element("execution-note").textContent = executionNote(state);
+  element("execution-note").textContent = executionNote(state) + (state.observer_chat?.error ? ` 我的字幕暂未送达：${state.observer_chat.error}` : state.observer_chat?.pending ? " 我的字幕正在排队发送。" : "");
   const lastResult = ownSession() ? executionResult(state) : null;
   element("execution").hidden = !ownSession() || (!working() && !lastResult && !state.paused);
   element("execution").classList.toggle("idle", !working());
@@ -249,7 +256,8 @@ async function action(work: () => Promise<any>) {
   finally { busy = false; sendingText = ""; render(state); }
 }
 function connectBody() {
-  return {motion_backend: value("backend"), autonomous_decisions: Number(value("autonomy")), voice: value("voice") || null, persona: value("persona") || null, history: active.messages.slice(-24), config: {mode: value("mode"), send_port: Number(value("send-port")), receive_port: Number(value("receive-port")), audio_enabled: !!value("audio"), audio_device: value("audio") || null, microphone: checked("hold") ? "hold" : "manual", chatbox: checked("chatbox"), locomotion: checked("locomotion"), desktop_emotes: checked("desktop-emotes"), auto_bind: checked("auto-bind"), avatar_id: checked("auto-bind") ? null : value("avatar-id") || null, scale: Number(value("scale")), yaw_degrees: Number(value("yaw"))}};
+  const generated = value("mode") === "generated_vr";
+  return {motion_backend: value("backend"), autonomous_decisions: Number(value("autonomy")), voice: value("voice") || null, persona: value("persona") || null, history: active.messages.slice(-24), config: {mode: value("mode"), send_port: Number(value("send-port")), receive_port: Number(value("receive-port")), audio_enabled: !!value("audio"), audio_device: value("audio") || null, microphone: checked("hold") ? "hold" : "manual", chatbox: checked("chatbox"), observer_chatbox: checked("observer-chatbox"), locomotion: !generated && checked("locomotion"), desktop_emotes: !generated && checked("desktop-emotes"), auto_bind: checked("auto-bind"), avatar_id: checked("auto-bind") ? null : value("avatar-id") || null, scale: Number(value("scale")), yaw_degrees: generated ? 0 : Number(value("yaw")), ...(generated ? {tracker_bones: ["hips", "leftFoot", "rightFoot", "chest", "leftLowerLeg", "rightLowerLeg", "leftLowerArm", "rightLowerArm"]} : {})}};
 }
 function hydrateSessionSettings(snapshot: any, force = false) {
   if (!snapshot.connected || !settingsReady) return;
@@ -294,6 +302,7 @@ function hydrateConnection(snapshot: any) {
   hydratedSession = snapshot.session.id;
   for (const [id, key] of [["mode", "mode"], ["send-port", "send_port"], ["receive-port", "receive_port"], ["audio", "audio_device"], ["avatar-id", "avatar_id"], ["scale", "scale"], ["yaw", "yaw_degrees"]]) element<HTMLInputElement>(id!).value = String(snapshot.config[key!] ?? "");
   for (const id of ["chatbox", "locomotion"]) element<HTMLInputElement>(id).checked = !!snapshot.config[id];
+  element<HTMLInputElement>("observer-chatbox").checked = !!snapshot.config.observer_chatbox;
   element<HTMLInputElement>("hold").checked = snapshot.config.microphone === "hold";
   element<HTMLInputElement>("backend").value = snapshot.session.motion_backend;
   element<HTMLInputElement>("voice").value = snapshot.session.voice ?? "";
@@ -361,9 +370,9 @@ element("reconnect").addEventListener("click", () => void action(async () => {
 }));
 for (const id of settingIds) element(id).addEventListener("change", persistConnection);
 element("bind-avatar").addEventListener("click", () => void action(async () => { const next = await api("/bind-avatar", {avatar_id: state.feedback.values.avatar_id}); element<HTMLInputElement>("avatar-id").value = next.config.avatar_id; return next; }));
-element("copy-launch").addEventListener("click", async () => { try { await navigator.clipboard.writeText(`--no-vr --profile=${value("ai-profile")} --osc=${value("send-port")}:127.0.0.1:${value("receive-port")} --watch-avatars --watch-worlds -screen-fullscreen 0`); element("copy-launch").textContent = "已复制参数，请用于官方 launch.exe"; } catch { error("无法访问剪贴板，请从启动脚本启动 AI 客户端。"); } });
+element("copy-launch").addEventListener("click", async () => { try { await navigator.clipboard.writeText(`${value("mode") === "desktop" ? "--no-vr " : ""}--profile=${value("ai-profile")} --osc=${value("send-port")}:127.0.0.1:${value("receive-port")} --watch-avatars --watch-worlds -screen-fullscreen 0`); element("copy-launch").textContent = "已复制参数，请用于官方 launch.exe"; } catch { error("无法访问剪贴板，请从启动脚本启动 AI 客户端。"); } });
 for (const [id, command] of [["disconnect", "disconnect"], ["stop", "interrupt"], ["pause", "pause"]]) element(id!).addEventListener("click", () => void action(() => { if (command === "disconnect") { connectionWanted = false; persistConnection(); } return api("/control", {action: command === "pause" && state.paused ? "resume" : command}); }));
-element("mode").addEventListener("change", () => { element("mode-note").textContent = value("mode") === "desktop" ? "桌面版支持移动、语音与预设手势。完整全身动作需要 VR 追踪设备。" : "需要头显和手部设备、VRMode=1 回传及 FBT 校准，默认输出腰和双脚。"; render(state); });
+element("mode").addEventListener("change", () => render(state));
 element("audio").addEventListener("change", () => render(state));
 element("backend").addEventListener("change", () => render(state));
 element("model-choice").addEventListener("change", () => {
@@ -413,5 +422,6 @@ async function poll() {
     error(connectionError); render(state);
   } finally { window.setTimeout(poll, offline ? 2000 : 1000); }
 }
+const liveViews = mountViews(root);
+mountClientLaunchers(root);
 void initialize();
-mountViews(root);

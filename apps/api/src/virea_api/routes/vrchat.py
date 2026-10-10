@@ -1,6 +1,7 @@
 """Local control surface for the native VRChat bridge."""
 
 import asyncio
+from typing import Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -18,6 +19,9 @@ from virea.vrchat.contracts import (
     SessionSettings,
     StrictModel,
 )
+from virea.vrchat.manual import ManualState
+
+from .vrchat_clients import router as clients_router
 
 
 def local_request(request: Request):
@@ -37,6 +41,7 @@ def local_request(request: Request):
 router = APIRouter(
     prefix="/vrchat", tags=["vrchat"], dependencies=[Depends(local_request)]
 )
+router.include_router(clients_router)
 
 
 class ExpressionRequest(StrictModel):
@@ -53,6 +58,49 @@ class ExpressionRequest(StrictModel):
 
 class BindAvatarRequest(StrictModel):
     avatar_id: AvatarId
+
+
+class ManualControlRequest(StrictModel):
+    action: Literal["begin", "update", "end", "align"]
+    token: str | None = Field(default=None, max_length=32)
+    state: ManualState = Field(default_factory=ManualState)
+    command: (
+        Literal[
+            "click",
+            "click_left",
+            "menu",
+            "menu_right",
+            "main_menu",
+            "action_menu",
+            "back",
+            "confirm",
+            "dashboard",
+            "turn_left",
+            "turn_right",
+        ]
+        | None
+    ) = None
+    wait_ms: int = Field(default=0, ge=0, le=1000)
+
+
+@router.post("/manual")
+async def manual_control(body: ManualControlRequest, request: Request):
+    try:
+        if body.action == "align":
+            service = request.app.state.vrchat
+            async with service.lock:
+                result = await service.manual.align_projection(
+                    body.token, service.config, request.app.state.vrchat_views
+                )
+        else:
+            result = await request.app.state.vrchat.manual_control(body)
+        if body.action == "update" and body.wait_ms:
+            # Pace the browser from network responses, without holding the
+            # service lock or relying on throttled background JS timers.
+            await asyncio.sleep(body.wait_ms / 1000)
+        return result
+    except (ValueError, RuntimeError, ImportError, OSError) as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/bind-avatar")
@@ -90,8 +138,94 @@ async def avatar_preview(request: Request):
 @router.post("/connect")
 async def connect(body: ConnectRequest, request: Request):
     try:
+        request.app.state.vrchat.views = getattr(
+            request.app.state, "vrchat_views", None
+        )
         return await request.app.state.vrchat.connect(body)
     except (ValueError, OSError, ImportError, httpx.HTTPError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+class CalibrationRequest(StrictModel):
+    action: Literal["start", "cancel"] = "start"
+
+
+class RoomCommandRequest(StrictModel):
+    action: Literal["join", "invite", "accept"] = "join"
+    target: Literal["ai", "observer", "auto"] = "auto"
+
+
+@router.post("/calibration")
+async def calibrate(body: CalibrationRequest, request: Request):
+    service = request.app.state.vrchat
+    async with service.lock:
+        if body.action == "cancel":
+            await service.calibration.stop()
+            return service.calibration.snapshot()
+        if not service.session or service.config.mode != "generated_vr":
+            raise HTTPException(409, "先连接生成式 VR 模式")
+        if (
+            service.playing
+            or service.manual.snapshot()["active"]
+            or service.rooms.active
+        ):
+            raise HTTPException(409, "请先停止动作或结束人工接管，自动校准需要独占设备")
+        if not service.calibration.key(service.transport):
+            raise HTTPException(409, "等待 AI 登录、角色绑定与新的游戏反馈")
+        await service.pose_hold.close()
+        return service.calibration.start(
+            service.config, service.transport, service.views, force=True
+        )
+
+
+@router.post("/rooms")
+async def room_command(body: RoomCommandRequest, request: Request):
+    service = request.app.state.vrchat
+    from virea.vrchat.desktop_join import confirm_desktop_room_join
+    from virea.vrchat.room_feedback import check_room_rejection
+    from virea.vrchat.room_join import confirm_room_join
+
+    async with service.lock:
+        if not service.config or not service.transport or not service.session:
+            raise HTTPException(409, "先连接 AI 客户端")
+        if (
+            service.rooms.active
+            or service.playing
+            or service.manual.snapshot()["active"]
+        ):
+            raise HTTPException(409, "请先结束动作、接管或已有房间操作")
+        if service.calibration.active:
+            await service.calibration.stop()
+
+    async def prepare(target):
+        if target == "ai":
+            await service.calibration.stop()
+            await service.pose_hold.close()
+
+    async def confirm(guest, host):
+        if service.rooms.state.get("target") == "observer":
+            await confirm_desktop_room_join(service.config, service.views, guest, host)
+        else:
+            await confirm_room_join(
+                service.config, service.transport, service.views, guest, host
+            )
+
+    async def feedback(target, guest):
+        return await check_room_rejection(service.config, service.views, target, guest)
+
+    try:
+        result = await service.rooms.run(
+            body.action,
+            body.target,
+            service.config.send_port,
+            confirm=confirm,
+            prepare=prepare,
+            feedback=feedback,
+        )
+        if result.get("same_instance") and result.get("target") == "ai":
+            service.calibration.attempted = None
+        return result
+    except (ValueError, RuntimeError, OSError, httpx.HTTPError) as exc:
         raise HTTPException(409, str(exc)) from exc
 
 

@@ -3,7 +3,7 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-08-26
+updated: 2026-10-11
 last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
@@ -47,6 +47,10 @@ superseded_by: []
 不同的第三方条款；[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) 及分目录 notice 只说明来源与
 边界，不给整个项目授予统一开源或商业许可。贡献入口见 [CONTRIBUTING](../CONTRIBUTING.md)，安全报告见
 [SECURITY](../SECURITY.md)。
+
+## VRChat：独立 AI 操作
+
+[Operations / 操作指南](character/vrchat-operations.zh-CN.md) · [Technical reference / 技术参考](character/vrchat.zh-CN.md) · [Recording evidence / 录制验收](quality/vrchat-recordings.md)
 
 ## 选择你的路径
 

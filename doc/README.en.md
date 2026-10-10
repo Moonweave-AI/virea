@@ -3,7 +3,7 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
+updated: 2026-10-11
 last_reviewed: 2026-08-26
 review_cycle_days: 14
 summary: English task-oriented VIREA documentation hub, paired with the Chinese hub and anchored at a clean git clone.
@@ -31,6 +31,10 @@ The current catalog contains 14 integrated-experimental model plugins and 19 pub
 six-integrated/eight-upstream-only split is superseded. Every task has an immutable acceptance contract, but declared
 integration is not cross-device evidence: each installation must pass its complete task suite on the selected Runtime.
 No model is promoted to `supported` until its required release evidence and licensing gates are complete.
+
+## VRChat: independent AI operation
+
+[Operations / 操作指南](character/vrchat-operations.en.md) · [Technical reference / 技术参考](character/vrchat.en.md) · [Recording evidence / 录制验收](quality/vrchat-recordings.md)
 
 ## Start here
 

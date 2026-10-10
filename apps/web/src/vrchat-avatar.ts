@@ -28,12 +28,15 @@ export async function avatarPreview(canvas: HTMLCanvasElement): Promise<() => vo
   const camera = new THREE.PerspectiveCamera(34, 1, .01, 100);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.enablePan = false; controls.enableZoom = false; controls.target.copy(center);
+  let dirty = true;
+  const invalidate = () => { dirty = true; };
+  controls.addEventListener("change", invalidate);
   const resize = new ResizeObserver(() => {
     const width = Math.max(1, canvas.clientWidth), height = Math.max(1, canvas.clientHeight);
     renderer.setSize(width, height, false); camera.aspect = width / height;
     const extent = Math.max(size.y, size.x / camera.aspect);
     camera.position.copy(center).add(new THREE.Vector3(0, .04, extent / (2 * Math.tan(THREE.MathUtils.degToRad(17))) * 1.15));
-    camera.updateProjectionMatrix(); controls.update();
+    camera.updateProjectionMatrix(); controls.update(); dirty = true;
   });
   resize.observe(canvas);
   let frame = 0, previous = 0, visible = true;
@@ -41,8 +44,12 @@ export async function avatarPreview(canvas: HTMLCanvasElement): Promise<() => vo
   const draw = (now: number) => {
     frame = requestAnimationFrame(draw);
     if (!visible || document.hidden || now - previous < 33) return;
-    vrm.update(Math.min((now - previous) / 1000, .1)); previous = now; controls.update(); renderer.render(scene, camera);
+    previous = now; controls.update();
+    // This is a stationary import preview. Redraw on camera/size changes only;
+    // the two live game windows and inference need the GPU during playback.
+    if (!dirty) return;
+    dirty = false; vrm.update(0); renderer.render(scene, camera);
   };
   frame = requestAnimationFrame(draw);
-  return () => { cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); controls.dispose(); renderer.dispose(); VRMUtils.deepDispose(vrm.scene); };
+  return () => { cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); controls.removeEventListener("change", invalidate); controls.dispose(); renderer.dispose(); VRMUtils.deepDispose(vrm.scene); };
 }

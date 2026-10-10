@@ -21,7 +21,7 @@ class Sink:
         self.protocol = FeedbackProtocol()
         self.allowed = True
 
-    def ready(self):
+    def ready(self, *, require_full_body=True):
         return self.allowed, "avatar changed"
 
     def send(self, messages):

@@ -3,8 +3,8 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-10-08
-last_reviewed: 2026-10-08
+updated: 2026-10-11
+last_reviewed: 2026-10-09
 review_cycle_days: 14
 summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
@@ -39,30 +39,46 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 
 ## VRChat 执行桥接
 
-新增独立于浏览器的 **Steam VRChat 桌面版桥接**：接入 MotionCraft/SynTalker 会话、指定音频设备上的克隆语音、时序字幕、可选移动、自定义表情与手势、暂停／急停和独立 OSC 看门狗。VR 模式提供经过坐标转换的身体追踪输出，仍需要头显和双手设备；标准桌面 OSC 无法复现任意全身骨骼动作。
+AI 控制**独立账号**，你的桌面账号在同一实例中观察。AI 使用项目内的软件头显和手柄，**无需实体 VR 设备**。默认 MotionCraft；可在对话中切换 SynTalker，保留会话历史。
 
-安装 `vrchat` 可选依赖后打开 `/app/vrchat.html`，或用 `scripts/vrchat/launch.ps1` 按本机配置启动。[接入与技术梗概](doc/character/vrchat.zh-CN.md)包含双账号隔离、仓库内角色工程、API 与离线回放。**顶部方法选择器支持对话中切换 MotionCraft / SynTalker，包括生成和播放期间。** 切换成功会停止当前任务，保留聊天记录、会话和 OSC 连接；目标 worker 预检失败则保留原任务。连接后也可保存声音、角色设定和自主跟进次数。
+模型生成的头部、手腕、手指通过 OpenVR 输出，八个身体追踪目标通过 OSC 输出，由 VRChat 自身的 IK 求解角色姿态。生成式 VR 模式禁止预设动画和粗略手势替换。语音与动作使用独立时间轴，实测语音重叠会顺延；完成、中断与下一轮交接保留末帧姿态。这里不承诺逐骨骼完全相同或每个动作提示都精确实现。
 
-已准备的 **VIREA Independent AI** 角色可在输出设置开启**桌面动作：使用角色的 SDK 预设动画**。`A person claps.` 等简短动作按动作时间轴驱动挥手、鼓掌、指向、欢呼、跳舞预设；明确的 smile/sad/angry/surprised 提示也会在播放时发送面部参数。**这些预设不等于原样播放模型生成的全身骨骼。** 未映射的身体动作会注明未传递，执行详情分别显示指令发送与游戏参数回传，两者都不自动等于视觉验收。详见[验证记录](doc/quality/vrchat-evidence.json)。下面的 Studio 视频不作为 VRChat 实机 Demo。
+运行 `./scripts/vrchat/start.ps1` 启动已配置的服务，打开 `http://127.0.0.1:18001/app/vrchat.html`。观察者和 AI 分别有启动、重启按钮；点击**同房间**并等待双方实时到达确认，再查看**自动校准**旁的百分比与 `[当前步骤/8]`。私有房间需要有效邀请，场景在线不能代替 API 认证成功。2026-10-11 已完成重复邀请和入房复验，详见[网络与同房间证据](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11)。
 
-右上角的**实时双视角**按钮可展开侧栏：上方是你的 VRChat 窗口，下方是 AI 的 VRChat 窗口。宽屏与聊天区并排，窄屏覆盖展开，收起即停止采集；按两个客户端各自的 OSC 端口绑定窗口。详见[采集设计与恢复说明](doc/character/vrchat-views.md)。
+侧栏接入两个真实游戏窗口。直接在 AI 画面中使用鼠标瞄准、左键扳机、右键转头、键盘、小键盘及滚轮；全身校准保持原地。静音使用时，保持 Windows 所有播放设备静音并关闭桥接音频，用户消息与 AI 回复均有原生聊天框输出。
 
-![VRChat 对话与实时双视角侧栏：上方观察者，下方 AI](doc/assets/vrchat/live-views.jpg)
+| 需要做什么 | 文档 |
+|---|---|
+| 日常启动、入房、校准、按键与恢复 | [操作指南](doc/character/vrchat-operations.zh-CN.md) |
+| 首次安装、角色发布、端口与 API | [技术参考](doc/character/vrchat.zh-CN.md) |
+| 双窗口采集与手柄射线对齐 | [双视角参考](doc/character/vrchat-views.md) |
+| 连续录制、哈希、检查和实测边界 | [验收记录](doc/quality/vrchat-recordings.md) |
 
-*2026-10-08 本机实拍；菜单、加载失败等均按游戏实际画面展示。这张图证明双窗口实时接入，不代表远端角色与语音已经验收通过。本地测试角色：Reira 的 Unnamed Character 6，非商业渲染并署名，不分发模型文件。*
+<!-- BEGIN VRCHAT_DEMOS -->
+### 四条连续 VRChat 交互实录
 
-本次修复验证：**Python 1,220 项验证通过、34 跳过；Web 162 项通过；TypeScript/Vite 构建通过**。完整 Python 运行中 1,219 项通过，唯一失败是 API 测试清单遗漏新增路由；补齐契约后，相关 API 集成测试 46 项复测全部通过。真实页面已验证在 SynTalker 生成中、MotionCraft 播放中切换，会话与历史保留。同一私有房间中，观察者实际看到 AI 鼓掌；SynTalker 鼓掌与 MotionCraft 挥手各运行 12 秒，并收到对应游戏参数回传。切换后确认 `VRCEmote=0`、`AI_Active=false`，动作已释放。精细手部／表情质量、任意生成骨骼播放与有声语音不在这些通过项内。VB-CABLE 已安装；公共区域静音要求保持生效，所有当前播放端点静音，桥接语音关闭。
+每条包含四轮真实交互，**总计 22 分 1 秒**，同屏记录观察者与 AI 两个游戏窗口，保持原速及生成等待。四个文件均通过完整解码、哈希及执行校验：**无音轨、无预设动作、无字幕发送丢弃、无采集错误**。已目视检查生成身体动作和双方原生聊天字幕；逐条证据与边界见[绑定视频哈希的验收记录](doc/quality/vrchat-recordings.md#accepted-recordings-2026-10-11)。
 
-![真实观察者窗口中，AI 正在执行 SDK 鼓掌预设](doc/assets/vrchat/desktop-clap.jpg)
+**1. 展厅导览 — MotionCraft · 5:17.6。** 介绍虚构展品、解释反射光、适应儿童访客，再回答并复盘。
 
-*2026-10-08，MotionCraft 任务执行期间的真实观察者截图。画面展示 SDK 鼓掌预设，不是模型生成骨骼的原样播放。角色：Unnamed Character 6，作者 Reira；非商业署名展示，不分发模型。*
+https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6
 
-<details>
-<summary>恢复后的同房间双视角（2026-10-08）</summary>
+**2. 节奏教学 — SynTalker · 5:39.6。** 建立轮流互动规则、等待准备、纠正理解，再总结练习。
 
-![恢复后的观察者与 AI 真实游戏画面](doc/assets/vrchat/recovered-views.jpg)
+https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656
 
-</details>
+**3. 灯塔故事 — MotionCraft → SynTalker · 5:16.5。** 选择路线、记住蓝色地图和不会游泳的限制、应对下雨，切换方法后继续并回顾故事。
+
+https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
+
+**4. 活动排练 — SynTalker → MotionCraft · 5:47.4。** 介绍图书交换、澄清免费规则、临时压缩成闭幕环节，再总结修订。
+
+https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
+
+这些录像验证真实集成链路，不代表每个手势、手指或回答都已完美：指向／鼓掌可能生成为较宽泛或较小的手臂动作；AI 镜头随模型头部运动，以稳定的观察者画面作为动作依据。下方 16 条 Studio 视频属于浏览器角色渲染的独立功能。
+<!-- END VRCHAT_DEMOS -->
+
+角色为 **Unnamed Character 6 — Reira**，导入自用户的 `VRM-Model-1.vrm`，仅署名非商业展示，不分发模型。可听语音和麦克风验收不属于本次静音录制。
 
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## 单模型路线：16 个复杂任务 Demo

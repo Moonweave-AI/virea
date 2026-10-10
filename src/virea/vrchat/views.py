@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import multiprocessing
+import os
 import sys
 import threading
 import time
 from dataclasses import dataclass
+
+from .view_geometry import window_client_crop
 
 
 class ViewUnavailable(Exception):
@@ -150,12 +154,20 @@ class WindowCapture:
                 return
             self.last_encoded = now
             try:
-                scale = min(1.0, 960 / frame.width, 540 / frame.height)
+                try:
+                    x0, y0, x1, y1 = window_client_crop(
+                        target.hwnd, frame.width, frame.height
+                    )
+                except ValueError:
+                    # Ignore an in-flight frame from the old window size.
+                    return
+                client_width, client_height = x1 - x0, y1 - y0
+                scale = min(1.0, 960 / client_width, 540 / client_height)
                 width, height = (
-                    max(1, int(frame.width * scale)),
-                    max(1, int(frame.height * scale)),
+                    max(1, int(client_width * scale)),
+                    max(1, int(client_height * scale)),
                 )
-                pixels = frame.frame_buffer[:, :, :3]
+                pixels = frame.frame_buffer[y0:y1, x0:x1, :3]
                 if scale < 1:
                     pixels = cv2.resize(
                         pixels, (width, height), interpolation=cv2.INTER_AREA
@@ -214,17 +226,277 @@ class WindowCapture:
             self.control = None
 
 
+class CompatibleWindowCapture:
+    """Window-only GDI capture for GPU drivers that cannot sustain WGC.
+
+    PrintWindow can block in the target application, so this backend must run
+    inside IsolatedWindowCapture. It never falls back to copying the desktop.
+    """
+
+    def __init__(self, target):
+        import ctypes
+        from ctypes import wintypes
+
+        self.target = target
+        self.sequence = 0
+        self.closed = False
+        self.ctypes, self.wintypes = ctypes, wintypes
+        self.user = ctypes.WinDLL("user32", use_last_error=True)
+        self.gdi = ctypes.WinDLL("gdi32", use_last_error=True)
+        signatures = [
+            (
+                self.user,
+                "GetClientRect",
+                [wintypes.HWND, ctypes.POINTER(wintypes.RECT)],
+                wintypes.BOOL,
+            ),
+            (
+                self.user,
+                "PrintWindow",
+                [wintypes.HWND, wintypes.HDC, wintypes.UINT],
+                wintypes.BOOL,
+            ),
+            (self.user, "GetDC", [wintypes.HWND], wintypes.HDC),
+            (self.user, "ReleaseDC", [wintypes.HWND, wintypes.HDC], ctypes.c_int),
+            (
+                self.user,
+                "SetThreadDpiAwarenessContext",
+                [ctypes.c_void_p],
+                ctypes.c_void_p,
+            ),
+            (self.gdi, "CreateCompatibleDC", [wintypes.HDC], wintypes.HDC),
+            (
+                self.gdi,
+                "CreateCompatibleBitmap",
+                [wintypes.HDC, ctypes.c_int, ctypes.c_int],
+                wintypes.HANDLE,
+            ),
+            (
+                self.gdi,
+                "SelectObject",
+                [wintypes.HDC, wintypes.HANDLE],
+                wintypes.HANDLE,
+            ),
+            (self.gdi, "DeleteObject", [wintypes.HANDLE], wintypes.BOOL),
+            (self.gdi, "DeleteDC", [wintypes.HDC], wintypes.BOOL),
+            (
+                self.gdi,
+                "GetDIBits",
+                [
+                    wintypes.HDC,
+                    wintypes.HANDLE,
+                    wintypes.UINT,
+                    wintypes.UINT,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    wintypes.UINT,
+                ],
+                ctypes.c_int,
+            ),
+        ]
+        for library, name, arguments, result in signatures:
+            method = getattr(library, name)
+            method.argtypes, method.restype = arguments, result
+
+        class BitmapInfoHeader(ctypes.Structure):
+            _fields_ = [
+                ("size", wintypes.DWORD),
+                ("width", wintypes.LONG),
+                ("height", wintypes.LONG),
+                ("planes", wintypes.WORD),
+                ("bits", wintypes.WORD),
+                ("compression", wintypes.DWORD),
+                ("image_size", wintypes.DWORD),
+                ("x", wintypes.LONG),
+                ("y", wintypes.LONG),
+                ("colors", wintypes.DWORD),
+                ("important", wintypes.DWORD),
+            ]
+
+        self.header_type = BitmapInfoHeader
+
+    def read(self):
+        import cv2
+        import numpy as np
+
+        if self.closed:
+            raise ViewUnavailable("window_closed")
+        ctypes, user, gdi = self.ctypes, self.user, self.gdi
+        previous_dpi = user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
+        source = memory = bitmap = previous = None
+        try:
+            rect = self.wintypes.RECT()
+            if not user.GetClientRect(self.target.hwnd, ctypes.byref(rect)):
+                raise ViewUnavailable("window_closed")
+            width, height = rect.right, rect.bottom
+            if not 100 <= width <= 8192 or not 100 <= height <= 8192:
+                raise ViewUnavailable("window_minimized")
+            source = user.GetDC(self.target.hwnd)
+            memory = gdi.CreateCompatibleDC(source)
+            bitmap = gdi.CreateCompatibleBitmap(source, width, height)
+            if not source or not memory or not bitmap:
+                raise ViewUnavailable("capture_failed")
+            previous = gdi.SelectObject(memory, bitmap)
+            # PW_CLIENTONLY | PW_RENDERFULLCONTENT (Windows 8.1+).
+            if not user.PrintWindow(self.target.hwnd, memory, 3):
+                raise ViewUnavailable("capture_failed")
+            gdi.SelectObject(memory, previous)
+            previous = None
+            header = self.header_type(
+                ctypes.sizeof(self.header_type), width, -height, 1, 32
+            )
+            pixels = np.empty((height, width, 4), dtype=np.uint8)
+            if (
+                gdi.GetDIBits(
+                    memory,
+                    bitmap,
+                    0,
+                    height,
+                    pixels.ctypes.data,
+                    ctypes.byref(header),
+                    0,
+                )
+                != height
+            ):
+                raise ViewUnavailable("capture_failed")
+            pixels = pixels[:, :, :3]
+            if not np.any(pixels):
+                raise ViewUnavailable("waiting_for_frame")
+            scale = min(1.0, 960 / width, 540 / height)
+            width, height = max(1, int(width * scale)), max(1, int(height * scale))
+            if scale < 1:
+                pixels = cv2.resize(
+                    pixels, (width, height), interpolation=cv2.INTER_AREA
+                )
+            ok, encoded = cv2.imencode(".jpg", pixels, [cv2.IMWRITE_JPEG_QUALITY, 78])
+            if not ok:
+                raise ViewUnavailable("capture_failed")
+            self.sequence += 1
+            return CapturedFrame(
+                encoded.tobytes(), time.monotonic(), self.sequence, width, height
+            )
+        finally:
+            if previous and memory:
+                gdi.SelectObject(memory, previous)
+            if bitmap:
+                gdi.DeleteObject(bitmap)
+            if memory:
+                gdi.DeleteDC(memory)
+            if source:
+                user.ReleaseDC(self.target.hwnd, source)
+            if previous_dpi:
+                user.SetThreadDpiAwarenessContext(previous_dpi)
+
+    def close(self):
+        self.closed = True
+
+
+def _capture_worker(target, connection):
+    """Keep native GPU callbacks and their teardown outside the API process."""
+    capture = None
+    try:
+        backend = os.environ.get("VIREA_VRCHAT_CAPTURE", "wgc")
+        if backend not in {"wgc", "compatible"}:
+            raise ViewUnavailable("capture_failed")
+        capture = (
+            CompatibleWindowCapture if backend == "compatible" else WindowCapture
+        )(target)
+        while connection.recv() == "frame":
+            try:
+                connection.send((None, capture.read()))
+            except ViewUnavailable as exc:
+                connection.send((exc.code, None))
+    except (EOFError, BrokenPipeError, OSError):
+        pass
+    except Exception:
+        with contextlib.suppress(OSError):
+            connection.send(("capture_failed", None))
+    finally:
+        if capture:
+            capture.close()
+        connection.close()
+
+
+class IsolatedWindowCapture:
+    """One native capture per child, bounded request/reply, no frame backlog."""
+
+    def __init__(self, target, *, worker=_capture_worker):
+        self.target = target
+        self.lock = threading.RLock()
+        self.closed = False
+        self.pending = False
+        self.requested_at = 0.0
+        self.received = False
+        context = multiprocessing.get_context("spawn")
+        self.connection, child = context.Pipe()
+        self.process = context.Process(
+            target=worker, args=(target, child), daemon=True, name="vrchat-view"
+        )
+        try:
+            self.process.start()
+        except Exception:
+            self.connection.close()
+            raise
+        finally:
+            child.close()
+
+    def read(self):
+        with self.lock:
+            if self.closed:
+                raise ViewUnavailable("window_closed")
+            try:
+                if not self.pending:
+                    self.connection.send("frame")
+                    self.pending = True
+                    self.requested_at = time.monotonic()
+                if not self.connection.poll(0.15):
+                    # Windows spawn/import can be slow. Keep exactly one pending
+                    # request while the browser retries; do not queue old frames.
+                    deadline = 3 if self.received else 20
+                    if time.monotonic() - self.requested_at < deadline:
+                        raise ViewUnavailable("waiting_for_frame")
+                    raise TimeoutError("capture worker did not respond")
+                error, frame = self.connection.recv()
+                self.pending = False
+                self.received = True
+            except (OSError, EOFError, TimeoutError) as exc:
+                self.close()
+                raise ViewUnavailable("capture_failed") from exc
+            if error:
+                raise ViewUnavailable(error)
+            return frame
+
+    def close(self):
+        with self.lock:
+            if self.closed:
+                return
+            self.closed = True
+            with contextlib.suppress(OSError):
+                self.connection.send("close")
+            self.process.join(0.5)
+            if self.process.is_alive():
+                self.process.terminate()
+                self.process.join(0.5)
+            self.connection.close()
+            if not self.process.is_alive():
+                self.process.close()
+
+
 class WindowViews:
     """Capture only while a visible pane requests frames; reap idle sessions."""
 
     def __init__(
-        self, *, inventory=vrchat_windows, factory=WindowCapture, clock=time.monotonic
+        self,
+        *,
+        inventory=vrchat_windows,
+        factory=IsolatedWindowCapture,
+        clock=time.monotonic,
     ):
         self.inventory = inventory
         self.factory = factory
         self.clock = clock
         self.lock = threading.RLock()
-        self.channels: dict[str, tuple[WindowCapture, float]] = {}
+        self.channels: dict[str, tuple[IsolatedWindowCapture, float]] = {}
         self.windows = {}
         self.scanned_at = float("-inf")
         self.closed = False
@@ -254,7 +526,9 @@ class WindowViews:
                 del self.channels[role]
                 previous = None
             channel = previous[0] if previous else self.factory(target)
-            self.channels[role] = channel, now
+            # Spawning the native worker can take seconds on Windows. Start
+            # the idle interval after that work, not before the inventory scan.
+            self.channels[role] = channel, self.clock()
         try:
             return target, channel.read()
         except ViewUnavailable as exc:
@@ -268,7 +542,14 @@ class WindowViews:
     def reap_idle(self):
         with self.lock:
             for role, (channel, requested_at) in list(self.channels.items()):
-                if self.clock() - requested_at > 2.0:
+                # Allow the same bounded first-frame startup period as read().
+                # Otherwise the reaper can repeatedly kill a healthy child
+                # before it imports WGC and answers the first request.
+                starting = getattr(channel, "pending", False) and not getattr(
+                    channel, "received", True
+                )
+                idle_limit = 20.0 if starting else 2.0
+                if self.clock() - requested_at > idle_limit:
                     del self.channels[role]
                     channel.close()
 

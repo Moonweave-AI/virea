@@ -115,15 +115,22 @@ def create_app(
         try:
             app.state.characters = CharacterManager(control)
             # Delay bridge imports until lifespan startup; audio devices stay lazy.
+            from virea.vrchat.client_launch import ClientLauncher
             from virea.vrchat.service import VRChatService
             from virea.vrchat.views import WindowViews
 
             app.state.vrchat = VRChatService(app.state.characters)
+            app.state.vrchat_clients = ClientLauncher(
+                paths.config / "vrchat-clients.json"
+            )
             app.state.vrchat_views = WindowViews()
             app.state.vrchat_views.start()
             yield
         finally:
             try:
+                if hasattr(app.state, "vrchat_clients"):
+                    await app.state.vrchat_clients.close()
+                    del app.state.vrchat_clients
                 try:
                     if hasattr(app.state, "vrchat_views"):
                         await app.state.vrchat_views.close()

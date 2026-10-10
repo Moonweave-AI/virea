@@ -43,15 +43,14 @@ export class FramePump {
 
   async tick(generation) {
     if (!this.active || this.generation !== generation) return;
-    const started = performance.now();
     const controller = new AbortController();
     this.controller = controller;
     const deadline = setTimeout(() => controller.abort(), 4000);
-    let delay = 1000 / 15;
+    let failed = false;
     try {
       const fetcher = this.fetcher;
       const response = await fetcher(`/api/v1/vrchat/views/${this.role}/frame`, {
-        headers: {"X-Virea-Capture": "1"}, cache: "no-store", signal: controller.signal,
+        headers: {"X-Virea-Capture": "1", "X-Virea-Pace": "1"}, cache: "no-store", signal: controller.signal,
       });
       if (!response.ok) {
         const body = await response.json();
@@ -68,11 +67,12 @@ export class FramePump {
       });
     } catch (error) {
       if (this.active && this.generation === generation) this.onStatus(viewError(error?.message));
-      delay = 1200;
+      failed = true;
     } finally {
       clearTimeout(deadline);
       if (this.active && this.generation === generation) {
-        this.timer = setTimeout(() => void this.tick(generation), Math.max(0, delay - (performance.now() - started)));
+        if (failed) this.timer = setTimeout(() => void this.tick(generation), 1200);
+        else void this.tick(generation);
       }
     }
   }

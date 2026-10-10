@@ -13,7 +13,9 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts/vrchat/start_ai_client.p
 pytestmark = pytest.mark.skipif(PWSH is None, reason="PowerShell is not installed")
 
 
-def run_launcher(tmp_path, *, launcher=True, profile=2, existing="", send_port=19010):
+def run_launcher(
+    tmp_path, *, launcher=True, profile=2, existing="", send_port=19010, vr=False
+):
     game = tmp_path / "VRChat.exe"
     game.touch()
     if launcher:
@@ -21,7 +23,8 @@ def run_launcher(tmp_path, *, launcher=True, profile=2, existing="", send_port=1
     env = dict(os.environ, VIREA_TEST_SCRIPT=str(SCRIPT), VIREA_TEST_GAME=str(game))
     env["VIREA_TEST_EXISTING"] = existing
     # Stub OS boundaries, preserving actual script validation and argument building.
-    command = r"""
+    command = (
+        r"""
 function Get-NetUDPEndpoint { param($LocalPort, $ErrorAction) }
 function Get-CimInstance {
     param($ClassName, $Filter)
@@ -35,9 +38,12 @@ function Start-Process {
     [pscustomobject]@{Id=100}
 }
 try {
-    & $env:VIREA_TEST_SCRIPT -VRChatExe $env:VIREA_TEST_GAME -Profile PROFILE -SendPort PORT
+    & $env:VIREA_TEST_SCRIPT -VRChatExe $env:VIREA_TEST_GAME -Profile PROFILE -SendPort PORT VR_ARG
 } catch { Write-Output $_.Exception.Message; exit 1 }
-""".replace("PROFILE", str(profile)).replace("PORT", str(send_port))
+""".replace("PROFILE", str(profile))
+        .replace("PORT", str(send_port))
+        .replace("VR_ARG", "-VR" if vr else "")
+    )
     # The launcher output is captured by the script's $process assignment, so
     # inspect its output from a separate file at the mocked OS boundary instead.
     record = tmp_path / "launch.json"
@@ -74,6 +80,15 @@ def test_missing_bootstrapper_never_falls_back_to_offline_game(tmp_path):
     assert result.returncode == 1
     assert "official launch.exe is missing" in result.stdout
     assert record is None
+
+
+def test_vr_launch_preserves_profile_and_ports_without_forcing_desktop(tmp_path):
+    result, record = run_launcher(tmp_path, profile=1, send_port=19000, vr=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "--no-vr" not in record["args"]
+    assert "--profile=1" in record["args"]
+    assert "--osc=19000:127.0.0.1:19011" in record["args"]
+    assert Path(record["file"]).name == "launch.exe"
 
 
 @pytest.mark.parametrize(

@@ -61,6 +61,7 @@ export function executionNote(state) {
   const result = state.recent_performances?.find(item => item.packet_id === event?.feedback?.packet_id);
   const output = state.execution ?? result?.execution;
   if (!output) return "";
+  if (output.mode === "generated_vr") return `模型姿态驱动：头部、手腕、手指与身体追踪。驱动确认 ${output.pose_driver?.acknowledged ?? 0} 帧；VRChat 经 IK 呈现，效果需从观察者画面核对。`;
   if (output.mode !== "desktop") return "输出已配置的身体追踪点；头手需要外部设备，画面效果需在观察者视角核对。";
   const sent = output.emotes_sent?.length ?? 0, observed = output.emotes_observed?.length ?? 0;
   const missing = (output.segments ?? []).filter(segment => segment.body_output === "not_transmitted").map(segment => segment.prompt);

@@ -41,9 +41,13 @@ Natural small combinations are allowed: 'A person raises both arms and lowers th
 Do not mechanically split preparation, holding and settling into separate segments.
 Split only overly complex choreography, distinct action goals, or actions whose timing
 the user explicitly controls. Preserve the requested timing and give actions enough time.
-Set speech_gestures=true only for conversational gesturing, presenting or explaining.
-Keep it false for explicit physical actions such as walking, squatting, dancing or boxing;
-speech still plays at its own scheduled time during those actions.
+Default speech_gestures=false. Spoken words, presenting or explaining do not by
+themselves request speech-driven motion. Preserve explicit actions such as waving,
+pointing, clapping, opening arms, walking, squatting, dancing or boxing with false,
+even when the character speaks during them. Speech still plays independently.
+Use speech_gestures=true only when the user requests free, speech-driven beat
+gestures without a specific physical action to preserve. Never let a speech
+gesture branch overwrite an explicitly requested action.
 Continuity comes from compatible adjacent poses and native history, not verbose prompts.
 """
 

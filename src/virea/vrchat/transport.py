@@ -13,6 +13,21 @@ from .osc import bundle, decode, message, release_messages
 
 def reset_packet(config):
     messages = release_messages(config.microphone == "hold")
+    if config.mode == "generated_vr":
+        messages.append(message("/input/MoveHoldFB", 0.0))
+        messages += [
+            message(f"/input/{button}", 0)
+            for button in (
+                "QuickMenuToggleLeft",
+                "QuickMenuToggleRight",
+                "GrabLeft",
+                "GrabRight",
+                "DropLeft",
+                "DropRight",
+                "ComfortLeft",
+                "ComfortRight",
+            )
+        ]
     if config.mode == "desktop":
         # Included even before opt-in so a live settings change is also covered
         # by the child process's existing dead-man reset packet.
@@ -33,12 +48,14 @@ def reset_packet(config):
     return bundle(messages)
 
 
-def sender_process(pipe, destination, reset, timeout=0.75):
+def sender_process(pipe, destination, reset, timeout=0.75, ready=None):
     """Own the output socket so parent death/blocked event loop releases inputs."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     deadline = time.monotonic() + timeout
     armed = False
     try:
+        if ready is not None:
+            ready.set()
         while True:
             try:
                 available = pipe.poll(0.05)
@@ -101,6 +118,7 @@ class FeedbackProtocol(asyncio.DatagramProtocol):
                         "VelocityZ",
                         "AngularY",
                         "VRMode",
+                        "TrackingType",
                         "MuteSelf",
                         "Grounded",
                         "InStation",
@@ -160,14 +178,23 @@ class OSCTransport:
             )
             ctx = multiprocessing.get_context("spawn")
             read, self.pipe = ctx.Pipe(duplex=False)
+            started = ctx.Event()
             self.process = ctx.Process(
                 target=sender_process,
-                args=(read, (self.config.host, self.config.send_port), self.reset),
+                args=(
+                    read,
+                    (self.config.host, self.config.send_port),
+                    self.reset,
+                    0.75,
+                    started,
+                ),
                 name="virea-osc-watchdog",
                 daemon=True,
             )
             self.process.start()
             read.close()
+            if not await asyncio.to_thread(started.wait, 30):
+                raise RuntimeError("OSC sender did not become ready within 30 seconds")
             from .client_query import ClientQuery
 
             self.monitor = ClientQuery(self.config, self.protocol)
@@ -192,7 +219,7 @@ class OSCTransport:
             with contextlib.suppress(OSError):
                 self.pipe.send_bytes(self.reset)
 
-    def ready(self):
+    def ready(self, *, require_full_body=True):
         values = self.protocol.values
         if (
             self.monitor
@@ -213,8 +240,17 @@ class OSCTransport:
         if self.config.avatar_id:
             if values.get("avatar_id", (None,))[0] != self.config.avatar_id:
                 return False, "waiting for the configured avatar_id from VRChat OSC"
-        if self.config.mode == "vr_trackers" and values.get("VRMode", (None,))[0] != 1:
+        if (
+            self.config.mode in {"vr_trackers", "generated_vr"}
+            and values.get("VRMode", (None,))[0] != 1
+        ):
             return False, "VR tracker output requires VRMode=1 feedback from VRChat"
+        if (
+            require_full_body
+            and self.config.mode == "generated_vr"
+            and values.get("TrackingType", (None,))[0] != 6
+        ):
+            return False, "Calibrate FBT in the AI client; waiting for TrackingType=6"
         return True, None
 
     async def close(self):
@@ -229,13 +265,19 @@ class OSCTransport:
                 self.pipe.send_bytes(b"")
             self.pipe.close()
             self.pipe = None
+        stop_error = None
         if self.process:
             await asyncio.to_thread(self.process.join, 2)
             if self.process.is_alive():
                 self.process.terminate()
-                await asyncio.to_thread(self.process.join, 1)
-            self.process.close()
-            self.process = None
+                await asyncio.to_thread(self.process.join, 5)
+            if self.process.is_alive():
+                # Retain the handle so a later close can retry. Never close a
+                # running process, or skip receiver cleanup because it is slow.
+                stop_error = RuntimeError("OSC sender did not stop after termination")
+            else:
+                self.process.close()
+                self.process = None
         if self.receiver:
             self.receiver.close()
             await asyncio.wait_for(self.protocol.closed.wait(), 2)
@@ -243,3 +285,5 @@ class OSCTransport:
         if self.query:
             await asyncio.to_thread(self.query.close)
             self.query = None
+        if stop_error:
+            raise stop_error

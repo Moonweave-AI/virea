@@ -30,9 +30,13 @@ dependencies = [
 
 [project.optional-dependencies]
 vrchat = [
+    "openvr==2.12.1401; sys_platform == 'win32'",
     "psutil>=7,<8",
+    "pycaw==20251023; sys_platform == 'win32'",
     "sounddevice>=0.5,<1",
     "windows-capture==2.0.1; sys_platform == 'win32'",
+    "rapidocr-onnxruntime==1.4.4; sys_platform == 'win32'",
+    "onnxruntime==1.23.2; sys_platform == 'win32'",
     "zeroconf>=0.148,<1",
 ]
 dev = [

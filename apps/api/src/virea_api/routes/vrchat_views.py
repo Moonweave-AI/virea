@@ -23,6 +23,10 @@ async def window_frame(role: Literal["observer", "ai"], request: Request):
         "sec-fetch-site"
     ) in {"cross-site", "same-site"}:
         raise HTTPException(403, "Window capture requires a same-origin VIREA request")
+    if request.headers.get("x-virea-pace") == "1":
+        # Network-paced delivery also works in background tabs, whose timers
+        # can otherwise be suspended long enough to destroy the capture session.
+        await asyncio.sleep(1 / 15)
     service = request.app.state.vrchat
     ai_port = service.config.send_port if service.config else 19010
     try:

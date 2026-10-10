@@ -89,10 +89,26 @@ def test_watchdog_always_releases_hot_enabled_emote_even_if_initially_disabled()
 
 
 def test_disabling_presets_does_not_disable_explicit_facial_cues():
+    class SampleClock:
+        error = None
+
+        def __init__(self, *_):
+            self.samples = iter([0.0, 0.1, 0.5, 0.9, 1.0])
+
+        @property
+        def position(self):
+            return next(self.samples)
+
+        def resume(self):
+            pass
+
+        def close(self):
+            pass
+
     async def run():
         sink = Sink()
         result = await PerformancePlayer(
-            BridgeConfig(), sink, [window()], performance()
+            BridgeConfig(), sink, [window()], performance(), clock_factory=SampleClock
         ).run()
         assert not result["execution"]["emotes_sent"]
         assert not any(path.endswith("VRCEmote") for path, _ in sink.messages)

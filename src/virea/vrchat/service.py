@@ -12,7 +12,12 @@ from virea.character.providers.speech import SpeechProvider
 from virea.character.providers.unified import UnifiedMotionProvider
 
 from .autonomy import next_step
+from .calibration import AutoCalibration
+from .chat import ObserverChatRelay
+from .continuity import GeneratedPoseHold, client_identity
+from .manual import ManualRig, manual_client_pid
 from .player import PerformancePlayer
+from .rooms import RoomCommands
 from .transport import OSCTransport
 
 
@@ -34,6 +39,12 @@ class VRChatService:
         self.next_decision = 0
         self.decision = None
         self.completed_goal_outputs = []
+        self.observer_chat = ObserverChatRelay()
+        self.manual = ManualRig()
+        self.calibration = AutoCalibration()
+        self.pose_hold = GeneratedPoseHold()
+        self.rooms = RoomCommands()
+        self.views = None
 
     async def connect(self, request):
         async with self.lock:
@@ -96,20 +107,39 @@ class VRChatService:
         ready, reason = (
             self.transport.ready() if self.transport else (False, "disconnected")
         )
+        feedback = self.transport.protocol.snapshot() if self.transport else None
+        query = (feedback or {}).get("query", {})
+        age = query.get("last_checked_seconds_ago")
+        same_instance = bool(
+            self.session is not None
+            and query.get("state") == "verified"
+            and isinstance(age, (int, float))
+            and 0 <= age <= 3
+            and query.get("online", {}).get("same_instance")
+            == "matched_in_live_client_logs"
+        )
         return {
             "connected": self.session is not None,
             "paused": self.paused,
-            "ready": ready,
+            "ready": ready
+            and not self.calibration.active
+            and not self.rooms.active
+            and not self.pose_hold.error,
             "waiting_for": reason,
-            "error": self.error,
+            "error": self.error or self.pose_hold.error,
             "config": self.config.model_dump() if self.config else None,
             "capabilities": self.config.capabilities() if self.config else None,
             "session": self.session.snapshot() if self.session else None,
-            "feedback": self.transport.protocol.snapshot() if self.transport else None,
+            "feedback": feedback,
             "frames_sent": self.transport.frames_sent if self.transport else 0,
             "elapsed_seconds": self.player.elapsed if self.player else 0,
             "recent_performances": list(self.results),
             "execution": self.player.output_status() if self.player else None,
+            "observer_chat": self.observer_chat.snapshot(),
+            "manual": self.manual.snapshot(),
+            "calibration": self.calibration.snapshot(),
+            "pose_hold": self.pose_hold.snapshot(),
+            "rooms": self.rooms.snapshot(live_same_instance=same_instance),
             "settings": {
                 "motion_backend": self.session.config.motion_backend,
                 "voice": self.session.config.tts_voice,
@@ -143,6 +173,8 @@ class VRChatService:
             + (
                 desktop
                 if self.config.mode == "desktop"
+                else "Model-generated head, wrist, finger and body poses drive a virtual OpenVR rig and VRChat IK. No preset action substitution. "
+                if self.config.mode == "generated_vr"
                 else "VR trackers need external head/hand devices. "
             )
             + "Facial cues support smile, sad, angry and surprised when the avatar has those bindings. "
@@ -155,6 +187,10 @@ class VRChatService:
         async with self.lock:
             if not self.session or self.pump is None or self.pump.done():
                 raise ValueError("connect a running bridge first")
+            if self.config.mode == "generated_vr" and request.desktop_emotes:
+                raise ValueError(
+                    "SDK presets cannot be enabled during model-pose playback"
+                )
             session, epoch = self.session, self.session.epoch
             config = session.config.model_copy(
                 update={
@@ -176,6 +212,8 @@ class VRChatService:
         async with self.lock:
             if self.session is not session or session.epoch != epoch:
                 raise ValueError("conversation changed while checking settings; retry")
+            # Changing the generation method does not change the selected VR
+            # client. Preserve a human's lease while the model remains paused.
             await self._stop_player()
             await session.interrupt(session.body)
             session.config = config
@@ -208,9 +246,23 @@ class VRChatService:
             self.playing.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self.playing
+        await self._retain_player_pose()
         self.playing = self.player = self.packet = None
         if self.transport:
             self.transport.release()
+
+    async def _retain_player_pose(self):
+        if not self.config or self.config.mode != "generated_vr" or not self.transport:
+            return
+        await self.pose_hold.discard_changed_identity(self.transport)
+        pose = getattr(self.player, "last_pose", None)
+        identity = getattr(self.player, "identity", None)
+        if pose is not None and identity == client_identity(self.transport):
+            await self.pose_hold.start(
+                self.config, self.transport, pose=pose, identity=identity
+            )
+        else:
+            await self.pose_hold.start(self.config, self.transport)
 
     async def message(self, text):
         async with self.lock:
@@ -218,10 +270,15 @@ class VRChatService:
                 raise ValueError("connect the bridge first")
             if self.pump is None or self.pump.done():
                 raise ValueError("bridge task stopped; disconnect and reconnect")
+            if self.config.observer_chatbox:
+                self.observer_chat.check_capacity(text)
+            await self.manual.close()
             await self._stop_player()
             self.error = None
             self.completed_goal_outputs.clear()
             await self.session.message(text)
+            if self.config.observer_chatbox:
+                self.observer_chat.enqueue(text, self.config.send_port)
             self.session.playback_clock.set_paused(self.paused)
             self.goal_active = True
             return self.snapshot()
@@ -252,6 +309,7 @@ class VRChatService:
         async with self.lock:
             if not self.session or self.pump is None or self.pump.done():
                 raise ValueError("connect a running bridge first")
+            await self.manual.close()
             await self._stop_player()
             self.goal_active = False
             self.error = None
@@ -267,6 +325,9 @@ class VRChatService:
             if not self.session:
                 raise ValueError("connect the bridge first")
             if action == "interrupt":
+                await self.rooms.stop()
+                await self.calibration.stop()
+                await self.manual.close()
                 self.goal_active = False
                 await self._stop_player()
                 await self.session.interrupt(self.session.body)
@@ -276,8 +337,34 @@ class VRChatService:
                 if self.player:
                     self.player.set_paused(self.paused)
                 if self.paused:
+                    await self.rooms.stop()
+                    await self.calibration.stop()
                     self.transport.release()
             return self.snapshot()
+
+    async def manual_control(self, request):
+        async with self.lock:
+            if request.action == "end":
+                if request.token == self.manual.token:
+                    await self.manual.close()
+                return self.manual.snapshot()
+            if not self.transport or not self.session:
+                raise ValueError("connect the AI bridge before using virtual controls")
+            if request.action == "begin":
+                if self.rooms.active:
+                    raise ValueError("正在执行房间命令，请先等待或取消")
+                await self.calibration.stop()
+                if self.manual.snapshot()["active"]:
+                    raise ValueError("manual controls are already active")
+                pid = await manual_client_pid(self.config)
+                self.goal_active = False
+                await self._stop_player()
+                await self.session.interrupt(self.session.body)
+                await self.pose_hold.close()
+                token = self.manual.begin(self.config, self.transport, pid)
+                return {**self.manual.snapshot(), "token": token}
+            self.manual.update(request.token, request.state, request.command)
+            return self.manual.snapshot()
 
     async def _run(self):
         try:
@@ -298,6 +385,31 @@ class VRChatService:
 
     async def _tick(self):
         self.characters.get(self.session.id)  # native player owns the lease
+        await self.pose_hold.discard_changed_identity(self.transport)
+        if (
+            self.rooms.active
+            and self.rooms.state.get("target") != "ai"
+            and not self.paused
+        ):
+            # Joining the observer must not drop the stationary AI's pose lease.
+            await self.calibration.maintain(self.transport)
+        if self.rooms.active or self.manual.snapshot()["active"]:
+            self.session.playback_clock.set_paused(True)
+            return
+        if (
+            self.config.mode == "generated_vr"
+            and self.config.auto_calibrate
+            and self.pose_hold.pose is None
+            and not self.paused
+            and not self.playing
+            and not self.manual.snapshot()["active"]
+        ):
+            self.calibration.start(self.config, self.transport, self.views)
+        if self.calibration.active:
+            self.session.playback_clock.set_paused(True)
+            return
+        if not self.playing and not self.paused and self.pose_hold.pose is None:
+            await self.calibration.maintain(self.transport)
         ready, _ = self.transport.ready()
         self.session.playback_clock.set_paused(self.paused or not ready)
         if self.playing and self.playing.done():
@@ -337,6 +449,7 @@ class VRChatService:
                     motion_seconds=result.get("motion_seconds", 0),
                 )
             )
+            await self._retain_player_pose()
             self.playing = self.player = self.packet = None
             self.next_decision = time.monotonic() + 5
             await asyncio.sleep(0.05)  # let acknowledgement release the packet
@@ -353,12 +466,22 @@ class VRChatService:
                 asset = json.loads(path.read_text(encoding="utf-8"))
                 wav = self.session.directory / f"{pending['id']}.wav"
                 audio = wav.read_bytes() if pending.get("audio_url") else None
+                # Transfer pose ownership before the model publishes its first
+                # frame. The idle stance must never overwrite generated bones.
+                await self.calibration.stop()
+                initial_pose = self.pose_hold.pose
+                await self.pose_hold.close(clear=False)
                 self.player = PerformancePlayer(
                     self.config,
                     self.transport,
                     asset["windows"],
                     performance,
                     audio,
+                    **(
+                        {"initial_pose": initial_pose}
+                        if initial_pose is not None
+                        else {}
+                    ),
                 )
                 self.packet = pending.copy()
                 self.playing = asyncio.create_task(self.player.run())
@@ -402,6 +525,10 @@ class VRChatService:
 
     async def close(self):
         async with self.lock:
+            await self.rooms.stop()
+            await self.calibration.stop()
+            await self.manual.close()
+            await self.observer_chat.close()
             self.goal_active = False
             if self.pump:
                 self.pump.cancel()
@@ -409,6 +536,7 @@ class VRChatService:
                     await self.pump
                 self.pump = None
             await self._stop_player()
+            await self.pose_hold.close()
             if self.session:
                 if self.session.id in self.characters.sessions:
                     await self.characters.remove(self.session.id)

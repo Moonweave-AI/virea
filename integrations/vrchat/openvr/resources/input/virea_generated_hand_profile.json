@@ -1,0 +1,84 @@
+{
+  "jsonid": "input_profile",
+  "controller_type": "virea_generated_hand",
+  "device_class": "TrackedDeviceClass_Controller",
+  "resource_root": "virea_pose",
+  "driver_name": "virea_pose",
+  "input_bindingui_mode": "controller_handed",
+  "should_show_binding_errors": true,
+  "input_source": {
+    "/input/system": {
+      "type": "button",
+      "click": true,
+      "order": 1
+    },
+    "/input/trigger": {
+      "type": "trigger",
+      "click": true,
+      "value": true,
+      "order": 2
+    },
+    "/pose/raw": {
+      "type": "pose"
+    },
+    "/pose/tip": {
+      "type": "pose"
+    },
+    "/input/skeleton/left": {
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/left",
+      "side": "left"
+    },
+    "/input/skeleton/right": {
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/right",
+      "side": "right"
+    },
+    "/input/quick": {
+      "type": "button",
+      "click": true,
+      "order": 3
+    },
+    "/input/main": {
+      "type": "button",
+      "click": true,
+      "order": 4
+    },
+    "/input/action": {
+      "type": "button",
+      "click": true,
+      "order": 5
+    },
+    "/input/back": {
+      "type": "button",
+      "click": true,
+      "order": 6
+    },
+    "/input/grip": {
+      "type": "button",
+      "click": true,
+      "order": 7
+    },
+    "/input/drop": {
+      "type": "button",
+      "click": true,
+      "order": 8
+    },
+    "/input/scroll": {
+      "type": "joystick",
+      "click": true,
+      "position": true,
+      "order": 9
+    }
+  },
+  "default_bindings": [
+    {
+      "app_key": "steam.app.438100",
+      "binding_url": "vrchat.json"
+    },
+    {
+      "app_key": "application.generated.unity.vrchat.exe",
+      "binding_url": "vrchat.json"
+    }
+  ]
+}

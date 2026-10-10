@@ -1,0 +1,313 @@
+{
+  "action_manifest_version": 0,
+  "app_key": "application.generated.unity.vrchat.exe",
+  "category": "steamvr_input",
+  "controller_type": "virea_generated_hand",
+  "description": "Generated skeletons and explicit VIREA menu controls; no pose-to-button gestures.",
+  "name": "VIREA generated motion",
+  "bindings": {
+    "/actions/global": {
+      "poses": [
+        {
+          "output": "/actions/global/in/pose",
+          "path": "/user/hand/left/pose/raw"
+        },
+        {
+          "output": "/actions/global/in/pose",
+          "path": "/user/hand/right/pose/raw"
+        }
+      ],
+      "skeleton": [
+        {
+          "output": "/actions/global/in/skeletonlefthand",
+          "path": "/user/hand/left/input/skeleton/left"
+        },
+        {
+          "output": "/actions/global/in/skeletonrighthand",
+          "path": "/user/hand/right/input/skeleton/right"
+        }
+      ],
+      "sources": [
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/interact"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/interact"
+            }
+          }
+        },
+        {
+          "mode": "trigger",
+          "path": "/user/hand/left/input/trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/global/in/trigger_axis"
+            }
+          }
+        },
+        {
+          "mode": "trigger",
+          "path": "/user/hand/right/input/trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/global/in/trigger_axis"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/quick",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/quick_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/main",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/main_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/action",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/action_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/grip",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/grab"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/drop",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/drop"
+            }
+          }
+        },
+        {
+          "mode": "joystick",
+          "path": "/user/hand/left/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/global/in/scroll"
+            },
+            "click": {
+              "output": "/actions/global/in/stick_click"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/quick",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/quick_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/main",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/main_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/action",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/action_menu"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/grip",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/grab"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/drop",
+          "inputs": {
+            "click": {
+              "output": "/actions/global/in/drop"
+            }
+          }
+        },
+        {
+          "mode": "joystick",
+          "path": "/user/hand/right/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/global/in/scroll"
+            },
+            "click": {
+              "output": "/actions/global/in/stick_click"
+            }
+          }
+        }
+      ]
+    },
+    "/actions/one_hand": {
+      "sources": [
+        {"mode": "button", "path": "/user/hand/left/input/quick", "inputs": {"click": {"output": "/actions/one_hand/in/menu"}}},
+        {"mode": "button", "path": "/user/hand/right/input/quick", "inputs": {"click": {"output": "/actions/one_hand/in/menu"}}},
+        {"mode": "button", "path": "/user/hand/left/input/trigger", "inputs": {"click": {"output": "/actions/one_hand/in/interact"}}},
+        {"mode": "button", "path": "/user/hand/right/input/trigger", "inputs": {"click": {"output": "/actions/one_hand/in/interact"}}}
+      ]
+    },
+    "/actions/menu": {
+      "sources": [
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/confirm"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/confirm"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/back",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/back"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/quick",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/quick_menu_close"
+            }
+          }
+        },
+        {
+          "mode": "joystick",
+          "path": "/user/hand/left/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/menu/in/scroll"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/back",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/back"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/quick",
+          "inputs": {
+            "click": {
+              "output": "/actions/menu/in/quick_menu_close"
+            }
+          }
+        },
+        {
+          "mode": "joystick",
+          "path": "/user/hand/right/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/menu/in/scroll"
+            }
+          }
+        }
+      ]
+    },
+    "/actions/action_menu": {
+      "sources": [
+        {
+          "mode": "joystick",
+          "path": "/user/hand/left/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/action_menu/in/axis"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/action_menu/in/select"
+            }
+          }
+        },
+        {
+          "mode": "joystick",
+          "path": "/user/hand/right/input/scroll",
+          "inputs": {
+            "position": {
+              "output": "/actions/action_menu/in/axis"
+            }
+          }
+        },
+        {
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger",
+          "inputs": {
+            "click": {
+              "output": "/actions/action_menu/in/select"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "options": {
+    "simulated_controller_type": "none",
+    "simulate_hmd": false,
+    "simulate_rendermodel": false
+  }
+}

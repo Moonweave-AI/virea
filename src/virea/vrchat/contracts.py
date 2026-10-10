@@ -7,6 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 AVATAR_ID_PATTERN = r"^(avtr_[A-Za-z0-9-]+|local:sdk_[^\x00-\x1f\x7f/\\]+)$"
 AvatarId = Annotated[str, Field(pattern=AVATAR_ID_PATTERN, max_length=200)]
+FULL_BODY_TRACKER_BONES = (
+    "hips",
+    "leftFoot",
+    "rightFoot",
+    "chest",
+    "leftLowerLeg",
+    "rightLowerLeg",
+    "leftLowerArm",
+    "rightLowerArm",
+)
 
 
 def valid_avatar_id(value):
@@ -23,7 +33,8 @@ class StrictModel(BaseModel):
 
 class BridgeConfig(StrictModel):
     target_role: Literal["independent_ai"] = "independent_ai"
-    mode: Literal["desktop", "vr_trackers"] = "desktop"
+    mode: Literal["desktop", "vr_trackers", "generated_vr"] = "desktop"
+    pose_driver_port: int = Field(default=19030, ge=1024, le=65535)
     host: Literal["127.0.0.1"] = "127.0.0.1"
     send_port: int = Field(default=19010, ge=1024, le=65535)
     receive_port: int = Field(default=19011, ge=1024, le=65535)
@@ -32,6 +43,7 @@ class BridgeConfig(StrictModel):
     audio_enabled: bool = False
     microphone: Literal["manual", "hold"] = "manual"
     chatbox: bool = False
+    observer_chatbox: bool = False
     expressions: bool = True
     eyes: bool = True
     locomotion: bool = False
@@ -50,20 +62,35 @@ class BridgeConfig(StrictModel):
     head_alignment: bool = False
     avatar_id: AvatarId | None = None
     auto_bind: bool = False
+    auto_calibrate: bool = True
     oscquery: bool = False
 
     @model_validator(mode="after")
     def coherent(self):
-        allowed = {
-            "hips",
-            "chest",
-            "leftFoot",
-            "rightFoot",
-            "leftLowerLeg",
-            "rightLowerLeg",
-            "leftLowerArm",
-            "rightLowerArm",
-        }
+        if self.mode == "generated_vr" and (
+            self.desktop_emotes
+            or self.locomotion
+            or self.head_alignment
+            or self.yaw_degrees != 0
+            or any(self.origin)
+        ):
+            raise ValueError(
+                "generated_vr uses one model tracking space: disable presets, input locomotion, "
+                "head alignment, and origin/yaw offsets"
+            )
+        if self.pose_driver_port in {9000, 9001, self.send_port, self.receive_port}:
+            raise ValueError(
+                "pose driver port must be separate from both clients' OSC ports"
+            )
+        allowed = set(FULL_BODY_TRACKER_BONES)
+        if self.mode == "generated_vr":
+            if "tracker_bones" not in self.model_fields_set:
+                self.tracker_bones = FULL_BODY_TRACKER_BONES
+            elif set(self.tracker_bones) != allowed:
+                raise ValueError(
+                    "generated_vr requires all eight body targets: hips, chest, "
+                    "both feet, knees and elbows"
+                )
         if (
             not self.tracker_bones
             or len(set(self.tracker_bones)) != len(self.tracker_bones)
@@ -89,8 +116,15 @@ class BridgeConfig(StrictModel):
     def capabilities(self):
         return {
             "mode": self.mode,
-            "body_trackers": self.mode == "vr_trackers",
-            "head_and_hand_devices": "external VR devices required"
+            "body_trackers": self.mode in {"vr_trackers", "generated_vr"},
+            "body_target_bones": list(self.tracker_bones)
+            if self.mode in {"vr_trackers", "generated_vr"}
+            else [],
+            "requires_fbt_calibration": self.mode in {"vr_trackers", "generated_vr"},
+            "exact_joint_playback": False,
+            "head_and_hand_devices": "generated OpenVR head, wrists and articulated fingers"
+            if self.mode == "generated_vr"
+            else "external VR devices required"
             if self.mode == "vr_trackers"
             else "unavailable in desktop mode",
             "arbitrary_desktop_bone_animation": False,
@@ -100,7 +134,9 @@ class BridgeConfig(StrictModel):
             "world_position_observed": False,
             "voice": "selected audio endpoint" if self.audio_enabled else "disabled",
             "mouth": "VRChat microphone lip sync",
-            "hands": "custom avatar pose parameters; skeletal tracking requires a separate driver",
+            "hands": "model joint FK through OpenVR skeletal input"
+            if self.mode == "generated_vr"
+            else "custom avatar pose parameters; skeletal tracking requires a separate driver",
         }
 
 

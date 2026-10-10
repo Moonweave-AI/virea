@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from types import SimpleNamespace
 
@@ -9,11 +10,48 @@ from virea_api.routes.vrchat_views import router
 
 from virea.vrchat.views import (
     CapturedFrame,
+    IsolatedWindowCapture,
     ViewUnavailable,
     WindowTarget,
     WindowViews,
     select_target,
 )
+
+
+def crashing_capture_worker(_target, connection):
+    connection.recv()
+    os._exit(23)
+
+
+def working_capture_worker(_target, connection):
+    while connection.recv() == "frame":
+        connection.send((None, CapturedFrame(b"jpeg", time.monotonic(), 1, 960, 540)))
+    connection.close()
+
+
+def test_native_process_exit_does_not_kill_host_and_new_capture_can_start():
+    def read(capture):
+        deadline = time.monotonic() + 20
+        while True:
+            try:
+                return capture.read()
+            except ViewUnavailable as exc:
+                if exc.code != "waiting_for_frame" or time.monotonic() > deadline:
+                    raise
+                time.sleep(0.02)
+
+    target = WindowTarget(22, 2, 220)
+    failed = IsolatedWindowCapture(target, worker=crashing_capture_worker)
+    with pytest.raises(ViewUnavailable, match="capture_failed"):
+        read(failed)
+    assert failed.closed
+    recovered = IsolatedWindowCapture(target, worker=working_capture_worker)
+    try:
+        assert read(recovered).jpeg == b"jpeg"
+        assert read(recovered).width == 960
+    finally:
+        recovered.close()
+    assert recovered.closed
 
 
 def test_roles_follow_ports_not_window_order_and_never_share_a_process():
@@ -88,6 +126,33 @@ def test_window_disappearance_discards_frame_instead_of_serving_old_view():
     with pytest.raises(ViewUnavailable, match="window_not_found"):
         views.frame("ai", 19000)
     assert not views.channels
+
+
+def test_slow_first_frame_is_not_reaped_before_its_startup_deadline():
+    now = [0.0]
+    target = WindowTarget(22, 2, 220)
+    capture = SimpleNamespace(target=target, pending=True, received=False, closed=False)
+
+    def make(_):
+        now[0] += 3  # A slow Windows spawn must not count as idle time.
+        return capture
+
+    def read():
+        raise ViewUnavailable("waiting_for_frame")
+
+    capture.read = read
+    capture.close = lambda: setattr(capture, "closed", True)
+    views = WindowViews(
+        inventory=lambda: {19000: [target]}, factory=make, clock=lambda: now[0]
+    )
+    with pytest.raises(ViewUnavailable, match="waiting_for_frame"):
+        views.frame("ai", 19000)
+    now[0] += 2.1
+    views.reap_idle()
+    assert not capture.closed
+    now[0] += 18
+    views.reap_idle()
+    assert capture.closed and not views.channels
 
 
 def test_frame_route_rejects_cross_site_capture_and_returns_noncacheable_jpeg():

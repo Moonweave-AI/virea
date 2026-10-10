@@ -149,6 +149,36 @@ def test_connection_diagnostic_requires_explicit_network_evidence():
     )
 
 
+def test_delayed_log_requires_the_selected_process_osc_port(tmp_path, monkeypatch):
+    from datetime import datetime
+
+    import psutil
+
+    root = tmp_path / "AppData/LocalLow/VRChat/VRChat"
+    root.mkdir(parents=True)
+    for stamp, port in [("15", 19000), ("16", 9000)]:
+        (root / f"output_log_2026-10-08_17-00-{stamp}.txt").write_text(
+            f"Arg: --osc={port}:127.0.0.1:19001\nConnected to master in usw\n",
+            encoding="utf-8",
+        )
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    process = SimpleNamespace(
+        pid=42, create_time=lambda: datetime(2026, 10, 8, 17).timestamp()
+    )
+    monkeypatch.setattr(
+        psutil,
+        "net_connections",
+        lambda **_: [
+            SimpleNamespace(pid=42, laddr=SimpleNamespace(port=19000)),
+            SimpleNamespace(pid=43, laddr=SimpleNamespace(port=9000)),
+        ],
+    )
+    assert (
+        connection_status(client_status._client_log_text(process))
+        == "online_session_in_log"
+    )
+
+
 def test_authentication_diagnostic_is_ordered_and_never_exposes_credentials():
     assert (
         authentication_status(

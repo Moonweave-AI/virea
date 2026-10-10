@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$VRChatExe,
     [ValidateRange(0, 99)][int]$Profile = 2,
     [ValidateRange(1024, 65535)][int]$SendPort = 19010,
-    [ValidateRange(1024, 65535)][int]$ReceivePort = 19011
+    [ValidateRange(1024, 65535)][int]$ReceivePort = 19011,
+    [switch]$VR
 )
 $ErrorActionPreference = 'Stop'
 $game = (Resolve-Path -LiteralPath $VRChatExe).Path
@@ -22,9 +23,10 @@ foreach ($client in Get-CimInstance Win32_Process -Filter "Name='VRChat.exe'") {
 }
 # This is an interactive game window the user explicitly requested, not a hidden helper.
 $launchArguments = @(
-    '--no-vr', "--profile=$Profile", "--osc=${SendPort}:127.0.0.1:${ReceivePort}",
+    "--profile=$Profile", "--osc=${SendPort}:127.0.0.1:${ReceivePort}",
     '--watch-avatars', '--watch-worlds', '-screen-width', '1280', '-screen-height', '720', '-screen-fullscreen', '0'
 )
+if (!$VR) { $launchArguments = @('--no-vr') + $launchArguments }
 if ($PSCmdlet.ShouldProcess("$launcher $($launchArguments -join ' ')", 'Launch protected online VRChat client')) {
     $process = Start-Process -FilePath $launcher -WorkingDirectory (Split-Path $game) -ArgumentList $launchArguments -PassThru
     Write-Output "Official launcher started (PID $($process.Id)), profile $Profile. Confirm the dedicated AI account in that window before enabling OSC output. Launcher startup alone does not confirm online connectivity."

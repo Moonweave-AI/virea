@@ -1,0 +1,1022 @@
+{
+  "schema_version": "virea.vrchat_recordings.v1",
+  "recorded_on": "2026-10-11",
+  "timezone": "Asia/Shanghai",
+  "scope": "Continuous silent real-client model-motion integration evidence; not exact per-joint or semantic-fidelity certification.",
+  "publication_basis": "repository owner explicitly requested four real VRChat recordings for README publication",
+  "avatar": {
+    "title": "Unnamed Character 6",
+    "author": "Reira",
+    "model_redistributed": false
+  },
+  "recordings": [
+    {
+      "id": "01-exhibition",
+      "url": "https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6",
+      "sha256": "644c07c79efb80865271bea2aa6d8c588c51aec19b21e8284ee1c06fd9b81940",
+      "bytes": 6520585,
+      "seconds": 317.6,
+      "capture_frames": {
+        "ai": 1431,
+        "observer": 2676
+      },
+      "capture_errors": [],
+      "audio_streams": 0,
+      "continuous": true,
+      "speed": 1,
+      "encoder_exit": 0,
+      "full_decode": "passed",
+      "visual_review": {
+        "sha256": "644c07c79efb80865271bea2aa6d8c588c51aec19b21e8284ee1c06fd9b81940",
+        "reviewer": "Codex visual and execution-evidence review",
+        "reviewed_on": "2026-10-11",
+        "same_instance_verified": true,
+        "generated_motion_visible": true,
+        "both_chatboxes_visible": true,
+        "review_method": "Per-second frames of each generated performance, all four native user-chatbox frames, live status/arrival evidence; full decode checked separately. Observer mirror is the stable reference; the AI camera follows generated head motion.",
+        "limitations": [
+          "Fine finger articulation and exact per-joint equality cannot be certified at the captured resolution.",
+          "Text-to-motion semantic fidelity is imperfect: pointing/clapping requests can yield broad arm gestures.",
+          "AI-view framing changes with generated head movement; both native chatboxes are verified in the stable observer feed."
+        ],
+        "turns": [
+          {
+            "turn": 1,
+            "observations": "58.9–77.5 s: both arms rise, one extends, body turns and steps right; AI caption changes from welcome to the three-stage plan. User native chatbox visible at 4.7 s in both views. End position retained."
+          },
+          {
+            "turn": 2,
+            "observations": "138.5–157.0 s: raised arm near head then a forward gesture with body-weight shifts. Reflection explanation appears in native AI chatbox. User native text visible at 83.9 s in observer feed."
+          },
+          {
+            "turn": 3,
+            "observations": "218.1–238.6 s: shoulders and arms lift above head then lower. Native AI captions deliver a riddle and hint; native user constraint change visible at 163.2 s. No preset-emote execution."
+          },
+          {
+            "turn": 4,
+            "observations": "293.1–311.6 s: both arms open upward and return, feet and body remain visible. Native captions confirm reflected lamp light, recap the adapted plan and say goodbye. User text visible at 245.1 s. Final root held without calibration-origin reset."
+          }
+        ]
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 530,
+          "pose_driver": {
+            "sent": 542,
+            "acknowledged": 541,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "1",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.0,
+              "prompt": "A person waves both hands warmly to welcome.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "2",
+              "start_seconds": 4.0,
+              "duration_seconds": 14.0,
+              "prompt": "A person stands calmly and gestures gently with open palms.",
+              "label": "介绍环节",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "1",
+              "text": "欢迎来到月球艺术展，我会保持安静，只安排三个轻柔的环节。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.5945
+            },
+            {
+              "id": "2",
+              "text": "我们先看反光月岩，再玩猜谜游戏，最后一起欣赏星空，全程轻声细语。",
+              "start_seconds": 6.5945,
+              "duration_seconds": 7.7555
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 524,
+          "pose_driver": {
+            "sent": 536,
+            "acknowledged": 535,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person waves gently to welcome the audience.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person points forward with one hand to indicate direction.",
+              "label": "指向讲解",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "第一个环节，我们把月岩想象成一面镜子，灯光照上去，它就把光反射给我们看。",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.73075
+            },
+            {
+              "id": "s2",
+              "text": "就像我们照镜子一样，石头本身不发光，只是借了光，这样孩子更容易理解。",
+              "start_seconds": 8.73075,
+              "duration_seconds": 7.384
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 20.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 590,
+          "pose_driver": {
+            "sent": 602,
+            "acknowledged": 601,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person waves both hands warmly and smiles gently.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person points to the side with one hand and claps softly twice.",
+              "label": "指谜面并鼓掌",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "孩子想参与，我们把月岩亮光变成猜谜：什么东西借光才亮，自己却从不发光？",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.8700625
+            },
+            {
+              "id": "s2",
+              "text": "提示是它像一面安静的镜子，猜对了我们就一起鼓掌庆祝！",
+              "start_seconds": 8.8700625,
+              "duration_seconds": 6.130125
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 521,
+          "pose_driver": {
+            "sent": 533,
+            "acknowledged": 532,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person waves both hands warmly to welcome.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 6.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person points to the side and then claps hands gently.",
+              "label": "指向并鼓掌",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "你猜对了，是展厅的灯光照亮了月岩。",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.1331875
+            },
+            {
+              "id": "s2",
+              "text": "我根据孩子想参与的要求，把讲解改成了猜谜游戏。",
+              "start_seconds": 6.0,
+              "duration_seconds": 5.154875
+            },
+            {
+              "id": "s3",
+              "text": "现在我们要挥手告别了，期待下次再见。",
+              "start_seconds": 12.0,
+              "duration_seconds": 4.3189375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02-coach",
+      "url": "https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656",
+      "sha256": "ee704bc95c240e4fea0c66a5b3f56f85c4123fc62b427bfcaef5686e5b7028b5",
+      "bytes": 5976448,
+      "seconds": 339.6,
+      "capture_frames": {
+        "ai": 1536,
+        "observer": 2939
+      },
+      "capture_errors": [],
+      "audio_streams": 0,
+      "continuous": true,
+      "speed": 1,
+      "encoder_exit": 0,
+      "full_decode": "passed",
+      "visual_review": {
+        "sha256": "ee704bc95c240e4fea0c66a5b3f56f85c4123fc62b427bfcaef5686e5b7028b5",
+        "reviewer": "Codex visual and execution-evidence review",
+        "reviewed_on": "2026-10-11",
+        "same_instance_verified": true,
+        "generated_motion_visible": true,
+        "both_chatboxes_visible": true,
+        "review_method": "Per-second frames of each generated performance, all four native user-chatbox frames, live status/arrival evidence; full decode checked separately. Observer mirror is the stable reference; the AI camera follows generated head motion.",
+        "limitations": [
+          "Fine finger articulation and exact per-joint equality cannot be certified at the captured resolution.",
+          "Text-to-motion semantic fidelity is imperfect: pointing/clapping requests can yield broad arm gestures.",
+          "AI-view framing changes with generated head movement; both native chatboxes are verified in the stable observer feed."
+        ],
+        "turns": [
+          {
+            "turn": 1,
+            "observations": "64.9–81.5 s: greeting arm lift followed by standing, with the native AI explanation of waiting for readiness. User native chatbox visible at 4.4 s."
+          },
+          {
+            "turn": 2,
+            "observations": "142.8–161.5 s: hands move toward the chest then one arm extends. Caption explains the rhythm-game sequence. Native user readiness and constraint text visible at 87.5 s."
+          },
+          {
+            "turn": 3,
+            "observations": "228.3–246.9 s: standing transitions to forward arm gestures; AI correction appears above the avatar. Native user correction request visible at 167.8 s."
+          },
+          {
+            "turn": 4,
+            "observations": "314.8–333.5 s: a raised-arm celebration and weight shift accompany the recap. Both avatars remain in the observer mirror and native user text is visible at 253.1 s. Final placement is retained."
+          }
+        ]
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 16.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 474,
+          "pose_driver": {
+            "sent": 486,
+            "acknowledged": 485,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person waves both hands gently to welcome.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 6.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person stands calmly with hands at sides.",
+              "label": "静立等待",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "我们先挥手，你回复准备好，然后我再鼓掌，请听好规则。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.7338125
+            },
+            {
+              "id": "s2",
+              "text": "现在请回复准备好，我会等你再开始鼓掌。",
+              "start_seconds": 6.7338125,
+              "duration_seconds": 4.8298125
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 531,
+          "pose_driver": {
+            "sent": 543,
+            "acknowledged": 542,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.0,
+              "prompt": "A person claps hands twice gently and stands still.",
+              "label": "鼓掌并站定",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 4.0,
+              "duration_seconds": 14.0,
+              "prompt": "A person stands calmly and gestures with one hand.",
+              "label": "讲解节奏特点",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "先听我鼓掌，再听我说话，观察节奏的强弱和快慢。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.223
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 531,
+          "pose_driver": {
+            "sent": 543,
+            "acknowledged": 542,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person stands calmly, breathing naturally.",
+              "label": "静止",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person points forward with one hand and then points to the side.",
+              "label": "指向",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "停顿不是拍子，它是拍子之间的空隙，要分开数。",
+              "start_seconds": 0.0,
+              "duration_seconds": 5.1084375
+            },
+            {
+              "id": "s2",
+              "text": "先数拍子，再留空，顺序不能乱，就像走路一样。",
+              "start_seconds": 8.0,
+              "duration_seconds": 5.61925
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 535,
+          "pose_driver": {
+            "sent": 547,
+            "acknowledged": 546,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 3.0,
+              "prompt": "A person claps hands enthusiastically and smiles.",
+              "label": "欢呼",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 3.0,
+              "duration_seconds": 15.0,
+              "prompt": "A person waves hand gently and points forward.",
+              "label": "挥手总结",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "你从把停顿当拍子，改到分清拍子和空隙，做得很好！",
+              "start_seconds": 0.0,
+              "duration_seconds": 7.1981875
+            },
+            {
+              "id": "s2",
+              "text": "下次我们可以增加拍子数量，或者让停顿时间更长一点。",
+              "start_seconds": 7.1981875,
+              "duration_seconds": 5.1084375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03-story",
+      "url": "https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af",
+      "sha256": "f580211ff7656862dc5ff6837799c0d8a67a4756a62ae10dca3ee5667bc661fe",
+      "bytes": 6159602,
+      "seconds": 316.53333333333336,
+      "capture_frames": {
+        "ai": 1480,
+        "observer": 2749
+      },
+      "capture_errors": [],
+      "audio_streams": 0,
+      "continuous": true,
+      "speed": 1,
+      "encoder_exit": 0,
+      "full_decode": "passed",
+      "visual_review": {
+        "sha256": "f580211ff7656862dc5ff6837799c0d8a67a4756a62ae10dca3ee5667bc661fe",
+        "reviewer": "Codex visual and execution-evidence review",
+        "reviewed_on": "2026-10-11",
+        "same_instance_verified": true,
+        "generated_motion_visible": true,
+        "both_chatboxes_visible": true,
+        "review_method": "Per-second frames of each generated performance, all four native user-chatbox frames, live status/arrival evidence; full decode checked separately. Observer mirror is the stable reference; the AI camera follows generated head motion.",
+        "limitations": [
+          "Fine finger articulation and exact per-joint equality cannot be certified at the captured resolution.",
+          "Text-to-motion semantic fidelity is imperfect: pointing/clapping requests can yield broad arm gestures.",
+          "AI-view framing changes with generated head movement; both native chatboxes are verified in the stable observer feed.",
+          "The story response introduces an unprompted child in turn 3; primary map-color and no-swimming constraints remain correct. This is recorded output, not edited dialogue."
+        ],
+        "turns": [
+          {
+            "turn": 1,
+            "observations": "48.9–67.8 s: arms move forward and inward, body turns sideways; native caption introduces the lighthouse role and route choice. User native text visible at 4.8 s. The AI camera follows the generated head and looks down afterward."
+          },
+          {
+            "turn": 2,
+            "observations": "125.3–143.9 s: one arm lifts followed by both arms opening and lowering; native caption recalls the blue map and proposes a dry route. User native text visible at 73.8 s. Observer view remains stable."
+          },
+          {
+            "turn": 3,
+            "observations": "208.7–227.2 s: after MotionCraft to SynTalker switch, both arms lift and separate, torso shifts, arms lower. Native captions continue the shelter story and preserve the no-swimming condition. User bubble visible at 150.2 s."
+          },
+          {
+            "turn": 4,
+            "observations": "292.0–310.5 s: mostly standing with small upper-body/hand movement, not a clearly recognizable clap. Native captions correctly recap the blue map and dry route; user recap request visible at 233.3 s. No preset emote is executed."
+          }
+        ]
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 532,
+          "pose_driver": {
+            "sent": 544,
+            "acknowledged": 543,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person waves both hands warmly to welcome the traveler.",
+              "label": "挥手迎接",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 6.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person points to the left side of the body, then points to the right side.",
+              "label": "指向左右选项",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "欢迎旅人，您带着蓝色地图，我是守塔人。",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.736875
+            },
+            {
+              "id": "s2",
+              "text": "前方有山路和海路两个选项，您想选哪一条？",
+              "start_seconds": 6.0,
+              "duration_seconds": 4.5046875
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 530,
+          "pose_driver": {
+            "sent": 542,
+            "acknowledged": 541,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person waves both hands warmly to welcome the traveler.",
+              "label": "挥手迎接",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person points forward with one hand to indicate a dry path.",
+              "label": "指向干路",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "收到，您带着蓝色地图，既然不会游泳，我们走干爽的栈桥，绝不让您下水。",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.5914375
+            },
+            {
+              "id": "s2",
+              "text": "请看前方，沿着灯塔台阶走，安全又干燥。",
+              "start_seconds": 8.5914375,
+              "duration_seconds": 5.1084375
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 534,
+          "pose_driver": {
+            "sent": 546,
+            "acknowledged": 545,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person waves both hands gently and smiles warmly.",
+              "label": "挥手示意",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person points forward with one hand and nods reassuringly.",
+              "label": "指向新方案",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "别担心，雨大我们就躲进灯塔大厅，那里有干爽的毯子给您和孩子。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.5945
+            },
+            {
+              "id": "s2",
+              "text": "我们沿着干燥的走廊走，绝不让您下水，安全抵达终点。",
+              "start_seconds": 8.0,
+              "duration_seconds": 5.4335
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 531,
+          "pose_driver": {
+            "sent": 543,
+            "acknowledged": 542,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person stands calmly, smiling warmly.",
+              "label": "开场微笑",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 6.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person claps hands gently twice and then stands still.",
+              "label": "鼓掌庆祝",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "您带着蓝色地图，坚持不下水，我带您走干路，终于安全抵达。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.4551875
+            },
+            {
+              "id": "s2",
+              "text": "恭喜您，我们完美完成了这次冒险！",
+              "start_seconds": 6.4551875,
+              "duration_seconds": 4.0403125
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04-presentation",
+      "url": "https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5",
+      "sha256": "59a7d4e89be357751b91c9ea28bbd8842f5ed2628f7f6188dbb90bb78382d25a",
+      "bytes": 6544129,
+      "seconds": 347.4,
+      "capture_frames": {
+        "observer": 2700,
+        "ai": 1422
+      },
+      "capture_errors": [],
+      "audio_streams": 0,
+      "continuous": true,
+      "speed": 1,
+      "encoder_exit": 0,
+      "full_decode": "passed",
+      "visual_review": {
+        "sha256": "59a7d4e89be357751b91c9ea28bbd8842f5ed2628f7f6188dbb90bb78382d25a",
+        "reviewer": "Codex visual and execution-evidence review",
+        "reviewed_on": "2026-10-11",
+        "same_instance_verified": true,
+        "generated_motion_visible": true,
+        "both_chatboxes_visible": true,
+        "review_method": "Per-second frames of each generated performance, all four native user-chatbox frames, live status/arrival evidence; full decode checked separately. Observer mirror is the stable reference; the AI camera follows generated head motion.",
+        "limitations": [
+          "Fine finger articulation and exact per-joint equality cannot be certified at the captured resolution.",
+          "Text-to-motion semantic fidelity is imperfect: pointing/clapping requests can yield broad arm gestures.",
+          "AI-view framing changes with generated head movement; both native chatboxes are verified in the stable observer feed.",
+          "In the closer fourth-demo framing, the two native caption boxes can partially overlap; the unmodified recording also displays the actual full reply below the feeds."
+        ],
+        "turns": [
+          {
+            "turn": 1,
+            "observations": "70.4–88.8 s: both forearms open outward and return while the native AI bubble explains sharing books. User native text visible at 4.5 s. Full body remains visible near the observer."
+          },
+          {
+            "turn": 2,
+            "observations": "156.8–175.5 s: small arm and torso movement followed by standing; native captions clarify free exchange without guaranteeing every trade. User native text visible at 95.1 s, partly overlapped by the prior AI bubble."
+          },
+          {
+            "turn": 3,
+            "observations": "237.9–258.7 s: MotionCraft follows SynTalker without losing the free-sharing constraint; hands move inward and outward, then one forearm rises. User revised closing request visible at 182.3 s. Native AI captions present the closing."
+          },
+          {
+            "turn": 4,
+            "observations": "320.7–341.4 s: arms open, one rises and the body shifts its stance; native caption recaps the sharing theme and free-entry correction. User text visible at 265.0 s. Motion continues after the 7.94-second speech, ending without a root reset."
+          }
+        ]
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "generation_seed": 42,
+          "generation_attempts": 1,
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 501,
+          "pose_driver": {
+            "sent": 513,
+            "acknowledged": 512,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "motion_1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person waves both hands warmly to welcome neighbors.",
+              "label": "挥手欢迎",
+              "speech_gestures": false
+            },
+            {
+              "id": "motion_2",
+              "start_seconds": 6.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person points forward with an open palm to indicate the book exchange area.",
+              "label": "指向活动区",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "speech_1",
+              "text": "欢迎邻居们，这是一个分享图书的聚会，不是买卖，大家把书带来交换故事。",
+              "start_seconds": 0.0,
+              "duration_seconds": 7.476875
+            },
+            {
+              "id": "speech_2",
+              "text": "请随意挑选喜欢的书，然后留下你的书，让好书流动起来。",
+              "start_seconds": 7.476875,
+              "duration_seconds": 5.99075
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "method": "syntalker",
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "generation_seed": 42,
+          "generation_attempts": 1,
+          "motion_seconds": 18.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 425,
+          "pose_driver": {
+            "sent": 437,
+            "acknowledged": 436,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person points gently to the side and smiles warmly.",
+              "label": "指向说明规则",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 10.0,
+              "prompt": "A person stands calmly and nods reassuringly.",
+              "label": "点头确认",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "这里完全免费，只是分享好书，但每本书不一定都能换到心仪的。",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.966
+            },
+            {
+              "id": "s2",
+              "text": "大家随意挑选，用故事交换故事，让知识流动起来。",
+              "start_seconds": 8.0,
+              "duration_seconds": 5.2941875
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "generation_seed": 42,
+          "generation_attempts": 1,
+          "motion_seconds": 20.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 567,
+          "pose_driver": {
+            "sent": 579,
+            "acknowledged": 578,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.0,
+              "prompt": "A person claps hands gently to express gratitude.",
+              "label": "鼓掌感谢",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 4.0,
+              "duration_seconds": 16.0,
+              "prompt": "A person points forward and smiles warmly.",
+              "label": "指向下一步",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "感谢大家的参与，记住这里是免费分享，不是买卖。",
+              "start_seconds": 0.0,
+              "duration_seconds": 4.6904375
+            },
+            {
+              "id": "s2",
+              "text": "请带着选中的书回家，下周同一时间再来交换新的故事。",
+              "start_seconds": 4.6904375,
+              "duration_seconds": 5.526375
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "method": "motioncraft",
+          "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+          "generation_seed": 42,
+          "generation_attempts": 1,
+          "motion_seconds": 20.0,
+          "audio_seconds": 0,
+          "transmitted_frames": 566,
+          "pose_driver": {
+            "sent": 578,
+            "acknowledged": 577,
+            "active_devices": 7,
+            "skeleton_devices": 6,
+            "last_ack_seconds_ago": 0.0,
+            "rendered_pose_verified": false
+          },
+          "emotes_sent": [],
+          "chat_dropped": 0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 8.0,
+              "prompt": "A person claps hands enthusiastically and smiles warmly.",
+              "label": "欢呼",
+              "speech_gestures": false
+            },
+            {
+              "id": "m2",
+              "start_seconds": 8.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person waves both hands gently and nods.",
+              "label": "挥手收尾",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [
+            {
+              "id": "s1",
+              "text": "主题是图书分享，我们澄清了这里完全免费，时间缩短后我保留了核心规则。",
+              "start_seconds": 0.0,
+              "duration_seconds": 7.94125
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

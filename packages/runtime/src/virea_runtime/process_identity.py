@@ -519,6 +519,17 @@ def _windows_kernel_identity(pid: int) -> tuple[str | None, str]:
 
 
 def _windows_command_line(pid: int) -> str | None:
+    if pid == os.getpid():
+        # The kernel already owns our immutable launch command line. Starting
+        # another PowerShell/WMI process here can delay or abort API startup on
+        # busy Windows hosts, without providing any additional identity proof.
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetCommandLineW.argtypes = []
+        kernel32.GetCommandLineW.restype = ctypes.c_wchar_p
+        value = kernel32.GetCommandLineW()
+        if not value:
+            raise ProcessInspectionError("current process has no command line")
+        return value
     script = (
         "$ErrorActionPreference='Stop';"
         f"$p=Get-CimInstance -ClassName Win32_Process -Filter 'ProcessId = {pid}';"

@@ -49,13 +49,17 @@ def test_independent_sender_releases_without_parent_event_loop(stop):
         receiver.settimeout(8)
         ctx = multiprocessing.get_context("spawn")
         read, write = ctx.Pipe(duplex=False)
+        ready = ctx.Event()
         reset = reset_packet(BridgeConfig())
         process = ctx.Process(
-            target=sender_process, args=(read, receiver.getsockname(), reset, 0.2)
+            target=sender_process,
+            args=(read, receiver.getsockname(), reset, 0.2, ready),
         )
         process.start()
         read.close()
         try:
+            # Cold spawn/import time is independent of the dead-man deadline.
+            assert ready.wait(30), "OSC child failed to start"
             write.send_bytes(message("/input/Vertical", 0.5))
             assert dict(decode(receiver.recv(65507)))["/input/Vertical"] == [0.5]
             started = time.monotonic()
@@ -104,6 +108,46 @@ def test_real_udp_feedback_gate_and_clean_rebind():
         second = OSCTransport(config)
         await second.open()
         await second.close()
+
+    asyncio.run(run())
+
+
+def test_slow_sender_shutdown_keeps_handle_and_closes_receiver():
+    class SlowProcess:
+        def __init__(self):
+            self.alive = True
+            self.terminated = False
+            self.closed = False
+
+        def is_alive(self):
+            return self.alive
+
+        def join(self, timeout):
+            pass
+
+        def terminate(self):
+            self.terminated = True
+
+        def close(self):
+            assert not self.alive
+            self.closed = True
+
+    async def run():
+        transport = OSCTransport(BridgeConfig(receive_port=socket_port()))
+        loop = asyncio.get_running_loop()
+        transport.receiver, _ = await loop.create_datagram_endpoint(
+            lambda: transport.protocol,
+            local_addr=("127.0.0.1", transport.config.receive_port),
+        )
+        child = transport.process = SlowProcess()
+        with pytest.raises(RuntimeError, match="did not stop"):
+            await transport.close()
+        assert child.terminated and not child.closed
+        assert transport.receiver is None
+        assert transport.process is child
+        child.alive = False
+        await transport.close()
+        assert child.closed and transport.process is None
 
     asyncio.run(run())
 

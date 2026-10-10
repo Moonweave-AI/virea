@@ -58,6 +58,34 @@ test("settings tolerate corrupt storage and preserve deliberate disconnect", () 
   assert.equal(readConnectionSettings('{"version":1,"fields":{"auto-bind":true},"wanted":false}').wanted, false);
 });
 
+test("generated VR requires full body feedback even if an older server says ready", () => {
+  const state = {connected: true, ready: true, config: {mode: "generated_vr", avatar_id: "avtr_ai"}, feedback: {
+    values: {avatar_id: "avtr_ai", VRMode: 1, TrackingType: 3},
+    query: {state: "verified", last_checked_seconds_ago: 0},
+  }};
+  const waiting = connectionView(state);
+  assert.equal(waiting.ready, false);
+  assert.match(waiting.title, /等待全身校准/);
+  assert.match(waiting.detail, /自动校准/);
+  state.feedback.values.TrackingType = 6;
+  assert.equal(connectionView(state).ready, true);
+  assert.ok(connectionView(state).steps.some(([name, ok]) => name === "全身校准" && ok));
+  state.feedback.values.TrackingType = 3;
+  assert.equal(connectionView(state).ready, false);
+});
+
+test("a verified prelogin process is distinct from a missing client", () => {
+  const state = {connected: true, ready: false, feedback: {query: {
+    state: "awaiting_avatar", last_checked_seconds_ago: 0, pid: 42,
+  }}};
+  const view = connectionView(state);
+  assert.match(view.title, /等待登录或角色加载/);
+  assert.equal(view.steps[1][1], true);
+  assert.equal(view.ready, false);
+  state.feedback.query.last_checked_seconds_ago = 4;
+  assert.equal(connectionView(state).steps[1][1], false);
+});
+
 test("logged API errors do not declare a live account offline or require re-login", () => {
   const view = connectionView({connected: true, ready: true, feedback: {query: {
     state: "verified", last_checked_seconds_ago: 0, local_avatar: true,

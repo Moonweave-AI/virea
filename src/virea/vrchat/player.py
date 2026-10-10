@@ -4,6 +4,7 @@ import asyncio
 import time
 
 from .audio import PlaybackClock
+from .continuity import ContinuedTimeline, client_identity, copy_pose
 from .desktop import DesktopTimeline
 from .mapping import chat_chunks, facial_messages, hand_messages, tracker_messages
 from .osc import message
@@ -19,13 +20,22 @@ class PerformancePlayer:
         performance,
         audio=None,
         clock_factory=PlaybackClock,
+        initial_pose=None,
     ):
         self.config = config
         self.transport = transport
         self.timeline = MotionTimeline(windows, performance["duration_seconds"])
+        self.anchor = self.timeline.sample(0).root.copy()
+        if config.mode == "generated_vr" and initial_pose is not None:
+            self.timeline = ContinuedTimeline(self.timeline, initial_pose)
+            self.anchor = (0, 0, 0)
+        self.identity = client_identity(transport)
+        self.last_pose = None
         self.desktop = DesktopTimeline(performance)
         self.emotes_sent = {}
         self.emotes_observed = set()
+        self.pose_driver = None
+        self.pose_output = None
         self.speech = performance.get("speech", [])
         for clip in self.speech:
             start, duration = clip["start_seconds"], clip["duration_seconds"]
@@ -84,17 +94,32 @@ class PerformancePlayer:
         next_frame = last_progress
         avatar = self.transport.protocol.values.get("avatar_id", (None,))[0]
         try:
+            if self.config.mode == "generated_vr":
+                from .generated_pose import GeneratedPoseClient
+
+                ai_pid = self.transport.protocol.query_status.get("pid")
+                if not ai_pid:
+                    raise RuntimeError(
+                        "verify the AI client process before sending generated poses"
+                    )
+                self.pose_driver = GeneratedPoseClient(
+                    self.config.pose_driver_port, expected_pid=ai_pid
+                )
+                first = self.timeline.sample(0)
+                for _ in range(12):
+                    self.pose_driver.send(first, self.anchor, scale=self.config.scale)
+                    await asyncio.sleep(0.025)
+                status = self.pose_driver.snapshot()
+                if status["active_devices"] != 7 or status["skeleton_devices"] != 6:
+                    raise RuntimeError(
+                        "generated pose driver has not acknowledged head, both wrists and finger skeletons"
+                    )
             if not self.paused:
                 clock.resume()
             while self.elapsed < self.timeline.duration:
                 ready, reason = self.transport.ready()
                 if not ready:
                     raise RuntimeError(reason)
-                if self.paused:
-                    last_progress = time.monotonic()
-                    next_frame = last_progress
-                    await asyncio.sleep(0.03)
-                    continue
                 if (
                     self.transport.protocol.values.get("avatar_id", (None,))[0]
                     != avatar
@@ -102,6 +127,31 @@ class PerformancePlayer:
                     raise RuntimeError(
                         "avatar changed during playback; submit a new task after checking its parameters"
                     )
+                if self.paused:
+                    # Pause the timeline, not the tracking lease: losing the
+                    # virtual devices would replace this frame with runtime idle.
+                    if self.pose_driver and self.last_pose is not None:
+                        self.pose_driver.send(
+                            self.last_pose, (0, 0, 0), scale=self.config.scale
+                        )
+                        self.pose_output = self.pose_driver.snapshot()
+                        age = self.pose_output["last_ack_seconds_ago"]
+                        if age is None or age > 0.75:
+                            raise RuntimeError(
+                                "generated pose driver feedback lost while paused"
+                            )
+                        self.transport.send(
+                            tracker_messages(
+                                self.last_pose.root,
+                                self.last_pose.rotations,
+                                self.config,
+                                (0, 0, 0),
+                            )
+                        )
+                    last_progress = time.monotonic()
+                    next_frame = last_progress
+                    await asyncio.sleep(1 / self.config.fps)
+                    continue
                 if clock.error:
                     raise RuntimeError(f"audio output stopped: {clock.error}")
                 current = clock.position
@@ -143,17 +193,28 @@ class PerformancePlayer:
                         message("/input/Vertical", forward),
                         message("/input/LookHorizontal", turn),
                     ]
-                if self.config.mode == "vr_trackers":
+                if self.config.mode in {"vr_trackers", "generated_vr"}:
                     # In locomotion mode root travel is already sent via input axes.
-                    anchor = (
-                        pose.root
-                        if self.config.locomotion
-                        else self.timeline.sample(0).root
-                    )
+                    anchor = pose.root if self.config.locomotion else self.anchor
                     outgoing += tracker_messages(
                         pose.root, pose.rotations, self.config, anchor
                     )
-                if self.config.expressions:
+                if self.pose_driver:
+                    self.pose_driver.send(pose, self.anchor, scale=self.config.scale)
+                    self.pose_output = self.pose_driver.snapshot()
+                    if (
+                        self.pose_output["last_ack_seconds_ago"] is None
+                        or self.pose_output["last_ack_seconds_ago"] > 0.75
+                    ):
+                        raise RuntimeError(
+                            "generated pose driver feedback lost; playback stopped"
+                        )
+                if self.config.mode == "generated_vr":
+                    # The existing published rig shares AI_Active between face
+                    # and coarse finger-animation layers. Enabling it would
+                    # overlay presets on the tracked finger skeleton.
+                    outgoing.append(message("/avatar/parameters/AI_Active", False))
+                elif self.config.expressions:
                     outgoing.append(message("/avatar/parameters/AI_Active", True))
                     outgoing += hand_messages(pose.rotations)
                     outgoing += facial_messages(face)
@@ -178,6 +239,8 @@ class PerformancePlayer:
                         last_chat = time.monotonic()
                 # Empty bundles still feed the isolated sender's watchdog.
                 self.transport.send(outgoing)
+                if self.config.mode == "generated_vr":
+                    self.last_pose = copy_pose(pose, self.anchor)
                 self.frames += 1
                 next_frame = max(next_frame + 1 / self.config.fps, time.monotonic())
                 await asyncio.sleep(max(0, next_frame - time.monotonic()))
@@ -203,14 +266,22 @@ class PerformancePlayer:
             try:
                 clock.close()
             finally:
+                if self.pose_driver:
+                    self.pose_output = self.pose_driver.snapshot()
+                    self.pose_driver.close()
+                    self.pose_driver = None
                 self.transport.release()
                 self.clock = None
 
     def output_status(self):
         return {
             "mode": self.config.mode,
-            "generated_body_transmitted": self.config.mode == "vr_trackers",
-            "body_representation": "configured_body_trackers"
+            "generated_body_transmitted": self.frames > 0
+            and self.config.mode in {"vr_trackers", "generated_vr"},
+            "pose_driver": self.pose_output,
+            "body_representation": "model_fk_tracking_ik"
+            if self.config.mode == "generated_vr"
+            else "configured_body_trackers"
             if self.config.mode == "vr_trackers"
             else "SDK avatar presets"
             if self.config.desktop_emotes

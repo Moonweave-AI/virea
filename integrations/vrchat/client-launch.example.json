@@ -1,0 +1,21 @@
+{
+  "vrchat_exe": "E:/Game/Steam/steamapps/common/VRChat/VRChat.exe",
+  "steam_exe": "E:/Game/Steam/steam.exe",
+  "steamvr_exe": "E:/Game/Steam/steamapps/common/SteamVR/bin/win64/vrstartup.exe",
+  "observer": {
+    "profile": 0,
+    "send_port": 9000,
+    "receive_port": 9001,
+    "vr": false,
+    "label": "Observer",
+    "account_id": "usr_00000000-0000-0000-0000-000000000001"
+  },
+  "ai": {
+    "profile": 1,
+    "send_port": 19000,
+    "receive_port": 19001,
+    "vr": true,
+    "label": "AI",
+    "account_id": "usr_00000000-0000-0000-0000-000000000002"
+  }
+}

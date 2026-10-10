@@ -61,6 +61,11 @@ class ClientQuery:
         ):
             raise ValueError("OSCQuery endpoint does not match the dedicated AI port")
         response = await client.get(base + "/avatar")
+        if response.status_code == 404:
+            # VRChat exposes HOST_INFO before the login screen, but creates
+            # /avatar only after a character loads. The verified endpoint is
+            # present; apply() must clear any old identity and wait for it.
+            return {"CONTENTS": {}}
         response.raise_for_status()
         return response.json()
 
@@ -75,7 +80,18 @@ class ClientQuery:
                 ("127.0.0.1", self.config.send_port),
             )
         if not valid_avatar_id(avatar):
-            raise ValueError("AI avatar is loading or has no supported identity")
+            # The process and HOST_INFO were verified, but login/avatar loading
+            # is not complete. Do not misreport this as a missing client or keep
+            # a previous avatar armed. Autonomous output still needs identity.
+            self.protocol.query_checked = time.monotonic()
+            self.protocol.query_status = {
+                "state": "awaiting_avatar",
+                "pid": pid,
+                "port": port,
+                "detail": "AI client connected; waiting for login or avatar loading",
+            }
+            self.verified = True
+            return
         nodes = contents.get("parameters", {}).get("CONTENTS", {})
         supported = {"AI_Active", *FACE_PARAMETERS, *HAND_PARAMETERS}
         parameters = sorted(supported.intersection(nodes))
@@ -127,10 +143,14 @@ class ClientQuery:
                     for pid, port in endpoints:
                         try:
                             tree = await self.read(client, port)
+                            online = await asyncio.to_thread(
+                                selected_client_status, pid
+                            )
+                            # Publish the tree and room evidence together; a
+                            # status request must not see a new timestamp with
+                            # the previous cycle's room evidence missing.
                             self.apply(tree, pid, port)
-                            self.protocol.query_status[
-                                "online"
-                            ] = await asyncio.to_thread(selected_client_status, pid)
+                            self.protocol.query_status["online"] = online
                             matched = True
                             break
                         except (httpx.HTTPError, ValueError, TypeError, KeyError):
