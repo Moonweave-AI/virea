@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from starlette.routing import WebSocketRoute
+from test_execution_domains import _domain, _report
 from virea_api import create_app
 from virea_api.capabilities import model_capability
 from virea_api.routes import jobs_router, system_router
@@ -34,7 +35,7 @@ from virea_cli.main import (
     main as cli_main,
 )
 from virea_contracts import JobRequest, ManagedApiLifecycle, ModelSupportStatus
-from virea_contracts.execution import ExecutionTargetSelection
+from virea_contracts.execution import ExecutionDomainKind, ExecutionTargetSelection
 from virea_contracts.installation import InstallationState
 from virea_contracts.vrm import VrmMotionResult
 from virea_core import StateStore, VireaPaths
@@ -45,6 +46,31 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "models"
 TERMINAL_STATES = {"SUCCEEDED", "CANCELLED", "FAILED", "TIMED_OUT", "REJECTED"}
 RELEASE_VERSION = "0.4.0"
+
+
+@pytest.fixture
+def multiple_execution_domains(monkeypatch):
+    """Selection-required cases must not depend on the runner having WSL."""
+    machine = _report(
+        _domain(
+            ExecutionDomainKind.WINDOWS_NATIVE,
+            "win-64",
+            host=True,
+            uv_path="C:/tools/uv.exe",
+            accelerator="nvidia",
+        ),
+        _domain(
+            ExecutionDomainKind.WSL,
+            "linux-64",
+            host=False,
+            distribution="Ubuntu-24.04",
+            uv_path="/usr/bin/uv",
+            accelerator="nvidia",
+        ),
+    )
+    monkeypatch.setattr(
+        ControlPlane, "_detect_runtime_machine", lambda *args, **kwargs: machine
+    )
 
 
 def _wait_for_terminal_job(
@@ -688,7 +714,7 @@ def test_state_revision_detects_jobs_written_through_shared_store(tmp_path) -> N
 
 
 def test_production_http_hides_and_rejects_test_only_models(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, multiple_execution_domains
 ) -> None:
     app = create_app(
         virea_home=tmp_path / "virea-home",
@@ -1023,7 +1049,7 @@ def test_api_refuses_test_model_install(tmp_path) -> None:
 
 
 def test_api_requires_explicit_execution_domain_before_installation(
-    tmp_path,
+    tmp_path, multiple_execution_domains
 ) -> None:
     app = create_app(
         virea_home=tmp_path / "virea-home",
