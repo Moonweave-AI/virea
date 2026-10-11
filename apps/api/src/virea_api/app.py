@@ -24,6 +24,8 @@ from .routes import (
 )
 from .routes.character_face import router as character_face_router
 from .routes.characters import router as characters_router
+from .routes.interactions import router as interactions_router
+from .routes.onboarding import router as onboarding_router
 from .routes.vrchat import router as vrchat_router
 from .routes.vrchat_views import router as vrchat_views_router
 from .service import ControlPlane
@@ -114,6 +116,10 @@ def create_app(
         app.state.control_plane = control
         try:
             app.state.characters = CharacterManager(control)
+            from virea.onboarding.jobs import DeploymentJobs
+
+            app.state.deployments = DeploymentJobs(paths, app.state.characters)
+            app.state.deployments.restore()
             # Delay bridge imports until lifespan startup; audio devices stay lazy.
             from virea.vrchat.client_launch import ClientLauncher
             from virea.vrchat.service import VRChatService
@@ -127,6 +133,8 @@ def create_app(
             app.state.vrchat_views.start()
             yield
         finally:
+            if hasattr(app.state, "deployments"):
+                await app.state.deployments.close()
             try:
                 if hasattr(app.state, "vrchat_clients"):
                     await app.state.vrchat_clients.close()
@@ -152,6 +160,8 @@ def create_app(
         lifespan=lifespan,
     )
     application.include_router(system_router, prefix="/api/v1")
+    application.include_router(interactions_router, prefix="/api/v1")
+    application.include_router(onboarding_router, prefix="/api/v1")
     application.include_router(models_router, prefix="/api/v1")
     application.include_router(jobs_router, prefix="/api/v1")
     application.include_router(avatars_router, prefix="/api/v1")

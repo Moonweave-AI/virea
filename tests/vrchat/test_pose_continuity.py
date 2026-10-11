@@ -190,7 +190,12 @@ def test_service_holds_actual_cancelled_frame_and_next_model_continues_from_it(
         service = VRChatService(SimpleNamespace(get=lambda _: None))
         service.config, service.transport = BridgeConfig(mode="generated_vr"), sink
         service.calibration = SimpleNamespace(
-            active=False, start=Mock(), maintain=AsyncMock(), stop=AsyncMock()
+            active=False,
+            start=Mock(),
+            maintain=AsyncMock(),
+            stop=AsyncMock(),
+            stage="completed",
+            attempted=client_identity(sink),
         )
         service.player = PerformancePlayer(
             service.config,
@@ -240,7 +245,12 @@ def test_completed_performance_holds_final_frame_while_waiting(drivers):
         service = VRChatService(SimpleNamespace(get=lambda _: None))
         service.config, service.transport = BridgeConfig(mode="generated_vr"), sink
         service.calibration = SimpleNamespace(
-            active=False, start=Mock(), maintain=AsyncMock(), stop=AsyncMock()
+            active=False,
+            start=Mock(),
+            maintain=AsyncMock(),
+            stop=AsyncMock(),
+            stage="completed",
+            attempted=client_identity(sink),
         )
         service.session = SimpleNamespace(
             id="s",

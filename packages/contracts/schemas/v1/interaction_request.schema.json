@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:interaction_request:1.0.0",
+  "$defs": {
+    "ExecutionTargetSelection": {
+      "additionalProperties": false,
+      "description": "One user-selected execution domain with optional advanced overrides.\n\nThe canonical domain id is the public selector.  Kind, platform and WSL\ndistribution remain properties of the independently detected\n:class:`ExecutionDomainReport`; accepting those fields again here would\ncreate two potentially conflicting identities for the same target.",
+      "properties": {
+        "schema_version": {
+          "const": "virea.execution_target_selection.v1.0.0",
+          "default": "virea.execution_target_selection.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "execution_domain_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Execution Domain Id",
+          "type": "string"
+        },
+        "runtime_variant_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Variant Id"
+        },
+        "resource_profile_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Profile Id"
+        }
+      },
+      "required": [
+        "execution_domain_id"
+      ],
+      "title": "ExecutionTargetSelection",
+      "type": "object"
+    },
+    "JobRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.job_request.v1.0.0",
+          "default": "virea.job_request.v1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "avatar_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar Id"
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "execution_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionTargetSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "model_id",
+        "task"
+      ],
+      "title": "JobRequest",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.interaction_request.v1",
+      "default": "virea.interaction_request.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "request_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "workflow": {
+      "enum": [
+        "motion_lab",
+        "character_studio",
+        "vrchat_studio"
+      ],
+      "title": "Workflow",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 16000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Id"
+    },
+    "target_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Id"
+    },
+    "motion_job": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/JobRequest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "request_id",
+    "workflow",
+    "text"
+  ],
+  "title": "InteractionRequestV1",
+  "type": "object"
+}

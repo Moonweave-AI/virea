@@ -112,6 +112,8 @@ $$
 
 映射后的 root、21 core 和 30 hands 打包到 211 维。Target FK 使用 artifact 中 fixed rest；具体 VRM rest 由 runtime normalized humanoid pose处理。
 
+当前实现由 `motion/kinematics.py` 提供共享的层级 FK 和局部坐标系变换。SMPL-X 适配器接受完整的 `source_rest_offsets`，根据源与目标的骨段方向计算常量绑定并记录分叉拟合残差；源 FK 同样使用这份真实源几何。未提供源几何的兼容路径标记为 `canonical_approximation`。手部直接使用逐帧旋转，读取模型文件不会自动叠加手部均值。数学不变量、资产输入与固定样本数据见[研究记录](../research/skeletal-retargeting-2026-10-11.md)。
+
 ## 7. Annotation 与 channel 边界
 
 GRAB：object name、action、contact context 是 native；只有真实 object pose/contact frames 时才画逐帧 marker/indicator。

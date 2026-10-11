@@ -63,7 +63,7 @@ def _yaml(path: Path) -> dict:
 
 def test_every_published_schema_is_valid_draft_2020_12() -> None:
     paths = sorted(SCHEMAS.rglob("*.schema.json"))
-    assert len(paths) == 14
+    assert len(paths) == 23
     for path in paths:
         schema = json.loads(path.read_text(encoding="utf-8"))
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"

@@ -147,7 +147,7 @@ wheels = [
 [[package]]
 name = "clip"
 version = "1.0"
-source = { git = "https://github.com/openai/CLIP.git?rev=d05afc436d78f1c48dc0dbf8e5980a9d471f35f6#d05afc436d78f1c48dc0dbf8e5980a9d471f35f6" }
+source = { url = "https://github.com/openai/CLIP/archive/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6.zip" }
 dependencies = [
     { name = "ftfy" },
     { name = "packaging" },
@@ -160,6 +160,19 @@ dependencies = [
     { name = "torchvision", version = "0.26.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "tqdm" },
 ]
+sdist = { hash = "sha256:c665a33987c7365078c9988fdae5699026ec75cc4424bc0d59ab2599df22229a" }
+
+[package.metadata]
+requires-dist = [
+    { name = "ftfy" },
+    { name = "packaging" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "regex" },
+    { name = "torch" },
+    { name = "torchvision" },
+    { name = "tqdm" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "colorama"
@@ -409,7 +422,6 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "addict" },
     { name = "numpy" },
-    { name = "opencv-python" },
     { name = "packaging" },
     { name = "pillow" },
     { name = "pyyaml" },
@@ -1155,6 +1167,7 @@ dependencies = [
     { name = "librosa" },
     { name = "mmcv" },
     { name = "numpy" },
+    { name = "opencv-python" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "regex" },
@@ -1175,13 +1188,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "clip", git = "https://github.com/openai/CLIP.git?rev=d05afc436d78f1c48dc0dbf8e5980a9d471f35f6" },
+    { name = "clip", url = "https://github.com/openai/CLIP/archive/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6.zip" },
     { name = "einops", specifier = ">=0.8,<1" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "ftfy", specifier = ">=6.2,<7" },
     { name = "librosa", specifier = ">=0.10.2,<0.12" },
     { name = "mmcv", specifier = "==1.7.2" },
     { name = "numpy", specifier = ">=1.26,<2" },
+    { name = "opencv-python", specifier = "==4.11.0.86" },
     { name = "pydantic", specifier = ">=2.8,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
     { name = "pyyaml", specifier = ">=6,<7" },

@@ -4,6 +4,8 @@ import json
 
 import httpx
 
+from virea.onboarding.language import stream_deltas
+
 from ..contracts import CharacterConfig, Decision
 from ..grounding import explicit_positions
 from ..prompts import DECISION_RULES
@@ -99,7 +101,6 @@ class LanguageProvider:
             "stream": True,
         }
         if self.config.llm_api == "ollama":
-            endpoint = "/api/chat"
             payload.update(
                 {
                     "think": thinking,
@@ -113,7 +114,6 @@ class LanguageProvider:
                 }
             )
         else:
-            endpoint = "/chat/completions"
             payload.update(
                 {
                     "temperature": self.config.temperature,
@@ -131,47 +131,26 @@ class LanguageProvider:
             )
         content, published, finish = "", "", None
         emitted_beats = []
-        async with self.client.stream(
-            "POST",
-            self.config.llm_url.rstrip("/") + endpoint,
-            json=payload,
-            timeout=self.config.provider_timeout,
-        ) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line or line.startswith(":"):
-                    continue
-                if self.config.llm_api == "openai":
-                    if not line.startswith("data: "):
-                        continue
-                    line = line[6:]
-                    if line == "[DONE]":
-                        break
-                result = json.loads(line)
-                if self.config.llm_api == "ollama":
-                    content += result.get("message", {}).get("content", "")
-                    finish = result.get("done_reason") or finish
-                elif result.get("choices"):
-                    choice = result["choices"][0]
-                    content += choice.get("delta", {}).get("content") or ""
-                    finish = choice.get("finish_reason") or finish
-                parsed = decode_beats(content)
-                if parsed is not None:
-                    control, beats = parsed
-                    if beats[: len(emitted_beats)] != emitted_beats:
-                        raise ValueError("language stream rewrote published beats")
-                    for index in range(len(emitted_beats), len(beats)):
-                        current = beat_decision(control, beats[: index + 1])
-                        published = current.text
-                        yield LanguageUpdate(current, beat=beats[index])
-                    emitted_beats = beats
-                    continue
-                current = partial_decision(content)
-                if current and current.text != published:
-                    if not current.text.startswith(published):
-                        raise ValueError("language stream rewrote published text")
+        async for delta, reason in stream_deltas(self.config, self.client, payload):
+            content += delta
+            finish = reason or finish
+            parsed = decode_beats(content)
+            if parsed is not None:
+                control, beats = parsed
+                if beats[: len(emitted_beats)] != emitted_beats:
+                    raise ValueError("language stream rewrote published beats")
+                for index in range(len(emitted_beats), len(beats)):
+                    current = beat_decision(control, beats[: index + 1])
                     published = current.text
-                    yield LanguageUpdate(current)
+                    yield LanguageUpdate(current, beat=beats[index])
+                emitted_beats = beats
+                continue
+            current = partial_decision(content)
+            if current and current.text != published:
+                if not current.text.startswith(published):
+                    raise ValueError("language stream rewrote published text")
+                published = current.text
+                yield LanguageUpdate(current)
         if finish != "stop":
             raise ValueError("language response did not finish naturally")
         value = json.loads(content)

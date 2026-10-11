@@ -1,8 +1,13 @@
 # /// script
 # requires-python = ">=3.11,<3.13"
-# dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "kokoro==0.9.4", "misaki[zh]==0.9.4", "numpy>=1.26,<3", "torch==2.8.0"]
+# dependencies = [
+#   "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "kokoro==0.9.4", "misaki[zh]==0.9.4",
+#   "numpy>=1.26,<2",
+#   "torch==2.8.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+#   "torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+# ]
 # [tool.uv.sources]
-# torch = { index = "pytorch-cpu" }
+# torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
 # [[tool.uv.index]]
 # name = "pytorch-cpu"
 # url = "https://download.pytorch.org/whl/cpu"
@@ -223,5 +228,24 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8081)
+    parser.add_argument(
+        "--check-runtime",
+        action="store_true",
+        help="Check imports without downloading weights or playing audio",
+    )
     args = parser.parse_args()
+    if args.check_runtime:
+        import torch
+        from kokoro import KPipeline
+
+        print(
+            json.dumps(
+                {
+                    "torch": torch.__version__,
+                    "pipeline": KPipeline.__name__,
+                    "ready": True,
+                }
+            )
+        )
+        raise SystemExit(0)
     uvicorn.run(app, host="127.0.0.1", port=args.port)

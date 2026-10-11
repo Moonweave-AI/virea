@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-28
-last_reviewed: 2026-08-28
+updated: 2026-10-11
+last_reviewed: 2026-10-11
 review_cycle_days: 30
 summary: 一次选择并持久化 VIREA 数据根目录，避免将模型和环境写入系统盘。
 canonical: doc/getting-started/persistent-data-root.zh-CN.md
@@ -22,7 +22,27 @@ superseded_by: []
 
 > [中文](persistent-data-root.zh-CN.md) · [English](persistent-data-root.en.md) · [从 clone 到结果](../getting-started.zh-CN.md)
 
-在安装依赖和模型**之前**只做一次。选择一块你愿意让 VIREA 长期使用的、大容量数据盘根目录；clone 与所有由 VIREA
+## 启动器：与项目一起保存
+
+直接使用 [Start-VIREA 启动器](automatic-setup.zh-CN.md)时，数据默认保存在项目的 `.virea-runtime/portable/` 中。把项目解压到空间充足的数据盘，再双击启动器即可。环境、下载缓存与 `home/` 都集中在这一目录，Git 会忽略它。
+
+需要指定其他位置或端口时，从项目目录运行：
+
+```powershell
+# Windows：把示例盘符 X 替换为实际数据盘；后续使用同一条命令启动。
+& ./scripts/start-virea.ps1 -DataRoot 'X:\VIREA-DATA' -Port 8000
+```
+
+```bash
+# Linux / macOS：选择本机已有数据盘上的目录。
+VIREA_DATA_ROOT='/path/to/VIREA-DATA' sh start-virea.sh --port 8000
+```
+
+自定义根目录沿用 `tools/`、`environment/`、`cache/`、`home/` 的布局。已有模型与设置保存在原 `home/`；更换为一个空目录会创建新的独立环境。
+
+## 开发方式：分别管理源码与运行数据
+
+使用 `uv` 和 CLI 开发时，可在安装依赖和模型之前完成以下一次性配置。选择大容量数据盘根目录；clone 与所有由 VIREA
 管理的可变目录都会位于其下：
 
 ```text

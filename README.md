@@ -1,69 +1,77 @@
-<div align="center">
-
 # VIREA
 
-### Conversation that speaks, moves, and continues.
+![VIREA — One Foundation. Multiple Embodiments.](doc/assets/virea-foundation.svg)
 
-An experimental embodied-character runtime: dialogue, voice, expressive gestures and spatial motion,
-planned together and performed by a persistent VRM character.
+[English](README.md) · [简体中文](README.zh-CN.md) · [Documentation](doc/README.en.md) · [Set up](doc/getting-started/automatic-setup.en.md) · [Demos](#demos)
 
-[![Version](https://img.shields.io/badge/version-0.4.0-3456a4)](CHANGELOG.md)
-[![Canonical](https://img.shields.io/badge/canonical-211_v3-167d73)](doc/math-retarget/README.zh-CN.md)
-[![Motion IR](https://img.shields.io/badge/Motion_IR-v2-6957d8)](packages/contracts/schemas/v2/motion_ir.schema.json)
-[![Platforms](https://img.shields.io/badge/target-Windows_%7C_Linux_%7C_WSL2_%7C_macOS-20293f)](doc/platforms/README.en.md)
-[![Docs](https://img.shields.io/badge/docs-bilingual-9f6a2e)](doc/README.en.md)
+**VIREA connects language, speech and motion models to interactive characters.** Generate motion on its own, talk to a character in the browser, or operate an independent AI character in VRChat. All three workflows share model connections, skeleton conversion and execution records.
 
-[English](README.md) · [简体中文](README.zh-CN.md) ·
-[Live demos](#motion-studio-demos) ·
-[Character runtime](doc/character/README.en.md) ·
-[Get started](doc/getting-started.en.md) ·
-[CLI reference](doc/reference/cli.en.md) ·
-[Models](doc/models/README.en.md) ·
-[Platforms](doc/platforms/README.en.md) ·
-[Architecture](#architecture) ·
-[Evidence](doc/quality/production-e2e.en.md) ·
-[Documentation](doc/README.en.md)
+## Choose your workspace
 
-</div>
+| Workspace | What you can do | Start here |
+|---|---|---|
+| **Motion Lab** | Generate motion, compare source and target skeletons, and export animation | [Motion generation](doc/workflows/motion-lab.en.md) |
+| **Character Studio** | Import a VRM, hold a conversation, and arrange independent speech and motion tracks | [Character interaction](doc/workflows/character-studio.en.md) |
+| **VRChat Studio** | Control a separate AI account and watch its motion and subtitles from an observer account | [VRChat operation](doc/workflows/vrchat-studio.en.md) |
 
-## From motion generation to embodied conversation
+![A generated performance in Character Studio](doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg)
 
-VIREA has grown from a motion-data and retargeting pipeline, through isolated multi-model generation,
-into **Motion Studio: an ongoing conversation with a moving character**. The earlier foundations still matter:
-native model histories, skeleton conversion, isolated workers and observable execution now support one performance.
+## Start from zero
 
-The language model composes the response and a coarse activity plan. Audio8-TTS 0.6B clones the voice from a reference recording.
-Import audio and its exact transcript in Settings, then preview and select the voice. See the [deployment and migration guide](doc/character/audio8-tts.zh-CN.md).
-Choose **SentiAvatar + ARDY**, **MotionCraft**, or **SynTalker** before starting a session.
-The existing SentiAvatar + ARDY route retains activity execution and model handoffs. Each new route uses one motion family
-with independently timed motion segments and cloned speech: multiple actions can outlast speech, and speech can start anywhere
-or cross action boundaries. Native history continues between windows; audio EOF does not stop the body.
-See the [technical synopsis](doc/character/unified-motion.en.md) for implementation, setup and measured limitations.
+1. [Download the source ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) and extract it. On Windows, double-click **Start-VIREA.cmd**. On macOS, open **Start-VIREA.command**. On Linux, run **sh start-virea.sh** in the project folder.
+2. Let the launcher prepare Python, Node and dependencies. It opens the setup wizard and shows deployment progress and the current step.
+3. Choose a cloud provider or a detected local model. Enter a provider key, then select a model and voice from the discovered lists. For local models, click **Detect and deploy**.
+4. Run **Generate and verify**. Inspect the actual text, audio waveform or motion frames and download the result before activating the connection.
+5. Open your workspace. Motion Lab needs a motion model; the two interactive workspaces add language and speech as needed.
 
-This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
-they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
-
-## VRChat execution bridge
-
-Run an **independent AI account** while your own desktop account observes it in the same instance. The AI uses a project-local virtual HMD and controllers: **no physical VR hardware is required**. MotionCraft is the default; SynTalker is selectable during a conversation without losing its history.
-
-Model-generated head, wrist and finger poses go through OpenVR; eight body targets go through OSC. VRChat applies its own avatar IK. Generated VR rejects preset emotes and coarse hand-pose substitution. Speech and motion keep separate timelines; measured speech overlaps are deferred, and completion/interruption retains the final pose for a continuous next turn. Exact per-joint fidelity and universal action accuracy are not claimed.
-
-Start the configured services with `./scripts/vrchat/start.ps1`, then open `http://127.0.0.1:18001/app/vrchat.html`. Separate buttons start/restart the observer and AI. Use **同房间**, wait for matching live arrivals, then complete **自动校准** with its local percentage and `[step/8]` display. A private room requires a valid invitation; a running scene alone does not prove API authentication. Both accounts passed repeated invitation and room-entry checks on 2026-10-11; see the [network and room evidence](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11).
-
-The side panel shows both real game windows. Operate the AI directly with mouse aiming/trigger, right-drag head movement, keyboard/numpad and wheel controls. Calibration stays in place. Keep all Windows render devices muted and bridge audio disabled for silent use; both user and AI messages have native chatbox routes.
-
-| Need | Guide |
+| Environment | Workflows |
 |---|---|
-| Daily startup, joining, calibration, controls and recovery | [Operations guide](doc/character/vrchat-operations.en.md) |
-| First installation, avatar publishing, ports and API contracts | [Technical reference](doc/character/vrchat.en.md) |
-| Window capture and hand-ray calibration | [Dual-view reference](doc/character/vrchat-views.md) |
-| Continuous recordings, hashes, checks and measured limitations | [Acceptance record](doc/quality/vrchat-recordings.md) |
+| Windows | All three workspaces, including dual VRChat clients and the virtual VR driver |
+| Linux, macOS | Motion Lab, Character Studio, model connections and deployment |
+| Windows + WSL2 | Windows hosts the browser and VRChat; models can run in a selected WSL2 environment |
+
+Language providers include OpenAI, DeepSeek, Anthropic, Alibaba Bailian, Gemini, OpenRouter and compatible services. Speech providers include OpenAI Speech, Bailian, ElevenLabs, Azure and local services. Setup detects hardware and offers suitable runtimes. See the [model catalog](doc/models/README.en.md) for resource requirements.
+
+The first launch opens `http://127.0.0.1:8000/app/setup.html`. Configuration, models and results live under the project's `.virea-runtime/` folder. Later launches reuse the environment. Speech verification generates a file; playback is controlled by the user.
+
+[Installation walkthrough](doc/getting-started/automatic-setup.en.md) · [Choose a data disk](doc/getting-started/persistent-data-root.en.md) · [Troubleshooting](doc/operations/troubleshooting.en.md)
+
+## One shared foundation
+
+```mermaid
+flowchart TD
+    ML[Motion Lab] --> M[Motion capability]
+    CS[Character Studio] --> P[Shared performance orchestration]
+    VC[VRChat Studio] --> P
+    P --> L[Language capability]
+    P --> A[Audio capability]
+    P --> M
+    M --> IR[Motion IR v2 · Retarget · Validate]
+    IR --> X[Executable performance]
+    A --> X
+    X --> WEB[Browser / VRM]
+    X --> VR[VRChat / OpenVR / OSC]
+    WEB --> E[Execution receipts]
+    VR --> E
+    IR --> OUT[Preview / Export]
+```
+
+Speech and motion share a timeline while keeping their own lengths and start times. Short English captions describe motion stages; speech can begin anywhere and cross action boundaries. Measured audio samples determine speech duration. Each motion model retains its native history and inference procedure.
+
+Execution records distinguish planning, generation, validation, transmission, device acknowledgement and visual observation. A new turn cancels old work and advances the session epoch. Both execution targets consume the same validated performance data.
+
+[Architecture](doc/architecture/overview.en.md) · [Contracts](doc/architecture/contracts.en.md) · [Timing and execution](doc/architecture/execution.en.md)
+
+The shared motion foundation manages hierarchy, bone lengths, local axes and rotation propagation. Hands are evaluated from per-frame model parameters. Native output, retargeted motion and playback curves are recorded separately so the same sample can be compared across characters. [Skeletal mathematics and measurements](doc/research/skeletal-retargeting-2026-10-11.md) · [VRChat motion execution](doc/quality/vrchat-motion.md).
+
+<a id="demos"></a>
+## See it in action
+
+These existing recordings show four continuous VRChat interactions and eight browser performances each for MotionCraft and SynTalker. [Recording conditions and review records](doc/quality/vrchat-recordings.md) include file hashes and check results.
+
 
 <!-- BEGIN VRCHAT_DEMOS -->
 ### Four continuous VRChat interactions
-
-Four real four-turn sessions, **22 min 1 s total**, with the observer and AI windows captured together at normal speed. All four files passed full decode, hash and execution checks: **no audio track, no preset emotes, no dropped chatbox chunks or capture errors**. Native generated body movement and both native chatbox routes were visually reviewed. Waiting time remains in each video. See the [hash-bound review and limits](doc/quality/vrchat-recordings.md#accepted-recordings-2026-10-11).
 
 **1. Exhibition tour — MotionCraft · 5:17.6.** Introduce a fictional exhibit, explain reflected light, adapt to a child visitor, then answer and recap.
 
@@ -80,18 +88,9 @@ https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
 **4. Presentation rehearsal — SynTalker → MotionCraft · 5:47.4.** Introduce a book exchange, clarify that it is free, switch to a shortened closing and summarize the corrections.
 
 https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
-
-These are integration demonstrations, not perfect gesture/finger-quality or dialogue-accuracy benchmarks. Generated pointing/clapping may become broad or small arm gestures; the AI camera follows its generated head. The observer feed is the stable reference. The 16 Studio videos below are a separate browser-rendered feature.
 <!-- END VRCHAT_DEMOS -->
 
-Avatar: **Unnamed Character 6 — Reira**, imported from the owner's `VRM-Model-1.vrm`. Noncommercial rendering with attribution; the model is not redistributed. Audible voice/microphone acceptance is outside the silent recording run.
-
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
-## Single-family routes: 16 complex task demos
-
-**Eight recordings per family, each in two columns × four rows.** Click a cover for the complete MP4. Audio8-TTS uses the supplied `audio_reference_chu2.mp3` and `chu2.txt` voice reference. These are actual Studio replays at normal speed; preparation latency is separate.
-
-These are actual model outputs, **not a certification of task fidelity or naturalness**. Complex travel, foot contact and fine gestures remain limited. See the [technical synopsis and reproduction guide](doc/character/unified-motion.en.md) for architecture, measured latency and limitations.
 
 ### MotionCraft
 
@@ -134,18 +133,15 @@ These are actual model outputs, **not a certification of task fidelity or natura
 <td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
 </tr>
 </table>
-
-[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)
-
-Avatar: Unnamed Character 6 — Reira. Source: `VRM-Model-1.vrm`.
 <!-- END UNIFIED_MOTION_DEMOS -->
 
-## Motion Studio demos
+[MotionCraft / SynTalker — 技术梗概 / Technical notes](doc/character/unified-motion.en.md) · [Gallery](doc/assets/unified-motion-demos/index.html)
 
-These recordings used the earlier Kokoro stack. Current speech defaults to Audio8-TTS 0.6B; the historical timing measurements do not describe the new model.
+<details>
+<summary>SentiAvatar + ARDY</summary>
 
 <!-- BEGIN CHARACTER_DEMOS -->
-**8 complete recordings · two columns, four rows.** Play each video directly here without downloading; use the player controls to enable sound and expand to full screen. Model-directed plans retain pauses within playback; generation latency is reported separately.
+**8 complete performances in a two-column gallery.** Each recording follows a model-generated plan. Open the task notes for timing measurements.
 
 <table>
 <tr>
@@ -166,447 +162,56 @@ These recordings used the earlier Kokoro stack. Current speech defaults to Audio
 </tr>
 </table>
 
-[Tasks, measurements and limitations](doc/character/showcase.en.md) · [Two-column video gallery](doc/assets/character-demos/index.html) (serve locally over HTTP) · [Execution manifest](doc/assets/character-demos/manifest.json)
+[Tasks and measurements](doc/character/showcase.en.md) · [Two-column video gallery](doc/assets/character-demos/index.html) (serve locally over HTTP) · [Execution manifest](doc/assets/character-demos/manifest.json)
 <!-- END CHARACTER_DEMOS -->
 
-## Architecture
+</details>
 
-```mermaid
-flowchart LR
-    U[User request + conversation] --> L[LLM: motion intent + independent speech]
-    L --> V[Audio8-TTS: cloned voice / measured PCM duration]
-    L --> E{Selected motion route}
-    V --> E
-    E --> S[Existing: SentiAvatar + ARDY]
-    E --> M[MotionCraft: text backbone + speech control]
-    E --> T[SynTalker: latent diffusion + RVQ]
-    S --> R[VRM: one body source / shared playback clock]
-    M --> R
-    T --> R
-    V --> R
-    R --> F[Progress / pause / interruption / recording]
-```
+## Develop and explore
 
-| Layer | Responsibility |
+| Topic | Documentation |
 |---|---|
-| Dialogue and intent | Understand the conversation; author the reply, activities and their ordering. |
-| Planning | Existing route: coarse activity execution. New routes: independently timed motion and speech tracks. |
-| Generation | Preserve native window history. New routes prepare the whole performance before playback; they do not claim online streaming. |
-| Presentation | Maintain one body owner, independent speech timing, continuous sample clocks and an inspectable execution trace. |
-| Runtime foundation | Keep model environments separate; retain native identities, retarget through Motion IR and play real VRM assets. |
-
-See the [coarse-activity design](doc/character/coarse-activity-execution.zh-CN.md) and
-[window-continuity measurements](doc/character/window-continuity.zh-CN.md) for the implementation and measured boundaries.
-
-## Motion infrastructure
-
-Motion generation projects usually ship incompatible Python stacks, output tensors, skeletons and coordinate conventions.
-VIREA treats every model as an isolated, versioned capability and makes the conversion path explicit:
-
-- **Model** — tasks, official artifacts, native skeleton/representation, license and exact acceptance request;
-- **Execution Domain** — where detector, builder and Worker actually run: Windows, Linux, WSL2 or macOS;
-- **Result** — immutable model/runtime/checkpoint identity plus native → target skeleton and representation;
-- **Playback** — validated Motion IR/Canonical211/VRMA loaded with a real VRM in the browser.
-
-The checkout contains source, lightweight registries, locks, tests and documentation. Environments, checkpoints, caches,
-logs, jobs, results and QA workspaces live under an external `VIREA_HOME`.
-
-<p align="center">
-  <img src="doc/assets/virea-flow-v3.gif" width="100%" alt="VIREA motion sources converted through versioned motion contracts into VRM playback">
-</p>
-
-## Choose your path
-
-| I want to… | Start here |
-|---|---|
-| Generate motion with an integrated model | [Clone-to-result tutorial](doc/getting-started.en.md) → [CLI reference](doc/reference/cli.en.md) |
-| Run a persistent speaking VRM character | [Character deployment and capability boundaries](doc/character/README.en.md) |
-| Pick the correct model and skeleton | [Model directory](doc/models/README.en.md) → [generated support matrix](doc/models/support-matrix.generated.md) |
-| Deploy on Windows, Linux, WSL2 or macOS | [Platform and execution-domain guide](doc/platforms/README.en.md) |
-| Update an already-deployed device without redownloading models | [Persistent-root update procedure](doc/getting-started/persistent-data-root.en.md#update-another-device-that-is-already-deployed) |
-| Load a result in a real Avatar | [Browser playback](doc/getting-started.en.md#7-advanced-play-a-result-in-the-browser) |
-| Integrate another model | [Model adapter guide](doc/development/model-adapter.zh-CN.md) |
-| Audit claims or release evidence | [Production E2E contract](doc/quality/production-e2e.en.md) |
-| Explore datasets and retargeting | [Dataset pipeline](doc/pipeline.zh-CN.md) and [showcase](doc/showcase/README.md) |
-
-## Runtime and retargeting foundation
-
-```mermaid
-flowchart LR
-    A[Startup domain detection] --> B[Selectable domain candidates]
-    B --> C[User selects execution domain]
-    C --> D[Resolve matching Runtime and profile]
-    M[OS-neutral model asset snapshot] --> D
-    D --> E0[Domain-local Runtime and Worker]
-    E0 --> E[Native ModelResult]
-    E --> F[Motion IR]
-    F --> G[Target skeleton and Canonical211]
-    G --> H[Validated VRMA]
-    H --> I[Real VRM browser playback]
-
-    A -. OS / device / free resources .-> J[Observed evidence]
-    M -. asset / revision identity .-> J
-    E -. model / runtime / checkpoint identity .-> J
-    I -. screenshot / WebGL / console .-> J
-```
-
-The control plane never imports model frameworks. Each Worker owns its locked environment, validates official artifacts
-offline, emits a versioned `ModelResult`, and can be cancelled or recovered as an isolated process tree. A model and its
-checkpoint do not belong to an operating system: the selected execution domain determines the Runtime, path view and
-accelerator backend. Observed evidence reports where one exact configuration ran; it never chooses or hides domains.
-
-## Model support
-
-<details>
-<summary>Expand the integrated model catalog and its evidence boundaries</summary>
-
-The table is generated from `plugins/models/*/manifest.yaml`; status, native skeleton and native representation are not
-hand-written README claims. Full task, license and upstream details are in the
-[model matrix](doc/models/support-matrix.generated.md).
-
-<!-- BEGIN GENERATED: MODEL_SUPPORT -->
-| Model | Status | Native motion identity | Declared Runtime capability | Known deployment blockers | Observed evidence coverage |
-|---|---|---|---|---|---|
-| **ACMDM-S-PS22 HumanML3D Absolute XYZ**<br><code>acmdm-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.body22.positions.v1</code> · 20.0 FPS | <code>acmdm-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 6 GiB, RAM 8 GiB)<br><code>acmdm-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **CMDM HumanML3D**<br><code>cmdm-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>cmdm-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 6 GiB, RAM 8 GiB)<br><code>cmdm-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **DART BABEL SMPL-X Motion Primitives**<br><code>dart-smplx</code> | Integrated · experimental | <code>smplx.body22.v1</code><br><code>dart.smplx.body22.axis_angle_primitives.v1</code> · 30.0 FPS | <code>dart-smplx-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 10 GiB, RAM 16 GiB)<br><code>dart-smplx-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 24 GiB, swap 8 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **DisCoRD MoMask HumanML3D**<br><code>discord-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>discord-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 8 GiB, RAM 10 GiB)<br><code>discord-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 14 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **FloodDiffusion Tiny**<br><code>flood-diffusion-tiny</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>flood-diffusion-tiny-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 16 GiB, RAM 16 GiB)<br><code>flood-diffusion-tiny-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 16 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **InterMask InterHuman**<br><code>intermask-interhuman</code> | Integrated · experimental | <code>interhuman.two_actor_smpl22.v1</code><br><code>interhuman.motion262.v1</code> · 30.0 FPS | <code>intermask-interhuman-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 8 GiB, RAM 12 GiB)<br><code>intermask-interhuman-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 16 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **MARDM SiT-XL HumanML3D**<br><code>mardm-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>mardm.humanml3d.ric67.v1</code> · 20.0 FPS | <code>mardm-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 12 GiB, RAM 16 GiB)<br><code>mardm-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 24 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **MoMADiff HumanML3D**<br><code>momadiff-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>momadiff-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 6 GiB, RAM 8 GiB)<br><code>momadiff-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **MoMask HumanML3D**<br><code>momask-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>momask-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 6 GiB, RAM 8 GiB)<br><code>momask-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 10 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **MotionCraft MC-Bench SMPL-X 322D**<br><code>motioncraft-smplx</code> | Integrated · experimental | <code>motionx.smplx53.v1</code><br><code>motionx.smplx322.v1</code> · 30.0 FPS | <code>motioncraft-smplx-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 12 GiB, RAM 24 GiB)<br><code>motioncraft-smplx-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 24 GiB, swap 8 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **PRISM TP2M 1.4B**<br><code>prism-tp2m-1-4b</code> | Integrated · experimental | <code>smplh.body22.v1</code><br><code>prism.smplh_body22.axis_angle69.v1</code> · 30.0 FPS | <code>prism-tp2m-1-4b-cu128-component-split</code> · Windows x86_64, Linux x86_64 · cuda_component_split (VRAM 12 GiB, RAM 28 GiB)<br><code>prism-tp2m-1-4b-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 96 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **ReMoMask HumanML3D**<br><code>remomask-humanml3d</code> | Integrated · experimental | <code>humanml3d.body22.v1</code><br><code>humanml3d.vector263.v1</code> · 20.0 FPS | <code>remomask-humanml3d-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 12 GiB, RAM 12 GiB)<br><code>remomask-humanml3d-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 16 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **SentiAvatar SuSu**<br><code>sentiavatar-susu</code> | Integrated · experimental | <code>susu.body25_hands40.v1</code><br><code>susu.body25_hands40.cont6d_root_delta.v1</code> · 20.0 FPS | <code>sentiavatar-susu-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 8 GiB, RAM 12 GiB)<br><code>sentiavatar-susu-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 16 GiB, swap 4 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| **Tencent HY-Motion 1.0**<br><code>hy-motion-1</code> | Integrated · experimental | <code>hy_motion.wooden_body22.v1</code><br><code>hy_motion.body22.rot6d_translation.v1</code> · 30.0 FPS | <code>hy-motion-1-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 26 GiB, RAM 24 GiB)<br><code>hy-motion-1-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 40 GiB, swap 16 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-<!-- END GENERATED: MODEL_SUPPORT -->
-
-Status dimensions are deliberately separate:
-
-- `integrated_experimental` means a real VIREA Worker, isolated Runtime, adapter and bounded target-acceptance contract exist; current real-checkpoint evidence is a separate fact;
-- `supported` requires broader platform/configuration evidence and an explicit distribution decision;
-- `external_assets_only` or `license_review_required` limits acquisition/redistribution, not technical deployability;
-- a Runtime platform declaration is not the same as a completed real-device E2E.
-
-Model status records the implemented integration contract, while the current release still requires a fresh
-browser/backend record for the latest manifest and Runtime selection. Read the versioned production evidence registry through the
-[E2E documentation](doc/quality/production-e2e.en.md); never infer current evidence from this table alone.
-
-The current validated-evidence and validator policy is `v1.1.0`. The six legacy `v1.0.0` records are invalid for current
-promotion because they do not bind both acceptance and generation to the installed Runtime core epoch; until new records
-are actually written, the current-policy `passed` count is zero. Raw browser observation remains a separate `v1.0.0`
-telemetry contract and is never promotion evidence by itself.
-
-See [status semantics](doc/reference/status-semantics.en.md) ([中文](doc/reference/status-semantics.zh-CN.md)) for the complete contract.
-
-</details>
-
-## Execution-domain selection and evidence
-
-<details>
-<summary>Expand execution domains, Runtime declarations and validation status</summary>
-
-VIREA treats Windows, Linux, WSL2 and macOS as first-class execution domains. The common flow is: detect available domains
-at startup → let the user select one → reuse the same OS-neutral model assets → resolve and lazily build or reuse the
-matching isolated Runtime → re-check resources in that domain before Worker launch. Selecting a new domain does not
-reinstall or redownload the model asset snapshot. An explicit selection must fail with a model-level
-reason when no compatible Runtime exists; it must not silently switch operating system, accelerator or resource profile.
-Runtime choices that are not implemented for the selected domain are diagnostic facts, not selectable menu items. For
-example, PRISM CUDA now declares both native Windows and Linux/WSL after its CUDA 12.8 lock and shared loader were audited
-for Windows. Its 28 GiB RAM / 12 GiB VRAM component-split profile is the correct path for a 64 GiB + 16 GiB Windows
-machine; the conservative 96 GiB CPU Runtime remains a fallback rather than a reason to reject that CUDA-capable host.
-
-<!-- BEGIN GENERATED: PLATFORM_SUPPORT -->
-| Selectable execution domain | Declared Runtime capability | Known deployment blockers | Observed evidence coverage |
-|---|---|---|---|
-| Windows native | detector=implemented, resolver=implemented, builder=implemented, worker=implemented<br>matching models: `acmdm-humanml3d`, `cmdm-humanml3d`, `dart-smplx`, `discord-humanml3d`, `flood-diffusion-tiny`, `intermask-interhuman`, `mardm-humanml3d`, `momadiff-humanml3d`, `momask-humanml3d`, `motioncraft-smplx`, `prism-tp2m-1-4b`, `remomask-humanml3d`, `sentiavatar-susu`, `hy-motion-1`<br>cpu (RAM 10 GiB); cpu (RAM 12 GiB); cpu (RAM 14 GiB); cpu (RAM 16 GiB); cpu (RAM 16 GiB, swap 4 GiB); cpu (RAM 24 GiB); cpu (RAM 24 GiB, swap 8 GiB); cpu (RAM 40 GiB, swap 16 GiB); cpu (RAM 96 GiB); cuda_component_split (VRAM 12 GiB, RAM 28 GiB); cuda_full (VRAM 10 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 12 GiB); cuda_full (VRAM 12 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 24 GiB); cuda_full (VRAM 16 GiB, RAM 16 GiB); cuda_full (VRAM 26 GiB, RAM 24 GiB); cuda_full (VRAM 6 GiB, RAM 8 GiB); cuda_full (VRAM 8 GiB, RAM 10 GiB); cuda_full (VRAM 8 GiB, RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| WSL2 (Linux runtime) | detector=implemented, resolver=implemented, builder=implemented, worker=implemented<br>matching models: `acmdm-humanml3d`, `cmdm-humanml3d`, `dart-smplx`, `discord-humanml3d`, `flood-diffusion-tiny`, `intermask-interhuman`, `mardm-humanml3d`, `momadiff-humanml3d`, `momask-humanml3d`, `motioncraft-smplx`, `prism-tp2m-1-4b`, `remomask-humanml3d`, `sentiavatar-susu`, `hy-motion-1`<br>cpu (RAM 10 GiB); cpu (RAM 12 GiB); cpu (RAM 14 GiB); cpu (RAM 16 GiB); cpu (RAM 16 GiB, swap 4 GiB); cpu (RAM 24 GiB); cpu (RAM 24 GiB, swap 8 GiB); cpu (RAM 40 GiB, swap 16 GiB); cpu (RAM 96 GiB); cuda_component_split (VRAM 12 GiB, RAM 28 GiB); cuda_full (VRAM 10 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 12 GiB); cuda_full (VRAM 12 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 24 GiB); cuda_full (VRAM 16 GiB, RAM 16 GiB); cuda_full (VRAM 26 GiB, RAM 24 GiB); cuda_full (VRAM 6 GiB, RAM 8 GiB); cuda_full (VRAM 8 GiB, RAM 10 GiB); cuda_full (VRAM 8 GiB, RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| Linux native | detector=implemented, resolver=implemented, builder=implemented, worker=implemented<br>matching models: `acmdm-humanml3d`, `cmdm-humanml3d`, `dart-smplx`, `discord-humanml3d`, `flood-diffusion-tiny`, `intermask-interhuman`, `mardm-humanml3d`, `momadiff-humanml3d`, `momask-humanml3d`, `motioncraft-smplx`, `prism-tp2m-1-4b`, `remomask-humanml3d`, `sentiavatar-susu`, `hy-motion-1`<br>cpu (RAM 10 GiB); cpu (RAM 12 GiB); cpu (RAM 14 GiB); cpu (RAM 16 GiB); cpu (RAM 16 GiB, swap 4 GiB); cpu (RAM 24 GiB); cpu (RAM 24 GiB, swap 8 GiB); cpu (RAM 40 GiB, swap 16 GiB); cpu (RAM 96 GiB); cuda_component_split (VRAM 12 GiB, RAM 28 GiB); cuda_full (VRAM 10 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 12 GiB); cuda_full (VRAM 12 GiB, RAM 16 GiB); cuda_full (VRAM 12 GiB, RAM 24 GiB); cuda_full (VRAM 16 GiB, RAM 16 GiB); cuda_full (VRAM 26 GiB, RAM 24 GiB); cuda_full (VRAM 6 GiB, RAM 8 GiB); cuda_full (VRAM 8 GiB, RAM 10 GiB); cuda_full (VRAM 8 GiB, RAM 12 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-| macOS native | detector=implemented, resolver=implemented, builder=implemented, worker=implemented<br>matching models: `acmdm-humanml3d`, `cmdm-humanml3d`, `dart-smplx`, `discord-humanml3d`, `flood-diffusion-tiny`, `intermask-interhuman`, `mardm-humanml3d`, `momadiff-humanml3d`, `momask-humanml3d`, `motioncraft-smplx`, `prism-tp2m-1-4b`, `remomask-humanml3d`, `sentiavatar-susu`, `hy-motion-1`<br>cpu (RAM 10 GiB); cpu (RAM 12 GiB); cpu (RAM 14 GiB); cpu (RAM 16 GiB); cpu (RAM 16 GiB, swap 4 GiB); cpu (RAM 24 GiB); cpu (RAM 24 GiB, swap 8 GiB); cpu (RAM 40 GiB, swap 16 GiB); cpu (RAM 96 GiB) | No structured blocker recorded | No model-scoped observation recorded |
-<!-- END GENERATED: PLATFORM_SUPPORT -->
-
-Four statements must never be conflated:
-
-1. **Selectable execution domain** — a detected, user-chosen command/filesystem/resource boundary.
-2. **Declared Runtime capability** — a particular lock/Worker implements a platform ABI and memory strategy.
-3. **Known deployment blocker** — a structured model/domain/stage reason prevents a declared option from becoming ready.
-4. **Observed evidence coverage** — an identified model/configuration ran a named scope on one domain; current promotion
-   still comes only from the production evidence registry.
-
-All 14 non-test catalog models now declare whole-model CPU Runtime variants across `win-64`, `linux-64`, `osx-arm64`
-and `osx-64`, plus model-specific CUDA variants on `win-64` and `linux-64`. These declarations prove that a locked
-build/Worker contract exists, not that every checkpoint has completed real inference on every platform. Current-policy
-real-checkpoint evidence remains a separate registry fact; manual assets, restricted licenses and model-specific resource
-floors still apply. PRISM, for example, keeps its conservative fail-closed 96 GiB CPU RAM floor. An empty structured
-blocker list is not validation, so VIREA still cannot claim that every model has completed operation on every target
-system.
-
-</details>
-
-## Quick start
-
-### 1. Keep the checkout clean
-
-Start from a clean clone, then choose a data volume with enough free space *before* syncing or installing a model.
-`VIREA_HOME` owns model assets, isolated Runtimes, downloads, results and logs; it is not a small configuration
-directory. Persistent commands require `--virea-home PATH` or `VIREA_HOME`, so they never silently download models to
-`LOCALAPPDATA`, `$HOME`, or the clone. The full bilingual walkthrough and parameter tables are in the [English tutorial](doc/getting-started.en.md),
-[中文教程](doc/getting-started.zh-CN.md), and [CLI reference](doc/reference/cli.en.md).
-See [data-root paths and quotation marks](doc/getting-started/persistent-data-root.en.md) before entering a copied Windows path.
-
-<details>
-<summary><strong>Windows PowerShell</strong></summary>
-
-```powershell
-# List local file-system volumes and their free space before choosing a data volume.
-Get-PSDrive -PSProvider FileSystem
-# Read the selected data-volume root once; clone and all local dependency trees will live below it.
-# At the prompt paste only the directory, for example X:\VIREA-DATA; outer ' or " quotation marks are not part of the path.
-$vireaDataVolume = Read-Host "Enter the selected data-volume root"
-# Create the root if needed, clone the source there, then make the clone the current directory.
-New-Item -ItemType Directory -Force -Path $vireaDataVolume | Out-Null
-Set-Location $vireaDataVolume
-git clone https://github.com/Moonweave-AI/virea.git
-Set-Location virea
-# Persist VIREA_HOME, UV_PROJECT_ENVIRONMENT, UV_CACHE_DIR, HF_HOME and Node caches for this user and future terminals.
-& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
-# Install all locked Python workspace packages and the development dependencies.
-uv sync --locked --all-packages --extra dev
-# Install the Web workspace from its locked pnpm dependency graph.
-pnpm install --frozen-lockfile
-# Build the local browser UI without starting a server or downloading models.
-pnpm --filter @virea/web build
-# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
-uv run virea
-```
-
-</details>
-
-<details>
-<summary><strong>Linux / WSL2</strong></summary>
-
-```bash
-# Read a mounted data-volume root once; clone and all local dependency trees will live below it.
-# At the prompt paste only the directory, for example /mnt/virea-data; outer ' or " quotation marks are not part of the path.
-printf '%s' "Enter the selected data-volume root: "
-read -r virea_data_root
-# Create the root if needed, clone the source there, then enter the clone.
-mkdir -p "$virea_data_root"
-cd "$virea_data_root"
-git clone https://github.com/Moonweave-AI/virea.git
-cd virea
-# Create the VIREA layout and install a shell hook so future terminals inherit all persistent directory settings.
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-# Load the generated settings in this shell immediately; future shells load them through the installed hook.
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-# Install all locked Python workspace packages and the development dependencies.
-uv sync --locked --all-packages --extra dev
-# Install the Web workspace from its locked pnpm dependency graph.
-pnpm install --frozen-lockfile
-# Build the local browser UI without starting a server or downloading models.
-pnpm --filter @virea/web build
-# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
-uv run virea
-```
-
-</details>
-
-<details>
-<summary><strong>macOS</strong></summary>
-
-```bash
-# Read a mounted data-volume root once; clone and all local dependency trees will live below it.
-# At the prompt paste only the directory, for example /Volumes/VIREA-DATA; outer ' or " quotation marks are not part of the path.
-printf '%s' "Enter the selected data-volume root: "
-read -r virea_data_root
-# Create the root if needed, clone the source there, then enter the clone.
-mkdir -p "$virea_data_root"
-cd "$virea_data_root"
-git clone https://github.com/Moonweave-AI/virea.git
-cd virea
-# Create the VIREA layout and install a shell hook so future terminals inherit all persistent directory settings.
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-# Load the generated settings in this shell immediately; future shells load them through the installed hook.
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-# Install all locked Python workspace packages and the development dependencies.
-uv sync --locked --all-packages --extra dev
-# Install the Web workspace from its locked pnpm dependency graph.
-pnpm install --frozen-lockfile
-# Build the local browser UI without starting a server or downloading models.
-pnpm --filter @virea/web build
-# Start the guided workflow: it initializes state, detects domains, lets you choose a model/Runtime/profile, confirms installation, then offers generation and browser playback.
-uv run virea
-```
-
-</details>
-
-The wizard restores the last model/target, labels every model `not installed`, `needs attention`, or re-verified
-`READY`, and reuses a matching deployment without another download. Installation and generation show honest stage
-progress plus compact results instead of raw JSON; full evidence remains in the data root. Dependency download,
-reconstruction, and file-count bars are routed into one VIREA live line instead of scrolling the terminal. Acceptance
-failures show their error and failed stages before successful download notes. Press Enter to reuse a saved choice. `NO_COLOR=1` or
-redirected output uses bounded plain-text snapshots (first, at most one per 15 seconds, and final).
-
-### 2. Advanced: install one real model non-interactively
-
-Inspect the model first; installation performs resource admission before downloading artifacts.
-
-```bash
-# Inspect declared Runtimes and resource profiles before selecting/installing a model.
-uv run virea model info flood-diffusion-tiny
-# Apply a reviewed installation in one explicit domain; replace <external-home> with your VIREA_HOME.
-uv run virea model install flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --apply --virea-home <external-home>
-# Verify that the latest installation is still READY and accessible.
-uv run virea model verify flood-diffusion-tiny --virea-home <external-home>
-```
-
-Use a domain ID returned by `doctor --json`: `windows-native`, `linux-native`, `macos-native`, or a concrete
-`wsl:<distribution>`. `--runtime` and `--resource-profile` are optional advanced overrides, but when present they require
-`--execution-domain`. The same flags are available on `model repair` and `generate`; VIREA never silently changes a
-selection that fails.
-
-The hardware-capability decision checks **total VRAM** and **total physical RAM**. Current available RAM/VRAM are recorded
-as changing observations and may be used to prefer one of several capable GPUs, but another application using memory does
-not make the hardware itself undeployable. Free swap/pagefile and storage remain consumable-resource checks. RAM is used
-only when the selected Worker genuinely implements CPU or offload placement; the resolver never adds RAM and VRAM
-together to make an impossible configuration appear sufficient.
-
-### 3. Advanced: generate and validate non-interactively
-
-```bash
-# Submit a bounded text-to-motion job; --timeout is an end-to-end limit in seconds.
-uv run virea generate --model flood-diffusion-tiny --execution-domain windows-native --runtime flood-diffusion-tiny-cu128 --resource-profile cuda-full --task text_to_motion --prompt "A person walks forward, turns left, and waves with the right hand." --seconds 4 --fps 20 --seed 42 --timeout 1800 --virea-home <external-home>
-# Read-only validation of the persisted generation chain; replace <job-id> with the returned value.
-uv run virea validate-real-e2e --virea-home <external-home> --job-id <job-id>
-```
-
-The persisted result identifies the model/version/runtime/checkpoint, native skeleton/representation, target
-skeleton/representation, execution domain, resource profile and device.
-
-### 4. Advanced: play the result manually
-
-```bash
-# Start the local API and browser UI on loopback; --port chooses the browser URL port.
-uv run virea serve --host 127.0.0.1 --port 8000 --virea-home <external-home>
-```
-
-Open `http://127.0.0.1:8000/`; it redirects to the only current Motion Studio. Generation and diagnostics share one
-workbench: the model-space skeleton before retargeting and the final VRM/VRMA play side by side from the same immutable
-result. CLI deployments/results are synchronized automatically from the persistent state. Load a local `.vrm`.
-Production browser evidence must
-show a visible full Avatar, advancing animation time, validated duration, finite tracks and zero console errors. A client
-cannot promote itself by reporting `playing=true`; see the [E2E contract](doc/quality/production-e2e.en.md).
-
-## Resource admission and fallback
-
-```text
-RuntimeSpec resource profiles (ordered)
-  ├─ accelerator and ABI
-  ├─ minimum total VRAM capacity
-  ├─ minimum total physical RAM capacity
-  ├─ minimum free swap/pagefile
-  └─ minimum free storage
-```
-
-Examples include full CUDA placement, whole-model CPU, component-split CPU/CUDA, and model-specific offload. A strategy is
-advertised only after the Worker implements it; insufficient resources stop installation before a transaction or download
-is created. Before spawning a Worker, the authoritative ControlPlane for one shared `VIREA_HOME` acquires a durable
-resource lease and re-detects the domain while holding that lease. This closes the install-to-inference race among
-VIREA processes that share that home; separate `VIREA_HOME` values and unrelated external processes do not interlock, and
-resources can still change after observation, so this is not a machine-global guarantee against OOM.
-
-## Motion and result contracts
-
-VIREA does not erase model-native information in order to make every model look identical.
-
-- `ModelResult` stores native arrays and provenance with the correct source skeleton and representation.
-- `Motion IR v2` provides typed actor tracks, time, space and artifact references.
-- `Canonical211 v3` is the current VRM humanoid compatibility carrier: root translation/rotation, body rotations and hand rotations.
-- `VrmMotionResult` binds canonical tracks, native artifacts and per-actor VRMA exports.
-- VRMA export includes canonical rest translations and absolute hips translation so three-vrm-animation can play finite tracks.
-
-The resulting filename carries a readable source → target identity while the result ULID remains the database key.
-
-## Repository structure
-
-| Path | Responsibility |
-|---|---|
-| `apps/api` | FastAPI control plane and versioned result/artifact API |
-| `apps/cli` | setup, doctor, model lifecycle, generation, validation and support commands |
-| `apps/web` | Motion Studio, playback/recording, model catalog and VRM/VRMA Viewer |
-| `src/virea/character` | dialogue planning, event timing, native motion history and activity execution |
-| `packages/contracts` | Python and JSON contracts |
-| `packages/bootstrap` | machine detection and execution-domain/resource resolution |
-| `packages/model_pool` | artifact staging, installation transactions and READY verification |
-| `packages/runtime` | isolated runtime build, Worker supervision, cancellation and recovery |
-| `packages/compatibility` | model-native adapters into Motion IR |
-| `packages/retarget`, `packages/vrm` | target retargeting and validated VRMA export |
-| `plugins/models` | one manifest and optional isolated Runtime per model |
-| `registries` | model, runtime, skeleton, representation, bundle and evidence facts |
-| `doc` | tutorials, how-to guides, reference, explanation, decisions and evidence |
-
-## Validation
-
-No generated fixture or protocol-only check counts as real-model production evidence. A complete model record links one
-doctor report, installation, exact real-checkpoint job/result, native artifacts, Motion IR, Canonical211, VRMA validation
-and browser run. The browser run stores Playwright JSON, screenshots, WebGL information and console output outside the
-checkout.
-
-```text
-python scripts/generate_docs.py --check
-python scripts/check_docs.py
-python -m pytest tests/refactor tests/characterization -q
-pnpm --filter @virea/web test
-pnpm --filter @virea/web exec tsc --noEmit
-pnpm --filter @virea/web build
-```
-
-Exact current release evidence and any unvalidated platforms are recorded in the
-[quality documentation](doc/quality/production-e2e.en.md), not copied into multiple README paragraphs.
-
-## Documentation
-
-The [Documentation Hub](doc/README.zh-CN.md) is organized by task:
-
-- [Getting started](doc/getting-started/installation.zh-CN.md)
-- [Models and skeleton identities](doc/models/README.en.md)
-- [Platforms and execution domains](doc/platforms/README.en.md)
-- [Runtime data and retention](doc/operations/runtime-data-and-retention.en.md)
-- [Troubleshooting](doc/operations/troubleshooting.en.md)
-- [Motion/retarget mathematics](doc/math-retarget/README.zh-CN.md)
-- [Documentation design](doc/development/documentation.zh-CN.md)
-- [Research registry](doc/model-catalog/motion-generation-registry-2026-08-20.zh-CN.md)
-- [Dataset showcase](doc/showcase/README.md)
-
-## Contributing, security and distribution
-
-Contributions must update contracts, implementation, tests and evidence together. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Third-party model, dataset and Avatar terms are listed
-in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and per-model notices.
-
-The repository does not currently declare a project-code license. Public redistribution and open-source GA remain pending
-an explicit maintainer license decision; third-party licenses cannot be used to infer one for VIREA itself.
+| Call the API or add a model | [Interaction API](doc/architecture/contracts.en.md), [model integration](doc/development/model-adapter.zh-CN.md) |
+| Skeleton coordinates and retargeting | [Mathematical reference](doc/math-retarget/README.zh-CN.md) |
+| Environments, models and data | [Automatic setup](doc/getting-started/automatic-setup.en.md), [data retention](doc/operations/runtime-data-and-retention.en.md) |
+| Current implementation and migration | [Architecture](doc/architecture/overview.en.md), [RFC-0004](doc/rfcs/0004-unified-embodied-runtime.md) |
+| Model and platform configuration | [Model matrix](doc/models/support-matrix.generated.md), [platform guide](doc/platforms/README.en.md) |
+| Contribute and verify | [Contributing](CONTRIBUTING.md), [validation record](doc/quality/unified-runtime.md) |
+
+The repository follows responsibilities: `apps/` contains the UI and API, `src/virea/application/` owns shared orchestration, `src/virea/ports/` defines capability interfaces, `packages/` holds contracts and infrastructure, `plugins/` contains model runtimes, and `doc/` contains task guides and technical references.
+
+Demo avatar: **Unnamed Character 6 — Reira**. The repository includes rendered results; users import their own avatar files. Project-code licensing awaits the maintainers' selection. Model, dataset and avatar terms are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [SECURITY.md](SECURITY.md) for reporting security issues.
+
+<a id="start-without-a-development-environment"></a>
+<a id="from-motion-generation-to-embodied-conversation"></a>
+<a id="vrchat-execution-bridge"></a>
+<a id="single-family-routes-16-complex-task-demos"></a>
+<a id="motion-studio-demos"></a>
+<a id="architecture"></a>
+<a id="motion-infrastructure"></a>
+<a id="choose-your-path"></a>
+<a id="runtime-and-retargeting-foundation"></a>
+<a id="model-support"></a>
+<a id="execution-domain-selection-and-evidence"></a>
+<a id="quick-start"></a>
+<a id="resource-admission-and-fallback"></a>
+<a id="motion-and-result-contracts"></a>
+<a id="repository-structure"></a>
+<a id="validation"></a>
+<a id="documentation"></a>
+<a id="contributing-security-and-distribution"></a>
 
 <!--
 type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 14
-title: VIREA — embodied conversation and continuous motion
-audience: Users, model integrators, motion engineers, researchers, reviewers
-visibility: Public
-summary: Embodied conversation, recorded Motion Studio demonstrations, runtime architecture and model infrastructure.
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Three workflows over shared capabilities, motion conversion and verifiable execution.
 canonical: README.md
-related:
-  - doc/README.zh-CN.md
-  - doc/models/README.zh-CN.md
-  - doc/platforms/README.zh-CN.md
-  - doc/quality/production-e2e.zh-CN.md
+related: []
 supersedes: []
 superseded_by: []
 -->

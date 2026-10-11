@@ -4,8 +4,9 @@ import math
 
 import numpy as np
 
+from virea.motion.interpolation import slerp as slerp
 from virea.motion.rotation import quat_apply_xyzw, quat_multiply_xyzw
-from virea.motion.skeleton import CANONICAL_PARENT, DEFAULT_REST_OFFSETS
+from virea.motion.skeleton import CANONICAL_PARENT, canonical_geometry
 
 from .contracts import FACE_PARAMETERS, HAND_PARAMETERS
 from .osc import message
@@ -30,18 +31,6 @@ def unit_quaternion(value):
     return q / np.linalg.norm(q)
 
 
-def slerp(a, b, t):
-    dot = float(np.dot(a, b))
-    if dot < 0:
-        b, dot = -b, -dot
-    dot = min(dot, 1.0)
-    if dot > 0.9995:
-        result = a + t * (b - a)
-        return result / np.linalg.norm(result)
-    angle = math.acos(dot)
-    return (math.sin((1 - t) * angle) * a + math.sin(t * angle) * b) / math.sin(angle)
-
-
 def unity_quaternion(q):
     # B R B^-1 for B=diag(-1,1,1): an axial vector gains det(B).
     x, y, z, w = unit_quaternion(q)
@@ -63,19 +52,10 @@ def unity_euler(q):
 
 
 def world_pose(root, rotations, offsets=None):
-    offsets = offsets or DEFAULT_REST_OFFSETS
-    position = {"hips": np.asarray(root, dtype=np.float64)}
-    orientation = {"hips": unit_quaternion(rotations.get("hips", IDENTITY))}
-    if position["hips"].shape != (3,) or not np.isfinite(position["hips"]).all():
-        raise ValueError("invalid root position")
-    for bone, parent in CANONICAL_PARENT.items():
-        position[bone] = position[parent] + quat_apply_xyzw(
-            orientation[parent], np.asarray(offsets[bone])
-        )
-        orientation[bone] = quat_multiply_xyzw(
-            orientation[parent], unit_quaternion(rotations.get(bone, IDENTITY))
-        )
-    return position, orientation
+    rig = canonical_geometry(offsets)
+    local = np.stack([unit_quaternion(rotations.get(n, IDENTITY)) for n in rig.names])
+    position, orientation = rig.forward(root, local)
+    return dict(zip(rig.names, position)), dict(zip(rig.names, orientation))
 
 
 def tracker_messages(root, rotations, config, anchor, offsets=None):
@@ -98,9 +78,18 @@ def tracker_messages(root, rotations, config, anchor, offsets=None):
         bones.append("head")
     for bone in bones:
         name = "head" if bone == "head" else TRACKERS[bone]
-        p = positions[bone] * np.array([-1, 1, 1]) * config.scale
+        tracker_p, tracker_q = positions[bone], orientations[bone]
+        if bone in {"leftLowerArm", "rightLowerArm", "leftLowerLeg", "rightLowerLeg"}:
+            # VRChat binds these trackers to upper arms and thighs. Mount
+            # above the hinge and inherit the proximal segment's orientation.
+            # A forearm/shin rotation would also rotate the shoulder/thigh
+            # when the hinge bends, contradicting the wrist/foot target.
+            upper = CANONICAL_PARENT[bone]
+            tracker_p = positions[upper] + 0.9 * (tracker_p - positions[upper])
+            tracker_q = orientations[upper]
+        p = tracker_p * np.array([-1, 1, 1]) * config.scale
         p = quat_apply_xyzw(reference, p) + np.asarray(config.origin)
-        q = quat_multiply_xyzw(reference, unity_quaternion(orientations[bone]))
+        q = quat_multiply_xyzw(reference, unity_quaternion(tracker_q))
         result += [
             message(f"/tracking/trackers/{name}/position", *map(float, p)),
             message(f"/tracking/trackers/{name}/rotation", *unity_euler(q)),

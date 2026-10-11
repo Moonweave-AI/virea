@@ -36,13 +36,13 @@ VIREA 负责推理、语音克隆、动作生成与时间轴；VRChat 是执行�
 | 身体预设 | 历史兼容功能 | `generated_vr` 配置及播放器均拒绝使用 |
 | 世界位置 | 未观测；不把积分出的命令当作真实位置 | 未观测；同样不伪造位置回执 |
 
-OSC 的 `GestureLeft`、`GestureRight`、`Viseme` 等内置参数只读；手指和表情写入 `AI_*` 自定义参数。`VRCEmote` 是可写整数，开启桌面预设前还会检查当前角色的 OSCQuery 写入能力。[官方参数说明](https://creators.vrchat.com/avatars/animator-parameters/) · [官方 VRCEmote OSC 示例](https://docs.vrchat.com/docs/osc-avatar-parameters)
+OSC 的 `GestureLeft`、`GestureRight`、`Viseme` 等内置参数只读；旧桌面路线的粗略手势与额外表情使用 `AI_*` 自定义参数，生成式 VR 的身体和手指不依赖这些参数。`VRCEmote` 是可写整数，开启桌面预设前还会检查当前角色的 OSCQuery 写入能力。[官方参数说明](https://creators.vrchat.com/avatars/animator-parameters/) · [官方 VRCEmote OSC 示例](https://docs.vrchat.com/docs/osc-avatar-parameters)
 
 ## 对话中切换与生成动作
 
 顶部下拉框直接切换 MotionCraft / SynTalker，无需断开或新建聊天。设置中的声音、角色设定、自主跟进次数和桌面预设也可在线保存；端口、设备和运行模式仍需重新连接。`POST /settings` 先在锁外检查目标 worker 和声音，失败保留当前任务；成功后取消旧推理／播放、释放 OSC 输入，替换会话 provider，保留历史、会话 ID、角色绑定和暂停状态。预检期间发生新消息或停止操作时，旧设置请求会被拒绝。前端忽略旧 epoch 的轮询响应，避免选项回跳。
 
-`generated_vr` 没有预设动作或粗粒度手势回退。播放器保持 `AI_Active=false`，释放旧 Gesture 层；头、双腕和手指来自模型 FK，通过本仓库的 OpenVR 驱动进入游戏，腰、双脚、胸、双膝、双肘共八个身体目标通过 OSC 传递。省略目标列表时自动启用全部八个，显式省略其中任何目标会被拒绝。输出要求专用 AI 的进程、角色反馈和 SteamVR 当前场景进程一致，并回传 `VRMode=1`、`TrackingType=6`，不能静默接管观察者。TrackingType 只证明游戏进入全身追踪模式，不证明每个额外目标或逐关节精度。驱动收包与画面验收分开，`rendered_pose_verified` 不因 ACK 或参数回传变成 true。[官方 TrackingType 定义](https://creators.vrchat.com/avatars/animator-parameters/#trackingtype-parameter)
+`generated_vr` 没有预设动作或粗粒度手势回退。仅当角色声明该参数可写时，播放器设置 `AI_Active=false` 以释放旧 Gesture 层；头、双腕和手指来自模型 FK，通过本仓库的 OpenVR 驱动进入游戏，腰、双脚、胸、双膝、双肘共八个身体目标通过 OSC 传递。省略目标列表时自动启用全部八个，显式省略其中任何目标会被拒绝。输出要求专用 AI 的进程、角色反馈和 SteamVR 当前场景进程一致，并回传 `VRMode=1`、`TrackingType=6`，不能静默接管观察者。TrackingType 只证明游戏进入全身追踪模式，不证明每个额外目标或逐关节精度。驱动收包与画面验收分开，`rendered_pose_verified` 不因 ACK 或参数回传变成 true。[官方 TrackingType 定义](https://creators.vrchat.com/avatars/animator-parameters/#trackingtype-parameter)
 
 新版驱动使用 VIREA 独立设备身份和明确的 VRChat pose/skeleton 绑定。生成估计不宣称为真实 Full 手追踪，避免触发自动捏合输入。2026-10-10 已确认 SteamVR 为 AI 客户端加载这些绑定，v2 驱动回执三个追踪设备及双手骨骼输入；角色最终画面仍待独立验收。[官方驱动指南](https://creators.vrchat.com/platforms/pc/steamvr-drivers/)
 
@@ -61,6 +61,8 @@ AI 实时画面的“接管 AI”提供有时限的直接键鼠控制：鼠标�
 ## 自动校准与房间命令
 
 `BridgeConfig.auto_calibrate=true` 默认在生成式 VR 连接绑定角色后尝试一次自动校准。程序独占虚拟设备，持续发送八个身体目标，打开校准入口，定位按钮并对齐真实射线，发送标准 T 姿态及双手确认。只有确认之后取得新的 `TrackingType=6` 回传才记为完成；静态 T 姿态仅用于校准，不是表演动作。新角色或新客户端会重新检查，失败后可通过按钮或命令重试。暂停、打断、人工接管和断开会停止自动校准并释放输入。
+
+自动校准通过标准 OSC 输入打开快捷菜单，限时按下并确保取消时也会释放，不同时发送虚拟手柄的重复菜单按键。因此角色重载后不依赖虚拟手柄当前的菜单绑定。窗口采集重启时会持续续租原地姿态，最多等待 24 秒，仍受整个流程 120 秒的时限约束。
 
 AI 视角的“自动校准”按钮下方直接显示百分比进度条、`[当前步骤/8]`、当前操作及失败原因，也可原地取消。进度依据已完成的步骤更新，不按计时伪造；只有游戏确认全身追踪、自然站姿输出获完整设备回执，才显示 100%。确认后用 1.5 秒平滑过渡到双臂自然下垂、手指轻弯的站姿，头部与脚部位置保持连续。身体目标、手腕与手指来自同一套骨骼计算，等待任务期间持续保持；模型开始播放前释放站姿控制，避免两套姿态同时写入。
 
@@ -125,7 +127,7 @@ flowchart LR
 * **坐标**：canonical VRM 位置反射 X 到 Unity 坐标；四元数按同一基变换后再转换为 Unity Z→X→Y 外旋欧拉角。身体尺度、原点、朝向可校准。启用移动输入时，从追踪数据中移除根平移与根 yaw，防止重复移动。
 * **失效处理**：独立发送进程在 0.75 秒没有输出帧、父进程管道断开、暂停、取消或关闭时发送输入归零。UDP 不提供执行确认，归零重复发送仍不是网络交付保证。眼睛回到中性后停止发送，由 VRChat 超时恢复自动行为。
 * **会话**：默认每个用户目标最多 3 次自主跟进，可配置 0–10。急停取消当前生成、播放与后续跟进；断开释放会话及端口。回执表示“输出已完成”，不声称身体、位置或碰撞已经测量。
-* **反馈**：按配置的 UDP 端口找到唯一 VRChat 进程，再只读查询同进程的 loopback OSCQuery 服务，核对其端口与角色参数。页面默认仅在 9 个 AI 参数齐备时自动绑定首次识别的角色；播放中换角色会中止，不自动跟随另一个 ID。支持正式 `avtr_*` 和 SDK 的 `local:sdk_*` 身份。查询超过 3 秒未成功会关闭输出门控。局部速度反馈仅使用一秒内的值；事件型 OSC 回传年龄本身不作为心跳。
+* **反馈**：按配置的 UDP 端口找到唯一 VRChat 进程，再只读查询同进程的 loopback OSCQuery 服务，核对其端口与角色身份。默认跟随 AI 当前角色，不要求 9 个 AI 参数；换角色会停止旧动作并重新校准，固定 Avatar ID 为可选模式。支持正式 `avtr_*` 和 SDK 的 `local:sdk_*` 身份。查询超过 3 秒未成功会关闭输出门控。局部速度反馈仅使用一秒内的值；事件型 OSC 回传年龄本身不作为心跳。
 * **本机边界**：控制 API 限制 loopback 客户端、loopback Host 和浏览器同源请求；OSC 仅发往 `127.0.0.1`。默认不打开声音、不发送聊天框、不移动角色。
 
 ## 启动服务与客户端
@@ -167,7 +169,19 @@ uv run --package virea-api python -m uvicorn virea_api.app:app --host 127.0.0.1 
 
 如果 Unity 显示 `No valid Unity Editor license found`，先在 Unity Hub 的许可证设置刷新已有许可证，再从 Hub 打开项目。本次已验证该路径可恢复 E 盘的 2022.3.22f1 编辑器；Unity 许可证、VRChat SDK 登录和上传等级是三个不同的状态。
 
+<a id="avatar-independent-control"></a>
+
+## 通用角色控制
+
+`generated_vr` 从模型时间轴接收标准人形骨骼旋转和根位移，同一套 FK、OpenVR 头部／手腕／手指和八个 OSC 身体目标可服务不同角色。VRChat 校准后通过 Humanoid IK 适配角色，不是向每根渲染骨骼直接赋值的接口。角色须正确映射 Humanoid 并兼容全身追踪；特殊身体比例、缺少指骨、覆盖追踪的动画层仍会影响效果。[OSC 追踪契约](https://docs.vrchat.com/docs/osc-trackers) · [骨架要求](https://docs.vrchat.com/docs/full-body-tracking)
+
+`auto_bind=true` 为默认：只跟随专用 AI 进程通过新鲜 OSCQuery 回传的当前角色，不要求任何 `AI_*` 参数。角色或进程改变会停止正在播放或预热的旧动作，丢弃旧末帧，并重新执行原地自动校准。校准失败时，即使游戏仍回传 `TrackingType=6`，新表演也不会启动；不会把中断的表演续播到另一骨架上。
+
+需要固定角色时使用 `auto_bind=false` 和 `avatar_id`；旧配置只提供 `avatar_id` 时保留固定行为，显式 `auto_bind=true` 则跟随当前角色，即使保存过旧 ID。页面“固定为此角色”按钮会关闭自动跟随。额外表情取决于角色参数，身体和手指控制不受其缺失影响。只有角色声明 `AI_Active` 可写时才发送 false，以关闭旧 VIREA 手势覆盖层。[最小配置示例](../../integrations/vrchat/generated-vr.example.json)
+
 ## 安装用户 VRM 角色
+
+以下流程仅用于导入自己的 VRM 或使用旧桌面自定义表情。账号已有的兼容角色无需此 Unity 工程、专用参数或上传权限即可使用骨骼控制。
 
 使用自己的 `VRM-Model-1.vrm`，原文件不进入仓库。VRChat 不能直接把 VRM 文件当作已上传 Avatar 使用。
 

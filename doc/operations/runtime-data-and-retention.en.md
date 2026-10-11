@@ -3,10 +3,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
 review_cycle_days: 30
-summary: English guide to VIREA external runtime data locations, retention, evidence preservation, and safe cleanup.
+summary: Launcher and development data locations, model and performance artifact retention, and cleanup.
 canonical: doc/operations/runtime-data-and-retention.en.md
 related:
   - runtime-data-and-retention.zh-CN.md
@@ -21,11 +21,9 @@ superseded_by: []
 
 > [English](runtime-data-and-retention.en.md) · [中文](runtime-data-and-retention.zh-CN.md)
 
-The source checkout contains code, manifests/registries, locks, tests and documentation. Keep environments, checkpoints,
-upstream source snapshots, Worker logs, job/results, Motion IR/VRMA artifacts, browser evidence and QA workspaces in an
-external `VIREA_HOME` on a user-selected data volume or system temporary directory. `VIREA_HOME` is the capacity-bearing
-data root, not a configuration-only directory: model installation and generation require it to be explicit and never
-implicitly use `LOCALAPPDATA`/`$HOME`.
+`VIREA_HOME` stores models, settings and generated results. The launcher defaults to `.virea-runtime/portable/home/` under the project; the dedicated VRChat deployment uses its own `home/`. Developers can also select an independent data volume using the [data-root guide](../getting-started/persistent-data-root.en.md).
+
+Code, manifests, locks, tests and documentation belong in version control. Environments, checkpoints, upstream snapshots, worker logs, generated artifacts and QA workspaces live in managed runtime directories.
 
 | Directory under `VIREA_HOME` | Contents | Safe action |
 |---|---|---|
@@ -35,6 +33,9 @@ implicitly use `LOCALAPPDATA`/`$HOME`.
 | `runtimes/` | Isolated Python/Worker environments | Use repair, remove or GC. |
 | `cache/` | Recoverable download cache | Reclaim only through GC. |
 | `jobs/`, `results/` | Run and immutable result artifacts | Verify references before cleanup. |
+| `characters/<session-id>/` | Temporary HTTP audio and motion files | Released after acknowledgement or session closure. |
+| `characters/artifacts/` | Native motion, measured audio and executable performances addressed by SHA-256 | Archive after stopping sessions; model/state GC does not collect this directory. |
+| `config/verification/` | Generation receipts and JSON/WAV/NPZ results | Retain with the corresponding connection settings. |
 | `tmp/` | Staging, quarantine and short-lived QA work | Eligible for age-based GC. |
 
 Production evidence that passed the current validator is not ordinary temporary data. Store it under a controlled external
@@ -52,5 +53,6 @@ uv run virea model gc --apply --older-than-hours 168 --virea-home PATH
 uv run virea state gc --dry-run --older-than-hours 168 --virea-home PATH
 ```
 
-Never create `.venv`, model weights, HF caches, Worker logs, SQLite state, jobs/results or fresh-install workspaces under
-the checkout. `PATH` must be an external `VIREA_HOME`; the setup command rejects a home inside source checkout.
+The portable launcher enables the managed `.virea-runtime/` location and checks its Git ignore rule. Manual CLI development defaults to a data root outside the source checkout; development scripts also configure `UV_PROJECT_ENVIRONMENT`, download caches and model storage. Both layouts keep runtime data separate from published source.
+
+Performance artifacts retain native output and mixed playback data, with digest verification on read. To retain an interaction for review, archive its execution command, receipt and referenced artifacts together. Leave active artifacts in place; each GC preview shows the model or state data eligible for collection.

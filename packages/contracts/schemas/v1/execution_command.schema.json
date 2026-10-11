@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:execution_command:1.0.0",
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "dtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dtype"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        }
+      },
+      "required": [
+        "name",
+        "media_type",
+        "uri"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.execution_command.v1",
+      "default": "virea.execution_command.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "command_id": {
+      "minLength": 1,
+      "title": "Command Id",
+      "type": "string"
+    },
+    "session_id": {
+      "minLength": 1,
+      "title": "Session Id",
+      "type": "string"
+    },
+    "turn_id": {
+      "minLength": 1,
+      "title": "Turn Id",
+      "type": "string"
+    },
+    "plan_id": {
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "epoch": {
+      "minimum": 0,
+      "title": "Epoch",
+      "type": "integer"
+    },
+    "target_id": {
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_kind": {
+      "enum": [
+        "browser",
+        "vrchat"
+      ],
+      "title": "Target Kind",
+      "type": "string"
+    },
+    "action": {
+      "const": "perform",
+      "default": "perform",
+      "title": "Action",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "minLength": 1,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "payload_ref": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "payload_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Payload Sha256",
+      "type": "string"
+    },
+    "expected_state_revision": {
+      "minimum": 0,
+      "title": "Expected State Revision",
+      "type": "integer"
+    },
+    "expires_at": {
+      "exclusiveMinimum": 0,
+      "title": "Expires At",
+      "type": "number"
+    },
+    "authorized_capabilities": {
+      "default": [
+        "body"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "title": "Authorized Capabilities",
+      "type": "array"
+    }
+  },
+  "required": [
+    "command_id",
+    "session_id",
+    "turn_id",
+    "plan_id",
+    "epoch",
+    "target_id",
+    "target_kind",
+    "idempotency_key",
+    "payload_ref",
+    "payload_sha256",
+    "expected_state_revision",
+    "expires_at"
+  ],
+  "title": "ExecutionCommandV1",
+  "type": "object"
+}

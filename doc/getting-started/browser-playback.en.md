@@ -25,10 +25,9 @@ superseded_by: []
 uv run virea serve --host 127.0.0.1 --port 8000
 ```
 
-Open the canonical entry point at `http://127.0.0.1:8000/`. The root opens the only current Motion Studio; the retired Web
-UI is no longer exposed, while an existing `/app/` bookmark still opens the same application. Generation stays on the left
-of the workbench. The result stage then plays the decoded model-space skeleton before retargeting beside the final VRM/VRMA,
-with no separate result page.
+Open `http://127.0.0.1:8000/` to enter **Motion Lab**. The `/app/` address opens the same workspace. Describe and generate an
+action on the left, then compare the decoded model skeleton and the retargeted VRM/VRMA side by side.
+For a conversation with a character, open [Character Studio](../workflows/character-studio.en.md) from the navigation.
 
 The workbench uses the available width while keeping the composer readable and splitting the remaining stage evenly
 between the source skeleton and VRM. It changes to one column on narrower windows; browser zoom is not needed to repair

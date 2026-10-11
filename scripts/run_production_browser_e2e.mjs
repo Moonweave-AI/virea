@@ -334,7 +334,7 @@ try {
   if (existingJobId) appUrl.searchParams.set("job", existingJobId);
   await page.goto(appUrl.href, { waitUntil: "networkidle", timeout: 60_000 });
   const visibleVersionLabel = (await page.locator(".brand small").first().textContent())?.trim() || "";
-  const visibleVersionMatch = /^Motion Studio (\d+\.\d+\.\d+)$/.exec(visibleVersionLabel);
+  const visibleVersionMatch = /^Motion (?:Lab|Studio) (\d+\.\d+\.\d+)$/.exec(visibleVersionLabel);
   if (!visibleVersionMatch) throw new Error(`visible application version is invalid: ${visibleVersionLabel}`);
   const applicationVersion = visibleVersionMatch[1];
   if (applicationVersion !== health.version) {

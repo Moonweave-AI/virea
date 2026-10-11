@@ -23,7 +23,9 @@ superseded_by: []
 
 从[仓库安装指南](../getting-started.zh-CN.md)开始，完成[虚拟设备、角色与模型服务部署](vrchat.zh-CN.md)。Unity 角色工程保存在 `.virea-runtime/vrchat/unity/avatar/`；配置、驱动构建、日志和录像分别保存在同级子目录。该目录被 Git 忽略。Unity Editor 和 Steam 的安装路径可在 E 盘；不要把它们复制进 Git。
 
-上传后的 AI 角色才可被另一账号看到；SDK 本地测试角色仅对本人可见。AI 账号需要符合 VRChat 上传权限。账号登录、Unity 许可证、SDK 登录、角色上传是不同步骤。
+可以使用 AI 账号已有的、已发布且支持全身追踪的 Humanoid 角色；使用这类角色不需要 Unity 工程或上传权限。只有导入并发布自己的 VRM 才需要这些步骤。SDK 本地测试角色仅对本人可见。
+
+保持勾选**自动跟随 AI 账号当前角色**，无需填写 Avatar ID，也无需安装 VIREA 表情参数。更换角色后等新角色自动校准完成，再发送下一项任务；旧表演和旧末帧会停止保留。非人形骨架、覆盖追踪骨骼的自定义动画层不在通用兼容保证内。详见[控制和绑定规则](vrchat.zh-CN.md#avatar-independent-control)。
 
 按 [client-launch.example.json](../../integrations/vrchat/client-launch.example.json) 创建 `VIREA_HOME/config/vrchat-clients.json`，填写安装路径和两个实际账号 ID。示例配置不是密码存储。`VIREA_HOME` 在本机位于 `.virea-runtime/vrchat/home/`。
 

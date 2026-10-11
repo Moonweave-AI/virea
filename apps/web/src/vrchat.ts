@@ -1,3 +1,4 @@
+import { executionLabel } from "./character/execution.mjs";
 import "./vrchat.css";
 import {acceptSnapshot, bridgeError, executionResult, executionNote, mergeTranscript, readConversations, statusLabel, type Conversation} from "./vrchat-conversation.mjs";
 import {connectionView, readConnectionSettings} from "./vrchat-connection.mjs";
@@ -12,16 +13,16 @@ root.innerHTML = `
     <button class="new-chat" id="new-chat">${icon("plus")} <span>新对话</span><kbd>Ctrl ⇧ O</kbd></button>
     <label class="search"><span class="sr-only">搜索本机对话</span><input id="search" type="search" placeholder="搜索对话" autocomplete="off"></label>
     <p class="nav-label">最近的对话</p><nav id="conversations" aria-label="聊天记录"></nav>
-    <div class="sidebar-bottom"><a href="./character.html">Motion Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
+    <div class="sidebar-bottom"><a href="./">Motion Lab <span>↗</span></a><a href="./setup.html">部署与模型接入 <span>↗</span></a><a href="./character.html">Character Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
   </aside>
   <div class="chat-shell">
-    <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">Virea <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>
+    <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">VRChat Studio <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>
     <div class="chat-scroll" id="chat-scroll">
       <section class="connection-card" aria-label="AI 角色连接" aria-live="polite"><div class="connection-card-heading"><span class="avatar-mark">V</span><div><strong id="connection-title">正在连接控制服务</strong><p id="character-name">正在识别角色</p></div><button id="reconnect" type="button">重新连接</button></div><div id="connection-steps" class="connection-steps"></div><p id="connection-detail"></p><button id="connection-settings" type="button">查看角色与输出设置 ↗</button></section>
       <section class="avatar-preview" aria-label="导入模型预览"><canvas id="avatar-canvas" aria-label="可拖动旋转的 VRM 模型预览"></canvas><p id="avatar-preview-note">正在加载导入的角色…</p><button id="reload-avatar" type="button" hidden>重新加载模型</button></section>
       <section class="welcome" id="welcome"><h1>有什么想让 Virea 做的？</h1><p>对话、语音与角色任务，都从这里开始。</p><div class="suggestions"><button data-prompt="用8秒做一个简短的欢迎介绍，在第2秒开始说：你好，我是 Virea，很高兴见到你。">打个招呼<span>一段有声音的欢迎介绍</span></button><button data-prompt="用12秒做一段安静的表演，A person stands calmly. 不要说话。">安静陪伴<span>保持动作，让声音休息一下</span></button><button data-prompt="做一段总长16秒的自我介绍。前8秒 A person stands calmly. 后8秒 A person turns slowly. 第3秒说：你好，我是 Virea。">安排一段表演<span>为动作与语音分别安排时间</span></button></div></section>
       <section id="messages" class="messages" role="log" aria-label="与 Virea 的对话" aria-live="polite" aria-relevant="additions text"></section>
-      <section id="execution" class="execution" hidden><div class="execution-heading"><span class="pulse"></span><span id="session-state"></span><span id="elapsed"></span></div><div id="timeline"></div><p id="execution-note" class="note"></p><div class="execution-actions"><button id="pause">暂停</button><button id="stop">停止任务</button><button id="show-diagnostics">执行详情 ↗</button></div></section>
+      <section id="execution" class="execution" hidden><div class="execution-heading"><span class="pulse"></span><span id="session-state"></span><span id="elapsed"></span></div><div id="timeline"></div><p id="execution-state" class="note" role="status"></p><p id="execution-note" class="note"></p><div class="execution-actions"><button id="pause">暂停</button><button id="stop">停止任务</button><button id="show-diagnostics">执行详情 ↗</button></div></section>
       <button id="scroll-bottom" class="scroll-bottom" aria-label="回到最新消息" hidden>↓</button>
     </div>
     <div class="composer-wrap">
@@ -32,7 +33,7 @@ root.innerHTML = `
     </div>
   </div>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><h2 id="settings-title">角色与连接</h2><button id="close-settings" class="icon-button" aria-label="关闭设置">×</button></div><div class="dialog-tabs"><button id="configuration-tab" aria-selected="true">设置</button><button id="diagnostics-tab" aria-selected="false">诊断</button></div><div class="dialog-body"><section id="configuration-panel">  <form id="connect-form"><fieldset id="settings">
-    <section class="setup-guide"><h3>AI 是独立角色，你是观察者</h3><p>保留你当前的 VRChat 窗口。AI 使用第二个客户端和专用端口，登录独立账号。两个账号进入同一在线房间后，才能从你的视角观察 AI。</p><ol><li>启动 AI 客户端，并登录 AI 账号。<button type="button" id="copy-launch">复制 AI 启动参数</button></li><li>在 AI 窗口开启 Action Menu → Options → OSC，换上准备好的 AI 角色。</li><li>本页面自动识别并绑定已安装 VIREA 参数的角色，可在下方核对。</li></ol><p>SDK Build &amp; Test 角色仅本客户端可见；跨账号展示自定义 VRM 需要有上传权限的 AI 账号发布角色。<a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" target="_blank" rel="noreferrer">官方角色导入流程 ↗</a></p></section>
+    <section class="setup-guide"><h3>AI 是独立角色，你是观察者</h3><p>保留你当前的 VRChat 窗口。AI 使用第二个客户端和专用端口，登录独立账号。两个账号进入同一在线房间后，才能从你的视角观察 AI。</p><ol><li>启动 AI 客户端，并登录 AI 账号。<button type="button" id="copy-launch">复制 AI 启动参数</button></li><li>在 AI 窗口开启 Action Menu → Options → OSC，使用支持全身追踪的 Humanoid 角色。</li><li>本页面自动跟随 AI 当前角色，换角色后重新校准，无需填写 Avatar ID 或安装 VIREA 参数。</li></ol><p>可以使用账号已有的兼容角色。只有导入自己的 VRM 时才需要 Unity 和上传权限；SDK Build &amp; Test 角色仅本客户端可见。<a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" target="_blank" rel="noreferrer">官方角色导入流程 ↗</a></p></section>
     <label>运行模式<select id="mode"><option value="generated_vr">模型姿态 → 虚拟 VR 设备</option><option value="desktop">桌面兼容模式（无生成全身动作）</option><option value="vr_trackers">实体 VR 设备 + 身体追踪</option></select></label>
     <p id="mode-note" class="note">桌面版输出移动、语音和自定义手势；不能通过 OSC 播放任意全身骨骼动画。</p>
     <label>动作模型<select id="backend"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label>
@@ -45,17 +46,17 @@ root.innerHTML = `
     <label>虚拟声卡播放端<select id="audio"><option value="">关闭语音输出</option></select></label>
     <p class="note">选择虚拟线缆的播放端，并在 VRChat 里选择对应的录音端。不会自动选择默认扬声器。</p>
     <div class="checks"><label><input type="checkbox" id="chatbox" checked> AI 回复显示在 AI 头顶</label><label><input type="checkbox" id="observer-chatbox" checked> 我的消息显示在我的角色头顶</label><label><input type="checkbox" id="locomotion"> 允许输入控制角色移动</label></div>
-    <label><input id="auto-bind" type="checkbox" checked> 自动绑定专用 AI 客户端中已安装 VIREA 参数的角色</label>
-    <label>AI Avatar ID<input id="avatar-id" placeholder="自动识别本地测试或已发布角色"></label>
+    <label><input id="auto-bind" type="checkbox" checked> 自动跟随 AI 账号当前角色（换角色后自动校准）</label>
+    <label>固定 Avatar ID（关闭自动跟随时使用）<input id="avatar-id" placeholder="自动跟随时无需填写"></label>
     <details><summary>OSC 与校准</summary><label>AI 客户端 Profile<input id="ai-profile" type="number" value="2" min="0" max="99" required></label><div class="pair"><label>AI 接收端口<input id="send-port" type="number" value="19010" min="1024" max="65535" required></label><label>AI 回传端口<input id="receive-port" type="number" value="19011" min="1024" max="65535" required></label></div>
     <div class="pair"><label>身体比例<input id="scale" type="number" min="0.2" max="3" step="0.01" value="1"></label><label>追踪朝向（度）<input id="yaw" type="number" min="-180" max="180" value="0"></label></div>
     <p class="note">9000/9001 保留给观察端。AI 在专用端口上自动识别角色；请勿填写观察者客户端的端口。</p>
     <label><input type="checkbox" id="hold"> 语音段期间按住说话</label><p class="note">默认由你在 VRChat 中开麦。使用“按住说话”时，需要关闭 VRChat 的 Toggle Voice。</p></details>
   </fieldset><button id="connect" class="primary" type="submit">连接 VRChat 桥接</button></form>
   <p id="settings-error" class="error-banner" role="alert" hidden></p>
-  <div id="avatar-binding" hidden><p>AI 专用端口收到的角色：<code id="observed-avatar"></code></p><button id="bind-avatar" type="button">绑定此 AI 角色</button></div>
+  <div id="avatar-binding" hidden><p>AI 当前角色：<code id="observed-avatar"></code></p><p id="avatar-policy" class="note"></p><button id="bind-avatar" type="button">固定为此角色（可选）</button></div>
   <button id="disconnect" type="button" hidden>断开连接</button>
-<p class="setup-help">请在 AI 窗口启用 OSC；页面会自动检测角色。表情和手势需要 Avatar 安装 VIREA 参数。</p></section><section id="diagnostics-panel" hidden><h3>真实回传</h3><p id="receiver"></p><dl id="feedback"></dl><p class="note">发送帧数：<span id="frames">0</span>。UDP 发送成功并不代表角色已执行；此处不会将命令当作观测结果。</p><h3>最近执行记录</h3><pre id="results">[]</pre></section></div></dialog>`;
+<p class="setup-help">全身和手指使用通用追踪输入，由 VRChat 的 Humanoid IK 适配角色；无需专用动画层。额外表情取决于角色支持，不影响骨骼控制。非人形骨架不在此通用控制范围内。</p></section><section id="diagnostics-panel" hidden><h3>真实回传</h3><p id="receiver"></p><dl id="feedback"></dl><p class="note">发送帧数：<span id="frames">0</span>。UDP 发送成功并不代表角色已执行；此处不会将命令当作观测结果。</p><h3>最近执行记录</h3><pre id="results">[]</pre></section></div></dialog>`;
 
 function element<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
 function value(id: string) { return element<HTMLInputElement>(id).value; }
@@ -213,12 +214,15 @@ function render(next: any) {
   const observedAvatar = state.feedback?.values?.avatar_id;
   element("avatar-binding").hidden = !state.connected || !observedAvatar;
   element("observed-avatar").textContent = observedAvatar ?? "";
-  element<HTMLButtonElement>("bind-avatar").disabled = busy || working() || !observedAvatar || state.config?.avatar_id === observedAvatar;
-  element("bind-avatar").textContent = state.config?.avatar_id === observedAvatar ? "已绑定此 AI 角色" : "绑定此 AI 角色";
+  const fixedAvatar = !state.config?.auto_bind && state.config?.avatar_id === observedAvatar;
+  element("avatar-policy").textContent = state.config?.auto_bind ? "自动跟随已启用 · 不限制角色 ID；切换角色会停止旧动作并重新校准。" : "固定角色模式 · 可断开连接后启用自动跟随。";
+  element<HTMLButtonElement>("bind-avatar").disabled = busy || working() || !observedAvatar || fixedAvatar;
+  element("bind-avatar").textContent = fixedAvatar ? "已固定此角色" : "固定为此角色（可选）";
   element<HTMLSelectElement>("model-choice").value = state.session?.motion_backend ?? value("backend");
   element<HTMLSelectElement>("model-choice").disabled = busy;
   element<HTMLFieldSetElement>("settings").disabled = busy;
   for (const id of settingIds) element<HTMLInputElement>(id).disabled = busy || (state.connected && !liveSettingIds.has(id));
+  element<HTMLInputElement>("avatar-id").disabled ||= checked("auto-bind");
   const desktopMode = value("mode") === "desktop";
   element<HTMLInputElement>("desktop-emotes").disabled = busy || !desktopMode;
   if (!desktopMode) element<HTMLInputElement>("desktop-emotes").checked = false;
@@ -233,6 +237,7 @@ function render(next: any) {
   element("stop").hidden = !working() && !state.paused;
   element("pause").textContent = state.paused ? "继续" : "暂停";
   element("session-state").textContent = statusLabel(state);
+  element("execution-state").textContent = executionLabel(state.session?.execution);
   element("execution-note").textContent = executionNote(state) + (state.observer_chat?.error ? ` 我的字幕暂未送达：${state.observer_chat.error}` : state.observer_chat?.pending ? " 我的字幕正在排队发送。" : "");
   const lastResult = ownSession() ? executionResult(state) : null;
   element("execution").hidden = !ownSession() || (!working() && !lastResult && !state.paused);
@@ -303,6 +308,7 @@ function hydrateConnection(snapshot: any) {
   for (const [id, key] of [["mode", "mode"], ["send-port", "send_port"], ["receive-port", "receive_port"], ["audio", "audio_device"], ["avatar-id", "avatar_id"], ["scale", "scale"], ["yaw", "yaw_degrees"]]) element<HTMLInputElement>(id!).value = String(snapshot.config[key!] ?? "");
   for (const id of ["chatbox", "locomotion"]) element<HTMLInputElement>(id).checked = !!snapshot.config[id];
   element<HTMLInputElement>("observer-chatbox").checked = !!snapshot.config.observer_chatbox;
+  element<HTMLInputElement>("auto-bind").checked = !!snapshot.config.auto_bind;
   element<HTMLInputElement>("hold").checked = snapshot.config.microphone === "hold";
   element<HTMLInputElement>("backend").value = snapshot.session.motion_backend;
   element<HTMLInputElement>("voice").value = snapshot.session.voice ?? "";
@@ -369,7 +375,8 @@ element("reconnect").addEventListener("click", () => void action(async () => {
   return connectCurrent();
 }));
 for (const id of settingIds) element(id).addEventListener("change", persistConnection);
-element("bind-avatar").addEventListener("click", () => void action(async () => { const next = await api("/bind-avatar", {avatar_id: state.feedback.values.avatar_id}); element<HTMLInputElement>("avatar-id").value = next.config.avatar_id; return next; }));
+element("bind-avatar").addEventListener("click", () => void action(async () => { const next = await api("/bind-avatar", {avatar_id: state.feedback.values.avatar_id}); element<HTMLInputElement>("avatar-id").value = next.config.avatar_id; element<HTMLInputElement>("auto-bind").checked = false; persistConnection(); return next; }));
+element("auto-bind").addEventListener("change", () => render(state));
 element("copy-launch").addEventListener("click", async () => { try { await navigator.clipboard.writeText(`${value("mode") === "desktop" ? "--no-vr " : ""}--profile=${value("ai-profile")} --osc=${value("send-port")}:127.0.0.1:${value("receive-port")} --watch-avatars --watch-worlds -screen-fullscreen 0`); element("copy-launch").textContent = "已复制参数，请用于官方 launch.exe"; } catch { error("无法访问剪贴板，请从启动脚本启动 AI 客户端。"); } });
 for (const [id, command] of [["disconnect", "disconnect"], ["stop", "interrupt"], ["pause", "pause"]]) element(id!).addEventListener("click", () => void action(() => { if (command === "disconnect") { connectionWanted = false; persistConnection(); } return api("/control", {action: command === "pause" && state.paused ? "resume" : command}); }));
 element("mode").addEventListener("change", () => render(state));

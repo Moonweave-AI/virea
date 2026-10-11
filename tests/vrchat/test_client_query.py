@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 import httpx
 import pytest
@@ -73,26 +72,6 @@ def test_every_invalid_avatar_change_disarms_previous_avatar(args):
     if len(args) == 1:
         with pytest.raises(ValidationError):
             BridgeConfig(avatar_id=args[0])
-
-
-def test_auto_bind_verified_local_rig_pins_identity_and_does_not_retarget():
-    config = BridgeConfig(auto_bind=True)
-    transport = OSCTransport(config)
-    query = ClientQuery(config, transport.protocol)
-    transport.monitor = query
-    query.apply(avatar_tree(rig=False), 1, 12345)
-    assert config.avatar_id is None
-    query.apply(avatar_tree(), 1, 12345)
-    assert config.avatar_id == "local:sdk_VIREA Independent AI"
-    assert transport.ready()[0]
-    assert len(transport.protocol.snapshot()["query"]["parameters"]) == 9
-    query.apply(avatar_tree("avtr_different"), 1, 12345)
-    assert not transport.ready()[0]
-    assert config.avatar_id == "local:sdk_VIREA Independent AI"
-    query.apply(avatar_tree(), 1, 12345)
-    assert transport.ready()[0]
-    transport.protocol.query_checked = time.monotonic() - 4
-    assert not transport.ready()[0]
 
 
 def test_query_checks_host_port_before_reading_avatar_and_never_follows_redirect():

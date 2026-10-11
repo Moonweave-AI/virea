@@ -97,9 +97,12 @@ class BrowserApplicationObservation(ContractModel):
 
     @model_validator(mode="after")
     def version_is_visibly_rendered(self) -> "BrowserApplicationObservation":
-        if self.visible_version_label != f"Motion Studio {self.application_version}":
+        if self.visible_version_label not in {
+            f"Motion Lab {self.application_version}",
+            f"Motion Studio {self.application_version}",
+        }:
             raise ValueError(
-                "visible Motion Studio version differs from application version"
+                "visible application version differs from application version"
             )
         return self
 

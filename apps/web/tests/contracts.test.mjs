@@ -51,7 +51,7 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(api, /\/jobs\/\$\{encodeURIComponent\(jobId\)\}\/result/);
   assert.match(api, /\/source-skeleton/);
   assert.doesNotMatch(api, /`\/jobs\/\$\{jobId\}/);
-  assert.match(main, /Motion Studio 0\.4\.0/);
+  assert.match(main, /Motion Lab 0\.4\.0/);
   assert.doesNotMatch(main, /Motion Studio 0\.3/);
   const bootstrap = main.slice(main.indexOf("async function bootstrap"), main.indexOf("void bootstrap"));
   assert.match(bootstrap, /api\.health\(\)/);

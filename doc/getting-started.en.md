@@ -3,7 +3,7 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
+updated: 2026-10-11
 last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: Reproducible VIREA setup from git clone through domain selection, installation, generation, and browser playback.
@@ -25,7 +25,9 @@ superseded_by: []
 Before copying any command, read [data-root paths and quotation marks](getting-started/persistent-data-root.en.md). It
 shows exactly what to paste at a prompt, how to handle a copied Windows path, and how one configuration survives new terminals.
 
-This is the single starting point for a new clone. It keeps all mutable data outside the checkout, detects the execution
+New users can use the [automatic setup wizard](getting-started/automatic-setup.en.md) from a source ZIP without preinstalled developer tools.
+
+This page retains the manual developer workflow. It keeps all mutable data outside the checkout, detects the execution
 domains that actually exist on your machine, and requires you to choose a domain before an installation or job starts.
 
 ## 1. Install prerequisites

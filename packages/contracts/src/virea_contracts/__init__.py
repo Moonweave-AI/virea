@@ -30,6 +30,20 @@ from .model import (
     ProductionE2EStage,
 )
 from .motion_ir import MotionIRDescriptor
+from .performance import (
+    AudioArtifactV1,
+    ExecutablePerformanceV1,
+    ExecutionCommandV1,
+    ExecutionReceiptV1,
+    InteractionRequestV1,
+    MotionRequestV1,
+    NativeMotionArtifactV1,
+    ResponsePlanV1,
+    SessionSnapshotV1,
+    SourceRepresentationProfileV1,
+    TargetRigProfileV1,
+    ToolIntentV1,
+)
 from .representation import RepresentationProfile
 from .result import ArtifactRef, ModelResult, NativeMotionDescriptor
 from .runtime import (
@@ -41,6 +55,7 @@ from .runtime import (
 )
 from .runtime_identity import RUNTIME_CORE_EPOCH
 from .skeleton import SkeletonProfile
+from .timeline import TimedPerformancePlan
 from .vrm import ActorExportIdentity, ExportRecord, ResultIdentity, VrmMotionResult
 from .worker import (
     RuntimeCoreIdentity,
@@ -51,6 +66,19 @@ from .worker import (
 )
 
 __all__ = [
+    "AudioArtifactV1",
+    "ExecutablePerformanceV1",
+    "ExecutionCommandV1",
+    "ExecutionReceiptV1",
+    "InteractionRequestV1",
+    "MotionRequestV1",
+    "NativeMotionArtifactV1",
+    "ResponsePlanV1",
+    "SessionSnapshotV1",
+    "SourceRepresentationProfileV1",
+    "TargetRigProfileV1",
+    "ToolIntentV1",
+    "TimedPerformancePlan",
     "TERMINAL_INSTALLATION_STATES",
     "TERMINAL_JOB_STATES",
     "AcceleratorReport",

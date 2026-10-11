@@ -11,20 +11,24 @@ export function connectionView(state, offline = false) {
   if (offline) {
     title = "控制服务暂时不可用"; detail = "正在自动重试。已保留对话和连接设置。";
   } else if (!state.connected) {
-    title = "连接独立 AI 角色"; detail = "连接后自动识别 AI 客户端与已安装的角色参数。";
+    title = "连接独立 AI 角色"; detail = "自动跟随 AI 账号当前的 Humanoid 角色，无需安装 VIREA 专用参数。";
   } else if (awaitingAvatar) {
     title = "AI 窗口已连接，等待登录或角色加载";
     detail = "已确认独立 AI 的进程与 OSC 端口。请在 AI 窗口完成登录；角色加载后自动绑定，随后检查全身校准。";
   } else if (offlineTesting) {
     title = "VRChat 处于离线测试模式";
     detail = "本机 OSC 可用不代表能够联网。请通过修复后的启动脚本或官方 launch.exe 重启此客户端，再核验同房间效果。";
+  } else if (state.calibration?.active) {
+    title = "正在自动校准全身";
+    detail = `当前角色：${state.calibration.percent ?? 0}% · ${state.calibration.step ?? 0}/${state.calibration.total_steps ?? 8} · ${state.calibration.step_label ?? "校准中"}`;
+  } else if (state.config?.mode === "generated_vr" && state.calibration?.error) {
+    title = "AI 已连接，自动校准未完成";
+    detail = `${state.calibration.error}。请在 AI 视角重试自动校准，完成前不会播放动作。`;
   } else if (state.ready && !fbtPending) {
     title = "本机角色控制已连接";
-    detail = query?.local_avatar ? "SDK 本地测试角色 · 仅当前客户端可见，跨账号观察需要发布角色。" : "角色输出已就绪，可以开始对话。";
+    detail = query?.local_avatar ? "SDK 本地测试角色 · 仅当前客户端可见，跨账号观察需要发布角色。" : state.config?.auto_bind ? "已跟随 AI 当前角色，可以开始对话；换角色后自动重新校准。" : "角色输出已就绪，可以开始对话。";
   } else if (avatar && state.config?.avatar_id && avatar !== state.config.avatar_id) {
-    title = "角色已切换，输出已暂停"; detail = "当前角色与绑定不一致。停止任务后，在设置里绑定当前角色。";
-  } else if (live && query.missing_parameters?.length) {
-    title = "已找到角色，缺少控制参数"; detail = "请换上经过 VIREA Unity 工具准备的角色，或在设置中核对后手动绑定。";
+    title = "角色已切换，输出已暂停"; detail = state.config.auto_bind ? "正在核验 AI 当前角色，随后自动校准；旧动作已停止。" : "当前角色与固定角色不一致。可重新绑定，或断开后启用自动跟随。";
   } else if (live && avatar && ["generated_vr", "vr_trackers"].includes(state.config?.mode) && state.feedback?.values?.VRMode !== 1) {
     title = "AI 已连接，等待 VR 模式";
     detail = "AI 当前是桌面模式。仅 AI 客户端需要通过 SteamVR 启动，观察者保留桌面窗口。进入场景后可展开双视角，接管 AI 菜单并校准身体。";
@@ -45,13 +49,13 @@ export function connectionView(state, offline = false) {
   if (sameRoom) detail += " 两个运行中客户端的同房间记录已匹配；角色外观、动作和声音仍需从观察者视角验收。";
   return {
     title, detail, avatar: avatar?.replace(/^local:sdk_/, "") ?? "尚未识别角色",
-    ready: !offline && !!state.ready && !fbtPending,
+    ready: !offline && !!state.ready && !fbtPending && !state.calibration?.active,
     steps: [
       ["控制服务", !offline], ["本机 OSC", !offline && (live || awaitingAvatar)],
       ["角色绑定", !offline && live && !!avatar && avatar === state.config?.avatar_id],
       [sameRoom ? "同房间记录已匹配" : offlineTesting ? "离线测试模式" : query?.online?.authentication === "api_auth_error_in_log" ? "接口有错误记录" : "同房间未核验", sameRoom],
       [state.config?.audio_enabled ? "语音已配置" : "语音关闭", !offline && !!state.config?.audio_enabled],
-      ...(state.config?.mode === "generated_vr" ? [["全身校准", !offline && live && state.feedback?.values?.VRMode === 1 && state.feedback?.values?.TrackingType === 6]] : []),
+      ...(state.config?.mode === "generated_vr" ? [["全身校准", !offline && live && state.feedback?.values?.VRMode === 1 && state.feedback?.values?.TrackingType === 6 && (!state.calibration || state.config?.auto_calibrate === false || state.calibration.stage === "completed")]] : []),
     ],
   };
 }

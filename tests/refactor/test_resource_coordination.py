@@ -1030,7 +1030,9 @@ def test_real_worker_stop_failure_keeps_process_and_resource_lease(
             model_roots={"fixture": tmp_path},
             allow_unready_model=True,
         )
-        assert control.wait(job["id"], timeout=20.0)["state"] == "FAILED"
+        # Allow the real process its 30-second readiness budget as well as
+        # runtime discovery; this case tests stop ownership, not startup speed.
+        assert control.wait(job["id"], timeout=60.0)["state"] == "FAILED"
         _join_job_thread(control, job["id"])
         assert len(handles) == 1
         assert handles[0].running
@@ -1039,6 +1041,9 @@ def test_real_worker_stop_failure_keeps_process_and_resource_lease(
             item["job_id"] == job["id"] for item in control.resource_recovery_blocked
         )
     finally:
+        # A failed wait can leave start() in flight. Restore stop before close()
+        # discovers any late handle, so the injected failure cannot leak it.
+        monkeypatch.setattr(control.supervisor, "stop", original_stop)
         if handles:
             original_stop(handles[0], timeout=10.0)
         _release_resource_rows(control)

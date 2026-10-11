@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:audio_artifact:1.0.0",
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "dtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dtype"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        }
+      },
+      "required": [
+        "name",
+        "media_type",
+        "uri"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.audio_artifact.v1",
+      "default": "virea.audio_artifact.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "sample_rate": {
+      "exclusiveMinimum": 0,
+      "maximum": 384000,
+      "title": "Sample Rate",
+      "type": "integer"
+    },
+    "sample_count": {
+      "exclusiveMinimum": 0,
+      "title": "Sample Count",
+      "type": "integer"
+    },
+    "channels": {
+      "default": 1,
+      "maximum": 8,
+      "minimum": 1,
+      "title": "Channels",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifact",
+    "sha256",
+    "sample_rate",
+    "sample_count"
+  ],
+  "title": "AudioArtifactV1",
+  "type": "object"
+}

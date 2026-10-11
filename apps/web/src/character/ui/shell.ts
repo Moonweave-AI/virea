@@ -13,14 +13,16 @@ export const icon = (name: string) => `<svg viewBox="0 0 24 24" fill="none" stro
 
 export const studioShell = `
   <nav class="rail" aria-label="工作室导航">
-    <a class="brand" href="./" aria-label="VIREA 首页">v<span>.</span></a>
+    <a class="brand" href="./" aria-label="Motion Lab">v<span>.</span></a>
     <button id="history-toggle" class="icon-button" aria-label="打开历史记录" aria-expanded="false" title="历史记录">${icon("panel")}</button>
     <button id="trace-toggle" class="icon-button" aria-label="打开执行链" aria-expanded="false" title="执行链与诊断">${icon("body")}</button>
     <button id="new-session" class="icon-button" aria-label="新建会话" title="新建会话">${icon("plus")}</button>
+    <a class="icon-button" href="./setup.html" aria-label="部署与模型接入" title="部署与模型接入">${icon("settings")}</a>
+    <a class="icon-button" href="./vrchat.html" aria-label="VRChat Studio" title="VRChat Studio">VR</a>
     <button id="settings-toggle" class="icon-button rail-bottom" aria-label="角色与设置" title="角色与设置">${icon("settings")}</button>
   </nav>
   <main class="workspace">
-    <header class="topbar"><div><strong>Motion Studio</strong><span class="topbar-divider">/</span><span id="workspace-title">未命名会话</span></div>
+    <header class="topbar"><div><strong>Character Studio</strong><span class="topbar-divider">/</span><span id="workspace-title">未命名会话</span></div>
       <div class="topbar-actions"><span id="status" role="status">未连接</span><button id="close" class="quiet" disabled>结束会话</button></div>
     </header>
     <section class="stage" aria-label="动作工作室">
@@ -37,6 +39,7 @@ export const studioShell = `
         <div class="dock-header"><span class="dock-title">创作对话</span><button id="chat-collapse" class="quiet" aria-label="收起聊天" aria-expanded="true">收起</button></div>
         <div class="chat-content">
           <section class="latest-reply" aria-label="角色回复"><div class="text-heading"><strong id="reply-owner">VIREA</strong><span id="text-state">准备就绪</span></div><p id="response-text">描述一个动作，或和角色聊聊。</p></section>
+          <p id="execution-state" class="hint" role="status"></p>
           <section id="route-card" class="route-card" hidden><span id="route-model"></span><span id="route-reason"></span></section>
           <ol id="motion-plan" class="motion-plan" aria-label="动作序列"></ol>
           <section class="expression-panel" aria-label="语音、动作与文本">

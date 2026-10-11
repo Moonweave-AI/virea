@@ -37,7 +37,7 @@ def reset_packet(config):
             message("/tracking/eye/EyesClosedAmount", 0.0),
             message("/tracking/eye/CenterPitchYaw", 0.0, 0.0),
         ]
-    if config.expressions:
+    if config.expressions and config.mode != "generated_vr":
         messages.append(message("/avatar/parameters/AI_Active", False))
         messages += [
             message(f"/avatar/parameters/{name}", 0.0) for name in FACE_PARAMETERS
@@ -221,6 +221,17 @@ class OSCTransport:
 
     def ready(self, *, require_full_body=True):
         values = self.protocol.values
+        if self.config.auto_bind:
+            query = self.protocol.query_status
+            if (
+                query.get("state") != "verified"
+                or not query.get("pid")
+                or self.protocol.query_checked is None
+                or time.monotonic() - self.protocol.query_checked > 3
+                or not valid_avatar_id(query.get("avatar_id"))
+                or query["avatar_id"] != values.get("avatar_id", (None,))[0]
+            ):
+                return False, "waiting for the verified AI client's current avatar"
         if (
             self.monitor
             and self.monitor.verified

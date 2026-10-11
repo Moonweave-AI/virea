@@ -500,12 +500,25 @@ class SMPLXFullposeCodec(MotionCodec):
             fullpose[:, :165].reshape(fullpose.shape[0], 55, 3)
         )
         frame_count = quats.shape[0]
-        core = identity_quats(frame_count, len(CORE_INDEX))
+        from virea.motion.kinematics import rest_frame_binding
+        from virea.motion.skeleton import canonical_geometry
+
+        source_offsets = clip.motion.get("source_rest_offsets")
+        if source_offsets is None:
+            corrections, geometry_status = {}, "canonical_approximation"
+            source_offsets = DEFAULT_REST_OFFSETS
+            residual = np.zeros(len(FK_BONES))
+        else:
+            if set(source_offsets) != set(DEFAULT_REST_OFFSETS):
+                raise ValueError(
+                    "SMPL-X source rest geometry must describe every body and finger bone"
+                )
+            frames, residual = rest_frame_binding(
+                canonical_geometry(source_offsets), canonical_geometry()
+            )
+            corrections = dict(zip(FK_BONES, frames))
+            geometry_status = "source_rest_geometry"
         hands = identity_quats(frame_count, len(HAND_INDEX))
-        for body_index, bone_name in enumerate(CANONICAL_BODY_WITH_ROOT):
-            if bone_name == "hips" or bone_name not in CORE_INDEX:
-                continue
-            core[:, CORE_INDEX[bone_name]] = quats[:, body_index]
         for bone_name, source_index in SMPLX_HAND_INDEX.items():
             if source_index < quats.shape[1] and bone_name in HAND_INDEX:
                 hands[:, HAND_INDEX[bone_name]] = quats[:, source_index]
@@ -517,13 +530,13 @@ class SMPLXFullposeCodec(MotionCodec):
                 for idx, name in enumerate(BODY_BONES)
                 if name != "hips"
             },
-            source_body_rest_offsets=DEFAULT_REST_OFFSETS,
+            source_body_rest_offsets=source_offsets,
             hand_quats_by_name={
                 name: hands[:, idx] for idx, name in enumerate(HAND_INDEX)
             },
-            source_hand_rest_offsets=DEFAULT_REST_OFFSETS,
-            body_rest_frame_corrections={},
-            hand_rest_frame_corrections={},
+            source_hand_rest_offsets=source_offsets,
+            body_rest_frame_corrections=corrections,
+            hand_rest_frame_corrections=corrections,
             world_basis=world_basis,
             root_rotation_semantics=self.root_rotation_semantics,
         )
@@ -534,6 +547,8 @@ class SMPLXFullposeCodec(MotionCodec):
             edges=FK_EDGES,
             metadata={
                 "codec": self.key,
+                "rest_geometry": geometry_status,
+                "rest_binding_max_direction_residual": float(np.max(residual)),
                 "source_profile": self._source_profile_for_clip(clip),
                 "canonical_skeleton": CANONICAL_SKELETON_ID,
                 "rotation_semantics": CANONICAL_ROTATION_SEMANTICS,
@@ -570,7 +585,7 @@ class SMPLXFullposeCodec(MotionCodec):
                 for idx, name in enumerate(BODY_BONES)
                 if name != "hips"
             },
-            DEFAULT_REST_OFFSETS,
+            clip.motion.get("source_rest_offsets") or DEFAULT_REST_OFFSETS,
             normalize_world=True,
             world_basis=world_basis,
         )
