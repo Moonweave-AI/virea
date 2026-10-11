@@ -1,0 +1,447 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:executable_performance:1.0.0",
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "dtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dtype"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        }
+      },
+      "required": [
+        "name",
+        "media_type",
+        "uri"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "AudioArtifactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.audio_artifact.v1",
+          "default": "virea.audio_artifact.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "sample_rate": {
+          "exclusiveMinimum": 0,
+          "maximum": 384000,
+          "title": "Sample Rate",
+          "type": "integer"
+        },
+        "sample_count": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "channels": {
+          "default": 1,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Channels",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact",
+        "sha256",
+        "sample_rate",
+        "sample_count"
+      ],
+      "title": "AudioArtifactV1",
+      "type": "object"
+    },
+    "NativeMotionArtifactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "virea.native_motion_artifact.v1",
+          "default": "virea.native_motion_artifact.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Revision"
+        },
+        "checkpoint_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checkpoint Digest"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRepresentationProfileV1"
+        },
+        "time": {
+          "$ref": "#/$defs/TimeDescriptor"
+        }
+      },
+      "required": [
+        "artifact",
+        "sha256",
+        "model_id",
+        "source",
+        "time"
+      ],
+      "title": "NativeMotionArtifactV1",
+      "type": "object"
+    },
+    "SkeletonDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "joint_names": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Joint Names",
+          "type": "array"
+        },
+        "parent_indices": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Parent Indices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "profile_id",
+        "joint_names",
+        "parent_indices"
+      ],
+      "title": "SkeletonDescriptor",
+      "type": "object"
+    },
+    "SourceRepresentationProfileV1": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "minLength": 1,
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "skeleton": {
+          "$ref": "#/$defs/SkeletonDescriptor"
+        },
+        "encoding": {
+          "minLength": 1,
+          "title": "Encoding",
+          "type": "string"
+        },
+        "units": {
+          "default": "m",
+          "enum": [
+            "m",
+            "cm",
+            "mm"
+          ],
+          "title": "Units",
+          "type": "string"
+        },
+        "coordinate_system": {
+          "minLength": 1,
+          "title": "Coordinate System",
+          "type": "string"
+        },
+        "root_semantics": {
+          "minLength": 1,
+          "title": "Root Semantics",
+          "type": "string"
+        },
+        "observed_dofs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Observed Dofs",
+          "type": "array"
+        },
+        "imputed_dofs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Imputed Dofs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "profile_id",
+        "skeleton",
+        "encoding",
+        "coordinate_system",
+        "root_semantics"
+      ],
+      "title": "SourceRepresentationProfileV1",
+      "type": "object"
+    },
+    "SpeechTrackV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_seconds": {
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "start_seconds",
+        "duration_seconds"
+      ],
+      "title": "SpeechTrackV1",
+      "type": "object"
+    },
+    "TimeDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_count": {
+          "title": "Frame Count",
+          "type": "integer"
+        },
+        "fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fps"
+        },
+        "timebase": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timebase"
+        },
+        "timestamps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "frame_count"
+      ],
+      "title": "TimeDescriptor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.executable_performance.v1",
+      "default": "virea.executable_performance.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "performance_id": {
+      "minLength": 1,
+      "title": "Performance Id",
+      "type": "string"
+    },
+    "plan_id": {
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "duration_seconds": {
+      "exclusiveMinimum": 0,
+      "maximum": 600,
+      "title": "Duration Seconds",
+      "type": "number"
+    },
+    "motion": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "motion_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Motion Sha256",
+      "type": "string"
+    },
+    "speech": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SpeechTrackV1"
+      },
+      "title": "Speech",
+      "type": "array"
+    },
+    "audio": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AudioArtifactV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "auxiliary_tracks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Auxiliary Tracks",
+      "type": "array"
+    },
+    "native_motion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NativeMotionArtifactV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "playback": {
+      "const": "prepared_performance",
+      "default": "prepared_performance",
+      "title": "Playback",
+      "type": "string"
+    }
+  },
+  "required": [
+    "performance_id",
+    "plan_id",
+    "duration_seconds",
+    "motion",
+    "motion_sha256"
+  ],
+  "title": "ExecutablePerformanceV1",
+  "type": "object"
+}

@@ -4,7 +4,7 @@ status: Active
 owner: VIREA maintainers
 created: 2026-09-26
 updated: 2026-10-11
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-11
 review_cycle_days: 30
 summary: Deployment and acceptance boundaries for persistent character sessions.
 canonical: doc/character/README.en.md
@@ -23,7 +23,7 @@ adds two selectable motion families alongside the existing SentiAvatar + ARDY ro
 Start with the [eight recorded performances](showcase.en.md),
 [coarse activity execution](coarse-activity-execution.zh-CN.md) and
 [window continuity measurements](window-continuity.zh-CN.md).
-The earlier [Motion Studio evaluation](motion-studio-upgrade.zh-CN.md) covers routing,
+The earlier [Character Studio evaluation](motion-studio-upgrade.zh-CN.md) covers routing,
 history-length ablation and playback. Earlier [semantic streaming work](semantic-spatial-upgrade.zh-CN.md)
 documents single-response generation, batched SentiAvatar infill, the resident NF4 text encoder,
 native eight-frame spatial windows, installation and verified limitations. Install the optional

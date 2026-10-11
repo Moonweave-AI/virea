@@ -4,7 +4,7 @@ status: Active
 owner: VIREA maintainers
 created: 2026-08-23
 updated: 2026-10-11
-last_reviewed: 2026-08-26
+last_reviewed: 2026-10-11
 review_cycle_days: 14
 summary: English task-oriented VIREA documentation hub, paired with the Chinese hub and anchored at a clean git clone.
 canonical: doc/README.en.md
@@ -21,87 +21,54 @@ superseded_by: []
 
 # VIREA documentation
 
-> [English](README.en.md) · [中文文档中心](README.zh-CN.md)
+[English](README.en.md) · [简体中文](README.zh-CN.md)
 
-New users can start from a source ZIP with the [automatic setup wizard](getting-started/automatic-setup.en.md).
-Developers can use the manual clean-clone workflow, external data root and explicit execution domain.
-The portable launcher uses an ignored project-local data folder by default and also accepts an external data root.
+Start with the task you want to complete. Set up the environment, then choose your workspace.
 
-The current catalog contains 14 integrated-experimental model plugins and 19 public tasks; the former
-six-integrated/eight-upstream-only split is superseded. Every task has an immutable acceptance contract, but declared
-integration is not cross-device evidence: each installation must pass its complete task suite on the selected Runtime.
-No model is promoted to `supported` until its required release evidence and licensing gates are complete.
+## Getting started and workspaces
 
-## VRChat: independent AI operation
-
-[Operations / 操作指南](character/vrchat-operations.en.md) · [Technical reference / 技术参考](character/vrchat.en.md) · [Recording evidence / 录制验收](quality/vrchat-recordings.md)
-
-## Start here
-
-| Goal | English | 中文 |
-|---|---|---|
-| Start without Python, Node or Git | [Automatic setup](getting-started/automatic-setup.en.md) | [自动配置向导](getting-started/automatic-setup.zh-CN.md) |
-| Clone to first result | [Tutorial](getting-started.en.md) | [教程](getting-started.zh-CN.md) |
-| Choose a persistent data root and enter copied paths safely | [Data-root guide](getting-started/persistent-data-root.en.md) | [数据根指南](getting-started/persistent-data-root.zh-CN.md) |
-| Learn every command and option | [CLI reference](reference/cli.en.md) | [CLI 参数参考](reference/cli.zh-CN.md) |
-| Select Windows, Linux, WSL2, or macOS | [Platform guide](platforms/README.en.md) | [平台指南](platforms/README.zh-CN.md) |
-| Select a model or inspect its Runtime | [Model catalog](models/README.en.md) | [模型目录](models/README.zh-CN.md) |
-| Interpret model integration, license, platform, and evidence status | [Status semantics](reference/status-semantics.en.md) | [状态语义](reference/status-semantics.zh-CN.md) |
-| Review first-wave upstream and integration evidence | [First-wave catalog](model-catalog/first-wave-2026-08-20.en.md) | [首波模型目录](model-catalog/first-wave-2026-08-20.zh-CN.md) |
-| Diagnose local state and retain data safely | [Troubleshooting summary](getting-started.en.md#8-advanced-troubleshooting-and-safe-maintenance) | [排错与维护](getting-started.zh-CN.md#8-高级：排错与安全维护) |
-| Maintain documentation | [Documentation policy](development/documentation.en.md) | [文档规范](development/documentation.zh-CN.md) |
-
-## Documentation contract
-
-Active user-facing content uses paired English and Simplified Chinese pages. A page containing a command must:
-
-1. start at the clean-clone prerequisite or link directly to that tutorial;
-2. place an executable comment immediately before each command block or command line;
-3. document every positional argument, option, default/restriction, and mutation risk in the bilingual CLI reference;
-4. distinguish a declared Runtime capability, a known blocker, and observed evidence;
-5. state whether a command is read-only, a preview, or writes local state.
-
-Historical ADRs, RFCs, research records and third-party notices retain their original evidence language. Their titles,
-summaries, status and navigation remain available through both hubs; they are not substitutes for the current user guides.
-
-## Authoritative facts
-
-| Fact | Source |
+| Goal | Guide |
 |---|---|
-| Model identity, assets and requested acceptance | `plugins/models/*/manifest.yaml` |
-| Runtime ABI and resource profiles | `registries/runtimes/*.yaml` |
-| Execution-domain implementation and observations | `registries/platforms/execution-targets.v1.yaml` |
-| CLI syntax and option parsing | `apps/cli/src/virea_cli/` and `uv run virea --help` |
-| Generated model/platform matrices | `scripts/generate_docs.py` |
-| Current production-evidence validity | `registries/evidence/production-e2e.v1.yaml` |
+| Install from zero and connect models | [Setup](getting-started/automatic-setup.en.md) |
+| Generate, compare and export motion | [Motion Lab](workflows/motion-lab.en.md) |
+| Import a VRM and talk to a character | [Character Studio](workflows/character-studio.en.md) |
+| Operate an independent AI account | [VRChat Studio](workflows/vrchat-studio.en.md) |
+| Choose a data disk | [Data root](getting-started/persistent-data-root.en.md) |
+| Resolve connection and runtime problems | [Troubleshooting](operations/troubleshooting.en.md) |
 
-Do not manually edit generated sections. Update the fact source and run:
+## Architecture and interfaces
 
-```bash
-# Check that generated model/platform Markdown matches manifests and registries without writing files.
-python scripts/generate_docs.py --check
+- [Overview](architecture/overview.en.md): capabilities, orchestration and execution responsibilities.
+- [Contracts](architecture/contracts.en.md): portable messages and the interaction API.
+- [Execution](architecture/execution.en.md): independent tracks, cancellation, ownership and receipts.
+- [CLI](reference/cli.en.md) · [Onboarding API](reference/onboarding-api.md) · [Model integration](development/model-adapter.zh-CN.md).
+- [RFC-0004](rfcs/0004-unified-embodied-runtime.md) · [Migration validation](quality/unified-runtime.md).
 
-# Validate Markdown metadata, internal links, generated sections, media allowlists and document conventions.
-python scripts/check_docs.py
-```
+## Models, motion and platforms
 
-See [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), and [third-party notices](../THIRD_PARTY_NOTICES.md)
-before publishing or redistributing any model, asset, Avatar or media.
+- [Model catalog](models/README.en.md) · [Generated support matrix](models/support-matrix.generated.md).
+- [Platform guide](platforms/README.en.md) · [Runtime data and retention](operations/runtime-data-and-retention.en.md).
+- [Motion IR and retarget mathematics](math-retarget/README.zh-CN.md) · [Dataset processing](pipeline.zh-CN.md).
+- [MotionCraft / SynTalker](character/unified-motion.en.md) · [Character runtime](character/README.en.md) · [Audio8 voice cloning](character/audio8-tts.zh-CN.md).
+- [VRChat operation](character/vrchat-operations.en.md) · [VRChat technical reference](character/vrchat.en.md).
 
-## Specialist records and archives
+## Examples and verification
 
-Some records retain their source language because they capture historical decisions, research evidence, or third-party
-wording. Active paired records link to the English page directly; use the Chinese hub for matching Chinese navigation.
+- [README videos](../README.md#demos) · [Dataset gallery](showcase/README.md).
+- [VRChat recording evidence](quality/vrchat-recordings.md) · [Portable setup checks](quality/portable-onboarding.md).
+- [End-to-end validation](quality/production-e2e.en.md) · [Browser observations](quality/production-browser-evidence.en.md).
 
-| English purpose | Record |
-|---|---|
-| Motion/retarget mathematical references and review checklist | [Math and retargeting collection](math-retarget/README.zh-CN.md) |
-| Model adapter implementation contract | [Model adapter guide](development/model-adapter.zh-CN.md) |
-| Execution-domain routing decision | [ADR-0004](adrs/0004-execution-domain-routing.zh-CN.md) |
-| Production release boundary and current Go/No-Go facts | [Release acceptance](refactor/RELEASE_ACCEPTANCE_0.4.0.md) |
-| Dataset/legacy pipeline handling | [Pipeline guide](pipeline.zh-CN.md) |
-| Upstream model and integration research | [First-wave model catalog](model-catalog/first-wave-2026-08-20.en.md), [中文](model-catalog/first-wave-2026-08-20.zh-CN.md), and [research records](research/) |
-| Responsive Web/CLI architecture and primary-source evidence | [Engineering Brief](engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md) and [research log](research/responsive-studio-cli-design-2026-08-25.en.md) |
+## Maintenance and research
 
-When promoting a specialist record into an active user workflow, create a paired `.en.md` and `.zh-CN.md` page first,
-then add it to the bilingual contract in `scripts/check_docs.py`.
+- [Documentation policy](development/documentation.en.md) · [Contributing](../CONTRIBUTING.md) · [Security](../SECURITY.md).
+- [Model research](model-catalog/first-wave-2026-08-20.en.md) · [Research archive](research/).
+- [Decision records](adrs/) · [RFCs](rfcs/) · [Engineering briefs](engineering-briefs/).
+- [Status semantics](reference/status-semantics.en.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md).
+
+Runtime and model facts come from `registries/` and model manifests. `scripts/generate_docs.py` maintains generated matrices. Historical research and validation records retain their original dates and evidence.
+
+<a id="vrchat-independent-ai-operation"></a>
+<a id="start-here"></a>
+<a id="documentation-contract"></a>
+<a id="authoritative-facts"></a>
+<a id="specialist-records-and-archives"></a>

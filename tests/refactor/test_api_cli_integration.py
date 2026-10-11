@@ -192,6 +192,8 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("GET", "/api/v1/state"),
         ("GET", "/api/v1/system"),
         ("GET", "/api/v1/execution-domains"),
+        ("GET", "/api/v1/workflows"),
+        ("POST", "/api/v1/interactions"),
         ("POST", "/api/v1/setup/plan"),
         ("POST", "/api/v1/setup/apply"),
         ("GET", "/api/v1/onboarding"),

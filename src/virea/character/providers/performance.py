@@ -109,6 +109,11 @@ class PerformancePlan(Contract):
     reply_plan: CommunicationPlan | ReplyPlan | None = None
 
 
+# Semantic adoption is distinct from a timed performance. Keep the original
+# import for existing plugins while new application code uses IntentPlan.
+IntentPlan = PerformancePlan
+
+
 class ActivityIntent(Contract):
     completion: str = Field(
         default="",

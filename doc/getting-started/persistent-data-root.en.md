@@ -3,8 +3,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-28
-last_reviewed: 2026-08-28
+updated: 2026-10-11
+last_reviewed: 2026-10-11
 review_cycle_days: 30
 summary: Choose, enter, and persist a VIREA data root without putting models or environments in the system drive.
 canonical: doc/getting-started/persistent-data-root.en.md
@@ -22,7 +22,27 @@ superseded_by: []
 
 > [中文说明](persistent-data-root.zh-CN.md) · [English](persistent-data-root.en.md) · [Clone-to-result tutorial](../getting-started.en.md)
 
-Do this **once**, before installing dependencies or a model. Pick a root on the volume with the capacity you want VIREA
+## Launcher: keep data with the project
+
+The [Start-VIREA launcher](automatic-setup.en.md) stores data in `.virea-runtime/portable/` under the project by default. Extract the project onto a volume with enough space and open the launcher. Environments, download caches and `home/` stay together in this Git-ignored directory.
+
+To choose another location or port, run from the project directory:
+
+```powershell
+# Windows: replace the example drive X with your actual data drive; reuse this command.
+& ./scripts/start-virea.ps1 -DataRoot 'X:\VIREA-DATA' -Port 8000
+```
+
+```bash
+# Linux / macOS: select a directory on an existing data volume.
+VIREA_DATA_ROOT='/path/to/VIREA-DATA' sh start-virea.sh --port 8000
+```
+
+Custom roots use the same `tools/`, `environment/`, `cache/` and `home/` layout. Existing models and settings stay in their original `home/`; choosing an empty directory creates a separate environment.
+
+## Development: manage source and runtime data separately
+
+When developing with `uv` and the CLI, do this once before installing dependencies or a model. Pick a root on the volume with the capacity you want VIREA
 to use. The clone and every VIREA-managed mutable directory then stay below that root:
 
 ```text

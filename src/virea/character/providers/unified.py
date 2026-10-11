@@ -175,7 +175,15 @@ class UnifiedMotionProvider:
                 context_start = max(0, cursor - overlap)
                 context_end = context_start + int(health["window_frames"])
                 # Native lookahead may cross a speech boundary even if emitted frames don't.
-                clips = await resolve_before(context_end / FPS)
+                needs_audio = self.backend == "syntalker" or any(
+                    segment.speech_gestures
+                    and segment.start_seconds < context_end / FPS
+                    and segment.start_seconds + segment.duration_seconds
+                    > context_start / FPS
+                    for segment in plan.motions
+                )
+                if needs_audio:
+                    clips = await resolve_before(context_end / FPS)
                 pcm = slice_audio(
                     clips, sample_at(context_start), sample_at(context_end)
                 )

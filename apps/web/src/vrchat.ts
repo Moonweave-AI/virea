@@ -1,3 +1,4 @@
+import { executionLabel } from "./character/execution.mjs";
 import "./vrchat.css";
 import {acceptSnapshot, bridgeError, executionResult, executionNote, mergeTranscript, readConversations, statusLabel, type Conversation} from "./vrchat-conversation.mjs";
 import {connectionView, readConnectionSettings} from "./vrchat-connection.mjs";
@@ -12,16 +13,16 @@ root.innerHTML = `
     <button class="new-chat" id="new-chat">${icon("plus")} <span>新对话</span><kbd>Ctrl ⇧ O</kbd></button>
     <label class="search"><span class="sr-only">搜索本机对话</span><input id="search" type="search" placeholder="搜索对话" autocomplete="off"></label>
     <p class="nav-label">最近的对话</p><nav id="conversations" aria-label="聊天记录"></nav>
-    <div class="sidebar-bottom"><a href="./setup.html">部署与模型接入 <span>↗</span></a><a href="./character.html">Motion Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
+    <div class="sidebar-bottom"><a href="./">Motion Lab <span>↗</span></a><a href="./setup.html">部署与模型接入 <span>↗</span></a><a href="./character.html">Character Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
   </aside>
   <div class="chat-shell">
-    <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">Virea <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>
+    <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">VRChat Studio <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>
     <div class="chat-scroll" id="chat-scroll">
       <section class="connection-card" aria-label="AI 角色连接" aria-live="polite"><div class="connection-card-heading"><span class="avatar-mark">V</span><div><strong id="connection-title">正在连接控制服务</strong><p id="character-name">正在识别角色</p></div><button id="reconnect" type="button">重新连接</button></div><div id="connection-steps" class="connection-steps"></div><p id="connection-detail"></p><button id="connection-settings" type="button">查看角色与输出设置 ↗</button></section>
       <section class="avatar-preview" aria-label="导入模型预览"><canvas id="avatar-canvas" aria-label="可拖动旋转的 VRM 模型预览"></canvas><p id="avatar-preview-note">正在加载导入的角色…</p><button id="reload-avatar" type="button" hidden>重新加载模型</button></section>
       <section class="welcome" id="welcome"><h1>有什么想让 Virea 做的？</h1><p>对话、语音与角色任务，都从这里开始。</p><div class="suggestions"><button data-prompt="用8秒做一个简短的欢迎介绍，在第2秒开始说：你好，我是 Virea，很高兴见到你。">打个招呼<span>一段有声音的欢迎介绍</span></button><button data-prompt="用12秒做一段安静的表演，A person stands calmly. 不要说话。">安静陪伴<span>保持动作，让声音休息一下</span></button><button data-prompt="做一段总长16秒的自我介绍。前8秒 A person stands calmly. 后8秒 A person turns slowly. 第3秒说：你好，我是 Virea。">安排一段表演<span>为动作与语音分别安排时间</span></button></div></section>
       <section id="messages" class="messages" role="log" aria-label="与 Virea 的对话" aria-live="polite" aria-relevant="additions text"></section>
-      <section id="execution" class="execution" hidden><div class="execution-heading"><span class="pulse"></span><span id="session-state"></span><span id="elapsed"></span></div><div id="timeline"></div><p id="execution-note" class="note"></p><div class="execution-actions"><button id="pause">暂停</button><button id="stop">停止任务</button><button id="show-diagnostics">执行详情 ↗</button></div></section>
+      <section id="execution" class="execution" hidden><div class="execution-heading"><span class="pulse"></span><span id="session-state"></span><span id="elapsed"></span></div><div id="timeline"></div><p id="execution-state" class="note" role="status"></p><p id="execution-note" class="note"></p><div class="execution-actions"><button id="pause">暂停</button><button id="stop">停止任务</button><button id="show-diagnostics">执行详情 ↗</button></div></section>
       <button id="scroll-bottom" class="scroll-bottom" aria-label="回到最新消息" hidden>↓</button>
     </div>
     <div class="composer-wrap">
@@ -236,6 +237,7 @@ function render(next: any) {
   element("stop").hidden = !working() && !state.paused;
   element("pause").textContent = state.paused ? "继续" : "暂停";
   element("session-state").textContent = statusLabel(state);
+  element("execution-state").textContent = executionLabel(state.session?.execution);
   element("execution-note").textContent = executionNote(state) + (state.observer_chat?.error ? ` 我的字幕暂未送达：${state.observer_chat.error}` : state.observer_chat?.pending ? " 我的字幕正在排队发送。" : "");
   const lastResult = ownSession() ? executionResult(state) : null;
   element("execution").hidden = !ownSession() || (!working() && !lastResult && !state.paused);

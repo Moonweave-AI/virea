@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:virea:schema:motion_request:1.0.0",
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "dtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dtype"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        }
+      },
+      "required": [
+        "name",
+        "media_type",
+        "uri"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "MotionSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "start_seconds": {
+          "exclusiveMaximum": 180,
+          "minimum": 0,
+          "title": "Start Seconds",
+          "type": "number"
+        },
+        "duration_seconds": {
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "prompt": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[A-Za-z][A-Za-z0-9 ,'\\-]*[.!]?$",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Label",
+          "type": "string"
+        },
+        "speech_gestures": {
+          "default": false,
+          "title": "Speech Gestures",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "start_seconds",
+        "duration_seconds",
+        "prompt"
+      ],
+      "title": "MotionSegment",
+      "type": "object"
+    },
+    "PerformancePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "motions": {
+          "items": {
+            "$ref": "#/$defs/MotionSegment"
+          },
+          "maxItems": 32,
+          "title": "Motions",
+          "type": "array"
+        },
+        "speech": {
+          "items": {
+            "$ref": "#/$defs/SpeechClip"
+          },
+          "maxItems": 32,
+          "title": "Speech",
+          "type": "array"
+        },
+        "idle_prompt": {
+          "default": "A person stands calmly, breathing naturally.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Idle Prompt",
+          "type": "string"
+        },
+        "seed": {
+          "default": 42,
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "title": "PerformancePlan",
+      "type": "object"
+    },
+    "SpeechClip": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "start_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 180,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Seconds"
+        },
+        "after_clip": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After Clip"
+        },
+        "gap_seconds": {
+          "default": 0,
+          "maximum": 180,
+          "minimum": 0,
+          "title": "Gap Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "SpeechClip",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "virea.motion_request.v1",
+      "default": "virea.motion_request.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "request_id": {
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "model_id": {
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "plan": {
+      "$ref": "#/$defs/PerformancePlan"
+    },
+    "audio_conditions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Audio Conditions",
+      "type": "array"
+    },
+    "native_history": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "request_id",
+    "model_id",
+    "plan"
+  ],
+  "title": "MotionRequestV1",
+  "type": "object"
+}

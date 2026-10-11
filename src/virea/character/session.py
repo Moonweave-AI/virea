@@ -9,6 +9,12 @@ from pathlib import Path
 from time import monotonic
 from uuid import uuid4
 
+from virea_contracts.performance import ExecutionReceiptV1
+
+from virea.application.artifacts import ArtifactStore
+from virea.application.performance_executor import PerformanceExecutor
+from virea.application.session_coordinator import SessionCoordinator
+
 from .audio import speech_windows, text_chunks
 from .contracts import BodyState, CharacterConfig, EnvironmentEvent, PlaybackFeedback
 from .expression_stream import ExpressionStream
@@ -32,6 +38,9 @@ class CharacterSession:
         playback_mode: str = "synchronized",
     ):
         self.id = uuid4().hex
+        self.coordinator = SessionCoordinator(self.id)
+        self.artifacts = ArtifactStore(directory / "artifacts")
+        self.executor = PerformanceExecutor(self.coordinator, self.artifacts)
         self.config = config
         self.directory = directory / self.id
         self.directory.mkdir(parents=True)
@@ -82,6 +91,41 @@ class CharacterSession:
         self._closed = False
         self.playback_clock = PlaybackClock()
 
+    @property
+    def epoch(self):
+        return self.coordinator.epoch
+
+    @epoch.setter
+    def epoch(self, value):
+        self.coordinator.epoch = value
+
+    @property
+    def revision(self):
+        return self.coordinator.revision
+
+    @revision.setter
+    def revision(self, value):
+        self.coordinator.revision = value
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, value):
+        self._status = value
+        state = {
+            "thinking": "planning",
+            "routing": "planning",
+            "generating": "preparing",
+            "synthesizing": "preparing",
+            "awaiting_playback": "ready",
+            "error": "failed",
+            "closed": "cancelled",
+        }.get(value)
+        if state:
+            self.coordinator.state = state
+
     def record(self, kind: str, **data) -> None:
         self.revision += 1
         self.events.append(
@@ -98,6 +142,7 @@ class CharacterSession:
         return {
             "schema_version": "virea.character_session.v1",
             "id": self.id,
+            "execution": self.coordinator.snapshot(),
             "epoch": self.epoch,
             "revision": self.revision,
             "status": self.status,
@@ -190,6 +235,7 @@ class CharacterSession:
             self.behavior_slots.clear()
             self.body = body
             self.status = "waiting"
+            self.coordinator.state = "holding"
             self.record("interrupted")
 
     def acknowledge(self, feedback: PlaybackFeedback) -> bool:
@@ -225,6 +271,20 @@ class CharacterSession:
             or self._feedback.done()
         ):
             return False
+        command = self.pending.get("execution")
+        if command:
+            self.coordinator.feedback(
+                ExecutionReceiptV1(
+                    command_id=command["command_id"],
+                    session_id=self.id,
+                    epoch=feedback.epoch,
+                    target_id=self.coordinator.target_id,
+                    status=feedback.status,
+                    evidence="device_ack",
+                    detail=feedback.message
+                    or "Playback target acknowledged the performance",
+                )
+            )
         self.body = feedback.body
         self.record("playback_feedback", feedback=feedback.model_dump())
         self._feedback.set_result(feedback)
@@ -277,6 +337,7 @@ class CharacterSession:
             raise ValueError("session is closed")
 
     def _start(self, trigger: str) -> None:
+        self.coordinator.begin()
         self.status = "thinking"
         self._task = asyncio.create_task(self._run(trigger, self.epoch))
 
@@ -289,7 +350,7 @@ class CharacterSession:
         self._start(trigger)
 
     async def _cancel(self) -> None:
-        self.epoch += 1
+        self.coordinator.advance()
         self.playback_clock.set_paused(False)
         if self._task and not self._task.done():
             self._task.cancel()

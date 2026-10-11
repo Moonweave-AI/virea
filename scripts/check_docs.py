@@ -75,6 +75,12 @@ METADATA_EXEMPT = {
 # metadata lives in each owning manifest or runtime guide.
 METADATA_EXEMPT_NAMES = {"THIRD_PARTY_NOTICES.md"}
 BILINGUAL_DOCUMENT_PAIRS = {
+    "doc/architecture/overview.en.md": "doc/architecture/overview.zh-CN.md",
+    "doc/architecture/contracts.en.md": "doc/architecture/contracts.zh-CN.md",
+    "doc/architecture/execution.en.md": "doc/architecture/execution.zh-CN.md",
+    "doc/workflows/motion-lab.en.md": "doc/workflows/motion-lab.zh-CN.md",
+    "doc/workflows/character-studio.en.md": "doc/workflows/character-studio.zh-CN.md",
+    "doc/workflows/vrchat-studio.en.md": "doc/workflows/vrchat-studio.zh-CN.md",
     "README.md": "README.zh-CN.md",
     "doc/README.en.md": "doc/README.zh-CN.md",
     "doc/getting-started.en.md": "doc/getting-started.zh-CN.md",

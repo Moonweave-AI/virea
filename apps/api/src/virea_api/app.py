@@ -24,6 +24,7 @@ from .routes import (
 )
 from .routes.character_face import router as character_face_router
 from .routes.characters import router as characters_router
+from .routes.interactions import router as interactions_router
 from .routes.onboarding import router as onboarding_router
 from .routes.vrchat import router as vrchat_router
 from .routes.vrchat_views import router as vrchat_views_router
@@ -159,6 +160,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.include_router(system_router, prefix="/api/v1")
+    application.include_router(interactions_router, prefix="/api/v1")
     application.include_router(onboarding_router, prefix="/api/v1")
     application.include_router(models_router, prefix="/api/v1")
     application.include_router(jobs_router, prefix="/api/v1")

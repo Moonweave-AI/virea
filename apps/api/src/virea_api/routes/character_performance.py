@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from virea.application.delivery import load_delivery
 from virea.character.performance_contracts import PerformancePlan
 from virea.character.providers.unified import UnifiedMotionProvider
 from virea.character.unified_session import UnifiedCharacterSession
@@ -70,6 +71,12 @@ async def performance_assets(session_id: str, performance_id: str, request: Requ
     current = unified_session(request, session_id)
     if not current.pending or current.pending["id"] != performance_id:
         raise HTTPException(404, "performance is no longer active")
+    if current.pending.get("execution"):
+        try:
+            performance, windows, _ = load_delivery(current, current.pending)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"windows": windows, "executable": performance.model_dump(mode="json")}
     return FileResponse(
         current.directory / f"{current.pending['id']}.json",
         media_type="application/json",

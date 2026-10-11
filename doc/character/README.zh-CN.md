@@ -4,7 +4,7 @@ status: Active
 owner: VIREA maintainers
 created: 2026-09-26
 updated: 2026-10-11
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-11
 review_cycle_days: 30
 summary: 持续角色的部署、状态反馈、播放与测量。
 canonical: doc/character/README.zh-CN.md
@@ -31,7 +31,7 @@ superseded_by: []
 LLM 根据对话生成回答与粗粒度活动计划，决定先说后做、边说边做或完成目标后再说。
 SentiAvatar 与 ARDY 分时接管身体；ARDY 接收英文当前活动描述，执行层根据运动观测判断继续或完成。
 用户无需填写回应时长；内部原生推理窗口不等于语义活动边界。讲话结束后保留身体状态与世界位置。
-最终恢复和中间连续运动分开，暂停与打断作用于实际播放。较早的实现记录见 [Motion Studio 升级](motion-studio-upgrade.zh-CN.md)。
+最终恢复和中间连续运动分开，暂停与打断作用于实际播放。较早的实现记录见 [Character Studio 升级](motion-studio-upgrade.zh-CN.md)。
 
 页面分别显示语音进度、动作进度和完整文本，提供暂停/继续、音量、语音重播、动作预览与同步重播。
 页面使用按计划编排；API 仍保留两种模式名称：

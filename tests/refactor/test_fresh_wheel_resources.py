@@ -173,7 +173,7 @@ def _read_tar_text(archive: tarfile.TarFile, member_name: str) -> str:
 
 def _assert_web_release_branding(bundle: bytes, member_name: str) -> None:
     text = bundle.decode("utf-8")
-    assert "Motion Studio 0.4.0" in text, member_name
+    assert "Motion Lab 0.4.0" in text, member_name
     assert "Motion Studio 0.3" not in text, member_name
 
 
@@ -1002,7 +1002,7 @@ with TestClient(application) as client:
     asset_response = client.get(match.group(1))
     assert asset_response.status_code == 200
     assert asset_response.content
-    assert "Motion Studio 0.4.0" in asset_response.text
+    assert "Motion Lab 0.4.0" in asset_response.text
     assert "Motion Studio 0.3" not in asset_response.text
 print(json.dumps({"origin": assets.origin, "asset": match.group(1), "descriptor_assets_checked": descriptor_assets_checked}))
 """

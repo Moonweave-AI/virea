@@ -3,10 +3,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
 review_cycle_days: 30
-summary: 环境、权重、缓存、日志、job、结果和 QA 证据的仓库外位置与保留策略。
+summary: 启动器与开发环境的数据位置，以及模型、表演制品和验证记录的保留策略。
 canonical: doc/operations/runtime-data-and-retention.zh-CN.md
 related:
   - runtime-data-and-retention.en.md
@@ -20,9 +20,9 @@ superseded_by: []
 
 > [中文](runtime-data-and-retention.zh-CN.md) · [English](runtime-data-and-retention.en.md)
 
-源码 checkout 只保存代码、轻量 manifest/registry、锁文件、测试和文档。以下内容一律写入外部
-位于用户选定数据盘的 `VIREA_HOME` 或操作系统临时目录。`VIREA_HOME` 是承载容量的数据根，而非仅配置目录：
-模型安装和生成必须显式提供它，绝不会隐式使用 `LOCALAPPDATA`/`$HOME`：
+`VIREA_HOME` 保存模型、设置和生成结果。启动器默认将它设为项目的 `.virea-runtime/portable/home/`；VRChat 专用部署使用自己的 `home/`。开发者也可配置独立数据盘，具体步骤见[数据目录指南](../getting-started/persistent-data-root.zh-CN.md)。
+
+代码、manifest、锁文件、测试和文档进入版本控制。下面这些运行数据保存在受管理的数据目录中：
 
 - Python/uv Runtime 环境；
 - checkpoint、Hugging Face cache 和上游源码快照；
@@ -40,6 +40,9 @@ superseded_by: []
 | `runtimes/` | 隔离 Python/Worker 环境 | 用 repair/remove/GC |
 | `cache/` | 可恢复下载缓存 | 可经 GC 清理 |
 | `jobs/`、`results/` | 运行与不可变结果 | 先核对索引再清理 |
+| `characters/<session-id>/` | 会话的临时 HTTP 音频与动作文件 | 播放确认或会话关闭后自动释放 |
+| `characters/artifacts/` | 按 SHA-256 保存的原生动作、实测音频与可执行表演 | 停止会话后按需归档；普通模型/状态 GC 不回收这一目录 |
+| `config/verification/` | 模型生成检验回执及 JSON/WAV/NPZ 结果 | 与对应连接配置一同保留 |
 | `tmp/` | staging、quarantine、短期 QA | 可按年龄 GC |
 
 ## Production evidence 保留
@@ -73,9 +76,8 @@ uv run virea state gc --dry-run --older-than-hours 168 --virea-home <external-ho
 先 dry-run，确认不会删除 READY snapshot 或当前 evidence。失败安装的 staging 必须清理或转入 quarantine，
 不能在 checkout 或 `VIREA_HOME/tmp` 无限累积。
 
-## Checkout hygiene
+## 源码与运行目录
 
-CI 和文档检查应拒绝仓库内的 `.venv*`、模型权重、HF cache、Worker 日志、SQLite 状态、job/result、
-pytest basetemp 和 fresh-install 工作区。源码开发通过外部 `UV_PROJECT_ENVIRONMENT` 使用同一规则。
-`.gitignore` 只是误写后的最后防线，不表示这些目录可以在 checkout 内生成；`virea setup` 会拒绝把
-`VIREA_HOME` 放进源码 checkout。
+便携启动器会启用受管理的 `.virea-runtime/` 目录，并确认它在 Git 忽略规则中。手动运行 CLI 时默认采用源码之外的数据根；开发脚本同时设置 `UV_PROJECT_ENVIRONMENT`、下载缓存和模型目录。两种方式均将运行数据与发布源码分开管理。
+
+表演制品保留原生输出和混合后的播放数据，读取时核对内容摘要。需要保留一次交互用于复核时，归档执行命令、回执及其引用的制品；正在使用的制品保持原位。模型/状态 GC 的范围见各命令的预览输出。

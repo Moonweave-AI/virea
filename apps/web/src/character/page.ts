@@ -1,3 +1,4 @@
+import { executionLabel } from "./execution.mjs";
 import "./style.css";
 import { studioShell } from "./ui/shell";
 import { StudioHistory, downloadJSON } from "./ui/history";
@@ -87,6 +88,7 @@ function showError(error: unknown): void {
 
 function renderState(value: Session): void {
   renderPerformanceTracks(root, value.performance);
+  element("#execution-state").textContent = executionLabel(value.execution);
   stage.track(value);
   diagnostics.update(value, stage.diagnostics());
   root.dataset.sessionId = value.id;

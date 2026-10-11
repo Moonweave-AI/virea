@@ -156,8 +156,8 @@ uv sync --locked --all-packages --extra dev
 uv run virea serve --host 127.0.0.1 --port 8080
 ```
 
-Close the older Motion Studio tab, then open `http://127.0.0.1:8080/`. If the tab must remain open, use one hard refresh
-(`Ctrl+Shift+R`) after the server restart. Do not run `model remove`, delete the data root, or download SentiAvatar again.
+Open Motion Lab at the address shown by the launcher, or refresh the existing tab with `Ctrl+Shift+R` after restarting
+the service. This reloads the browser application while reusing the installed models and saved results.
 
 ```bash
 # Linux, WSL, or macOS: fast-forward the same clone without changing persistent model data.

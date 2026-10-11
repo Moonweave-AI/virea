@@ -517,12 +517,12 @@ function layout(content: string): string {
       <header class="topbar">
         <button class="brand" id="brand-home" aria-label="打开 VIREA 工作台">
           <span class="brand-mark"><i></i><i></i><i></i></span>
-          <span><strong>VIREA</strong><small>Motion Studio 0.4.0</small></span>
+          <span><strong>VIREA</strong><small>Motion Lab 0.4.0</small></span>
         </button>
         <nav aria-label="主要导航">${nav.map(([id, label, description]) => `
           <button data-view="${id}" class="nav-item ${state.view === id ? "active" : ""}">
             <strong>${label}</strong><small>${description}</small>
-          </button>`).join("")}<a class="nav-item" href="./character.html"><strong>角色</strong><small>持续对话</small></a><a class="nav-item" href="./setup.html"><strong>配置</strong><small>部署与模型接入</small></a></nav>
+          </button>`).join("")}<a class="nav-item" href="./character.html"><strong>Character Studio</strong><small>角色对话</small></a><a class="nav-item" href="./vrchat.html"><strong>VRChat Studio</strong><small>独立 AI 角色</small></a><a class="nav-item" href="./setup.html"><strong>配置</strong><small>部署与模型接入</small></a></nav>
         <div class="topbar-tools">
           ${executionDomainSelector()}
           ${themeSelector()}

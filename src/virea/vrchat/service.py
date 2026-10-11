@@ -6,6 +6,7 @@ import json
 import time
 from collections import deque
 
+from virea.application.delivery import load_delivery
 from virea.character.contracts import EnvironmentEvent, PlaybackFeedback, SessionRequest
 from virea.character.providers.language import LanguageProvider
 from virea.character.providers.speech import SpeechProvider
@@ -77,6 +78,8 @@ class VRChatService:
                         playback_mode="synchronized",
                     )
                 )
+                if hasattr(self.session, "coordinator"):
+                    self.session.coordinator.bind(f"vrchat:{self.session.id}", "vrchat")
                 self.session.config.max_autonomous_decisions = (
                     request.autonomous_decisions
                 )
@@ -482,10 +485,20 @@ class VRChatService:
                     raise ValueError(
                         "live VRChat playback requires an independent-track motion backend"
                     )
-                path = self.session.directory / f"{pending['id']}.json"
-                asset = json.loads(path.read_text(encoding="utf-8"))
-                wav = self.session.directory / f"{pending['id']}.wav"
-                audio = wav.read_bytes() if pending.get("audio_url") else None
+                if pending.get("execution"):
+                    executable, windows, audio = load_delivery(self.session, pending)
+                    asset = {"windows": windows}
+                    performance = {
+                        **performance,
+                        "duration_seconds": executable.duration_seconds,
+                        "speech": [c.model_dump() for c in executable.speech],
+                    }
+                    self.session.coordinator.state = "playing"
+                else:
+                    path = self.session.directory / f"{pending['id']}.json"
+                    asset = json.loads(path.read_text(encoding="utf-8"))
+                    wav = self.session.directory / f"{pending['id']}.wav"
+                    audio = wav.read_bytes() if pending.get("audio_url") else None
                 # Transfer pose ownership before the model publishes its first
                 # frame. The idle stance must never overwrite generated bones.
                 await self.calibration.stop()

@@ -15,25 +15,74 @@ supersedes: []
 superseded_by: []
 ---
 
-# Start VIREA without a development environment
+# Set up VIREA from zero
 
-Download and extract the repository source ZIP. Keep at least 5 GiB free for the base environment, plus storage for local models. Use Windows 10/11, a recent Linux distribution, or macOS with internet access.
+[中文](automatic-setup.zh-CN.md) · [Documentation](../README.en.md)
 
-1. **Windows:** double-click `Start-VIREA.cmd`. **Linux/macOS:** open a terminal in the extracted folder and run `sh start-virea.sh`. An executable `Start-VIREA.command` is also available for macOS.
-2. Keep the launcher open. It installs user-local uv, Python 3.12, Node.js 24 and the pinned pnpm version; verifies Node's official SHA256; installs locked dependencies; builds the web app; and starts the loopback API. No preinstalled Python, Node, pnpm or Git is required. The terminal shows `[step/8 - percent]` and download progress.
-3. The browser opens `http://127.0.0.1:8000/app/setup.html`. Detected Ollama, LM Studio, llama.cpp / ik_llama and VIREA endpoints can be selected directly. llama.cpp discovery selects its dedicated chat-template options; those extensions are not sent to cloud APIs.
-4. Choose a language provider, paste its API key and click **自动检测并启用** (detect and activate). Models are discovered and recommended; select an alternative from the dropdown without typing IDs. OpenAI-compatible providers, native Anthropic Messages and native Ollama converge on structured output. Presets include OpenAI, DeepSeek, Claude, Alibaba Bailian Beijing/Singapore, OpenRouter, Groq, SiliconFlow, Gemini and custom endpoints. Regions and keys must match. Activation requires an actual generated structured reply and displays that reply, timing and a download.
-5. Select the speech tab. OpenAI Speech, Bailian TTS, ElevenLabs, Azure Speech and local/custom endpoints are available. Models and named voices are selected from discovered lists; existing clones are preserved. Choose the Azure resource region from a dropdown. Local speech discovers the actual running endpoint instead of assuming a fixed port; the server also corrects a default address during saving. Testing generates audio and checks non-silent samples **without playback**, showing the test text, waveform, duration and WAV download. Cloud voice clones are managed in the provider's console; [Audio8](../character/audio8-tts.zh-CN.md) retains local reference-audio cloning. Kokoro uses pretrained voices and does not clone speakers.
-6. If local models are absent, choose an installation recipe, review its terms and click **检测并部署**. Ollama installs its official portable binary and a selected model; Kokoro installs a CPU speech environment and performs silent synthesis; MotionCraft/SynTalker prepare isolated environments, pinned source and official weights. Existing healthy services are reused. Automatic motion device selection attempts CUDA with at least 12 GiB detected NVIDIA VRAM, otherwise CPU. This threshold does not establish free VRAM or real-time performance.
-7. Watch the percentage, `[step/6]`, stage progress and error text. Unknown download totals remain indeterminate. Readiness requires real generation, including when reusing a service: a structured reply, non-silent speech, or 90 changing motion frames after native decoding. Motion checks provide dimensions, timing and an NPZ result; they do not certify avatar IK or visual quality. Cancel/retry preserve caches. Interrupted jobs remain visible; successful services are restored on the next launch. Restoring a local service does not replace a selected cloud connection.
-8. Enter Motion Studio, import an authorized VRM, choose the motion method and start a conversation. **VRChat dual clients, capture and virtual VR remain Windows-only**; follow the [VRChat guide](../character/vrchat-operations.en.md).
+Download the repository ZIP and extract it to a folder you want to keep. The base environment needs about 5 GiB; local models need additional storage. Windows 10/11, recent Linux distributions and macOS can run the setup wizard and browser workspaces.
 
-Saved edits are drafts until tested and activated. API keys never return to the page or browser storage. Windows encrypts them with user-bound DPAPI; Linux/macOS use an owner-only file or an environment variable. Tests make small requests that cloud providers may bill.
+## 1. Open the launcher
 
-Data stays in the ignored `.virea-runtime/portable/` folder: `tools/`, `environment/`, `cache/` and `home/` (configuration, model files, deployment jobs and logs). To choose another disk, run `./scripts/start-virea.ps1 -DataRoot 'X:\VIREA-DATA'` or `VIREA_DATA_ROOT='/data/virea' sh start-virea.sh`. Reuse the same location on subsequent starts; existing files are not automatically migrated. Change the port with `-Port 18001` / `--port 18001`.
+| System | In the extracted project folder |
+|---|---|
+| Windows | Double-click **Start-VIREA.cmd** |
+| macOS | Open **Start-VIREA.command**, or run **sh start-virea.sh** in Terminal |
+| Linux | Run **sh start-virea.sh** in a terminal |
 
-Use **重新生成检验** to run another inference check. Editing a connection invalidates its previous receipt. Receipts include timestamps, hashes and downloadable artifacts under `verification/` beside the connection configuration. Speech downloads are attachments and never autoplay.
+Keep the launcher open. It prepares a local Python 3.12 and Node.js 24 environment, installs the locked dependencies, builds the UI and starts the API. The terminal shows eight steps, a percentage and download progress. Later starts reuse the environment.
 
-If downloads fail, check upstream connectivity and retry. For HTTP 401/403/429, check the provider's key, permissions, region or balance. Empty catalogs require checking access or creating a voice in the provider console before rediscovery; missing local services can be deployed from the page. If memory is insufficient, use a smaller model, free resources or use a remote provider. Removing an active connection restores legacy CharacterConfig routing without deleting models. Use **停止与关闭自动启动** to stop an owned service and disable its automatic recovery; external services and downloaded models are preserved.
+The browser opens `http://127.0.0.1:8000/app/setup.html`. Your files stay together:
 
-Cross-platform base-startup CI is distinct from full model inference on every hardware combination. Upstream downloads, licenses and architecture support remain real dependencies. See [validation evidence](../quality/portable-onboarding.md) and the [automation API](../reference/onboarding-api.md).
+```text
+.virea-runtime/portable/
+  tools/         Python, Node and package managers
+  environment/   Installed application dependencies
+  cache/         Reusable downloads
+  home/          Configuration, model files, results and service logs
+```
+
+To choose another disk or port, use the options in [persistent data locations](persistent-data-root.en.md). On this repository's existing VRChat installation, the saved service address may be `http://127.0.0.1:18001`.
+
+## 2. Connect the capabilities you need
+
+| Capability | Selection | Verification result |
+|---|---|---|
+| Language | Choose a provider, enter its key, then choose a discovered model | A generated structured reply, elapsed time and a downloadable result |
+| Speech | Choose a provider, model and named voice; Azure also asks for a region | A generated waveform, duration and WAV download |
+| Motion | Choose MotionCraft or SynTalker for interactive performances, or a model from Motion Lab's catalog | Generated motion frames, dimensions, elapsed time and an NPZ download |
+
+Use **自动检测并启用** to detect, test and activate a connection. Use **重新生成检验** to repeat the test. An edited connection stays a draft until its new generation check passes. Speech verification creates a file; press a playback control when you want to hear it.
+
+The language presets include OpenAI, DeepSeek, Anthropic, Alibaba Bailian, Gemini, OpenRouter, Groq and SiliconFlow. Local discovery finds Ollama, LM Studio, llama.cpp and VIREA endpoints. Speech presets include OpenAI Speech, Bailian, ElevenLabs, Azure and local services. Choose the region that belongs to your provider key. Models and voices are selected from lists.
+
+For voice cloning, use an existing provider clone or import reference audio and its matching transcript into [Audio8](../character/audio8-tts.zh-CN.md). Kokoro offers pretrained voices.
+
+## 3. Deploy a local model
+
+Choose an installation recipe and click **检测并部署**. The page shows the current step, percentage and download progress. VIREA reuses healthy local services and cached assets; otherwise it prepares an isolated environment, downloads the pinned source and model files, starts the service and runs a generation check.
+
+Ollama supplies local language models; Kokoro supplies CPU speech; MotionCraft and SynTalker supply motion. Hardware detection selects a runtime. The automatic motion selection starts with CUDA when the detected NVIDIA GPU has at least 12 GiB VRAM, or selects CPU. Compare model requirements and available memory in the [model catalog](../models/README.en.md).
+
+Cancel and retry keep reusable downloads. Successful services restart with VIREA. **停止与关闭自动启动** stops a VIREA-managed service and turns off its automatic recovery.
+
+## 4. Open a workspace
+
+- [Motion Lab](../workflows/motion-lab.en.md): describe an action, generate it, compare skeletons and export.
+- [Character Studio](../workflows/character-studio.en.md): import a VRM and interact through independent speech and motion tracks.
+- [VRChat Studio](../workflows/vrchat-studio.en.md): on Windows, connect separate AI and observer accounts, calibrate and inspect the AI from the observer's view.
+
+The browser shows generation and execution separately. Inspect the model result first, then check movement and subtitles in the selected target.
+
+## Recover a connection
+
+| Message | Next step |
+|---|---|
+| Connection timeout | Check the endpoint or local service status, then retry detection |
+| HTTP 401 or 403 | Select the correct region and update the provider key |
+| HTTP 429 | Check the provider quota and retry when available |
+| No voices found | Select a built-in voice, or create a clone in the provider console and detect again |
+| Insufficient memory | Select a smaller model, another runtime or a remote connection |
+
+Keys are stored on the server: Windows uses user-bound DPAPI; Linux and macOS use an owner-only file or environment variables. Generation checks use the selected provider's normal inference API. Receipts, hashes and results are stored in `verification/` beside the connection configuration.
+
+[Automation API](../reference/onboarding-api.md) · [Platform guides](../platforms/README.en.md) · [Validation evidence](../quality/portable-onboarding.md)

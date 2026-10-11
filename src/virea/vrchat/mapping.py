@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 
+from virea.motion.interpolation import slerp as slerp
 from virea.motion.rotation import quat_apply_xyzw, quat_multiply_xyzw
 from virea.motion.skeleton import CANONICAL_PARENT, DEFAULT_REST_OFFSETS
 
@@ -28,18 +29,6 @@ def unit_quaternion(value):
     if q.shape != (4,) or not np.isfinite(q).all() or abs(np.linalg.norm(q) - 1) > 0.01:
         raise ValueError("expected a finite unit xyzw quaternion")
     return q / np.linalg.norm(q)
-
-
-def slerp(a, b, t):
-    dot = float(np.dot(a, b))
-    if dot < 0:
-        b, dot = -b, -dot
-    dot = min(dot, 1.0)
-    if dot > 0.9995:
-        result = a + t * (b - a)
-        return result / np.linalg.norm(result)
-    angle = math.acos(dot)
-    return (math.sin((1 - t) * angle) * a + math.sin(t * angle) * b) / math.sin(angle)
 
 
 def unity_quaternion(q):

@@ -64,6 +64,7 @@ export interface Performance {
   speech: { id: string; start_seconds: number; duration_seconds: number; text: string }[];
 }
 export interface Session {
+  execution?: { state: string; epoch: number; receipt?: { evidence: string } | null };
   motion_backend?: "sentiavatar_ardy" | "motioncraft" | "syntalker";
   performance?: Performance | null;
   id: string;

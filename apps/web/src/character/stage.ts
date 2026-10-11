@@ -17,6 +17,7 @@ import { MotionInspection } from "./inspection";
 import { PerformanceRecording, mixRecordedAudio } from "./recording";
 import { captureVideo } from "./video";
 import { speechAt, validatePerformance } from "./performance";
+import { validateExecution } from "./execution.mjs";
 import type { BodyState, Expression, FaceTrack, PlaybackProgress, BodyProgram, Session } from "./contracts";
 
 export class CharacterStage {
@@ -570,7 +571,8 @@ export class CharacterStage {
     const [response, audio] = await Promise.all([fetch(performance.asset_url),
       packet.audio_url ? this.loadAudio(packet.audio_url) : null]);
     if (!response.ok) throw new Error(`表演资源读取失败 (${response.status})`);
-    const { windows } = await response.json() as { windows: SpatialWindow[] };
+    const { windows, executable } = await response.json() as { windows: SpatialWindow[]; executable?: unknown };
+    validateExecution(packet, executable);
     validatePerformance(performance, windows);
     if (audio && Math.abs(audio.duration - performance.duration_seconds) > 1 / 16000 + 1e-6)
       throw new Error("语音混音与表演时间轴长度不一致");

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="350" viewBox="0 0 1280 350" role="img" aria-labelledby="title desc">
+<title id="title">VIREA — One Foundation. Multiple Embodiments.</title><desc id="desc">Motion Lab, Character Studio and VRChat Studio share capabilities, motion conversion and execution contracts.</desc>
+<rect width="1280" height="350" rx="24" fill="#11100d"/>
+<g fill="#f5e8cd" font-family="Segoe UI,Arial,sans-serif" text-anchor="middle">
+<text x="640" y="55" font-size="39" font-weight="700">VIREA</text>
+<text x="640" y="107" font-size="26" fill="#cdbfa7">Verifiable Interaction Runtime for Embodied Agents</text>
+<text x="640" y="169" font-size="34" font-weight="650">One Foundation. Multiple Embodiments.</text>
+<text x="228" y="267" font-size="23">Motion Lab</text><text x="640" y="267" font-size="23">Character Studio</text><text x="1052" y="267" font-size="23">VRChat Studio</text>
+<text x="640" y="326" font-size="21" fill="#cdbfa7">One capability system · One motion foundation · Multiple execution targets</text></g>
+<g fill="none" stroke="#f5e8cd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+<rect x="218" y="213" width="11" height="11" rx="2"/><path d="M224 224v9h8"/><rect x="232" y="226" width="11" height="11" rx="2"/>
+<rect x="626" y="213" width="27" height="19" rx="3"/><path d="M636 237h8m-4-5v5"/>
+<path d="M1037 229l3-11h4m19 11-3-11h-4m-8 11h5"/><circle cx="1043" cy="231" r="6"/><circle cx="1059" cy="231" r="6"/>
+</g></svg>

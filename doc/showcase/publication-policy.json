@@ -818,6 +818,10 @@
       "legal_permission_verified": false,
       "publication_basis": "Explicit repository owner request for real VRChat integration demos and README publication",
       "provenance": "doc/quality/vrchat-evidence.json"
+    },
+    "doc/assets/virea-foundation.svg": {
+      "kind": "project-owned-architecture-illustration",
+      "public_embed_allowed": true
     }
   },
   "public_remote_media_allowlist": {
