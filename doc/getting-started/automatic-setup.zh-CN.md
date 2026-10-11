@@ -65,7 +65,7 @@ virea/
 | Anthropic Claude | 原生 Messages / Tool Use，包括流式结构化回复 |
 | 阿里云百炼 | 北京与新加坡分别预设；API Key、地址和模型所在地区必须一致 |
 | OpenRouter、Groq、硅基流动、Gemini | 各自 OpenAI 兼容地址；具体模型仍需通过测试 |
-| Ollama、LM Studio | 本机模型自动发现；Ollama 使用原生 API |
+| Ollama、LM Studio、llama.cpp / ik_llama | 本机模型自动发现；Ollama 使用原生 API，llama.cpp 使用专用模板设置 |
 | 自定义 OpenAI 兼容接口 | 填基础地址；高级设置可切换 JSON Object / JSON Schema |
 
 厂商列出模型不代表该模型适合角色规划。“测试并启用”要求返回有效的结构化结果。不能完成时检查额度、地区、模型能力或更换模型。

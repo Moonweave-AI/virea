@@ -315,6 +315,42 @@ def test_reasoning_model_uses_completion_token_limit():
     assert body["max_completion_tokens"] == 1000 and "temperature" not in body
 
 
+@pytest.mark.parametrize("has_system", [True, False])
+def test_json_object_template_keeps_one_leading_system_message(has_system):
+    history = (
+        [{"role": "system", "content": "Keep this persona."}] if has_system else []
+    ) + [{"role": "user", "content": "Hello"}]
+    original = json.dumps(history)
+    _, body = request_spec(
+        {"provider": "custom-language", "protocol": "openai", "model": "qwen"},
+        history,
+        SCHEMA,
+        256,
+        0,
+        False,
+    )
+    assert body["messages"][0]["role"] == "system"
+    assert sum(m["role"] == "system" for m in body["messages"]) == 1
+    assert body["messages"][-1] == {"role": "user", "content": "Hello"}
+    assert "JSON" in body["messages"][0]["content"]
+    assert json.dumps(history) == original
+
+
+def test_local_template_options_are_only_sent_to_llamacpp():
+    for provider in ("llamacpp", "openai", "deepseek", "lmstudio"):
+        _, body = request_spec(
+            {"provider": provider, "protocol": "openai", "model": "qwen"},
+            [],
+            SCHEMA,
+            256,
+            0,
+            False,
+        )
+        assert ("chat_template_kwargs" in body) == (provider == "llamacpp")
+        if provider == "llamacpp":
+            assert body["chat_template_kwargs"]["enable_thinking"] is False
+
+
 def test_install_request_cannot_execute_shell_commands():
     from virea.onboarding.jobs import DeploymentRequest
 

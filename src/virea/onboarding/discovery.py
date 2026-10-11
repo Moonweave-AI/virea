@@ -53,6 +53,11 @@ async def discover(paths, config):
                 voices = body.get("voices", [])
                 if kind == "language" and not isinstance(models, list):
                     return None
+                if kind == "language" and any(
+                    isinstance(model, dict) and model.get("owned_by") == "llamacpp"
+                    for model in models
+                ):
+                    provider = "llamacpp"
                 return {
                     "provider": "ollama" if endpoint == "/api/tags" else provider,
                     "kind": kind,

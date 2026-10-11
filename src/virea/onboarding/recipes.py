@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import platform
 import shutil
@@ -12,7 +13,7 @@ from pathlib import Path
 import httpx
 from virea_bootstrap.environment import sanitized_python_environment
 
-from .connections import ConnectionInput, ConnectionStore
+from .connections import ConnectionInput, ConnectionStore, private_json
 from .language import completion, provider_error
 
 REPOSITORY = Path(__file__).resolve().parents[3]
@@ -95,10 +96,20 @@ async def install_ollama(jobs, identifier, uv, env):
     if not name:
         raise ValueError("此系统尚无官方 Ollama 安装包")
     root = jobs.paths.root / "tools" / "ollama" / OLLAMA_RELEASE
-    candidates = [root / "ollama.exe", root / "bin/ollama", root / "ollama"]
+    candidates = (
+        [root / "ollama.exe"]
+        if system == "Windows"
+        else [root / "bin/ollama", root / "ollama"]
+    )
+    receipt = root / "installed.json"
     existing = next((p for p in candidates if p.is_file()), None)
-    if existing:
-        return str(existing)
+    if existing and receipt.is_file():
+        try:
+            saved = json.loads(receipt.read_text(encoding="utf-8"))
+            if saved.get("asset") == name and saved.get("release") == OLLAMA_RELEASE:
+                return str(existing)
+        except (OSError, ValueError):
+            pass
     root.mkdir(parents=True, exist_ok=True)
     download = root.parent / name
     async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
@@ -146,6 +157,11 @@ async def install_ollama(jobs, identifier, uv, env):
     installed = next((p for p in candidates if p.is_file()), None)
     if not installed:
         raise ValueError("官方安装包中没有找到 Ollama 可执行文件")
+    # An interrupted extraction must not count as a completed installation merely
+    # because its executable appeared before the supporting libraries did.
+    private_json(
+        receipt, {"release": OLLAMA_RELEASE, "asset": name, "sha256": expected}
+    )
     download.unlink()
     return str(installed)
 
@@ -234,8 +250,6 @@ async def deploy(jobs, identifier, request):
                     timeout=600,
                 ) as response:
                     provider_error(response)
-                    import json
-
                     async for line in response.aiter_lines():
                         if not line:
                             continue

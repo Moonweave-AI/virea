@@ -76,14 +76,16 @@ def request_spec(connection, messages, schema, tokens, temperature, stream):
     if mode == "auto":
         mode = PRESETS[connection["provider"]].get("structured", "json_object")
     if mode == "json_object":
-        messages = [
-            *messages,
-            {
-                "role": "system",
-                "content": "Return only valid JSON matching this schema: "
-                + json.dumps(schema, ensure_ascii=False),
-            },
-        ]
+        contract = "Return only valid JSON matching this schema: " + json.dumps(
+            schema, ensure_ascii=False
+        )
+        # Local chat templates commonly require a single leading system message.
+        # Never append one after user/assistant turns or mutate the caller's history.
+        messages = [dict(message) for message in messages]
+        if messages and messages[0]["role"] == "system":
+            messages[0]["content"] += "\n" + contract
+        else:
+            messages.insert(0, {"role": "system", "content": contract})
     body = {
         "model": model,
         "messages": messages,
@@ -103,6 +105,8 @@ def request_spec(connection, messages, schema, tokens, temperature, stream):
         body.update(max_tokens=tokens, temperature=temperature)
     if connection["provider"].startswith("bailian"):
         body["enable_thinking"] = False
+    if connection["provider"] == "llamacpp":
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     return "/chat/completions", body
 
 

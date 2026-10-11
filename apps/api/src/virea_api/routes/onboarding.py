@@ -157,7 +157,7 @@ async def verify_connection(profile, client):
             client,
             [{"role": "user", "content": 'Return exactly this JSON: {"ready":true}'}],
             schema,
-            tokens=256,
+            tokens=4096,
             temperature=0,
         )
         if result != {"ready": True}:

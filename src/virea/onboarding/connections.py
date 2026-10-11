@@ -119,6 +119,15 @@ PRESETS = {
         local=True,
         structured="json_schema",
     ),
+    "llamacpp": preset(
+        "llama.cpp / ik_llama · 本地模型",
+        "language",
+        "openai",
+        "http://127.0.0.1:8080/v1",
+        "",
+        local=True,
+        structured="json_schema",
+    ),
     "custom-language": preset(
         "自定义 OpenAI 兼容接口", "language", "openai", "", "", structured="json_object"
     ),

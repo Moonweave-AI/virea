@@ -232,3 +232,64 @@ def test_spoofed_local_host_from_remote_client_is_rejected(api):
             assert response.status_code == 403
 
     asyncio.run(run())
+
+
+def test_discovery_identifies_llamacpp_protocol_from_server(tmp_path, monkeypatch):
+    from virea.onboarding.discovery import discover
+
+    real_client = httpx.AsyncClient
+
+    def respond(request):
+        if request.url.port == 8080 and request.url.path == "/v1/models":
+            return httpx.Response(
+                200, json={"data": [{"id": "qwen", "owned_by": "llamacpp"}]}
+            )
+        return httpx.Response(404)
+
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs),
+    )
+
+    async def run():
+        report = await discover(
+            SimpleNamespace(root=tmp_path),
+            CharacterConfig(llm_url="http://127.0.0.1:8080/v1"),
+        )
+        assert len(report["services"]) == 1
+        assert report["services"][0]["provider"] == "llamacpp"
+        assert report["services"][0]["models"] == ["qwen"]
+
+    asyncio.run(run())
+
+
+def test_incomplete_binary_extraction_is_not_reused(tmp_path, monkeypatch):
+    import os
+    from virea.onboarding.recipes import OLLAMA_RELEASE, install_ollama
+
+    root = tmp_path / "tools/ollama" / OLLAMA_RELEASE
+    root.mkdir(parents=True)
+    # Cancellation can leave an executable before its libraries and receipt exist.
+    (root / ("ollama.exe" if os.name == "nt" else "ollama")).write_bytes(b"partial")
+    real_client = httpx.AsyncClient
+    requested = []
+
+    def respond(request):
+        requested.append(str(request.url))
+        return httpx.Response(503)
+
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs),
+    )
+
+    async def run():
+        with pytest.raises(httpx.HTTPStatusError):
+            await install_ollama(
+                SimpleNamespace(paths=SimpleNamespace(root=tmp_path)), "retry", "uv", {}
+            )
+        assert len(requested) == 1 and "releases/tags/" in requested[0]
+
+    asyncio.run(run())
