@@ -1,21 +1,6 @@
----
-type: adr
-status: Accepted
-owner: "@Joker-of-Gotham"
-decision_owner: "@Joker-of-Gotham"
-created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
-review_cycle_days: 180
-summary: 退役已失去产品用途的 VMF Stage 1 训练支线，同时保留 VIREA 共享动作数学、运行时与发布契约。
-canonical: doc/adrs/0005-retire-vmf-stage1.zh-CN.md
-related:
-  - 0003-multi-package-isolated-model-runtimes.zh-CN.md
-  - ../rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md
-  - ../refactor/RELEASE_ACCEPTANCE_0.4.0.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # ADR-0005：退役 VMF Stage 1 训练支线
 
@@ -54,3 +39,28 @@ VMF 专属源码、测试、配置、文档、演示、训练数据派生物与 
 VIREA 的生产表面不再携带训练支线和约 63 GiB 遗留数据。历史训练 checkpoint 不再可由本仓库恢复，
 这是经 Decision Owner 明确批准的不可逆后果。需要未来训练功能时，应以新的模型插件、独立 runtime
 和可复现数据契约重新提案，而不是恢复 VMF 命名空间。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: adr
+status: Accepted
+owner: "@Joker-of-Gotham"
+decision_owner: "@Joker-of-Gotham"
+created: 2026-08-21
+updated: 2026-08-21
+last_reviewed: 2026-08-21
+review_cycle_days: 180
+summary: 退役已失去产品用途的 VMF Stage 1 训练支线，同时保留 VIREA 共享动作数学、运行时与发布契约。
+canonical: doc/adrs/0005-retire-vmf-stage1.zh-CN.md
+related:
+  - 0003-multi-package-isolated-model-runtimes.zh-CN.md
+  - ../rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md
+  - ../refactor/RELEASE_ACCEPTANCE_0.4.0.md
+supersedes: []
+superseded_by: []
+-->

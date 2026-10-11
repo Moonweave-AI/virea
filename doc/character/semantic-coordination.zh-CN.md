@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-09-29
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 用实际语音事件协调独立身体目标，区分语义阶段、模型推理窗口和播放事实。
-canonical: doc/character/semantic-coordination.zh-CN.md
-related: [doc/character/planned-expression-reliability.zh-CN.md, doc/character/temporal-behavior.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 对话、身体意图与实际播放的协调
 
@@ -40,6 +29,7 @@ superseded_by: []
 ## 实现边界
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   U[用户对话与上下文] --> D[对话理解与身体承诺]
   D --> V[回复提纲 → 话语单元 → TTS]
@@ -146,3 +136,24 @@ flowchart LR
 最终浏览器实播（`atomic-dance-playback.json`）：LLM 把两个候选目标合为一个 12 秒 ARDY 阶段，原生窗口为 6.4 + 5.6 秒，随后执行 LLM 给出的 1 秒恢复；末态支撑、根速度和关节速度检查通过。22.375 秒语音完整输出，6/6 个随声窗口及时就绪，执行链无错误。第一身体窗口仍在声音开始后约 5.30 秒出现；首次表达 34.281 秒、首音频生成 32.469 秒，不能称为低延迟或严格同时起步。最终截图确认模型回到稳定站姿，未把单个样本推广为全部动作都自然。
 
 回放交互复测中，两次暂停导出时钟均为 253.760 秒；恢复后停止关闭了音频。该测试还发现停止没有清除预览标记，已在取消入口修复，以免后续真实录制被误判成预览。修正后全前端 122 项测试及 Vite 构建再次通过。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-09-29
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 用实际语音事件协调独立身体目标，区分语义阶段、模型推理窗口和播放事实。
+canonical: doc/character/semantic-coordination.zh-CN.md
+related: [doc/character/planned-expression-reliability.zh-CN.md, doc/character/temporal-behavior.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

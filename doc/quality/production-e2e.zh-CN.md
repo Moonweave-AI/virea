@@ -1,21 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: 真模型从环境检测到浏览器播放的单链验收、证据结构和晋级门槛。
-canonical: doc/quality/production-e2e.zh-CN.md
-related:
-  - production-e2e.en.md
-  - ../models/README.zh-CN.md
-  - ../platforms/README.zh-CN.md
-  - ../operations/troubleshooting.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](production-e2e.en.md)
+<!-- END DOC NAV -->
 
 # Production E2E
 
@@ -104,3 +89,28 @@ packaging 机制回归；冻结树的最终 sdist/wheel、installed Web 版本�
 代码 `LICENSE` 缺失、PRISM 许可、SentiAvatar MTA63 CC BY-NC、Showcase 页已全部内联的 16 个指定 GIF
 使用权限未核实、CMDM 模型卡许可链接缺文件、托管 CI 与生产 SLO/部署后验证缺失。任何一条都不能由本地
 E2E 或用户 `--accepted-license` 自动消除。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: 真模型从环境检测到浏览器播放的单链验收、证据结构和晋级门槛。
+canonical: doc/quality/production-e2e.zh-CN.md
+related:
+  - production-e2e.en.md
+  - ../models/README.zh-CN.md
+  - ../platforms/README.zh-CN.md
+  - ../operations/troubleshooting.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

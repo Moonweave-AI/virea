@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Pipeline 工程设计
 
 本页解释 RFC-0001 以及当前 working tree 中 RFC-0002/ADR-0002 提议的工程落点。JSON Schema 与实现是当前数据契约的事实源；RFC-0002/ADR-0002 仍为 `Proposed`，本页记录“已实施中”不等于将其写成 `Accepted`。
@@ -5,6 +9,7 @@
 ## 模块与唯一职责
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart TD
     A["Raw files"] --> B["DatasetAdapter"]
     B --> C["RawClip + native facts"]
@@ -138,9 +143,13 @@ GRAB、Motion-X 以及 AMASS/SMPL-H 中未经 source-rest hand-frame 标定的�
 
 合并或发布前必须用[验收清单](validation.zh-CN.md)对码；配置不是 `v0.4.0`、任一 profile gate 为 `draft`、artifact 缺 replay evidence 或 Viewer 修改 pose 时，均必须 fail-closed。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -159,5 +168,4 @@ related:
   - adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

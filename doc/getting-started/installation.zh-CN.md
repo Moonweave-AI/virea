@@ -1,24 +1,12 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: 在不污染 checkout 的前提下安装 VIREA、初始化外部状态并记录机器报告。
-canonical: doc/getting-started/installation.zh-CN.md
-related:
-  - installation.en.md
-  - ../getting-started.zh-CN.md
-  - first-generation.zh-CN.md
-  - ../platforms/README.zh-CN.md
-  - ../operations/runtime-data-and-retention.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](installation.en.md)
+<!-- END DOC NAV -->
 
 # 安装
+
+<!-- DOCS-SETUP-ROUTE -->
+> [!TIP]
+> 第一次使用？从[自动部署](automatic-setup.zh-CN.md)开始，启动器会准备运行环境。本页保留开发者手动安装与命令行操作。
 
 > [中文](installation.zh-CN.md) · [English](installation.en.md) · [完整 clone 教程](../getting-started.zh-CN.md)
 
@@ -49,3 +37,29 @@ uv run virea
 读取可能已被后来机器状态覆盖的全局 latest。
 
 仓库根目录不得出现 `.venv`、模型缓存、日志、SQLite、job/result 或 pytest 临时目录。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 在不污染 checkout 的前提下安装 VIREA、初始化外部状态并记录机器报告。
+canonical: doc/getting-started/installation.zh-CN.md
+related:
+  - installation.en.md
+  - ../getting-started.zh-CN.md
+  - first-generation.zh-CN.md
+  - ../platforms/README.zh-CN.md
+  - ../operations/runtime-data-and-retention.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

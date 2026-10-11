@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # WP00 重构基线报告
 
 快照日期：2026-08-20
@@ -69,6 +73,12 @@ $ node --test tests/characterization/viewer_contract.test.mjs
 ## 后续切片入口
 
 后续重构应先让新 adapter/registry 实现通过本目录测试，再按模型逐个增加 test-only adapter fixture、官方 checkpoint 真实推理、production acceptance 和真实数据 opt-in 测试；fixture 不作为发布证据。若必须更改 schema URI、211 布局、CLI 或 Preview 路由，应先提供版本化新契约与旧契约兼容/迁移测试。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: report

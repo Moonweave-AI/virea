@@ -1,21 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: Root-cause research for the PRISM Runtime 0.1.5 native crash during Windows Blackwell checkpoint materialization.
-canonical: doc/research/prism-windows-blackwell-materialization-2026-08-23.en.md
-related:
-  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
-  - ../models/prism.en.md
-  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
-supersedes:
-  - prism-checkpoint-loading-integrity-2026-08-23.en.md
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](prism-windows-blackwell-materialization-2026-08-23.zh-CN.md)
+<!-- END DOC NAV -->
 
 # PRISM Windows Blackwell materialization research log
 
@@ -87,3 +72,28 @@ but known unsafe paths must be removed and each declared target must fail closed
 
 Decision: promote the bounded materialization fix as Runtime 0.1.6, retain `integrated_experimental`, reuse unchanged
 verified assets, and require fresh real-checkpoint acceptance before changing support evidence.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: Root-cause research for the PRISM Runtime 0.1.5 native crash during Windows Blackwell checkpoint materialization.
+canonical: doc/research/prism-windows-blackwell-materialization-2026-08-23.en.md
+related:
+  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
+  - ../models/prism.en.md
+  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+supersedes:
+  - prism-checkpoint-loading-integrity-2026-08-23.en.md
+superseded_by: []
+-->

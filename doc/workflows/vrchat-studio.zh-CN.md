@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the vrchat-studio workspace.
-canonical: doc/workflows/vrchat-studio.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](vrchat-studio.en.md)
+<!-- END DOC NAV -->
 
 # VRChat Studio：独立 AI 角色
+
+<!-- WORKSPACE ROUTE -->
+> 🌐 **准备 → 生成 → 观察 → 导出** · [先看演示](../demos/README.zh-CN.md)
 
 [English](vrchat-studio.en.md) · [Windows 部署与客户端操作](../character/vrchat-operations.zh-CN.md)
 
@@ -32,3 +24,24 @@ AI 控制专用 VRChat 账号，观察者使用另一个账号，在同一房间
 每次请求保留同一份原生动作。源骨架与目标骨架通过静止坐标系绑定；MotionCraft 播放曲线采用明确记录的 SO(3) 时间滤波。手部根据逐帧参数演算，不自动叠加平均手型。肘部与膝部追踪器分别随上臂和大腿运动，防穿地约束统一调整整个追踪骨架的高度。具体计算与同样本对照见[动作执行质量](../quality/vrchat-motion.md)。
 
 [操作与键位](../character/vrchat-operations.zh-CN.md) · [真实姿态传输](../character/vrchat.zh-CN.md) · [录制验证](../quality/vrchat-recordings.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the vrchat-studio workspace.
+canonical: doc/workflows/vrchat-studio.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

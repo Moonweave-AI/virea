@@ -1,19 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-09-26
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 持续角色的部署、状态反馈、播放与测量。
-canonical: doc/character/README.zh-CN.md
-related:
-  - README.en.md
-  - ../getting-started.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](README.en.md)
+<!-- END DOC NAV -->
 
 # 持续角色（实验功能）
 
@@ -249,3 +236,26 @@ node scripts/character/playback_e2e.mjs "$env:VIREA_HOME/avatars/character.vrm" 
 上游依据：[Qwen 模型卡](https://huggingface.co/Qwen/Qwen3.5-2B)、
 [Kokoro 中文模型卡](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh)、
 [SentiAvatar 固定源码](https://github.com/SentiAvatar/SentiAvatar/tree/71c61b05a0609a41c17aa146c9f4ee7778ebc649)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 持续角色的部署、状态反馈、播放与测量。
+canonical: doc/character/README.zh-CN.md
+related:
+  - README.en.md
+  - ../getting-started.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

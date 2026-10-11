@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # SuSuInterActs 到 VRM
 
 SuSu 有独立的 body/hand 6D 和可选 positions。当前路径以 SentiAvatar 官方公开实现为基线：前两列、parent-local、20 FPS。有 63-joint positions 时从原生 joint centres 构造手部 evidence；rotation-only 时先在固定 MTA63 source rest skeleton 做完整 FK，再从同帧重建 positions 构造相同 evidence。两路都不把 source local quaternion 直接嫁接到 fitted canonical wrist，并在机制层调用七库共用的全手 solver；Viewer 不修正。
@@ -279,9 +283,13 @@ $$
 
 完整 fail-closed 条件见 [SuSu 专项审计](../susu-pipeline-audit.zh-CN.md)。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -299,5 +307,4 @@ related:
   - ../adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

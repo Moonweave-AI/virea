@@ -1,186 +1,181 @@
-# VIREA
+<p align="center">
+  <img src="doc/assets/brand/virea-banner.png" alt="VIREA — from avatars to agents, with skeletal motion becoming a living character" width="100%">
+</p>
+<h1 align="center">VIREA</h1>
+<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents</sub></p>
 
-![VIREA — One Foundation. Multiple Embodiments.](doc/assets/virea-foundation.svg)
+<p align="center">
+  <a href="README.md"><img src="doc/assets/brand/nav-english.png" alt="English" width="240"></a>
+  <a href="README.zh-CN.md"><img src="doc/assets/brand/nav-chinese.png" alt="简体中文" width="240"></a><br>
+  <a href="doc/README.zh-CN.md"><img src="doc/assets/brand/nav-documentation.png" alt="Documentation" width="240"></a>
+  <a href="doc/getting-started/automatic-setup.zh-CN.md"><img src="doc/assets/brand/nav-setup.png" alt="Set Up" width="240"></a>
+  <a href="doc/demos/README.zh-CN.md"><img src="doc/assets/brand/nav-demos.png" alt="Demos" width="240"></a>
+</p>
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [文档](doc/README.zh-CN.md) · [开始部署](doc/getting-started/automatic-setup.zh-CN.md) · [演示](#demos)
+## ✦ 让想法成为角色的行动
 
-**VIREA 把语言、语音和动作模型连接到可交互的角色。** 你可以单独生成动作，在网页中与角色对话，也可以让独立 AI 角色进入 VRChat。三种工作方式共用模型接入、骨骼转换和执行记录。
+**VIREA 把语言、语音和动作模型连接到可观看、可交互的角色。** 它将模型的原始骨骼输出重定向到网页中的 VRM 角色，以及 VRChat 中的 Humanoid 角色，串起从模型部署、动作生成到播放与检查的完整工作流。
 
-## 选择你的工作台
+<img src="doc/assets/brand/features.png" alt="骨骼重定向、可组合的模型能力，以及网页和虚拟世界中的统一执行" width="100%">
 
-| 工作台 | 用它做什么 | 从这里开始 |
-|---|---|---|
-| **Motion Lab** | 输入动作描述，比较原始骨架与角色结果，导出动画 | [动作生成指南](doc/workflows/motion-lab.zh-CN.md) |
-| **Character Studio** | 导入 VRM，与角色持续对话，编排独立的语音和动作轨道 | [角色交互指南](doc/workflows/character-studio.zh-CN.md) |
-| **VRChat Studio** | 控制独立 AI 账号，用观察者账号查看动作和字幕 | [VRChat 指南](doc/workflows/vrchat-studio.zh-CN.md) |
+<table>
+<tr>
+<td width="33%" valign="top"><h3>01 · 🦴 让动作适配角色</h3><p>源骨架的静止坐标系、关节层级和旋转约定进入同一套重定向基础。在原始骨架与目标角色之间对照检查手指、根部移动和脚底接触。</p><a href="doc/math-retarget/README.zh-CN.md">了解骨骼与数学 →</a></td>
+<td width="33%" valign="top"><h3>02 · 🔌 自由组合模型</h3><p>MotionCraft、SynTalker、ARDY 及模型目录中的其他模型，通过适配器接入各自的原始骨骼输出。云端或本地 LLM、TTS 使用统一能力接口，每个连接都能通过实际生成来检验。</p><a href="doc/models/README.zh-CN.md">浏览模型目录 →</a></td>
+<td width="33%" valign="top"><h3>03 · 🎬 串起完整表演</h3><p>动作与语音分别编排：动作可以分段，语音可以从中间开始，也可以提前结束。统一消息、动作文件和执行回执把整段表演送到网页或 VRChat，让每一步都有据可查。</p><a href="doc/architecture/contracts.zh-CN.md">查看协议与接口 →</a></td>
+</tr>
+</table>
 
-![Character Studio 中的真实动作生成画面](doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg)
+---
 
-## 从零开始
+## 🧭 项目对比
 
-1. [下载项目 ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) 并解压。Windows 双击 **Start-VIREA.cmd**；macOS 双击 **Start-VIREA.command**；Linux 在项目目录运行 **sh start-virea.sh**。
-2. 等待启动器准备 Python、Node 和依赖。完成后会打开配置向导，界面显示部署进度与当前步骤。
-3. 选择远端服务或已检测到的本地模型。远端服务填写密钥后，模型和声线通过下拉列表选择；本地模型点击 **检测并部署**。
-4. 点击 **生成检验**。看到实际文本、音频波形或动作帧及可下载结果后，再启用配置。
-5. 打开对应工作台。Motion Lab 只需要动作模型；两个交互工作台按需接入语言和语音模型。
+这些项目分别从 AI 陪伴、动画创作或视频动捕出发。VIREA 将生成、重定向与角色执行放进同一个运行时。
 
-| 运行环境 | 工作方式 |
-|---|---|
-| Windows | 三个工作台；VRChat 独立双账号与虚拟 VR 驱动 |
-| Linux、macOS | Motion Lab、Character Studio、模型接入与部署 |
-| Windows + WSL2 | Windows 负责网页和 VRChat，模型可选择 WSL2 运行环境 |
+| 项目 | 对话与语音 | 生成动作 | 原始骨架 → VRM | 网页角色 | VRChat 执行 | 独立时间轨 | 动作与执行契约 |
+|:--|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| [Project Gabriel](https://github.com/HoppouAI/ProjectGabriel-Remastered/tree/motion-server) | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| [rexclaw](https://github.com/Codemarchant/rexclaw) | ✅ | ✅¹ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| [text-to-vrma](https://github.com/Kirakun0328/text-to-vrma) | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [MotionMind](https://github.com/rohitacharyams/MotionMind) | ✅ | ❌² | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [ChatVRM](https://github.com/pixiv/ChatVRM) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **VIREA** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-语言接口包括 OpenAI、DeepSeek、Anthropic、阿里百炼、Gemini、OpenRouter 及兼容服务；语音包括 OpenAI Speech、百炼、ElevenLabs、Azure 和本地服务。安装向导检测硬件并显示适合的运行环境。模型资源需求见[模型目录](doc/models/README.zh-CN.md)。
+<sub>✅ 在本次比较范围内已实现 · ❌ 该范围内未提供。¹ 通过 Text-To-VRMA 接入。² MotionMind 从视频恢复动作，并支持片段编排。“独立时间轨”指可显式安排语音和动作的起止时间；“动作与执行契约”同时包含统一动作表示和目标执行回执。核对日期：2026-10-11。[定义、版本与来源](doc/comparison.zh-CN.md)。</sub>
 
-首次启动默认打开 `http://127.0.0.1:8000/app/setup.html`。设置、模型和生成结果保存在项目的 `.virea-runtime/` 中；后续启动会复用已有环境。语音检验只生成文件，播放由用户操作。
+---
 
-[逐步安装](doc/getting-started/automatic-setup.zh-CN.md) · [选择数据盘](doc/getting-started/persistent-data-root.zh-CN.md) · [排查问题](doc/operations/troubleshooting.zh-CN.md)
+## 🚀 部署与启动
 
-## 一个底座，三种工作方式
+**准备一个文件夹，运行启动器即可开始。** [下载源码 ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) 并解压，或通过 Git 下载：
 
-```mermaid
-flowchart TD
-    ML[Motion Lab] --> M[动作能力]
-    CS[Character Studio] --> P[公共表演编排]
-    VC[VRChat Studio] --> P
-    P --> L[语言能力]
-    P --> A[语音能力]
-    P --> M
-    M --> IR[Motion IR v2 · 重定向 · 校验]
-    IR --> X[可执行表演]
-    A --> X
-    X --> WEB[网页 / VRM]
-    X --> VR[VRChat / OpenVR / OSC]
-    WEB --> E[执行回执]
-    VR --> E
-    IR --> OUT[预览 / 导出]
+```sh
+git clone https://github.com/Moonweave-AI/virea.git
+cd virea
 ```
 
-动作和语音共享时间轴，但拥有各自的长度和起点。短英文动作描述组成阶段序列；语音可在任意阶段开始，也可跨越动作边界。实际合成的采样数决定语音时长，动作模型保留各自的原生历史与推理方式。
+在项目文件夹中，按操作系统运行：
 
-执行结果按计划、生成、校验、发送、设备确认和画面观测记录。切换任务会取消旧任务并更新会话版本；两种执行端使用同一份经过校验的表演数据。
+| Windows · PowerShell | macOS / Linux · 终端 |
+|:--|:--|
+| `.\Start-VIREA.cmd` | `sh start-virea.sh` |
 
-[架构总览](doc/architecture/overview.zh-CN.md) · [公共契约](doc/architecture/contracts.zh-CN.md) · [时序与执行](doc/architecture/execution.zh-CN.md)
+启动器会准备 Python、Node.js 和应用依赖，构建网页并启动服务。以后仍用同一个命令启动。
 
-动作底座统一管理骨骼层级、骨长、局部坐标轴和旋转传播。手部使用模型逐帧传入的参数演算；同一份源动作可以绑定到不同角色。原始输出、重定向结果和播放曲线分别记录，便于定位偏差和重复比较。[骨骼数学与同样本对照](doc/research/skeletal-retargeting-2026-10-11.md) · [VRChat 动作执行](doc/quality/vrchat-motion.md)。
+1. 启动完成后，打开 **[配置向导](http://127.0.0.1:8000/app/setup.html)**。
+2. 选择**语言、语音和动作**服务。自动检测模型与声线，或从目录部署本地模型。
+3. 点击**生成检验**，看到实际结果后进入 **Motion Lab**、**Character Studio** 或 **VRChat Studio**。
+
+> [!TIP]
+> 网页工作区支持 Windows、Linux 和 macOS；VRChat 接入使用 Windows。本地模型的硬件要求会在安装前显示，可以先配置自己需要的能力。
+
+[完整部署指南](doc/getting-started/automatic-setup.zh-CN.md) · [平台说明](doc/platforms/README.zh-CN.md) · [故障排查](doc/operations/troubleshooting.zh-CN.md)
+
+---
 
 <a id="demos"></a>
-## 看看实际效果
+## 🎞️ 演示
 
-下面的视频来自已有实录：VRChat 四段连续交互，以及 MotionCraft、SynTalker 各八段网页表演。[录制条件与逐项记录](doc/quality/vrchat-recordings.md)包含原始文件摘要和检查结果。
+### VRChat Studio
 
+实时对话与生成动作 · 1 分 53 秒
 
-<!-- BEGIN VRCHAT_DEMOS -->
-### 四条连续 VRChat 交互实录
+https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
 
-**1. 展厅导览 — MotionCraft · 5:17.6。** 介绍虚构展品、解释反射光、适应儿童访客，再回答并复盘。
+### Character Studio
 
-https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6
-
-**2. 节奏教学 — SynTalker · 5:39.6。** 建立轮流互动规则、等待准备、纠正理解，再总结练习。
-
-https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656
-
-**3. 灯塔故事 — MotionCraft → SynTalker · 5:16.5。** 选择路线、记住蓝色地图和不会游泳的限制、应对下雨，切换方法后继续并回顾故事。
-
-https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
-
-**4. 活动排练 — SynTalker → MotionCraft · 5:47.4。** 介绍图书交换、澄清免费规则、临时压缩成闭幕环节，再总结修订。
-
-https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
-<!-- END VRCHAT_DEMOS -->
-
-<!-- BEGIN UNIFIED_MOTION_DEMOS -->
-
-### MotionCraft
+同一角色，三条动作生成路线。
 
 <table>
+<tr><th width="33%">MotionCraft</th><th width="33%">SynTalker</th><th width="33%">ARDY + SentiAvatar</th></tr>
 <tr>
-<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted preload="metadata" width="250" height="220"></video></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted preload="metadata" width="250" height="220"></video></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted preload="metadata" width="250" height="220"></video></td>
 </tr>
-<tr>
-<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · motioncraft + Audio8-TTS</sub></td>
-</tr>
+<tr><td align="center">32 s · Text + speech</td><td align="center">32 s · Text + speech</td><td align="center">40 s · Dialogue + behavior</td></tr>
 </table>
 
-### SynTalker
+### Motion Lab
 
-<table>
-<tr>
-<td width="50%" valign="top"><strong>角色介绍与迎宾</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="角色介绍与迎宾" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>热身教练</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="热身教练" width="100%"></a><br><sub>36s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>花园故事表演</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="花园故事表演" width="100%"></a><br><sub>35s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>舞步与节奏教学</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="舞步与节奏教学" width="100%"></a><br><sub>32s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>服装展示与转身</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="服装展示与转身" width="100%"></a><br><sub>34s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>从紧张到庆祝</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="从紧张到庆祝" width="100%"></a><br><sub>33s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>边走边讲的导览</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="边走边讲的导览" width="100%"></a><br><sub>38s · 6 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>拳击基础组合练习</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="拳击基础组合练习" width="100%"></a><br><sub>36s · 7 段动作 · 2 段语音 · syntalker + Audio8-TTS</sub></td>
-</tr>
-</table>
-<!-- END UNIFIED_MOTION_DEMOS -->
+原始骨架与 VRM 重定向对照 · 14 秒
 
-[MotionCraft / SynTalker — 技术梗概 / Technical notes](doc/character/unified-motion.zh-CN.md) · [Gallery](doc/assets/unified-motion-demos/index.html)
+https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
 
-<details>
-<summary>SentiAvatar + ARDY</summary>
+[全部演示与复现说明](doc/demos/README.zh-CN.md) · [视频文件与来源](doc/assets/featured-demos/README.md)
 
-<!-- BEGIN CHARACTER_DEMOS -->
-**8 段完整表演，按两列四行排列。** 每段录制执行模型生成的计划，任务说明提供时长和实测数据。
+<sub>Character Studio 演示角色：Unnamed Character 6，作者 Reira。 <a href="THIRD_PARTY_NOTICES.md">Credits & terms</a>.</sub>
 
-<table>
-<tr>
-<td width="50%" valign="top"><strong>01 · 主持入场</strong><br>开场介绍 → 走位、转身与致意 → 邀请观众开始。<br><video src="https://github.com/user-attachments/assets/7c4006eb-5662-4c46-8697-df720d7d2e9b" controls width="100%"></video><br><sub>完整表演 · 39.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>02 · 热身教练</strong><br>讲解要领 → 侧步与伸展示范 → 总结和鼓励。<br><video src="https://github.com/user-attachments/assets/6707f2ec-8708-435c-92f1-bc16db2e3573" controls width="100%"></video><br><sub>完整表演 · 42.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>03 · 故事表演</strong><br>讲述雨后花园 → 无声寻找与发现 → 温暖结局。<br><video src="https://github.com/user-attachments/assets/0d4e9132-0ebe-41f9-b0af-a43612a20026" controls width="100%"></video><br><sub>完整表演 · 54.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>04 · 舞步教学</strong><br>节奏与重心讲解 → 即兴舞步组合 → 常见错误点评。<br><video src="https://github.com/user-attachments/assets/1260333b-e3bc-4c8a-b017-a853a5236c78" controls width="100%"></video><br><sub>完整表演 · 49.9s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>05 · 服装展示</strong><br>介绍搭配与材质 → 台步、转身与换姿势 → 表达心情。<br><video src="https://github.com/user-attachments/assets/5813e082-8c10-4b98-b369-ed1d321ed98c" controls width="100%"></video><br><sub>完整表演 · 51.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>06 · 情绪转折</strong><br>回应不安 → 身体动作表达庆祝 → 温暖地收尾。<br><video src="https://github.com/user-attachments/assets/9fedd92d-179b-4388-a4fc-a05de5c7a5ae" controls width="100%"></video><br><sub>完整表演 · 32.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>07 · 行走导览</strong><br>介绍入口作品 → 边走边讲、转身示意 → 总结主题。<br><video src="https://github.com/user-attachments/assets/9fd17b2d-9e5b-473c-9a02-772050581b72" controls width="100%"></video><br><sub>完整表演 · 55.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>08 · 拳击练习</strong><br>讲解站姿与守势 → 直拳、闪避与恢复 → 呼吸和节奏总结。<br><video src="https://github.com/user-attachments/assets/e15d77f0-649d-4b88-adfc-4d40d6f8ef88" controls width="100%"></video><br><sub>完整表演 · 48.1s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-</table>
+---
 
-[任务说明与实测](doc/character/showcase.zh-CN.md) · [双列视频画廊](doc/assets/character-demos/index.html)（本地 HTTP 打开） · [执行清单](doc/assets/character-demos/manifest.json)
-<!-- END CHARACTER_DEMOS -->
+<a id="architecture"></a>
+## 🧩 技术架构
 
-</details>
+**一套能力接口，一套动作基础，多个执行目标。** 三个工作区共享模型接口与骨骼数学，各执行端负责自己的渲染或设备传输。
 
-## 开发与深入阅读
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
+flowchart TB
+    subgraph Workspaces["Three workspaces"]
+        Lab["Motion Lab"]
+        Studio["Character Studio"]
+        VRC["VRChat Studio"]
+    end
+    subgraph Capabilities["Pluggable capabilities"]
+        LLM["LLM · intent and planning"]
+        Audio["TTS · measured speech"]
+        Motion["Motion generators · native outputs"]
+    end
+    Lab --> Motion
+    Studio --> LLM
+    VRC --> LLM
+    LLM --> Plan["Performance compiler · independent tracks"]
+    Plan --> Audio
+    Plan --> Motion
+    Motion --> Source["Source adapters · Motion IR v2"]
+    Source --> Rig["Shared skeletal retargeting<br/>Frames · FK · rotations · hands · contacts"]
+    Audio --> Performance["Executable performance"]
+    Rig --> Performance
+    Performance --> Executor["Session + executor<br/>Timing · ownership · cancellation · receipts"]
+    Rig --> Export["Motion Lab · inspect / export"]
+    Executor --> Browser["Browser VRM"]
+    Executor --> Bridge["OpenVR / OSC → VRChat Humanoid"]
+    Browser -. acknowledgements .-> Executor
+    Bridge -. acknowledgements .-> Executor
+    classDef workspace fill:#23222b,stroke:#b1aabd,color:#f2edf1
+    classDef core fill:#302b3a,stroke:#bbb0ca,color:#f2edf1
+    classDef target fill:#352c33,stroke:#c7adb7,color:#f5eef0
+    class Lab,Studio,VRC workspace
+    class Plan,Source,Rig,Performance,Executor core
+    class Browser,Bridge,Export target
+```
 
-| 我想了解 | 文档 |
-|---|---|
-| 调用 API、添加模型 | [统一交互 API](doc/architecture/contracts.zh-CN.md)、[模型接入](doc/development/model-adapter.zh-CN.md) |
-| 骨骼坐标与重定向 | [数学文档](doc/math-retarget/README.zh-CN.md) |
-| 本地环境、模型与数据 | [自动部署](doc/getting-started/automatic-setup.zh-CN.md)、[数据保留](doc/operations/runtime-data-and-retention.zh-CN.md) |
-| 阅读当前实现与迁移 | [架构](doc/architecture/overview.zh-CN.md)、[RFC-0004](doc/rfcs/0004-unified-embodied-runtime.md) |
-| 查看模型和平台配置 | [模型矩阵](doc/models/support-matrix.generated.md)、[平台指南](doc/platforms/README.zh-CN.md) |
-| 参与贡献与验证 | [贡献指南](CONTRIBUTING.md)、[验证记录](doc/quality/unified-runtime.md) |
+| 层次 | 负责什么 | 代码 |
+|:--|:--|:--|
+| 能力接口 | 可替换的语言、音频、动作、源格式与角色执行接口 | [`src/virea/ports/`](src/virea/ports/) |
+| 契约与编排 | 计划、实际时长、动作文件、身体控制权与执行回执 | [`packages/contracts/`](packages/contracts/) · [`src/virea/application/`](src/virea/application/) |
+| 动作基础 | 原始输出适配、静止坐标系、正向运动学与骨骼重定向 | [`src/virea/motion/`](src/virea/motion/) · [`packages/retarget/`](packages/retarget/) |
+| 执行与部署 | 网页播放、VRChat 追踪、模型进程与环境部署 | [`apps/`](apps/) · [`src/virea/vrchat/`](src/virea/vrchat/) · [`plugins/models/`](plugins/models/) |
 
-代码按职责组织：`apps/` 提供界面和 API，`src/virea/application/` 负责公共编排，`src/virea/ports/` 定义能力接口，`packages/` 管理契约和基础设施，`plugins/` 管理模型运行时，`doc/` 提供任务指南与技术参考。
+[架构说明](doc/architecture/overview.zh-CN.md) · [时间轴与执行](doc/architecture/execution.zh-CN.md) · [接入新模型](doc/development/model-adapter.zh-CN.md)
 
-演示角色：**Unnamed Character 6 — Reira**。仓库提供渲染结果，角色模型由使用者自行导入。项目代码许可由维护者决定；模型、数据及角色许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。安全问题请参阅 [SECURITY.md](SECURITY.md)。
+---
+
+## 🤝 Contributing · 参与贡献
+
+欢迎带来模型适配器、清晰的教程、可复现的动作样本或问题修复。从[贡献指南](CONTRIBUTING.md)开始，选择一个明确的改动，并附上能说明效果的检查结果。涉及动作时，原始骨架与目标角色的同帧对照尤其有帮助。
+
+---
+
+## 🛡️ Security & responsible use · 安全与负责任使用
+
+使用已获许可的角色和声音素材，将服务密钥、私人对话留在本地，并尊重 VRChat 中其他参与者的意愿。漏洞私密报告见[安全政策](SECURITY.md)，模型、数据集和角色的使用条款见[第三方说明](THIRD_PARTY_NOTICES.md)。
+
+---
+
+## 📄 License · 许可
+
+VIREA 项目代码的许可证由维护者确定，目前尚未选定。第三方模型、数据集和角色保留各自的许可，详见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
 <a id="从零开始无需先安装开发工具"></a>
 <a id="从动作生成走向持续的具身对话"></a>
@@ -195,16 +190,19 @@ https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
 <a id="高级手动运行生成与播放"></a>
 <a id="能力实测和发布不是同一件事"></a>
 <a id="维护与贡献"></a>
-
+<a id="model-support"></a>
+<a id="quick-start"></a>
+<a id="documentation"></a>
+<a id="contributing-security-and-distribution"></a>
 <!--
 type: readme
 status: Active
 owner: VIREA maintainers
-created: 2026-08-08
+created: 2026-10-11
 updated: 2026-10-11
 last_reviewed: 2026-10-11
 review_cycle_days: 30
-summary: Three workflows over shared capabilities, motion conversion and verifiable execution.
+summary: Project overview, verified comparison, quick setup, five selected videos and shared architecture.
 canonical: README.zh-CN.md
 related: []
 supersedes: []

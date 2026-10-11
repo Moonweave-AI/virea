@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # VIREA 0.4.0 WP00-WP15 实现映射
 
 快照日期：2026-08-21
@@ -159,6 +163,12 @@ MoMADiff/CMDM 已实现 whole-model CPU，其他三模型显存不足时不得�
 - 只有真实安装、checkpoint 推理、模型证据包、端到端验收或托管 CI 记录可以提升发布状态；test-only
   fixture 只能验证契约，规划文本和目录存在也不能提升状态。
 - 对 RFC-0003 的架构、数学兼容或无新增 SHA 边界作实质变更，必须修订 RFC，不在本表中静默改决策。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: report

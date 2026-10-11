@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-01
-updated: 2026-10-02
-last_reviewed: 2026-10-01
-review_cycle_days: 90
-summary: 粗粒度活动计划、执行层完成判断、原生历史和跨模型运动学边界的实现与实测。
-canonical: doc/character/coarse-activity-execution.zh-CN.md
-related: [doc/character/interaction-program-research.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 回答 A、粗粒度计划 P 与实际音频 V
 
@@ -20,6 +9,7 @@ P 决定任务的顺序或并行、每段身体活动的执行器、中文伴随
 回答通过语音流水线形成 V；声音、字幕和独立身体任务分别推进。身体同一时刻只有一个驱动源。P 的语义分段、模型推理窗口、实际播放时长是三个不同概念。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart TD
   U[用户消息、历史、场景与已执行状态] --> L[LLM：回答 A 与粗计划 P]
   L --> T[TTS：实际音频 V]
@@ -106,3 +96,24 @@ SentiAvatar 内部继续沿用前一窗口的 RVQ 尾部和最近规划历史。
 最终角色回归 228 项通过，前端 124 项通过，常驻 worker 回归另 10 项通过；Ruff、TypeScript 与 Vite 构建通过。构建保留既有 viewer 大 chunk 提示。本次没有重跑全部仓库测试，也不覆盖先前报告的无关 API 路由清单失败。
 
 图分析已覆盖规划、调度、播放与 worker。当前 GitNexus 对部分函数产生空符号 ID，跨语言字段和执行流也存在裁剪；零调用者不作为无影响结论。报告应与调用点核对和行为测试一起阅读。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-01
+updated: 2026-10-02
+last_reviewed: 2026-10-01
+review_cycle_days: 90
+summary: 粗粒度活动计划、执行层完成判断、原生历史和跨模型运动学边界的实现与实测。
+canonical: doc/character/coarse-activity-execution.zh-CN.md
+related: [doc/character/interaction-program-research.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

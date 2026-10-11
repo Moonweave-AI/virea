@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # ADR-0001：版本化动作语义与自包含产物
 
 ## 状态
@@ -79,9 +83,13 @@ artifact 又没有固化实际 rest/profile。结果是在线与缓存不一致�
   全量离线验证，禁止网络 retrieval。
 - 每个阶段按 RFC-0001 的 contract、真实样本、真实 VRM、IP 和性能门禁验收。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: adr
 status: Accepted
 owner: "@Joker-of-Gotham"
@@ -100,5 +108,4 @@ related:
   - schemas/preview_payload.schema.json
 supersedes: []
 superseded_by: []
----
 -->

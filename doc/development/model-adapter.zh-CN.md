@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
-review_cycle_days: 30
-summary: 将新 motion generation 模型接入独立 Runtime、ModelResult、Motion IR、骨骼表示和真实验收的步骤。
-canonical: doc/development/model-adapter.zh-CN.md
-related:
-  - documentation.zh-CN.md
-  - ../models/README.zh-CN.md
-  - ../quality/production-e2e.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 接入新模型
 
@@ -65,3 +51,27 @@ Manifest 给出一个固定、真实的 request、期望原生 skeleton/represen
 
 在真实证据完成前保持 `runnable_upstream`；完成单一受限平台路径后可标
 `integrated_experimental`；更广泛的 `supported` 需要目标平台、最低配置、许可和持续回归共同满足。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-21
+last_reviewed: 2026-08-21
+review_cycle_days: 30
+summary: 将新 motion generation 模型接入独立 Runtime、ModelResult、Motion IR、骨骼表示和真实验收的步骤。
+canonical: doc/development/model-adapter.zh-CN.md
+related:
+  - documentation.zh-CN.md
+  - ../models/README.zh-CN.md
+  - ../quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

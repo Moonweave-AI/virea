@@ -1,17 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-03
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 30
-summary: dots.tts 参考音频克隆、独立运行时、48 kHz 流式音频和迁移说明。
-canonical: doc/character/dots-tts.zh-CN.md
-related: [README.zh-CN.md, README.en.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # dots.tts 语音克隆
 
@@ -175,3 +164,24 @@ pnpm --dir apps/web build
 - [SGLang Omni 使用说明](https://github.com/studio-dots-ai/dots.tts#sglang-omni-usage)：服务协议差异；本次未采用 Omni，也不宣称同请求文本/音频双流。
 - [bitsandbytes Linear4bit](https://huggingface.co/docs/bitsandbytes/v0.50.2/en/reference/nn/linear4bit)：CPU 权重转换、NF4 和 CUDA 量化时机。
 - [bitsandbytes 硬件要求](https://huggingface.co/docs/bitsandbytes/v0.50.2/en/installation)：CUDA / Blackwell 支持与依赖。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-03
+updated: 2026-10-03
+last_reviewed: 2026-10-03
+review_cycle_days: 30
+summary: dots.tts 参考音频克隆、独立运行时、48 kHz 流式音频和迁移说明。
+canonical: doc/character/dots-tts.zh-CN.md
+related: [README.zh-CN.md, README.en.md]
+supersedes: []
+superseded_by: []
+-->

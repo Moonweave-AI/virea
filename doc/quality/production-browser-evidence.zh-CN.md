@@ -1,21 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: 真实 Web 生成、VRM/VRMA 播放观察、后端不可变状态绑定与 evidence registry 晋级边界。
-canonical: doc/quality/production-browser-evidence.zh-CN.md
-related:
-  - production-browser-evidence.en.md
-  - production-e2e.zh-CN.md
-  - ../getting-started/browser-playback.zh-CN.md
-  - ../reference/status-semantics.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](production-browser-evidence.en.md)
+<!-- END DOC NAV -->
 
 # Production browser evidence
 
@@ -175,3 +160,28 @@ renderer 与 0 errors。后者补充了人工可见性/硬件渲染复核，但�
 job/result/artifact 索引、精确 HTTP body bytes 和后端状态完成交叉绑定。`local_evidence` 只支持本机 QA；
 公开发布前必须迁移到团队可访问的共享 archive，并更新 locator 与 collection provenance。旧 v1.0 bundle
 可以保留为 historical/quarantine，但其存在不等于当前有效证据。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: 真实 Web 生成、VRM/VRMA 播放观察、后端不可变状态绑定与 evidence registry 晋级边界。
+canonical: doc/quality/production-browser-evidence.zh-CN.md
+related:
+  - production-browser-evidence.en.md
+  - production-e2e.zh-CN.md
+  - ../getting-started/browser-playback.zh-CN.md
+  - ../reference/status-semantics.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

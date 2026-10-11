@@ -1,24 +1,6 @@
----
-type: model-card
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: PRISM TP2M 1.4B 的真实 WSL 部署、外部资产、组件内存策略、表示和许可边界。
-canonical: doc/models/prism.zh-CN.md
-related:
-  - prism.en.md
-  - README.zh-CN.md
-  - ../platforms/wsl2.zh-CN.md
-  - ../research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
-  - ../research/prism-official-integration-audit-2026-08-21.zh-CN.md
-  - ../research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
-  - ../research/prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](prism.en.md)
+<!-- END DOC NAV -->
 
 # PRISM TP2M 1.4B
 
@@ -160,3 +142,31 @@ uv run virea
 仍保留在最初配置的数据根目录中并直接复用；不要删除，也不需要重新下载。只需重建隔离的 PRISM Runtime；
 用户确认既有执行域与资源 profile 后，向导会完成该迁移。此前若 PRISM 源码 snapshot 已被 bytecode 污染，
 它体积很小，隔离后可能重新获取；32.7 GB checkpoint 的 revision 与完整性树未改变，仍会直接复用。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: model-card
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: PRISM TP2M 1.4B 的真实 WSL 部署、外部资产、组件内存策略、表示和许可边界。
+canonical: doc/models/prism.zh-CN.md
+related:
+  - prism.en.md
+  - README.zh-CN.md
+  - ../platforms/wsl2.zh-CN.md
+  - ../research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
+  - ../research/prism-official-integration-audit-2026-08-21.zh-CN.md
+  - ../research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
+  - ../research/prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

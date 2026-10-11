@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 权威资料与设计基线
 
 只列官方规范、作者仓库、项目主页或论文原文。外部资料定义标准背景；它不证明本仓库已经正确执行，也不覆盖本地数据变体。
@@ -62,9 +66,13 @@ VIREA 代授的许可，源码/权重仅作 external assets，不自动再分发
 
 三类证据冲突时不自动选一个继续发布，而是把 profile 降为 draft、保留原始字段并加入 validation error。许可条款也必须回到各数据集与 VRM 的原始入口复核；本页链接不是再分发授权。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: reference
 status: Active
 owner: "@Joker-of-Gotham"
@@ -81,5 +89,4 @@ related:
   - research/source-authority-review.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-30
-updated: 2026-09-30
-last_reviewed: 2026-09-30
-review_cycle_days: 90
-summary: 用同一份 LLM 计划和实际执行事件决定何时说话、何时行动。
-canonical: doc/character/appropriate-timing.zh-CN.md
-related: [doc/character/semantic-coordination.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 在合适的时候说话和行动
 
@@ -59,6 +48,7 @@ superseded_by: []
 ## 实现与职责
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart TD
   U[用户对话、角色设定、现场与实际历史] --> P[LLM 联合计划]
   P --> T[LLM 时序规划：实际发言、身体目标、事件依赖]
@@ -138,3 +128,24 @@ LLM 决定正文、行动采纳、前后关系、模型与动作预算。代码�
 自然度还受语言模型规划质量、TTS 韵律、运动模型、重定向与支撑质量影响；图无环不是动作审美评价。
 本轮没有训练新模型，也没有证明 ARDY 在任意地形／交互下的物理正确性；已有支撑判定是运动学检查。
 验证事件关系时应查看实际回执和录制，而不是只看 `generation_seconds` 或模型论文的速度。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-30
+updated: 2026-09-30
+last_reviewed: 2026-09-30
+review_cycle_days: 90
+summary: 用同一份 LLM 计划和实际执行事件决定何时说话、何时行动。
+canonical: doc/character/appropriate-timing.zh-CN.md
+related: [doc/character/semantic-coordination.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

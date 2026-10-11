@@ -1,17 +1,6 @@
----
-type: reference
-status: draft
-owner: VIREA maintainers
-created: 2026-10-04
-updated: 2026-10-11
-last_reviewed: 2026-10-08
-review_cycle_days: 30
-summary: VIREA 到 VRChat 的本机执行桥接、桌面模式、VR 追踪、角色安装与验证边界。
-canonical: doc/character/vrchat.zh-CN.md
-related: [vrchat.en.md, unified-motion.zh-CN.md, ../../README.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](vrchat.en.md)
+<!-- END DOC NAV -->
 
 # VIREA → VRChat
 
@@ -102,6 +91,7 @@ AI 视角的“自动校准”按钮下方直接显示百分比进度条、`[当
 ## 技术梗概
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
     Goal[目标 / 消息 / 外部感知事件] --> Session[VIREA 原生会话]
     Session --> Planner[LLM 独立轨道规划]
@@ -271,3 +261,24 @@ npm --prefix apps/web run build
 ```
 
 四条静音实录要求确认：观察者看到新生成的身体及手指动作、双方游戏聊天气泡、VR 校准及身体 IK、对话中切换方法、暂停与急停释放、改变角色时中断。完成这些后才能标注为合格 VRChat 实录。有声语音、虚拟麦克风与嘴型仍未验收，不属于本次静音录制的前置条件。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: draft
+owner: VIREA maintainers
+created: 2026-10-04
+updated: 2026-10-11
+last_reviewed: 2026-10-08
+review_cycle_days: 30
+summary: VIREA 到 VRChat 的本机执行桥接、桌面模式、VR 追踪、角色安装与验证边界。
+canonical: doc/character/vrchat.zh-CN.md
+related: [vrchat.en.md, unified-motion.zh-CN.md, ../../README.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

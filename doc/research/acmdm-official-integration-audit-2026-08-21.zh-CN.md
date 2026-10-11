@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # ACMDM 官方接入审计（2026-08-21）
 
 ## 结论
@@ -157,6 +161,12 @@ fresh 浏览器播放、acceptance/generation Runtime core identity 绑定、取
 当前决策为 **`integrated_experimental`**。adapter、catalog、release assets、历史真实 E2E 与当前资源校准已完成；
 状态只覆盖上述固定 revision、Windows win64 与 RTX 5090 的历史有界技术事实；当前 v1.1 E2E 仍待收口。
 其他 GPU、Linux、质量分布和长期回归仍需分别补证，未满足前不得提升为 `supported`。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: research-log

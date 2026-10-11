@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-09-29
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 对话理解、独占身体时段和在线行为调度的依据、实现及实测。
-canonical: doc/character/temporal-behavior.zh-CN.md
-related: [doc/character/continuous-motion-dialogue.zh-CN.md]
-supersedes: [doc/character/hybrid-performance.zh-CN.md]
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 对话驱动的分时身体执行
 
@@ -33,6 +22,7 @@ superseded_by: []
 ## 两层语义与执行路径
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart TD
   U[用户对话与会话历史] --> D[对话层：主体、话语用途、口头内容、角色采纳的目标]
   D --> S[一份口头回复计划 → 流式语音与表情]
@@ -95,3 +85,24 @@ flowchart TD
 本次原始记录存放于工作区外的 `VIREA-Data/evidence/temporal-behavior-20260929/`，不把用户角色文件、人设或模型权重提交到仓库。运行基准时通过参数指定自己的 neutral-pose 文件和输出目录。
 
 实播仍暴露出语音动作冷启动的明显等待：24 秒舞蹈案例首个完整语音动作包约 39.9 秒才就绪，首次音频约 15.2 秒。同步起步解决了“动作先做完、声音后来才开始”的错序，但并没有消除冷启动成本。预热入口已实测。早期试验还出现过“说完等待”被编成静态身体任务、下层直接 WAIT、不一致的空目标；修复记录与失败样本均保留，不能把有限用例通过当成语言模型的通用语义保证。跨模型切换的主观自然度、足底接触与任意地形仍需扩大素材和场景评测。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-09-29
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 对话理解、独占身体时段和在线行为调度的依据、实现及实测。
+canonical: doc/character/temporal-behavior.zh-CN.md
+related: [doc/character/continuous-motion-dialogue.zh-CN.md]
+supersedes: [doc/character/hybrid-performance.zh-CN.md]
+superseded_by: []
+-->

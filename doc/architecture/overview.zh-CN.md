@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Unified runtime overview.
-canonical: doc/architecture/overview.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](overview.en.md)
+<!-- END DOC NAV -->
 
 # 架构：一个底座，三种工作台
 
@@ -20,24 +9,40 @@ superseded_by: []
 VIREA 是面向具身智能体的可验证交互运行时。Motion Lab、Character Studio、VRChat Studio 共享能力与编排；网页 VRM 和 VRChat 独立角色负责执行。
 
 ```mermaid
-flowchart LR
-    Input[用户输入] --> Router[请求路由]
-    Router --> Lab[直接动作任务]
-    Router --> Planner[语言规划]
-    Planner --> Compiler[表演编译]
-    Compiler --> Audio[语音准备]
-    Compiler --> Native[原生动作模型]
-    Lab --> Native
-    Native --> IR[Motion IR v2]
-    IR --> Retarget[公共重定向入口]
-    Retarget --> Validation[质量校验]
-    Validation --> Artifact[不可变表演制品]
-    Audio --> Artifact
-    Artifact --> Gate[会话版本与执行校验]
-    Gate --> Web[网页 / VRM]
-    Gate --> VRC[VRChat / OpenVR / OSC]
-    Web --> Receipt[执行回执]
-    VRC --> Receipt
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
+flowchart TB
+    subgraph Workspaces["Three workspaces"]
+        Lab["Motion Lab"]
+        Studio["Character Studio"]
+        VRC["VRChat Studio"]
+    end
+    subgraph Capabilities["Pluggable capabilities"]
+        LLM["LLM · intent and planning"]
+        Audio["TTS · measured speech"]
+        Motion["Motion generators · native outputs"]
+    end
+    Lab --> Motion
+    Studio --> LLM
+    VRC --> LLM
+    LLM --> Plan["Performance compiler · independent tracks"]
+    Plan --> Audio
+    Plan --> Motion
+    Motion --> Source["Source adapters · Motion IR v2"]
+    Source --> Rig["Shared skeletal retargeting<br/>Frames · FK · rotations · hands · contacts"]
+    Audio --> Performance["Executable performance"]
+    Rig --> Performance
+    Performance --> Executor["Session + executor<br/>Timing · ownership · cancellation · receipts"]
+    Rig --> Export["Motion Lab · inspect / export"]
+    Executor --> Browser["Browser VRM"]
+    Executor --> Bridge["OpenVR / OSC → VRChat Humanoid"]
+    Browser -. acknowledgements .-> Executor
+    Bridge -. acknowledgements .-> Executor
+    classDef workspace fill:#23222b,stroke:#b1aabd,color:#f2edf1
+    classDef core fill:#302b3a,stroke:#bbb0ca,color:#f2edf1
+    classDef target fill:#352c33,stroke:#c7adb7,color:#f5eef0
+    class Lab,Studio,VRC workspace
+    class Plan,Source,Rig,Performance,Executor core
+    class Browser,Bridge,Export target
 ```
 
 ## 职责分工
@@ -75,3 +80,24 @@ SentiAvatar + ARDY 保留已有语义行为规划和流式行为流程。`Intent
 模型控制面继续管理安装、资源准入、工作进程和导出，这些职责属于运行时基础设施。
 
 继续阅读[契约](contracts.zh-CN.md)、[时序执行](execution.zh-CN.md)和[迁移验证](../quality/unified-runtime.md)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Unified runtime overview.
+canonical: doc/architecture/overview.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

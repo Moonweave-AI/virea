@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # VIREA 0.4.0 重构质量计划
 
 状态：Active
@@ -131,6 +135,12 @@ Remove-Item Env:VIREA_RUN_FRESH_WHEEL_TEST
   `UV_PROJECT_ENVIRONMENT`，生产使用 wheel，retention GC 不得把仓库根当数据目录。
 - 真实模型提升状态前必须补模型级契约、许可事实、固定真实输入、Motion IR 数值校准和回滚记录。
 - 托管 CI、部署后 SLO/告警/回滚演练仍无可引用证据，本地通过不能替代。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: quality-plan

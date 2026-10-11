@@ -1,20 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-26
-updated: 2026-09-27
-last_reviewed: 2026-09-27
-review_cycle_days: 30
-summary: 常驻 GPU 推理、语言质量、严格同步双缓冲与动作连续性的落地和实测。
-canonical: doc/character/performance-upgrade.zh-CN.md
-related:
-  - README.zh-CN.md
-  - README.en.md
-  - performance-continuity-research.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 持续角色：GPU 提速与连续性升级
 
@@ -188,3 +174,27 @@ node scripts/character/continuous_e2e.mjs <AVATAR.vrm> <EVIDENCE>/continuous
 仍未实现论文式自回归规划器历史、实际 IK/碰撞后姿态的反向编码、生成式手指、步态和避障。
 VRM 面部映射仍是近似，不承诺音素级唇形。小样本测试证明本轮回归点，不能保证所有文本、
 所有 VRM 和任意运行时负载下都具有同样延迟或自然度。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-27
+last_reviewed: 2026-09-27
+review_cycle_days: 30
+summary: 常驻 GPU 推理、语言质量、严格同步双缓冲与动作连续性的落地和实测。
+canonical: doc/character/performance-upgrade.zh-CN.md
+related:
+  - README.zh-CN.md
+  - README.en.md
+  - performance-continuity-research.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

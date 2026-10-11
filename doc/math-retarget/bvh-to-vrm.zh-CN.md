@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # BEAT 原始 BVH 到 VRM
 
 VIREA 当前直接读取 BEAT 的原始 75-joint BVH，不再把旧 body22 NPZ 当作解码事实源。旧 NPZ 已丢失 Spine2、Neck1、ForeFoot 和手指等旋转，只作为带 legacy 标记的相关文件展示；缺少旧 NPZ 不影响样本发现或处理。
@@ -128,9 +132,13 @@ Decoder 按帧流式读取并分块计算 75-joint local/world matrices，默认
 - 用 reduced position误差否定已经由 source world-rotation oracle证明正确的 direct quaternion；
 - declared frame count 大于 payload 时补造帧或隐瞒 early EOF。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -147,5 +155,4 @@ related:
   - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

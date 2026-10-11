@@ -1,17 +1,6 @@
----
-type: explanation
-status: Superseded
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-10-02
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 持续身体任务与语音表情的并行执行、阶段边界修复及实测依据。
-canonical: doc/character/hybrid-performance.zh-CN.md
-related: [doc/character/continuous-motion-dialogue.zh-CN.md]
-supersedes: []
-superseded_by: [doc/character/temporal-behavior.zh-CN.md]
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 持续身体任务与混合表达
 
@@ -32,6 +21,7 @@ superseded_by: [doc/character/temporal-behavior.zh-CN.md]
 ## 数据流
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   U[最新请求] --> I[并行活动意图]
   I --> B[身体任务变更]
@@ -98,3 +88,24 @@ flowchart LR
 延迟仍有明显改进空间：普通交流实测首个表达约 11.4 秒；上述组合请求先启动身体，首个语音表达约 27.3 秒。原生 ARDY 的热生成速度不能当作整个语言、语音、手势流水线的首包延迟。该次故事实际音频约 50.4 秒，未严格满足请求的“约半分钟”；内容时长控制和首包延迟仍需后续专项优化。
 
 本实现是运行时分层协作。它不改变两套模型的训练分布，不能承诺任意组合、任意地形都物理正确；复杂动作与语义手势的权重还需要更多真实动作样本评估。原生 ARDY 对照骨架保留在工作室中，便于区分生成与重定向问题。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Superseded
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-10-02
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 持续身体任务与语音表情的并行执行、阶段边界修复及实测依据。
+canonical: doc/character/hybrid-performance.zh-CN.md
+related: [doc/character/continuous-motion-dialogue.zh-CN.md]
+supersedes: []
+superseded_by: [doc/character/temporal-behavior.zh-CN.md]
+-->

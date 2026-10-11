@@ -1,26 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-20
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: 2025–2026 motion generation 首批适配候选的官方制品、许可证、运行时、输出表示与真实支持状态。
-canonical: doc/model-catalog/first-wave-2026-08-20.zh-CN.md
-related:
-  - first-wave-2026-08-20.en.md
-  - ../../registries/models/motion-model-registry.v1.0.0.yaml
-  - ../../registries/models/first-wave.v1.yaml
-  - motion-generation-registry-2026-08-20.zh-CN.md
-  - ../refactor/WP00_WP15_IMPLEMENTATION_MAP.md
-supersedes: []
-superseded_by: []
-audience:
-  - VIREA maintainers
-  - model adapter authors
-visibility: public
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](first-wave-2026-08-20.en.md)
+<!-- END DOC NAV -->
 
 # Motion Generation 首批适配清单
 
@@ -181,3 +161,33 @@ registry 和本页 YAML 叠加层为准。
 | 每完成一个真实适配后更新状态与证据 | adapter owner | 同一变更内 | 本页与 overlay |
 
 本文由一手论文、作者仓库、作者模型仓库和官方文档整理；正式提升状态前必须由 Owner 人工核验。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-20
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: 2025–2026 motion generation 首批适配候选的官方制品、许可证、运行时、输出表示与真实支持状态。
+canonical: doc/model-catalog/first-wave-2026-08-20.zh-CN.md
+related:
+  - first-wave-2026-08-20.en.md
+  - ../../registries/models/motion-model-registry.v1.0.0.yaml
+  - ../../registries/models/first-wave.v1.yaml
+  - motion-generation-registry-2026-08-20.zh-CN.md
+  - ../refactor/WP00_WP15_IMPLEMENTATION_MAP.md
+supersedes: []
+superseded_by: []
+audience:
+  - VIREA maintainers
+  - model adapter authors
+visibility: public
+-->

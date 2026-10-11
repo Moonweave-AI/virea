@@ -1,19 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
-review_cycle_days: 30
-summary: 每段动作回到自然姿态，并从已收势姿态开始下一段的播放与验证规则。
-canonical: doc/character/segment-rest.zh-CN.md
-related:
-  - README.zh-CN.md
-  - motion-endings.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 每段动作都回到自然姿态
 
@@ -68,3 +55,26 @@ RTX 5090 Laptop、Chrome、Seed-san VRM，42 项角色编排测试和 11 项前�
 三个包的 `native_history_applied` 均为 `false`，文本没有丢失或重复。
 打断后下一次动作生成用时 2.03 秒。Chrome 在该长回复脚本的退出阶段挂起，
 已在完整保存行为断言与观测后停止本次测试进程；固定资源重播脚本正常退出。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-27
+updated: 2026-09-27
+last_reviewed: 2026-09-27
+review_cycle_days: 30
+summary: 每段动作回到自然姿态，并从已收势姿态开始下一段的播放与验证规则。
+canonical: doc/character/segment-rest.zh-CN.md
+related:
+  - README.zh-CN.md
+  - motion-endings.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

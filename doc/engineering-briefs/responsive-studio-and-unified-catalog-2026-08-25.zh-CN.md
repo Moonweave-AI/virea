@@ -1,22 +1,6 @@
----
-type: engineering-brief
-status: Implemented
-owner: VIREA maintainers
-created: 2026-08-25
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: 即时生成反馈、持久 Job 事件流、稳定交互式 Viewer 与单一可信模型能力目录的跨层设计。
-canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
-related:
-  - responsive-studio-and-unified-catalog-2026-08-25.en.md
-  - ../research/responsive-studio-cli-design-2026-08-25.zh-CN.md
-  - ../getting-started/browser-playback.zh-CN.md
-  - ../reference/cli.zh-CN.md
-  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](responsive-studio-and-unified-catalog-2026-08-25.en.md)
+<!-- END DOC NAV -->
 
 # 响应式 Studio 与统一模型目录 — Engineering Brief
 
@@ -132,3 +116,29 @@ QA-L4 需要覆盖：幂等 Job 创建、metadata/full 校验分离、快速 `20
 
 本次没有数据库或制品迁移。回滚只需恢复上一版前端 bundle 与控制面；已有 Job 和幂等键仍是有效 v1 记录。
 即使 metadata readiness 出错，后台 full verification 仍会阻止 Worker，回滚不需要删除模型或结果。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: engineering-brief
+status: Implemented
+owner: VIREA maintainers
+created: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: 即时生成反馈、持久 Job 事件流、稳定交互式 Viewer 与单一可信模型能力目录的跨层设计。
+canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
+related:
+  - responsive-studio-and-unified-catalog-2026-08-25.en.md
+  - ../research/responsive-studio-cli-design-2026-08-25.zh-CN.md
+  - ../getting-started/browser-playback.zh-CN.md
+  - ../reference/cli.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

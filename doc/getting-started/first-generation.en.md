@@ -1,21 +1,6 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: English focused path from inspecting a model to a domain-pinned installation, generation job, and persisted validation.
-canonical: doc/getting-started/first-generation.en.md
-related:
-  - first-generation.zh-CN.md
-  - ../getting-started.en.md
-  - browser-playback.en.md
-  - ../reference/cli.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](first-generation.zh-CN.md)
+<!-- END DOC NAV -->
 
 # First real generation
 
@@ -46,3 +31,28 @@ uv run virea validate-real-e2e --virea-home PATH --job-id JOB_ID --expect succes
 
 See [browser playback](browser-playback.en.md) next. A successful CLI validation does not replace a separate browser
 observation or prove the model on a different domain/device.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: English focused path from inspecting a model to a domain-pinned installation, generation job, and persisted validation.
+canonical: doc/getting-started/first-generation.en.md
+related:
+  - first-generation.zh-CN.md
+  - ../getting-started.en.md
+  - browser-playback.en.md
+  - ../reference/cli.en.md
+supersedes: []
+superseded_by: []
+-->

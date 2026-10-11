@@ -1,0 +1,64 @@
+{
+  "schema_version": "virea.featured_media.v1",
+  "updated": "2026-10-11",
+  "publication_basis": "Repository owner requested README publication of the supplied and selected existing recordings.",
+  "videos": [
+    {
+      "id": "vrchat-conversation",
+      "path": "doc/assets/featured-demos/vrchat-conversation-web.mp4",
+      "bytes": 7286368,
+      "sha256": "f526d1e9de7408ebee093121580d985509ef4762bf28af0170b38562672344b0",
+      "github_attachment": "https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe",
+      "duration_seconds": 112.8,
+      "encoding": "H.264 yuv420p fast-start, silent web edition; original timing retained",
+      "source": {
+        "path": "doc/assets/featured-demos/vrchat-conversation.mp4",
+        "bytes": 19324359,
+        "sha256": "2dd1d9174225cf56e399f50bc1698b794ed8afbd8e589a1725fab1121512b4af"
+      },
+      "supplied_filename": "149ed3cf78e45dc21fccf6c1ef27dda9.mp4"
+    },
+    {
+      "id": "motioncraft",
+      "path": "doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4",
+      "bytes": 2270572,
+      "sha256": "0653ebd4cdea49dca665ab42700e3b3424ab95a9ce35c8e2c59d1c8c0f0da639",
+      "github_attachment": "https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3",
+      "duration_seconds": 32.194333,
+      "encoding": "Existing recording, unchanged H.264/AAC file"
+    },
+    {
+      "id": "syntalker",
+      "path": "doc/assets/unified-motion-demos/syntalker-01-introduction.mp4",
+      "bytes": 1915353,
+      "sha256": "4937e9e6a887a4f3cb23620587b2d50a107b27faee8b378b71a62fde710d18ff",
+      "github_attachment": "https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a",
+      "duration_seconds": 32.189833,
+      "encoding": "Existing recording, unchanged H.264/AAC file"
+    },
+    {
+      "id": "ardy-sentiavatar",
+      "path": "doc/assets/featured-demos/character-ardy-sentiavatar.mp4",
+      "bytes": 1738493,
+      "sha256": "8fb4e4b1787bd949a9b64ae45fc7ab6a48a38e4c42b7b5e781d810943846dd10",
+      "github_attachment": "https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447",
+      "duration_seconds": 39.666341,
+      "encoding": "H.264 yuv420p fast-start, 960x720 letterbox; complete duration and audio retained",
+      "source": {
+        "path": "doc/assets/character-demos/01-host.mp4",
+        "bytes": 1693885,
+        "sha256": "8322a2b237fee90ccc901f95ed256882ae1f71d470b5c3d21721afe0122cfce5"
+      }
+    },
+    {
+      "id": "motion-lab",
+      "path": "doc/assets/featured-demos/motion-lab.mp4",
+      "bytes": 1194417,
+      "sha256": "99c99cbaa067d328c2d346117ceafa0a8a03d0933ce95b38c131419e9fe34f2d",
+      "github_attachment": "https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103",
+      "duration_seconds": 13.703704,
+      "encoding": "Unchanged supplied H.264 recording",
+      "supplied_filename": "22f05c58578b4b6d18b9ae0f430dbe30.mp4"
+    }
+  ]
+}

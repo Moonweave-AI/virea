@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-04
-updated: 2026-10-04
-last_reviewed: 2026-10-04
-review_cycle_days: 30
-summary: 三条动作路线、独立语音轨道、原生窗口推理和真实 Demo 的实现与边界。
-canonical: doc/character/unified-motion.zh-CN.md
-related: [unified-motion.en.md, ../../README.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](unified-motion.en.md)
+<!-- END DOC NAV -->
 
 # MotionCraft / SynTalker 独立轨道表演
 
@@ -22,6 +11,7 @@ superseded_by: []
 ## 技术梗概
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   U[用户请求与对话历史] --> P[LLM: 独立动作段 / 台词片段]
   P --> M[动作轨: 多段英文描述和绝对时间]
@@ -133,3 +123,24 @@ node scripts/character/unified_demo_e2e.mjs syntalker <AVATAR_VRM> <OUTPUT_DIR> 
 最终 Demo 统一使用用户指定的 `VRM-Model-1.vrm`，文件内署名为 **Reira**。画廊清单记录角色、声音与权重的摘要及每次真实准备耗时；原始 VRM 不随 Demo 分发。本机 MotionCraft 使用 CUDA，SynTalker 使用 CPU。准备耗时包含规划、TTS、推理和队列等待，不是模型裸推理速度。暂停、打断与功能测试结果以本次验收记录为准。
 
 本次 MotionCraft 的准备时间为 53.6–144.8 秒，SynTalker 为 58.9–117.7 秒。新角色使用降低后的场景灯光，避免浅色皮肤与服装过曝；录制前完成着色器编译和音频解码，消除首次渲染黑屏。16 段均保留完整动作与静默区间，没有通过剪辑隐藏接缝。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-04
+updated: 2026-10-04
+last_reviewed: 2026-10-04
+review_cycle_days: 30
+summary: 三条动作路线、独立语音轨道、原生窗口推理和真实 Demo 的实现与边界。
+canonical: doc/character/unified-motion.zh-CN.md
+related: [unified-motion.en.md, ../../README.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

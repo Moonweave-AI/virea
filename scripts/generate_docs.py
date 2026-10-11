@@ -17,6 +17,12 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# Support direct script execution from the repository checkout.
+from scripts.doc_layout import format_document  # noqa: E402
+
 MODEL_ROOT = ROOT / "plugins" / "models"
 REGISTRY_INDEX = ROOT / "registries" / "index.yaml"
 EXECUTION_TARGETS = ROOT / "registries" / "platforms" / "execution-targets.v1.yaml"
@@ -455,7 +461,8 @@ def render_model_document(
 ) -> str:
     integrated = sum(row.status == "integrated_experimental" for row in rows)
     supported = sum(row.status == "supported" for row in rows)
-    return f"""---
+    return format_document(
+        f"""---
 type: reference
 status: Generated
 owner: VIREA maintainers
@@ -482,23 +489,22 @@ superseded_by: []
 
 {_model_table(rows, coverage, compact=False)}
 
-## 解释边界
+## 🧭 字段怎么读
 
-- “Declared Runtime capability”只来自 RuntimeSpec 的平台 ABI 与已实现资源 profile；manifest 中的
-  `availability` 文本不会被渲染为能力或支持结论。
-- “Known deployment blockers”只来自模型 manifest 的结构化 model/platform blocker；空列表表示当前没有
-  已登记 blocker，不等于真实推理或该平台验收通过。
-- “Observed evidence coverage”只展示 execution-target registry 中明确点名该模型的观测范围；target-level
-  状态不会扩散到同一平台行的其他模型，也不会改变可选执行域。
-- 观测范围不等于当前 promotion。record 是否有效、采用哪个 validator policy 与 record ID，必须以
-  production evidence registry 为准。
-- 资源 profile 只有 Worker 真实实现时才可选择；RAM、VRAM 与 swap 不相加。
-- `external_assets` 或许可复核只限制获取/发行，不自动等于技术不可运行。
-- 缺少观测记录表示该组合仍待实测，不表示模型或操作系统被主动判为不支持。
-- 每个平台的 declared capability 与 observed coverage 见
-  [平台矩阵](../platforms/support-matrix.generated.md)；启动时先检测可选执行域，再由用户为同一模型资产选择
-  execution domain，控制面随后解析并按需懒构建或复用对应 Runtime 与域内路径，不重复下载模型资产。
-"""
+| 字段 | 信息来源与含义 |
+|:--|:--|
+| Declared Runtime capability | RuntimeSpec 中的平台 ABI 与已实现的资源配置。 |
+| Known deployment blockers | Manifest 登记的模型／平台安装条件；空列表表示没有已登记条件。 |
+| Observed evidence coverage | 执行目标 registry 中明确点名该模型的实测范围。 |
+| Resource profile | Worker 可执行的内存与设备配置；RAM、VRAM、swap 分别计算。 |
+| Distribution | 模型资产的获取与发行条款，包含需要单独获取的资源。 |
+
+当前验证记录、validator policy 和 record ID 见 production evidence registry。缺少记录的组合可以继续
+通过实际生成检验。对照[平台矩阵](../platforms/support-matrix.generated.md)，选择检测到的 execution domain；
+控制面会复用模型资产，并按需构建对应环境。
+""",
+        "doc/models/support-matrix.generated.md",
+    )
 
 
 def _platform_rows(
@@ -567,7 +573,8 @@ def render_platform_document(
         table_lines.append(
             f"| {_markdown(platform)} | {_markdown(capability)} | {_markdown(profiles)} | {_markdown(blockers)} | {_markdown(evidence)} |"
         )
-    return f"""---
+    return format_document(
+        f"""---
 type: reference
 status: Generated
 owner: VIREA maintainers
@@ -600,7 +607,9 @@ WSL 使用独立 `wsl:<distro>` domain，不等于 `win-64` 或 `linux-64` 字�
 model/platform blocker；没有已登记 blocker 也不等于推理通过。“Observed evidence coverage”只展示明确
 点名模型的 target-local 观测，不从 target status 扩散到整行模型，也不参与执行域选择或排序。record 的
 当前有效性与 promotion 仍以 production evidence registry 为准；缺少观测只表示待实测，不表示 OS 不受支持。
-"""
+""",
+        "doc/platforms/support-matrix.generated.md",
+    )
 
 
 def _replace_generated(text: str, begin: str, end: str, body: str) -> str:

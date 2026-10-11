@@ -1,20 +1,6 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-27
-last_reviewed: 2026-08-27
-review_cycle_days: 14
-summary: English instructions for serving VIREA locally and inspecting a generated VRMA result with a local VRM Avatar.
-canonical: doc/getting-started/browser-playback.en.md
-related:
-  - browser-playback.zh-CN.md
-  - first-generation.en.md
-  - ../reference/cli.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](browser-playback.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Browser playback
 
@@ -72,3 +58,27 @@ static empty state, creates no skeleton player, and displays no invented four-se
 The browser client cannot promote a result by sending `playing=true`; production browser evidence is independently bound
 to persisted backend facts. See the [CLI reference](../reference/cli.en.md#serve) for every serving option.
 For the one-time data-root setup and exact path quotation rules, see [the data-root guide](persistent-data-root.en.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-27
+last_reviewed: 2026-08-27
+review_cycle_days: 14
+summary: English instructions for serving VIREA locally and inspecting a generated VRMA result with a local VRM Avatar.
+canonical: doc/getting-started/browser-playback.en.md
+related:
+  - browser-playback.zh-CN.md
+  - first-generation.en.md
+  - ../reference/cli.en.md
+supersedes: []
+superseded_by: []
+-->

@@ -1,21 +1,6 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-27
-last_reviewed: 2026-08-27
-review_cycle_days: 14
-summary: 启动 Web、加载真实 VRM 与生成 VRMA，并验证可见播放和浏览器错误。
-canonical: doc/getting-started/browser-playback.zh-CN.md
-related:
-  - browser-playback.en.md
-  - ../getting-started.zh-CN.md
-  - first-generation.zh-CN.md
-  - ../quality/production-e2e.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](browser-playback.en.md)
+<!-- END DOC NAV -->
 
 # 浏览器播放
 
@@ -73,3 +58,28 @@ GPU 正在生成时 Viewer loop 会停止，恢复后不需要重新导入 Avata
 正式验收由 Playwright runner 保存 JSON、全页/Canvas 截图和 WebGL renderer。普通浏览器客户端不能通过提交
 `avatar_loaded` 或 `playing` 等布尔值把 evidence 晋级。
 一次性数据根配置以及精确路径/引号规则见[数据根路径与引号规则](persistent-data-root.zh-CN.md)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-27
+last_reviewed: 2026-08-27
+review_cycle_days: 14
+summary: 启动 Web、加载真实 VRM 与生成 VRMA，并验证可见播放和浏览器错误。
+canonical: doc/getting-started/browser-playback.zh-CN.md
+related:
+  - browser-playback.en.md
+  - ../getting-started.zh-CN.md
+  - first-generation.zh-CN.md
+  - ../quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

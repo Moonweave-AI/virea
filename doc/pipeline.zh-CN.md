@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Pipeline 使用指南
 
 本文只讲可执行操作。数据语义参阅 [七数据集审计](dataset-audit.zh-CN.md)，数学原理参阅 [Retarget 共同层](math-retarget/README.zh-CN.md)。
@@ -310,9 +314,13 @@ python scripts/validate_preview_pipeline.py --data-source full --max-frames 8
 
 不要原地删除或改写 legacy v0.1/v0.2/v0.3 目录。Processing v0.4 重建使用独立 processed root；回滚只需切换 `VIREA_PROCESSED_ROOT`，旧 canonical sequence 仍保持 fail-closed。删除大型本地产物前先确认目标绝对路径位于预期 processed root，并优先保留失败 manifest 与 hashes。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: how-to
 status: Active
 owner: "@Joker-of-Gotham"
@@ -330,5 +338,4 @@ related:
   - adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

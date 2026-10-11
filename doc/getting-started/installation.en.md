@@ -1,22 +1,12 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: English focused installation checklist for a clean VIREA clone, external state, and initial domain detection.
-canonical: doc/getting-started/installation.en.md
-related:
-  - installation.zh-CN.md
-  - ../getting-started.en.md
-  - ../platforms/README.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](installation.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Installation checklist
+
+<!-- DOCS-SETUP-ROUTE -->
+> [!TIP]
+> First time here? Start with [automatic setup](automatic-setup.en.md); the launcher prepares the environment. This page covers manual development setup and command-line operation.
 
 > [English](installation.en.md) · [中文](installation.zh-CN.md) · [Complete clone tutorial](../getting-started.en.md)
 
@@ -41,3 +31,27 @@ uv run virea
 The configured data root must be outside the checkout. For script-only commands, options, side effects and
 Windows/macOS/Linux shell details, use the paired [English tutorial](../getting-started.en.md) and
 [CLI reference](../reference/cli.en.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: English focused installation checklist for a clean VIREA clone, external state, and initial domain detection.
+canonical: doc/getting-started/installation.en.md
+related:
+  - installation.zh-CN.md
+  - ../getting-started.en.md
+  - ../platforms/README.en.md
+supersedes: []
+superseded_by: []
+-->

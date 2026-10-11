@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 首次启动、多供应商接入及本地运行环境自动部署的工程边界与验收。
-canonical: doc/engineering-briefs/portable-onboarding.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 可移植首次配置与模型接入
 
@@ -49,3 +38,24 @@ superseded_by: []
 ## 风险与审查
 
 风险 S2 / QA-L2：本地软件安装、外部 API 数据发送及凭证持久化。新增接口需要维护者在 PR 进行契约与安全审查。GitNexus 对 CharacterConfig 为 HIGH、语言规划入口为 CRITICAL；当前索引存在过期和错误关联，须结合实际调用与回归证据，不能将空图结果当成无影响。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 首次启动、多供应商接入及本地运行环境自动部署的工程边界与验收。
+canonical: doc/engineering-briefs/portable-onboarding.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Annotation 与 Viewer 契约
 
 Viewer 的目标不是把任意对象堆到页面顶部，而是同时回答：这条信息是什么、来自哪里、何时生效、应靠近哪里、缺少了什么。
@@ -93,9 +97,13 @@ BABEL、BEAT 和 HumanML3D 的一般动作文本没有精确身体部位时，�
 
 具体性能门槛和真实 VRM marker 像素误差见 [分层验收清单](validation.zh-CN.md)。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: reference
 status: Active
 owner: "@Joker-of-Gotham"
@@ -111,5 +119,4 @@ related:
   - dataset-audit.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

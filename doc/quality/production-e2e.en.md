@@ -1,21 +1,6 @@
----
-type: evidence
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: English reference for VIREA's persisted production E2E chain and the distinction between declared capability, execution evidence, and release promotion.
-canonical: doc/quality/production-e2e.en.md
-related:
-  - production-e2e.zh-CN.md
-  - production-browser-evidence.en.md
-  - ../reference/cli.en.md
-  - ../../registries/evidence/production-e2e.v1.yaml
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](production-e2e.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Production E2E evidence
 
@@ -47,3 +32,28 @@ runner; `OUTPUT` is the local validated-evidence location. Full option semantics
 
 Current evidence validity is decided only by the policy in `registries/evidence/production-e2e.v1.yaml`. A declaration
 or observed result is not a public-release/redistribution approval.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: evidence
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: English reference for VIREA's persisted production E2E chain and the distinction between declared capability, execution evidence, and release promotion.
+canonical: doc/quality/production-e2e.en.md
+related:
+  - production-e2e.zh-CN.md
+  - production-browser-evidence.en.md
+  - ../reference/cli.en.md
+  - ../../registries/evidence/production-e2e.v1.yaml
+supersedes: []
+superseded_by: []
+-->

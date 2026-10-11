@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-02
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 30
-summary: Eight persistent-character tasks, recording method, execution evidence and limits.
-canonical: doc/character/showcase.en.md
-related: [doc/character/coarse-activity-execution.zh-CN.md, doc/character/window-continuity.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](showcase.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Eight real performances: the Motion Studio stage
 
@@ -77,3 +66,24 @@ python scripts/character/build_demo_gallery.py --evidence <EVIDENCE_DIR> --ffmpe
 ```
 
 The builder requires actual complete recordings containing both motion models. It emits MP4, previews, a manifest and the gallery; media conversion does not alter model allocation.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-02
+updated: 2026-10-03
+last_reviewed: 2026-10-03
+review_cycle_days: 30
+summary: Eight persistent-character tasks, recording method, execution evidence and limits.
+canonical: doc/character/showcase.en.md
+related: [doc/character/coarse-activity-execution.zh-CN.md, doc/character/window-continuity.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

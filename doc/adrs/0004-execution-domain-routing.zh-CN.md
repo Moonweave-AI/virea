@@ -1,20 +1,6 @@
----
-type: adr
-status: Accepted
-owner: "@Joker-of-Gotham"
-created: 2026-08-21
-updated: 2026-08-22
-last_reviewed: 2026-08-22
-review_cycle_days: 180
-summary: VIREA 将 Windows、WSL、Linux 与 macOS 建模为独立执行域，禁止跨域借用工具、路径或资源事实。
-canonical: doc/adrs/0004-execution-domain-routing.zh-CN.md
-related:
-  - 0003-multi-package-isolated-model-runtimes.zh-CN.md
-  - ../rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md
-  - ../../registries/platforms/execution-targets.v1.yaml
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # ADR-0004：跨平台执行域路由
 
@@ -110,3 +96,27 @@ RAM、swap、storage 与 accelerator 观测。RuntimeSpec 继续声明目标平�
 
 当前没有原生 macOS/MPS、Linux ROCm、Linux NVIDIA 或 Windows 无 GPU 真机证据；这些
 target 只能标记 implemented/unverified，不能标记 production-verified。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: adr
+status: Accepted
+owner: "@Joker-of-Gotham"
+created: 2026-08-21
+updated: 2026-08-22
+last_reviewed: 2026-08-22
+review_cycle_days: 180
+summary: VIREA 将 Windows、WSL、Linux 与 macOS 建模为独立执行域，禁止跨域借用工具、路径或资源事实。
+canonical: doc/adrs/0004-execution-domain-routing.zh-CN.md
+related:
+  - 0003-multi-package-isolated-model-runtimes.zh-CN.md
+  - ../rfcs/0003-virea-0.3-multi-model-refactor.zh-CN.md
+  - ../../registries/platforms/execution-targets.v1.yaml
+supersedes: []
+superseded_by: []
+-->

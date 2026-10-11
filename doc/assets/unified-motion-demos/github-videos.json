@@ -1,0 +1,66 @@
+{
+  "motioncraft-01-introduction": {
+    "url": "https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3",
+    "sha256": "0653ebd4cdea49dca665ab42700e3b3424ab95a9ce35c8e2c59d1c8c0f0da639"
+  },
+  "motioncraft-02-warmup": {
+    "url": "https://github.com/user-attachments/assets/9fbcf453-8445-4b44-a244-30b3181e7f7b",
+    "sha256": "6dca8c78917aba6006dc01c5803a3c6329948d8fce0859f7524a4fbda5da56ba"
+  },
+  "motioncraft-03-story": {
+    "url": "https://github.com/user-attachments/assets/f0e83739-c3d8-4a9c-8b10-9ed6e3a26a0d",
+    "sha256": "bd753a8a312898bcdd14aa55ec81fd5d8422d50ceb754a57da9908271c3f05a1"
+  },
+  "motioncraft-04-dance": {
+    "url": "https://github.com/user-attachments/assets/615aa9a5-18ef-47e5-b54c-15d663ab7941",
+    "sha256": "5e18048ead20f8bc10d4999e709ba7d3d0a62455a012e1fe7b068be2c0af7acd"
+  },
+  "motioncraft-05-fashion": {
+    "url": "https://github.com/user-attachments/assets/107a9dbd-380d-4e55-b6fc-9c83a747fac6",
+    "sha256": "0227a2f32546fff6381ae3228ef629469e5b1eb5feb217035d79b37281d721e9"
+  },
+  "motioncraft-06-emotion": {
+    "url": "https://github.com/user-attachments/assets/b06d1e9b-b1ea-4da0-8404-22b37c99f140",
+    "sha256": "dd719efdb58b495d15188e9686434d011560c1d512dfa5bbd2fb942733952cc8"
+  },
+  "motioncraft-07-tour": {
+    "url": "https://github.com/user-attachments/assets/5c8580e5-c0de-4c4c-bea6-d245bed46f10",
+    "sha256": "bb48e5f2bec8b0a71edaea78ccd444a2dac74a61192ba911366263676575343b"
+  },
+  "motioncraft-08-boxing": {
+    "url": "https://github.com/user-attachments/assets/bab6fbb6-b3ae-4a9a-9f79-6012c4ffb986",
+    "sha256": "e2944daef6e9eb3783a56e87978df80461334cc76bc346ccf5bf2a529bf6b1e1"
+  },
+  "syntalker-01-introduction": {
+    "url": "https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a",
+    "sha256": "4937e9e6a887a4f3cb23620587b2d50a107b27faee8b378b71a62fde710d18ff"
+  },
+  "syntalker-02-warmup": {
+    "url": "https://github.com/user-attachments/assets/af421073-e85f-494e-add6-ee8769c972c5",
+    "sha256": "186684c02352f6bb954a26c4b94353607b32f2e42d11fd94e4def831e834056d"
+  },
+  "syntalker-03-story": {
+    "url": "https://github.com/user-attachments/assets/13ada7d3-953d-4b2c-8fe2-ea51dc1aa918",
+    "sha256": "b2dc14e0f7b36d1b154a530bf3b9352cca58553df9ab4e672a48d095fe7bec4e"
+  },
+  "syntalker-04-dance": {
+    "url": "https://github.com/user-attachments/assets/da79ada0-4058-4f5c-a7b4-d8d1b5cc3082",
+    "sha256": "581961b2e979a415223c5956015352e3d2a6ad52681f5a429415f7b125c0e4e3"
+  },
+  "syntalker-05-fashion": {
+    "url": "https://github.com/user-attachments/assets/2ed48ff2-4435-45ab-8cde-8d7d9af5c772",
+    "sha256": "3ce53a3e9dedea1d51e218f871805dad3d6bac12b1c2180b5624b95872b2d676"
+  },
+  "syntalker-06-emotion": {
+    "url": "https://github.com/user-attachments/assets/9f91f3fd-b0df-454a-a145-6ce08cdaa5ed",
+    "sha256": "0bd41009355e669318d9e8a1fccbb7023ed53c5f6ac0baa695a5f8f8a91aba73"
+  },
+  "syntalker-07-tour": {
+    "url": "https://github.com/user-attachments/assets/a994a9b7-9a89-4997-a45f-84e3e879eff4",
+    "sha256": "70585ed975e8330b1c58ee59b8760ba3e07a21b8fabbdbc2e266a3f0e35d9d8a"
+  },
+  "syntalker-08-boxing": {
+    "url": "https://github.com/user-attachments/assets/f536b0bd-e53d-4435-ae45-d529c3029f0b",
+    "sha256": "44711af24941c1dd30030c72a1d56683badea29d924b3c0bc89ef6ba8613fb86"
+  }
+}

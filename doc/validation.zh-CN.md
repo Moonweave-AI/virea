@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 分层回归与发布验收清单
 
 本次 Major-refactor 按 QA-L4 标准执行。每项测试必须说明覆盖层和证据位置；`passed` 与 `skipped` 分开报告，跳过的真实数据测试不能算作通过。
@@ -169,9 +173,13 @@ python scripts/validate_preview_pipeline.py --data-source full --max-frames 8
 > [!NOTE]
 > 命令成功只更新对应行的证据，不自动把整个 Release 改为 Go。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: checklist
 status: Active
 owner: "@Joker-of-Gotham"
@@ -189,5 +197,4 @@ related:
   - adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

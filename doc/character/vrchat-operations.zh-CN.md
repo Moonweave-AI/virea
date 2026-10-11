@@ -1,17 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 双账号 VRChat 的启动、同房间、自动校准、静音交互、故障恢复和录制指南。
-canonical: doc/character/vrchat-operations.zh-CN.md
-related: [vrchat.en.md, vrchat.zh-CN.md, vrchat-views.md, ../quality/vrchat-recordings.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](vrchat-operations.en.md)
+<!-- END DOC NAV -->
 
 # 在 VRChat 中运行独立 AI
 
@@ -121,3 +110,24 @@ superseded_by: []
 按[四条 Demo 的录制与验收流程](../quality/vrchat-recordings.md#recording-procedure)操作。先确认双方全身和原生字幕可见，再连续录制；生成等待保留，禁止剪掉失败后仍称全程通过。发布前检查全片解码、无音轨、四轮完成、真实模型帧、无预设动作、可见字幕和视频哈希。
 
 暂停冻结表演时钟；中断取消当前任务并保留末帧。结束接管释放人工输入；断开桥接停止输出。关闭网页不是停止后台服务。需要停止服务时使用当前部署的进程管理方式，保留另一个游戏客户端；不要批量结束所有 Python、Steam 或 VRChat 进程。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 双账号 VRChat 的启动、同房间、自动校准、静音交互、故障恢复和录制指南。
+canonical: doc/character/vrchat-operations.zh-CN.md
+related: [vrchat.en.md, vrchat.zh-CN.md, vrchat-views.md, ../quality/vrchat-recordings.md]
+supersedes: []
+superseded_by: []
+-->

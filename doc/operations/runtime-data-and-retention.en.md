@@ -1,21 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Launcher and development data locations, model and performance artifact retention, and cleanup.
-canonical: doc/operations/runtime-data-and-retention.en.md
-related:
-  - runtime-data-and-retention.zh-CN.md
-  - troubleshooting.en.md
-  - ../getting-started.en.md
-  - ../reference/cli.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](runtime-data-and-retention.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Runtime data and retention
 
@@ -56,3 +41,28 @@ uv run virea state gc --dry-run --older-than-hours 168 --virea-home PATH
 The portable launcher enables the managed `.virea-runtime/` location and checks its Git ignore rule. Manual CLI development defaults to a data root outside the source checkout; development scripts also configure `UV_PROJECT_ENVIRONMENT`, download caches and model storage. Both layouts keep runtime data separate from published source.
 
 Performance artifacts retain native output and mixed playback data, with digest verification on read. To retain an interaction for review, archive its execution command, receipt and referenced artifacts together. Leave active artifacts in place; each GC preview shows the model or state data eligible for collection.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Launcher and development data locations, model and performance artifact retention, and cleanup.
+canonical: doc/operations/runtime-data-and-retention.en.md
+related:
+  - runtime-data-and-retention.zh-CN.md
+  - troubleshooting.en.md
+  - ../getting-started.en.md
+  - ../reference/cli.en.md
+supersedes: []
+superseded_by: []
+-->

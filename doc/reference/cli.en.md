@@ -1,22 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples.
-canonical: doc/reference/cli.en.md
-related:
-  - cli.zh-CN.md
-  - status-semantics.en.md
-  - ../getting-started.en.md
-  - ../../README.md
-  - ../../apps/cli/src/virea_cli/main.py
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](cli.zh-CN.md)
+<!-- END DOC NAV -->
 
 # VIREA CLI reference
 
@@ -457,3 +441,29 @@ uv run virea validate-production-e2e-evidence --observation browser-observation.
 
 These commands validate local, immutable facts. They do not replace upstream licenses, public-release approval, or the
 model-specific browser evidence workflow.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples.
+canonical: doc/reference/cli.en.md
+related:
+  - cli.zh-CN.md
+  - status-semantics.en.md
+  - ../getting-started.en.md
+  - ../../README.md
+  - ../../apps/cli/src/virea_cli/main.py
+supersedes: []
+superseded_by: []
+-->

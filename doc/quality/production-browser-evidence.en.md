@@ -1,20 +1,6 @@
----
-type: evidence
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: English reference for collecting independent browser playback observation before backend evidence validation.
-canonical: doc/quality/production-browser-evidence.en.md
-related:
-  - production-browser-evidence.zh-CN.md
-  - production-e2e.en.md
-  - ../getting-started/browser-playback.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](production-browser-evidence.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Production browser evidence
 
@@ -33,3 +19,27 @@ Capture the observation with the project browser-evidence runner, then validate 
 `virea validate-production-e2e-evidence`. The runner's internal/CI arguments are not a general end-user API; use the
 [browser playback tutorial](../getting-started/browser-playback.en.md) and [production E2E reference](production-e2e.en.md)
 for supported workflow boundaries.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: evidence
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: English reference for collecting independent browser playback observation before backend evidence validation.
+canonical: doc/quality/production-browser-evidence.en.md
+related:
+  - production-browser-evidence.zh-CN.md
+  - production-e2e.en.md
+  - ../getting-started/browser-playback.en.md
+supersedes: []
+superseded_by: []
+-->

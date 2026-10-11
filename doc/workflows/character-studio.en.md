@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the character-studio workspace.
-canonical: doc/workflows/character-studio.en.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](character-studio.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Character Studio
+
+<!-- WORKSPACE ROUTE -->
+> 🎭 **Prepare → generate → observe → export** · [Watch the demos](../demos/README.en.md)
 
 [中文](character-studio.zh-CN.md) · [Set up first](../getting-started/automatic-setup.en.md)
 
@@ -31,3 +23,24 @@ For example: perform a four-second wave, then walk for six seconds; speak an int
 ![Character Studio performance](../assets/unified-motion-demos/motioncraft-01-introduction.jpg)
 
 [Eight examples per motion family](../character/unified-motion.en.md) · [Voice cloning](../character/audio8-tts.zh-CN.md) · [Timing model](../architecture/execution.en.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the character-studio workspace.
+canonical: doc/workflows/character-studio.en.md
+related: []
+supersedes: []
+superseded_by: []
+-->

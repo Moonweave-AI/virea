@@ -1,22 +1,6 @@
----
-type: research-log
-status: Superseded
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: PRISM 官方 checkpoint 命名、dtype 安全低内存加载与不可变源码完整性的根因研究。
-canonical: doc/research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
-related:
-  - prism-checkpoint-loading-integrity-2026-08-23.en.md
-  - ../models/prism.zh-CN.md
-  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
-  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
-supersedes: []
-superseded_by:
-  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](prism-checkpoint-loading-integrity-2026-08-23.en.md)
+<!-- END DOC NAV -->
 
 # PRISM checkpoint 加载与资产完整性研究日志
 
@@ -83,3 +67,29 @@ statistics 都会复用；此前已被污染的小型源码资产可能被隔离
 Windows Blackwell 的 fresh acceptance 证明 Runtime 0.1.5 在 Accelerate meta-tensor dispatch 阶段进入了上游
 native crash 路径。上述文件名与 bytecode 完整性发现仍然有效，但加载实现与推进决策由关联的 Runtime 0.1.6
 研究日志替代。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Superseded
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: PRISM 官方 checkpoint 命名、dtype 安全低内存加载与不可变源码完整性的根因研究。
+canonical: doc/research/prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
+related:
+  - prism-checkpoint-loading-integrity-2026-08-23.en.md
+  - ../models/prism.zh-CN.md
+  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
+supersedes: []
+superseded_by:
+  - prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
+-->

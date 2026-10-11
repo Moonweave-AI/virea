@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 姿态重定向真实核验记录（Historical）
 
 > [!WARNING]
@@ -159,9 +163,13 @@ Direct quaternion路径以 source mapped global rotations经 basis/frame契约�
 
 方向、basis、axis-angle/6D/BVH Euler转换和真实 VRM normalized-local 数学的已知确定性错误已修复并建立分层 oracle。BEAT 可判 source rotation链闭环；AMASS/BABEL常规 direct、GRAB 与 HumanML RIC path有真实回归证据。Motion-X、SuSu rotation-only 与 AMASS/BABEL Stage-II更广覆盖仍不能提升为 release-ready，所以“七库每条动作完全正确”仍是 No-Go，而不是被测试数量替代的声明。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: research-log
 status: Historical
 owner: "@Joker-of-Gotham"
@@ -183,5 +191,4 @@ supersedes:
 superseded_by:
   - ../validation.zh-CN.md
   - finger-retarget-root-cause-2026-08-09.zh-CN.md
----
 -->

@@ -1,24 +1,12 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-10-11
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: Reproducible VIREA setup from git clone through domain selection, installation, generation, and browser playback.
-canonical: doc/getting-started.en.md
-related:
-  - README.en.md
-  - getting-started.zh-CN.md
-  - reference/cli.en.md
-  - platforms/README.en.md
-  - ../CONTRIBUTING.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.md) · [Documentation](README.en.md) · [Set Up](getting-started/automatic-setup.en.md) · [Demos](demos/README.en.md) · [简体中文](getting-started.zh-CN.md)
+<!-- END DOC NAV -->
 
 # VIREA from clone to first result
+
+<!-- DOCS-SETUP-ROUTE -->
+> [!TIP]
+> First time here? Start with [automatic setup](getting-started/automatic-setup.en.md); the launcher prepares the environment. This page covers manual development setup and command-line operation.
 
 > [中文教程](getting-started.zh-CN.md) · [English](getting-started.en.md) · [Full CLI reference](reference/cli.en.md)
 
@@ -254,3 +242,29 @@ effects are in the [CLI reference](reference/cli.en.md).
 - [Platform and execution-domain guide](platforms/README.en.md)
 - [Model catalog and generated capability matrix](models/README.zh-CN.md)
 - [Documentation policy and bilingual maintenance](development/documentation.en.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](catalog.en.md) · [🛠️ Troubleshooting](operations/troubleshooting.en.md) · [🤝 Contributing](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Reproducible VIREA setup from git clone through domain selection, installation, generation, and browser playback.
+canonical: doc/getting-started.en.md
+related:
+  - README.en.md
+  - getting-started.zh-CN.md
+  - reference/cli.en.md
+  - platforms/README.en.md
+  - ../CONTRIBUTING.md
+supersedes: []
+superseded_by: []
+-->

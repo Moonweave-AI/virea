@@ -1,17 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Start, join, calibrate, operate, recover and record a silent two-account VRChat session.
-canonical: doc/character/vrchat-operations.en.md
-related: [vrchat-operations.zh-CN.md, vrchat.en.md, vrchat-views.md, ../quality/vrchat-recordings.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](vrchat-operations.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Run an independent AI in VRChat
 
@@ -121,3 +110,24 @@ World rules govern movement and grabbing. SteamVR dashboard overlays are absent 
 Follow the [four-demo recording and acceptance procedure](../quality/vrchat-recordings.md#recording-procedure). Frame both full bodies and native chatboxes before recording. Retain generation waits; do not edit out failures and describe the result as uninterrupted success. Check full decode, no audio, four completed turns, actual model frames, no presets, visible captions and video hashes before publication.
 
 Pause freezes the performance clock. Interrupt cancels the current task and retains its last pose. Ending takeover releases manual inputs; disconnect stops bridge output. Closing the page does not stop backend services. Stop services through the deployment's process manager while preserving the other game client; do not indiscriminately terminate every Python, Steam or VRChat process.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Start, join, calibrate, operate, recover and record a silent two-account VRChat session.
+canonical: doc/character/vrchat-operations.en.md
+related: [vrchat-operations.zh-CN.md, vrchat.en.md, vrchat-views.md, ../quality/vrchat-recordings.md]
+supersedes: []
+superseded_by: []
+-->

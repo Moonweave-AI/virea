@@ -1,18 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-28
-updated: 2026-10-02
-last_reviewed: 2026-09-28
-review_cycle_days: 30
-summary: ARDY 长动作窗口与连续性实测、完整对话规划、动态声线和行为规则清理。
-canonical: doc/character/continuous-motion-dialogue.zh-CN.md
-related:
-  - motion-studio-upgrade.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 连续运动与完整对话
 
@@ -88,3 +76,25 @@ npm --prefix apps/web run build
 ```
 
 离线运动对照会额外载入一份模型，应在对应常驻 worker 停止时运行。证据文件包括 `sustained-motion.json`、`sustained-motion-h40.json`、`native-program.json`、`dialogue-before.json`、`dialogue-after.json`、`browser-story.json`、`browser-continuation.json` 和 `voices.json`。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-28
+updated: 2026-10-02
+last_reviewed: 2026-09-28
+review_cycle_days: 30
+summary: ARDY 长动作窗口与连续性实测、完整对话规划、动态声线和行为规则清理。
+canonical: doc/character/continuous-motion-dialogue.zh-CN.md
+related:
+  - motion-studio-upgrade.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

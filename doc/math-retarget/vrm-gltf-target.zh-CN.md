@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # VRM/glTF 目标层数学与执行
 
 共同符号、basis、预求解路径和全手 solver 见 [数学共同层](README.zh-CN.md)。本页只解释通过 v3 重放验证的 211 维怎样变成确定性 target FK，以及 Viewer 怎样在不改动 pose 的前提下施加到具体 VRM。RFC-0002/ADR-0002 仍为 `Proposed`，本页不把当前实施写成已批准决策。
@@ -130,9 +134,13 @@ Marker sprite 使用对象池；每帧只更新 $a_{t,b}$ 对应 transform。文
 - marker 使用 canonical position却显示为“真实 VRM bone”；
 - 具体 VRM license 未明确却公开推送模型或派生媒体。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: reference
 status: Active
 owner: "@Joker-of-Gotham"
@@ -150,5 +158,4 @@ related:
   - ../adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

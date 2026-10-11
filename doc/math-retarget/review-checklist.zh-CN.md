@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Retarget 文档公式级评审清单
 
 ## 每篇 source 文档必须回答
@@ -93,9 +97,13 @@ python -m pytest -q
 
 自动检查覆盖禁用宏、delimiter、标题、local links、frontmatter、退役媒体缺席与公开媒体白名单。人工检查仍必须覆盖公式含义、标准/代码边界、真实样本和真实 VRM；自动通过不等于数学审查通过。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: checklist
 status: Active
 owner: "@Joker-of-Gotham"
@@ -111,5 +119,4 @@ related:
   - ../references.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

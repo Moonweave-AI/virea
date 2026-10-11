@@ -1,21 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: English guide to treating a named WSL2 distribution as an independent VIREA execution domain.
-canonical: doc/platforms/wsl2.en.md
-related:
-  - wsl2.zh-CN.md
-  - README.en.md
-  - windows.en.md
-  - linux.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](wsl2.zh-CN.md)
+<!-- END DOC NAV -->
 
 # WSL2
 
@@ -73,3 +58,28 @@ headroom. PRISM's CUDA Worker currently requires 15 GiB available before load an
 
 The browser can run on Windows while the Worker runs in WSL, but evidence must identify both facts; a Windows browser does
 not make model inference Windows-native.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: English guide to treating a named WSL2 distribution as an independent VIREA execution domain.
+canonical: doc/platforms/wsl2.en.md
+related:
+  - wsl2.zh-CN.md
+  - README.en.md
+  - windows.en.md
+  - linux.en.md
+supersedes: []
+superseded_by: []
+-->

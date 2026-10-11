@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # SMPL-X family 到 VRM
 
 GRAB 与 Motion-X 共享 55-joint mapping 和 direct local quaternion 数学，但绝不共享未验证的 FPS、basis、unit 或数组切片。
@@ -130,9 +134,13 @@ Motion-X：sequence/body/hand/face text分别保留。源结构明确左右手�
 - GRAB contact 聚合覆盖 native categorical map；
 - face/shape/object 字段被写进 211 维或绑到错误人体关节。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -148,5 +156,4 @@ related:
   - ../references.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

@@ -1,20 +1,6 @@
----
-type: reference
-status: Generated
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-22
-last_reviewed: 2026-08-22
-review_cycle_days: 14
-summary: 从模型 manifest 与 RuntimeSpec 生成的模型、任务、原生骨骼/表示、资源和发行状态矩阵。
-canonical: doc/models/support-matrix.generated.md
-related:
-  - README.zh-CN.md
-  - ../platforms/support-matrix.generated.md
-  - ../reference/status-semantics.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # 模型支持矩阵
 
@@ -40,19 +26,40 @@ superseded_by: []
 | **SentiAvatar SuSu**<br><code>sentiavatar-susu</code><br>arXiv v1 2026-04-03; public code and weights 2026 | Integrated · experimental | <code>audio_text_to_avatar_motion</code><br><code>streaming_dialogue_avatar_motion</code> | <code>susu.body25_hands40.v1</code><br><code>susu.body25_hands40.cont6d_root_delta.v1</code> · 20.0 FPS | <code>sentiavatar-susu-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 8 GiB, RAM 12 GiB)<br><code>sentiavatar-susu-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 16 GiB, swap 4 GiB) | No structured blocker recorded | No model-scoped observation recorded | Redistributable under declared terms |
 | **Tencent HY-Motion 1.0**<br><code>hy-motion-1</code><br>2025-12-30 | Integrated · experimental | <code>text_to_motion</code> | <code>hy_motion.wooden_body22.v1</code><br><code>hy_motion.body22.rot6d_translation.v1</code> · 30.0 FPS | <code>hy-motion-1-cu128</code> · Windows x86_64, Linux x86_64 · cuda_full (VRAM 26 GiB, RAM 24 GiB)<br><code>hy-motion-1-cpu</code> · Windows x86_64, Linux x86_64, macOS arm64, macOS x86_64 · cpu (RAM 40 GiB, swap 16 GiB) | No structured blocker recorded | No model-scoped observation recorded | External assets / acceptance required |
 
-## 解释边界
+## 🧭 字段怎么读
 
-- “Declared Runtime capability”只来自 RuntimeSpec 的平台 ABI 与已实现资源 profile；manifest 中的
-  `availability` 文本不会被渲染为能力或支持结论。
-- “Known deployment blockers”只来自模型 manifest 的结构化 model/platform blocker；空列表表示当前没有
-  已登记 blocker，不等于真实推理或该平台验收通过。
-- “Observed evidence coverage”只展示 execution-target registry 中明确点名该模型的观测范围；target-level
-  状态不会扩散到同一平台行的其他模型，也不会改变可选执行域。
-- 观测范围不等于当前 promotion。record 是否有效、采用哪个 validator policy 与 record ID，必须以
-  production evidence registry 为准。
-- 资源 profile 只有 Worker 真实实现时才可选择；RAM、VRAM 与 swap 不相加。
-- `external_assets` 或许可复核只限制获取/发行，不自动等于技术不可运行。
-- 缺少观测记录表示该组合仍待实测，不表示模型或操作系统被主动判为不支持。
-- 每个平台的 declared capability 与 observed coverage 见
-  [平台矩阵](../platforms/support-matrix.generated.md)；启动时先检测可选执行域，再由用户为同一模型资产选择
-  execution domain，控制面随后解析并按需懒构建或复用对应 Runtime 与域内路径，不重复下载模型资产。
+| 字段 | 信息来源与含义 |
+|:--|:--|
+| Declared Runtime capability | RuntimeSpec 中的平台 ABI 与已实现的资源配置。 |
+| Known deployment blockers | Manifest 登记的模型／平台安装条件；空列表表示没有已登记条件。 |
+| Observed evidence coverage | 执行目标 registry 中明确点名该模型的实测范围。 |
+| Resource profile | Worker 可执行的内存与设备配置；RAM、VRAM、swap 分别计算。 |
+| Distribution | 模型资产的获取与发行条款，包含需要单独获取的资源。 |
+
+当前验证记录、validator policy 和 record ID 见 production evidence registry。缺少记录的组合可以继续
+通过实际生成检验。对照[平台矩阵](../platforms/support-matrix.generated.md)，选择检测到的 execution domain；
+控制面会复用模型资产，并按需构建对应环境。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Generated
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-22
+last_reviewed: 2026-08-22
+review_cycle_days: 14
+summary: 从模型 manifest 与 RuntimeSpec 生成的模型、任务、原生骨骼/表示、资源和发行状态矩阵。
+canonical: doc/models/support-matrix.generated.md
+related:
+  - README.zh-CN.md
+  - ../platforms/support-matrix.generated.md
+  - ../reference/status-semantics.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

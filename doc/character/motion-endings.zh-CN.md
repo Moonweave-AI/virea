@@ -1,19 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
-review_cycle_days: 30
-summary: 三组真实模型动作的结束复现、统一时钟收势与暂停打断验证。
-canonical: doc/character/motion-endings.zh-CN.md
-related:
-  - README.zh-CN.md
-  - performance-upgrade.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 动作结束：从冻结末帧到减速收势
 
@@ -79,3 +66,26 @@ node scripts/character/continuous_e2e.mjs <AVATAR.vrm> <EVIDENCE>/continuous
 该失败记录仍保留，不能据后续通过承诺负载下永不缺帧。该次中间窗口的动作时长与语音一致，
 没有误插入收势。前端全套首次运行另有一个工作室启动轮询时序用例失败，
 随后单独复测与全套 92 项复测均通过；本次没有修改那条工作室路径。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-27
+updated: 2026-09-27
+last_reviewed: 2026-09-27
+review_cycle_days: 30
+summary: 三组真实模型动作的结束复现、统一时钟收势与暂停打断验证。
+canonical: doc/character/motion-endings.zh-CN.md
+related:
+  - README.zh-CN.md
+  - performance-upgrade.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

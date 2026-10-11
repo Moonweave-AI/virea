@@ -1,21 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: 原生 Linux 的外部环境、CUDA/ROCm/CPU Runtime 与 system lifecycle 要求。
-canonical: doc/platforms/linux.zh-CN.md
-related:
-  - linux.en.md
-  - README.zh-CN.md
-  - wsl2.zh-CN.md
-  - ../getting-started/installation.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](linux.en.md)
+<!-- END DOC NAV -->
 
 # Linux
 
@@ -47,3 +32,28 @@ AMD ROCm 与 CPU 是不同 Runtime/profile，不能复用一个 CUDA lock 后仅
 CMDM 与 MoMADiff 声明了 `linux-64` CPU Runtime，但当前 build/import 证据只来自 Windows native 与
 `wsl:Ubuntu-24.04`，不能继承为原生 Linux 实测；原生 Linux 的 CPU/CUDA model inference 与
 doctor→browser 仍分别待验收。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: 原生 Linux 的外部环境、CUDA/ROCm/CPU Runtime 与 system lifecycle 要求。
+canonical: doc/platforms/linux.zh-CN.md
+related:
+  - linux.en.md
+  - README.zh-CN.md
+  - wsl2.zh-CN.md
+  - ../getting-started/installation.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

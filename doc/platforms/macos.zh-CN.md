@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 14
-summary: macOS native 的外部环境、Apple Silicon MPS/CPU Runtime 和进程生命周期要求。
-canonical: doc/platforms/macos.zh-CN.md
-related:
-  - macos.en.md
-  - README.zh-CN.md
-  - ../getting-started/installation.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](macos.en.md)
+<!-- END DOC NAV -->
 
 # macOS
 
@@ -48,3 +34,27 @@ macOS 验收”，而不是“macOS 不支持”。
 都会解析到 `torch==2.2.2` 与 `numpy==1.26.4`，避免不受支持的 NumPy 2.x ABI 路径。这些声明与 lock 检查不能
 替代在真实 macOS 硬件上逐模型完成 checkpoint inference 与 browser acceptance。CUDA profiles 不得出现在
 macOS 可选策略中，MPS Worker 也仍未实现。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 14
+summary: macOS native 的外部环境、Apple Silicon MPS/CPU Runtime 和进程生命周期要求。
+canonical: doc/platforms/macos.zh-CN.md
+related:
+  - macos.en.md
+  - README.zh-CN.md
+  - ../getting-started/installation.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

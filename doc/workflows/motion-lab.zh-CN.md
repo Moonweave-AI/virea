@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the motion-lab workspace.
-canonical: doc/workflows/motion-lab.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](motion-lab.en.md)
+<!-- END DOC NAV -->
 
 # Motion Lab：生成与检查动作
+
+<!-- WORKSPACE ROUTE -->
+> 🦴 **准备 → 生成 → 观察 → 导出** · [先看演示](../demos/README.zh-CN.md)
 
 [English](motion-lab.en.md) · [先完成部署](../getting-started/automatic-setup.zh-CN.md)
 
@@ -29,3 +21,24 @@ superseded_by: []
 Motion Lab 使用原生模型适配器、Motion IR v2 和公共重定向流程，无需语言模型、声线或角色会话。
 
 继续阅读[模型目录](../models/README.zh-CN.md)、[首次生成](../getting-started/first-generation.zh-CN.md)及[重定向数学](../math-retarget/README.zh-CN.md)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the motion-lab workspace.
+canonical: doc/workflows/motion-lab.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

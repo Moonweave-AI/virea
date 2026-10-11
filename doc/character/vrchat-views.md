@@ -1,17 +1,6 @@
----
-type: reference
-status: draft
-owner: VIREA maintainers
-created: 2026-10-08
-updated: 2026-10-11
-last_reviewed: 2026-10-08
-review_cycle_days: 30
-summary: Process-bound, on-demand live VRChat views and acceptance criteria.
-canonical: doc/character/vrchat-views.md
-related: [vrchat.en.md, vrchat.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Live VRChat views
 
@@ -89,3 +78,24 @@ profile and port; the panel reconnects without capturing another application.
 API 401 errors inside VRChat must be distinguished from local capture/OSC:
 a visible, still-connected game scene can coexist with failed online avatar
 resource requests. Credentials are never returned by diagnostics or persisted by the control API. Authentication footage must not enter demo recordings. Generated-motion acceptance remains tracked separately in [the recording record](../quality/vrchat-recordings.md); this draft awaits owner review.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: draft
+owner: VIREA maintainers
+created: 2026-10-08
+updated: 2026-10-11
+last_reviewed: 2026-10-08
+review_cycle_days: 30
+summary: Process-bound, on-demand live VRChat views and acceptance criteria.
+canonical: doc/character/vrchat-views.md
+related: [vrchat.en.md, vrchat.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-10-02
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 从真实 Miku 会话定位动作断档、错误身体承诺与收势问题，记录论文依据、实现和 GPU 验证。
-canonical: doc/character/planned-expression-reliability.zh-CN.md
-related: [doc/character/coordination-and-diagnostics.zh-CN.md, doc/character/performance-continuity-research.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 连续表达的交付与收尾
 
@@ -83,3 +72,24 @@ GitNexus 完整变更查询覆盖 24 个文件，整体风险 CRITICAL，涉及�
 ## 验证边界
 
 字幕尚未做逐字强制对齐；面部表现受到 VRM 实际表情通道限制。SentiAvatar 的原生连续历史并不等于它能从任意 ARDY 姿态精确续写，跨模型仍由时间段交接处理。当前没有训练新模型、建立动作美感评分器或完成物理交互系统；不能保证任意动作和任意骨架的最终姿态都自然。模型边界、部署异常和呈现异常必须分开记账。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-10-02
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 从真实 Miku 会话定位动作断档、错误身体承诺与收势问题，记录论文依据、实现和 GPU 验证。
+canonical: doc/character/planned-expression-reliability.zh-CN.md
+related: [doc/character/coordination-and-diagnostics.zh-CN.md, doc/character/performance-continuity-research.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

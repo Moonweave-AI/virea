@@ -1,25 +1,24 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Start from a source ZIP, configure model providers, and deploy local models through the setup wizard.
-canonical: doc/getting-started/automatic-setup.en.md
-related:
-  - automatic-setup.zh-CN.md
-  - ../reference/onboarding-api.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](automatic-setup.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Set up VIREA from zero
 
 [中文](automatic-setup.zh-CN.md) · [Documentation](../README.en.md)
 
 Download the repository ZIP and extract it to a folder you want to keep. The base environment needs about 5 GiB; local models need additional storage. Windows 10/11, recent Linux distributions and macOS can run the setup wizard and browser workspaces.
+
+
+## From a folder to a character
+
+<!-- setup-flow -->
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
+flowchart LR
+    A["📁 Download"] --> B["🚀 Launch"] --> C["🔌 Detect providers"] --> D["✓ Generate a result"] --> E["🎭 Open a workspace"]
+    classDef lunar fill:#262431,stroke:#b9b0c8,color:#f4eef2
+    class A,B,C,D,E lunar
+```
 
 ## 1. Open the launcher
 
@@ -86,3 +85,26 @@ The browser shows generation and execution separately. Inspect the model result 
 Keys are stored on the server: Windows uses user-bound DPAPI; Linux and macOS use an owner-only file or environment variables. Generation checks use the selected provider's normal inference API. Receipts, hashes and results are stored in `verification/` beside the connection configuration.
 
 [Automation API](../reference/onboarding-api.md) · [Platform guides](../platforms/README.en.md) · [Validation evidence](../quality/portable-onboarding.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Start from a source ZIP, configure model providers, and deploy local models through the setup wizard.
+canonical: doc/getting-started/automatic-setup.en.md
+related:
+  - automatic-setup.zh-CN.md
+  - ../reference/onboarding-api.md
+supersedes: []
+superseded_by: []
+-->

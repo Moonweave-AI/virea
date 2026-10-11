@@ -1,22 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: 六模型历史资源 profile 证据审计，以及它与当前 14 模型集成目录、标称容量、PRISM Windows CUDA 和 WSL2 配额诊断的边界。
-canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
-related:
-  - runtime-resource-requirements-audit-2026-08-23.en.md
-  - ../models/prism.zh-CN.md
-  - ../platforms/wsl2.zh-CN.md
-  - ../operations/troubleshooting.zh-CN.md
-  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](runtime-resource-requirements-audit-2026-08-23.en.md)
+<!-- END DOC NAV -->
 
 # 已集成模型资源需求审计（2026-08-23）
 
@@ -118,3 +102,29 @@ uv run ruff check .
 
 对用户报告的机器，更新 clone 后运行 `uv run virea`，选择 `windows-native` 与 PRISM CUDA component-split
 profile。只有主动选择 WSL 时才需要调整 WSL 配额；无需删除模型，也无需重新下载。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: 六模型历史资源 profile 证据审计，以及它与当前 14 模型集成目录、标称容量、PRISM Windows CUDA 和 WSL2 配额诊断的边界。
+canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.zh-CN.md
+related:
+  - runtime-resource-requirements-audit-2026-08-23.en.md
+  - ../models/prism.zh-CN.md
+  - ../platforms/wsl2.zh-CN.md
+  - ../operations/troubleshooting.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

@@ -1,22 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: VIREA CLI 的完整中文参考，逐项说明命令、位置参数、选项、副作用和安全示例。
-canonical: doc/reference/cli.zh-CN.md
-related:
-  - cli.en.md
-  - status-semantics.zh-CN.md
-  - ../getting-started.zh-CN.md
-  - ../../README.zh-CN.md
-  - ../../apps/cli/src/virea_cli/main.py
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](cli.en.md)
+<!-- END DOC NAV -->
 
 # VIREA CLI 参数参考
 
@@ -436,3 +420,29 @@ uv run virea validate-production-e2e-evidence --observation browser-observation.
 | `--virea-home PATH` | 两个校验器都必需的状态根。 |
 
 这些命令校验本地不可变事实，不能替代上游许可证、公开发布审批或逐模型浏览器证据流程。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: VIREA CLI 的完整中文参考，逐项说明命令、位置参数、选项、副作用和安全示例。
+canonical: doc/reference/cli.zh-CN.md
+related:
+  - cli.en.md
+  - status-semantics.zh-CN.md
+  - ../getting-started.zh-CN.md
+  - ../../README.zh-CN.md
+  - ../../apps/cli/src/virea_cli/main.py
+supersedes: []
+superseded_by: []
+-->

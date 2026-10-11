@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-03
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 90
-summary: Recorded character performances, exact public media inventory and provenance.
-canonical: doc/assets/character-demos/README.md
-related: [doc/character/showcase.en.md, doc/character/showcase.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../../README.md) · [Documentation](../../README.en.md) · [Set Up](../../getting-started/automatic-setup.en.md) · [Demos](../../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Motion Studio recording inventory / 录制清单
 
@@ -35,3 +24,24 @@ The eight complete MP4s were uploaded unchanged through GitHub’s README attach
 | 情绪转折 / From doubt to joy | [MP4](06-celebration.mp4) | [GIF](06-celebration.gif) | [JPG](06-celebration.jpg) |
 | 行走导览 / Walking guide | [MP4](07-tour.mp4) | [GIF](07-tour.gif) | [JPG](07-tour.jpg) |
 | 拳击练习 / Boxing practice | [MP4](08-boxing.mp4) | [GIF](08-boxing.gif) | [JPG](08-boxing.jpg) |
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../../catalog.en.md) · [🛠️ Troubleshooting](../../operations/troubleshooting.en.md) · [🤝 Contributing](../../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-03
+updated: 2026-10-03
+last_reviewed: 2026-10-03
+review_cycle_days: 90
+summary: Recorded character performances, exact public media inventory and provenance.
+canonical: doc/assets/character-demos/README.md
+related: [doc/character/showcase.en.md, doc/character/showcase.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

@@ -1,17 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-03
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 30
-summary: Audio8-TTS 0.6B 的 GPU 流式部署、参考声线迁移与实测。
-canonical: doc/character/audio8-tts.zh-CN.md
-related: [README.zh-CN.md, dots-tts.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Audio8-TTS 0.6B
 
@@ -108,3 +97,24 @@ RTF = 生成耗时 / 音频时长；小于 1 表示生成快于播放。采样�
 
 旧 dots.tts 脚本及[原始测量](dots-tts.zh-CN.md)保留供回退。回退时必须同时改回配置中的
 `tts_model` 与服务启动命令；Audio8 网关不接受 dots.tts 模型名。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-03
+updated: 2026-10-03
+last_reviewed: 2026-10-03
+review_cycle_days: 30
+summary: Audio8-TTS 0.6B 的 GPU 流式部署、参考声线迁移与实测。
+canonical: doc/character/audio8-tts.zh-CN.md
+related: [README.zh-CN.md, dots-tts.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

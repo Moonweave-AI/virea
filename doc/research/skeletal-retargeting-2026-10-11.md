@@ -1,17 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Same-sample investigation of rest-frame geometry, SO3 conditioning and device constraints.
-canonical: doc/research/skeletal-retargeting-2026-10-11.md
-related: [../quality/vrchat-motion.md, ../math-retarget/smplx-to-vrm.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Skeletal retargeting: geometry before heuristics
 
@@ -100,3 +89,24 @@ The native file contains numeric `values` of shape `(T, 322)`. Geometry is a num
 ## Conclusion and next step
 
 Promote the shared FK kernel, constant-frame transport, explicit geometry input and no-reseeding behavior to engineering. Keep raw artifacts unchanged and playback conditioning measurable. Iterate on branch/contact constraints and source-to-rendered pose measurements using current avatar geometry and the same retained sample.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Same-sample investigation of rest-frame geometry, SO3 conditioning and device constraints.
+canonical: doc/research/skeletal-retargeting-2026-10-11.md
+related: [../quality/vrchat-motion.md, ../math-retarget/smplx-to-vrm.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

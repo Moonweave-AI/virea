@@ -1,22 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: WSL2 作为独立 Linux 执行域时的构建、路径、GPU、状态与浏览器边界。
-canonical: doc/platforms/wsl2.zh-CN.md
-related:
-  - wsl2.en.md
-  - README.zh-CN.md
-  - windows.zh-CN.md
-  - linux.zh-CN.md
-  - ../models/prism.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](wsl2.en.md)
+<!-- END DOC NAV -->
 
 # WSL2
 
@@ -98,3 +82,29 @@ API/Web 可以在 WSL 内监听 loopback 并由 Windows 浏览器访问，也可
 当前 Windows 宿主监督器可以启动并停止 WSL Worker；崩溃后恢复仍只能可靠核验宿主 `wsl.exe` wrapper，
 不能把 wrapper PID 冒充发行版内部进程身份。需要恢复遗留 WSL Worker 时应在同一发行版内核验并回收，
 在内外身份链完整持久化前不得宣称跨 WSL orphan recovery 已普遍通过。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: WSL2 作为独立 Linux 执行域时的构建、路径、GPU、状态与浏览器边界。
+canonical: doc/platforms/wsl2.zh-CN.md
+related:
+  - wsl2.en.md
+  - README.zh-CN.md
+  - windows.zh-CN.md
+  - linux.zh-CN.md
+  - ../models/prism.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

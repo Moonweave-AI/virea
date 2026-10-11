@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # ADR-0002：Canonical v3 Constraint-aware Hand Retarget
 
 ## 状态
@@ -205,10 +209,13 @@ failure/fallback和七库真实评估时，不得成为production dependency。
 | 保持source authority、不可观测性与论文依据可追溯 | Moonweave-AI Maintainers | 每次policy变更 | [根因研究](../research/finger-retarget-root-cause-2026-08-09.zh-CN.md) |
 | 更新release QA、migration和rollback evidence | Moonweave-AI Maintainers | Release Gate | [验收文档](../validation.zh-CN.md) |
 
+<!-- BEGIN DOC FOOTER -->
+---
 
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: adr
 status: Proposed
 owner: "Moonweave-AI Maintainers"
@@ -227,5 +234,4 @@ related:
   - ../validation.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

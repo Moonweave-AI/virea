@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Retarget 数学共同层
 
 本目录解释当前 canonical v3 数学契约，并要求每条公式可追溯到当前分支函数、数组切片和 metadata。RFC-0002/ADR-0002 仍为 `Proposed`，这里记录 working tree 中已实施的数学，不把实施冒充为治理批准。如果实现尚未满足公式，验证状态必须是未通过，而不是改文档迎合错误行为。
@@ -350,9 +354,13 @@ $$
 - 任何仍把 root rotation 一律共轭、把 local rotations 做 world basis conjugation、让 Reader 扫描本机 VRM、以 rest pose 兜底 HumanML3D、绕过 hand replay，或让 Viewer 修正 fingers 的分支都与 v3 契约不一致，必须在验证中失败。
 - 当前证据不允许宣称“任意 mesh 必然无穿插”、“所有 source twist 已恢复”或“七库已全部 release-ready”。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -370,5 +378,4 @@ related:
   - ../adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

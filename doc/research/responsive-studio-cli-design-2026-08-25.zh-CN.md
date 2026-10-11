@@ -1,21 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-25
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: 响应式任务提交、持久实时进度、可交互 WebGL Viewer，以及语义化 CLI/Web 呈现所依据的一手资料研究。
-canonical: doc/research/responsive-studio-cli-design-2026-08-25.zh-CN.md
-related:
-  - responsive-studio-cli-design-2026-08-25.en.md
-  - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
-  - ../getting-started/browser-playback.zh-CN.md
-  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](responsive-studio-cli-design-2026-08-25.en.md)
+<!-- END DOC NAV -->
 
 # 响应式 Studio 与 CLI 设计研究记录
 
@@ -81,3 +66,28 @@ typecheck/build、Python 合同测试、文档门禁和仓库测试均是发布�
 本地自动化无法证明未来所有 GPU driver、浏览器、checkpoint 或系统构建。真实 production acceptance 仍须
 绑定具体模型、Runtime、执行域与机器证据。本改动移除已知架构阻塞并保持 fail-closed，不把未观测组合写成
 “100% 通用支持”。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: 响应式任务提交、持久实时进度、可交互 WebGL Viewer，以及语义化 CLI/Web 呈现所依据的一手资料研究。
+canonical: doc/research/responsive-studio-cli-design-2026-08-25.zh-CN.md
+related:
+  - responsive-studio-cli-design-2026-08-25.en.md
+  - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
+  - ../getting-started/browser-playback.zh-CN.md
+  - ../model-catalog/first-wave-2026-08-20.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

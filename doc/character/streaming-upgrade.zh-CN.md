@@ -1,20 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
-review_cycle_days: 30
-summary: 自然站姿、上下文连续生成、统一播放时钟和动作规划器加速的实现与验证。
-canonical: doc/character/streaming-upgrade.zh-CN.md
-related:
-  - README.zh-CN.md
-  - performance-upgrade.zh-CN.md
-  - segment-rest.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 自然待机与连续表达
 
@@ -50,6 +36,7 @@ superseded_by: []
 ## 持续生产与同一时钟
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   L[语言增量 JSON] --> C[校验控制字段 / 释放分句]
   C --> T[常驻 Kokoro / 增量 PCM]
@@ -155,3 +142,27 @@ node scripts/character/ending_e2e.mjs <AVATAR.vrm> <EVIDENCE>/rest <FIXED_CAPTUR
 `compare_planner.py` 复现两种动作执行器与原生 token 检查。原始本机证据保存在外部
 `VIREA-Data/evidence/streaming-upgrade`。此前每窗 2.4 秒的实验生成追不上播放，以及后续一次 221ms underrun，
 均保留失败观察；没有用最终成功结果覆盖它们。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-27
+updated: 2026-09-27
+last_reviewed: 2026-09-27
+review_cycle_days: 30
+summary: 自然站姿、上下文连续生成、统一播放时钟和动作规划器加速的实现与验证。
+canonical: doc/character/streaming-upgrade.zh-CN.md
+related:
+  - README.zh-CN.md
+  - performance-upgrade.zh-CN.md
+  - segment-rest.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

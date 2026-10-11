@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # PRISM 正式来源、迁移证据与接入审计（2026-08-21）
 
 ## 结论
@@ -70,6 +74,12 @@ runner 记录 Avatar fully visible、AnimationMixer 0.1167→0.8334、43 个 ren
 该通过只覆盖 Windows 宿主上的 WSL Ubuntu 24.04、RTX 5090 Laptop GPU 和
 `cuda_component_split`。原生 Linux、Windows native、macOS、其他 GPU 与生产 SLO 仍未完成 E2E；许可复核
 继续限制公开发行与商业使用，但不会再被错误描述成技术不可运行。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: research-log

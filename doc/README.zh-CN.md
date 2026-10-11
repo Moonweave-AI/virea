@@ -1,4 +1,59 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md) · [English](README.en.md)
+<!-- END DOC NAV -->
+
+<img src="assets/brand/virea-banner.png" alt="VIREA 月光主题角色与骨骼动作横幅" width="100%">
+
+# 📚 VIREA 文档
+
+**先让角色动起来，再把交互搭起来。** 从部署开始，选择一个工作区，沿着页面中的下一步继续即可。
+
+<table>
+<tr><td width="33%" valign="top"><h3>🚀 从零开始</h3><p>启动 VIREA，连接模型，看到第一次生成结果。</p><a href="getting-started/automatic-setup.zh-CN.md">部署指南 →</a></td><td width="33%" valign="top"><h3>🎞️ 先看效果</h3><p>观看五段精选演示，或进入完整录像集。</p><a href="demos/README.zh-CN.md">演示中心 →</a></td><td width="33%" valign="top"><h3>🧩 在此基础上开发</h3><p>阅读协议，接入新能力或新的骨骼输出。</p><a href="architecture/overview.zh-CN.md">技术架构 →</a></td></tr>
+</table>
+
+## 选择工作区
+
+| 工作区 | 可以做什么 | 启动后打开 |
+|:--|:--|:--|
+| 🦴 [Motion Lab](workflows/motion-lab.zh-CN.md) | 生成动作、对照骨架、导出动画 | `/app/` |
+| 🎭 [Character Studio](workflows/character-studio.zh-CN.md) | 导入 VRM，将对话、声音与动作组合起来 | `/app/character.html` |
+| 🌐 [VRChat Studio](workflows/vrchat-studio.zh-CN.md) | 运行独立 AI 角色，通过另一个账号观察 | `/app/vrchat.html` |
+
+## 按目标查阅
+
+| 我想要…… | 从这里开始 | 继续阅读 |
+|:--|:--|:--|
+| 接入远程或本地模型 | [自动部署](getting-started/automatic-setup.zh-CN.md) | [模型目录](models/README.zh-CN.md) · [平台说明](platforms/README.zh-CN.md) |
+| 把下载内容放到其他磁盘 | [数据目录](getting-started/persistent-data-root.zh-CN.md) | [存储与清理](operations/runtime-data-and-retention.zh-CN.md) |
+| 编排语音与动作 | [执行与时间轴](architecture/execution.zh-CN.md) | [协议契约](architecture/contracts.zh-CN.md) |
+| 理解手腕或姿态偏差 | [重定向数学](math-retarget/README.zh-CN.md) | [坐标系与同样本对照](research/skeletal-retargeting-2026-10-11.md) |
+| 接入新模型或调用 API | [模型适配器](development/model-adapter.zh-CN.md) | [CLI](reference/cli.zh-CN.md) · [配置 API](reference/onboarding-api.md) |
+| 排查连接或播放问题 | [故障排查](operations/troubleshooting.zh-CN.md) | [VRChat 操作](character/vrchat-operations.zh-CN.md) |
+
+## 深入阅读
+
+- **系统：**[总体架构](architecture/overview.zh-CN.md) · [消息契约](architecture/contracts.zh-CN.md) · [执行生命周期](architecture/execution.zh-CN.md)。
+- **动作：**[重定向参考](math-retarget/README.zh-CN.md) · [原始数据集画廊](showcase/README.md) · [MotionCraft 与 SynTalker](character/unified-motion.zh-CN.md)。
+- **工程：**[开发环境](getting-started.zh-CN.md) · [参与贡献](../CONTRIBUTING.md) · [文档写作](development/documentation.zh-CN.md)。
+- **证据与决策：**[质量记录](catalog.zh-CN.md#quality) · [研究](catalog.zh-CN.md#research) · [ADR 与 RFC](catalog.zh-CN.md#decisions)。
+
+> [!TIP]
+> 想找某个 schema、实验或较早的指南？[文档地图](catalog.zh-CN.md)按主题列出全部文档，并标注用途与状态。
+
+<a id="vrchat-independent-ai-operation"></a>
+<a id="start-here"></a>
+<a id="documentation-contract"></a>
+<a id="authoritative-facts"></a>
+<a id="specialist-records-and-archives"></a>
+
+<!-- BEGIN DOC FOOTER -->
 ---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
 type: index
 status: Active
 owner: VIREA maintainers
@@ -6,7 +61,7 @@ created: 2026-08-08
 updated: 2026-10-11
 last_reviewed: 2026-10-11
 review_cycle_days: 14
-summary: 按用户任务、精确参考、设计解释、决策与证据组织的 VIREA 文档唯一入口。
+summary: Task-oriented documentation home for setup, workspaces and engineering references.
 canonical: doc/README.zh-CN.md
 related:
   - ../README.md
@@ -16,64 +71,4 @@ related:
   - quality/production-e2e.zh-CN.md
 supersedes: []
 superseded_by: []
----
-
-# VIREA 文档
-
-[English](README.en.md) · [简体中文](README.zh-CN.md)
-
-从你想完成的任务出发。首次使用先完成配置，再进入对应工作台。
-
-## 入门与工作台
-
-| 目标 | 指南 |
-|---|---|
-| 从零安装并接入模型 | [自动部署指南](getting-started/automatic-setup.zh-CN.md) |
-| 生成、对比与导出动作 | [Motion Lab](workflows/motion-lab.zh-CN.md) |
-| 导入 VRM，与角色对话 | [Character Studio](workflows/character-studio.zh-CN.md) |
-| 控制独立 AI 账号 | [VRChat Studio](workflows/vrchat-studio.zh-CN.md) |
-| 选择数据盘 | [数据目录设置](getting-started/persistent-data-root.zh-CN.md) |
-| 解决连接与运行问题 | [问题排查](operations/troubleshooting.zh-CN.md) |
-
-## 架构与接口
-
-- [架构总览](architecture/overview.zh-CN.md)：能力、编排与执行职责。
-- [公共契约](architecture/contracts.zh-CN.md)：公共数据结构与统一交互 API。
-- [时序与执行](architecture/execution.zh-CN.md)：独立轨道、取消、控制权与回执。
-- [命令行工具](reference/cli.zh-CN.md) · [自动部署 API](reference/onboarding-api.md) · [添加模型](development/model-adapter.zh-CN.md)。
-- [架构设计 RFC-0004](rfcs/0004-unified-embodied-runtime.md) · [重构验证](quality/unified-runtime.md)。
-
-## 模型、运动与平台
-
-- [模型目录](models/README.zh-CN.md) · [模型支持矩阵](models/support-matrix.generated.md)。
-- [平台指南](platforms/README.zh-CN.md) · [运行数据与清理](operations/runtime-data-and-retention.zh-CN.md)。
-- [Motion IR 与重定向数学](math-retarget/README.zh-CN.md) · [数据集处理](pipeline.zh-CN.md)。
-- [骨骼坐标系与同样本研究](research/skeletal-retargeting-2026-10-11.md) · [动作执行质量](quality/vrchat-motion.md)：源参数、骨长、手部演算与设备约束。
-- [MotionCraft / SynTalker](character/unified-motion.zh-CN.md) · [角色运行时](character/README.zh-CN.md) · [Audio8 语音克隆](character/audio8-tts.zh-CN.md)。
-- [VRChat 操作指南](character/vrchat-operations.zh-CN.md) · [VRChat 技术参考](character/vrchat.zh-CN.md)。
-
-## 示例与验证
-
-- [演示视频](../README.zh-CN.md#demos) · [数据集画廊](showcase/README.md)。
-- [VRChat 录制记录](quality/vrchat-recordings.md) · [跨平台部署检验](quality/portable-onboarding.md)。
-- [端到端验收](quality/production-e2e.zh-CN.md) · [浏览器观测记录](quality/production-browser-evidence.en.md)。
-
-## 维护与研究
-
-- [文档维护规则](development/documentation.zh-CN.md) · [贡献指南](../CONTRIBUTING.md) · [安全政策](../SECURITY.md)。
-- [模型调研](model-catalog/first-wave-2026-08-20.zh-CN.md) · [研究档案](research/)。
-- [架构决策](adrs/) · [设计提案](rfcs/) · [工程设计记录](engineering-briefs/)。
-- [状态定义](reference/status-semantics.zh-CN.md) · [第三方声明](../THIRD_PARTY_NOTICES.md)。
-
-运行时与模型事实来自 `registries/` 和各模型 manifest。自动生成的矩阵由 `scripts/generate_docs.py` 维护；历史研究与验收记录保留其原始日期和证据。
-
-<a id="vrchat独立-ai-操作"></a>
-<a id="选择你的路径"></a>
-<a id="核心心智模型"></a>
-<a id="tutorial"></a>
-<a id="how-to-与运维"></a>
-<a id="reference"></a>
-<a id="explanation动作数学与系统设计"></a>
-<a id="decision-records"></a>
-<a id="evidence-与研究"></a>
-<a id="文档维护"></a>
+-->

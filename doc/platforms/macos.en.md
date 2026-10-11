@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 14
-summary: English macOS-native execution-domain setup and CPU/MPS capability boundaries.
-canonical: doc/platforms/macos.en.md
-related:
-  - macos.zh-CN.md
-  - README.en.md
-  - ../getting-started.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](macos.zh-CN.md)
+<!-- END DOC NAV -->
 
 # macOS native
 
@@ -50,3 +36,27 @@ All 14 catalog models declare `osx-arm64` / `osx-64` CPU Runtime paths. On Intel
 resolves `torch==2.2.2` with `numpy==1.26.4`, avoiding the unsupported NumPy 2.x ABI path. These declarations and lock
 checks do not replace per-model checkpoint inference and browser acceptance on real macOS hardware. CUDA profiles must
 not appear on macOS, and an MPS Worker is not yet implemented.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 14
+summary: English macOS-native execution-domain setup and CPU/MPS capability boundaries.
+canonical: doc/platforms/macos.en.md
+related:
+  - macos.zh-CN.md
+  - README.en.md
+  - ../getting-started.en.md
+supersedes: []
+superseded_by: []
+-->

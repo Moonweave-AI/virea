@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # RFC-0002：Constraint-aware Full-hand Retarget v1
 
 ## 状态与裁决边界
@@ -455,9 +459,13 @@ Responsible Decision 作出 Accept、Request Changes 或 Reject。用户批准�
 | 维护权威依据、source boundary与No-Go | Moonweave-AI Maintainers | Research | [手指根因研究](../research/finger-retarget-root-cause-2026-08-09.zh-CN.md) |
 | 更新机器schema、迁移、三门禁与QA evidence | Moonweave-AI Maintainers | Implementation/Release | [验收文档](../validation.zh-CN.md) |
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: rfc
 status: Proposed
 owner: "Moonweave-AI Maintainers"
@@ -484,5 +492,4 @@ required_reviewers:
   - "Dataset/profile and real-data reviewer — pending assignment"
   - "QA and real-VRM reviewer — pending assignment"
   - "IP/model provenance reviewer — pending assignment"
----
 -->

@@ -1,22 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-26
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Orthogonal semantics for model integration, technical availability, distribution licensing, platform declarations, and real acceptance evidence.
-canonical: doc/reference/status-semantics.en.md
-related:
-  - status-semantics.zh-CN.md
-  - cli.en.md
-  - ../models/README.en.md
-  - ../platforms/README.en.md
-  - ../quality/production-e2e.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](status-semantics.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Status semantics
 
@@ -116,3 +100,29 @@ cannot be distinguished only by a display name.
   undeployable.
 - A pass on one machine proves only that execution domain and configuration; it does not automatically extend to another
   platform or minimum configuration.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-26
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Orthogonal semantics for model integration, technical availability, distribution licensing, platform declarations, and real acceptance evidence.
+canonical: doc/reference/status-semantics.en.md
+related:
+  - status-semantics.zh-CN.md
+  - cli.en.md
+  - ../models/README.en.md
+  - ../platforms/README.en.md
+  - ../quality/production-e2e.en.md
+supersedes: []
+superseded_by: []
+-->

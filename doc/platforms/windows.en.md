@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: English Windows-native execution-domain setup, resource detection, and recovery boundary.
-canonical: doc/platforms/windows.en.md
-related:
-  - windows.zh-CN.md
-  - README.en.md
-  - ../getting-started.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](windows.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Windows native
 
@@ -46,3 +32,27 @@ will not use it as an implicit model destination. NVIDIA CUDA and whole-model CP
 Worker implements; it never treats system RAM as substitute VRAM. For a Linux Runtime on a Windows host, choose an exact
 WSL domain instead of passing a WSL Python path to Windows `uv`. See the [platform guide](README.en.md) and
 [CLI reference](../reference/cli.en.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: English Windows-native execution-domain setup, resource detection, and recovery boundary.
+canonical: doc/platforms/windows.en.md
+related:
+  - windows.zh-CN.md
+  - README.en.md
+  - ../getting-started.en.md
+supersedes: []
+superseded_by: []
+-->

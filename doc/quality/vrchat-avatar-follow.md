@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Avatar-independent tracking contract, regression coverage and bounded live verification.
-canonical: doc/quality/vrchat-avatar-follow.md
-related: [../character/vrchat.en.md, ../character/vrchat.zh-CN.md, vrchat-recordings.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Avatar-independent tracking — 2026-10-11
 
@@ -91,3 +80,24 @@ The existing GitNexus index reports high fan-out for shared readiness/rendering
 code and contains stale/misresolved associations. Rebuilding it failed locally.
 Graph analysis was therefore supplemented with direct caller inspection and
 regression tests; its counts are not treated as proof of complete coverage.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Avatar-independent tracking contract, regression coverage and bounded live verification.
+canonical: doc/quality/vrchat-avatar-follow.md
+related: [../character/vrchat.en.md, ../character/vrchat.zh-CN.md, vrchat-recordings.md]
+supersedes: []
+superseded_by: []
+-->

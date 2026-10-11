@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 七数据集语义与 Profile 审计
 
 本页严格区分三个层次的信息来源：
@@ -172,9 +176,13 @@ Hand 边界：322D 中的 90D hand block 必须保留和校验切片，但切片
 > [!CAUTION]
 > 任何一项 `未验证` 都必须在发布说明中保留，不能用通过的单元测试数量替代。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: audit
 status: InReview
 owner: "@Joker-of-Gotham"
@@ -193,5 +201,4 @@ related:
   - adrs/0002-canonical-v3-constrained-hand-retarget.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

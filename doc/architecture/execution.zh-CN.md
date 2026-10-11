@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Unified runtime execution.
-canonical: doc/architecture/execution.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](execution.en.md)
+<!-- END DOC NAV -->
 
 # 时序、取消与执行证据
 
@@ -20,6 +9,7 @@ superseded_by: []
 语音与身体动作是两条独立轨道。语音可指定绝对起点，也可跟随前一片段。调度器测量 PCM 采样数，解析依赖，在播放前确定最终区间。自动生成计划中的语音重叠会顺延处理；显式编写的计划保留严格时间约束并报告冲突。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 sequenceDiagram
     participant 用户
     participant 会话
@@ -62,3 +52,24 @@ MotionCraft 的纯文本动作窗口可与语音合成并行。需要语音条�
 | semantically_satisfied | 有证据支持任务效果符合要求 |
 
 Character Studio 与 VRChat Studio 显示当前轮次和回执。原生动作、音频和播放制品按内容摘要保存在数据根目录的 `characters/artifacts/`。会话临时 HTTP 文件在确认后释放，审计制品继续保留，清理时遵循[数据保留指南](../operations/runtime-data-and-retention.zh-CN.md)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Unified runtime execution.
+canonical: doc/architecture/execution.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

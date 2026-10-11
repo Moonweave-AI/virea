@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Engineering Brief：Constraint-aware Full-hand Retarget v1
 
 ## 结论
@@ -366,9 +370,13 @@ provenance、许可、跨人群/跨数据集 bias 分析、确定性与 fallback
 | 维护权威依据、不可观测性和exact样本证据 | Moonweave-AI Maintainers | 每轮算法复核 | [根因研究](../research/finger-retarget-root-cause-2026-08-09.zh-CN.md) |
 | 执行三门禁与No-Go检查 | Moonweave-AI Maintainers | Release Gate | [验收文档](../validation.zh-CN.md) |
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: engineering-brief
 status: InReview
 owner: "Moonweave-AI Maintainers"
@@ -387,5 +395,4 @@ related:
   - ../validation.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

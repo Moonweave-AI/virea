@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-09
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Four accepted silent real-client recordings, bounded validation results, recovery history and reproduction procedure.
-canonical: doc/quality/vrchat-recordings.md
-related: [vrchat-recordings-20261011.json, vrchat-evidence.json, ../character/vrchat-operations.en.md, ../character/vrchat.en.md, ../../README.md, ../../README.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Generated-motion VRChat recordings / 生成骨骼实录
 
@@ -726,3 +715,24 @@ footage. Waiting and generation latency remain visible.
 Avatar: **Unnamed Character 6 — Reira**, imported from the owner's
 `VRM-Model-1.vrm`. Noncommercial rendering with attribution; the model itself
 is not redistributed. See the [media policy](../showcase/publication-policy.json).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-09
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Four accepted silent real-client recordings, bounded validation results, recovery history and reproduction procedure.
+canonical: doc/quality/vrchat-recordings.md
+related: [vrchat-recordings-20261011.json, vrchat-evidence.json, ../character/vrchat-operations.en.md, ../character/vrchat.en.md, ../../README.md, ../../README.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

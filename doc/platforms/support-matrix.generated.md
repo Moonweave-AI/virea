@@ -1,20 +1,6 @@
----
-type: reference
-status: Generated
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-22
-last_reviewed: 2026-08-22
-review_cycle_days: 14
-summary: 从执行目标 registry 与 RuntimeSpec 生成的平台实现、资源策略和真实设备 evidence 边界。
-canonical: doc/platforms/support-matrix.generated.md
-related:
-  - README.zh-CN.md
-  - ../models/support-matrix.generated.md
-  - ../quality/production-e2e.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # 平台支持矩阵
 
@@ -36,3 +22,27 @@ WSL 使用独立 `wsl:<distro>` domain，不等于 `win-64` 或 `linux-64` 字�
 model/platform blocker；没有已登记 blocker 也不等于推理通过。“Observed evidence coverage”只展示明确
 点名模型的 target-local 观测，不从 target status 扩散到整行模型，也不参与执行域选择或排序。record 的
 当前有效性与 promotion 仍以 production evidence registry 为准；缺少观测只表示待实测，不表示 OS 不受支持。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Generated
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-22
+last_reviewed: 2026-08-22
+review_cycle_days: 14
+summary: 从执行目标 registry 与 RuntimeSpec 生成的平台实现、资源策略和真实设备 evidence 边界。
+canonical: doc/platforms/support-matrix.generated.md
+related:
+  - README.zh-CN.md
+  - ../models/support-matrix.generated.md
+  - ../quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

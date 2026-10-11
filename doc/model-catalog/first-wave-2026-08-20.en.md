@@ -1,26 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-26
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Official artifacts, licenses, runtimes, output representations, and real support status for the first 2025–2026 motion-generation integration candidates.
-canonical: doc/model-catalog/first-wave-2026-08-20.en.md
-related:
-  - first-wave-2026-08-20.zh-CN.md
-  - ../../registries/models/motion-model-registry.v1.0.0.yaml
-  - ../../registries/models/first-wave.v1.yaml
-  - motion-generation-registry-2026-08-20.zh-CN.md
-  - ../refactor/WP00_WP15_IMPLEMENTATION_MAP.md
-supersedes: []
-superseded_by: []
-audience:
-  - VIREA maintainers
-  - model adapter authors
-visibility: public
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](first-wave-2026-08-20.zh-CN.md)
+<!-- END DOC NAV -->
 
 # First-wave motion-generation integration catalog
 
@@ -197,3 +177,33 @@ Promotion from integrated_experimental to supported additionally requires:
 
 This document is compiled from primary papers, author repositories, author model repositories, and official
 documentation. The Owner must manually verify the evidence before any formal status promotion.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-26
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Official artifacts, licenses, runtimes, output representations, and real support status for the first 2025–2026 motion-generation integration candidates.
+canonical: doc/model-catalog/first-wave-2026-08-20.en.md
+related:
+  - first-wave-2026-08-20.zh-CN.md
+  - ../../registries/models/motion-model-registry.v1.0.0.yaml
+  - ../../registries/models/first-wave.v1.yaml
+  - motion-generation-registry-2026-08-20.zh-CN.md
+  - ../refactor/WP00_WP15_IMPLEMENTATION_MAP.md
+supersedes: []
+superseded_by: []
+audience:
+  - VIREA maintainers
+  - model adapter authors
+visibility: public
+-->

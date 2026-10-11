@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 手指姿态重定向根因研究日志
 
 ## 结论与裁决
@@ -344,9 +348,13 @@ npm.cmd run qa:vrm
 
 最终判定：target-runtime、canonical-rest 和跨 wrist frame 契约错误已经在机制层修正；SuSu rotation-only 的 MTA63 source FK 与 source preview name order 也已对码。Exact sample 在 frame 71 的 right-ring 屈曲与 right-little 过伸首先存在于 source；历史 20-segment p95 只证明 pre-solver source fidelity。当前 v3 通过单一 solver 生成 derived canonical，position mode 只将 32/90 DOF 标为 observed，thumb/twist/distal 与近似直线 PIP 中的不可观测 swing 均按证书化 neutral 策略处理；Viewer 不改 pose。由于 source reference T-pose、thumb frame 与 fingertip/end-site 证据不可得，source thumb/twist/distal leaf 真值、mesh contact、任意 VRM 完整手部视觉正确性仍是明确 No-Go，不能判定“所有 source 旋转已恢复”或“任意 mesh 必然正确”。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: research-log
 status: InReview
 owner: "@Joker-of-Gotham"
@@ -367,5 +375,4 @@ related:
   - ../validation.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

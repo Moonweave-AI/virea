@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-10-02
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 支撑感知的活动收势、VRM 高度修正和独立语音流水线。
-canonical: doc/character/settlement-and-independent-speech.zh-CN.md
-related: [doc/character/temporal-behavior.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 活动收势与独立语音
 
@@ -77,3 +66,24 @@ superseded_by: []
 当前支撑面取角色所在场景地面，尚未接入楼梯网格、水体浮力、物体接触动力学或关节力矩求解。测得的稳定支撑属于运动学验收，不代表动态平衡证明。
 
 冷启动的 SentiAvatar 仍需加载模型：一次预热中语音首包 5.52 秒，动作完成约 31.84 秒；语音已不必等待后者。热机联合测试语音首包约 8.45–9.50 秒，SentiAvatar 单窗口约 1.11–1.42 秒。输入和系统负载会改变这些数值；迟到时会舍弃过期动作，所以不能宣称每一拍都完整呈现了 SentiAvatar 生成结果。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-10-02
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 支撑感知的活动收势、VRM 高度修正和独立语音流水线。
+canonical: doc/character/settlement-and-independent-speech.zh-CN.md
+related: [doc/character/temporal-behavior.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

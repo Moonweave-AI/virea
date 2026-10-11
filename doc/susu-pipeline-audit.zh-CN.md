@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # SuSuInterActs 解析与对齐审计
 
 ## 结论
@@ -56,9 +60,13 @@
 
 数学推导见 [SuSu 到 VRM](math-retarget/susu-to-vrm.zh-CN.md)，完整 gate 见 [分层验收](validation.zh-CN.md)。历史数值统计如果没有 sample manifest、commit、profile 和原始结果 hash，只能作为线索，不能作为当前版本验收证据。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: audit
 status: InReview
 owner: "@Joker-of-Gotham"
@@ -74,5 +82,4 @@ related:
   - validation.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

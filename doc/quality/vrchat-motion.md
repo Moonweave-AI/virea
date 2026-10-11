@@ -1,23 +1,13 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Source geometry, rotation curves and consistent target constraints in generated playback.
-canonical: doc/quality/vrchat-motion.md
-related: [unified-runtime.md, ../research/skeletal-retargeting-2026-10-11.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Motion execution quality
 
 One generated sample has three measurable stages: source geometry, prepared motion and device execution. Raw samples keep their content digest. Retargeting changes coordinate frames and bone lengths; playback conditioning has its own declared policy.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart TD
     N[Immutable native sample] --> D[Decode source representation]
     S[Source rest geometry] --> R[Constant local-frame binding]
@@ -62,3 +52,24 @@ Windows declaring `grounding: prevent_penetration` receive a root-height correct
 A terminal receipt removes pending delivery and releases body ownership synchronously. The producer may complete history and file cleanup afterwards. This removes the race that reloaded a completed packet and produced `execution no longer owns the body channel`.
 
 Regression tests cover arbitrary joint-frame changes, constant bone lengths, independent single-frame and batch FK agreement, SO(3) sign/frame invariance, branch-cut continuity, native-sample identity, thigh mounts, ground support and terminal ownership. Device acknowledgements establish transmitted inputs; observer measurements establish rendered motion. Current measurements and original recordings are linked from the [validation ledger](unified-runtime.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Source geometry, rotation curves and consistent target constraints in generated playback.
+canonical: doc/quality/vrchat-motion.md
+related: [unified-runtime.md, ../research/skeletal-retargeting-2026-10-11.md]
+supersedes: []
+superseded_by: []
+-->

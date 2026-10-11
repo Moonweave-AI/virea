@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Unified runtime contracts.
-canonical: doc/architecture/contracts.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](contracts.en.md)
+<!-- END DOC NAV -->
 
 # 能力与执行契约
 
@@ -54,3 +43,24 @@ superseded_by: []
 时间轴计划的旧导入 `PerformancePlan` 指向 `virea_contracts.timeline`，新代码可使用 `TimedPerformancePlan`。语义规划器导出 `IntentPlan`，两个概念在文档和新接口中使用不同名称。
 
 九类消息的版本化 JSON Schema 位于 `packages/contracts/schemas/v1/`。使用 `python -m virea_contracts.schema_export` 更新，追加 `--check` 可检查是否与代码一致。当前对话规划器生成语音与动作；新增工具能力通过 `ToolDispatcher` 登记。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Unified runtime contracts.
+canonical: doc/architecture/contracts.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

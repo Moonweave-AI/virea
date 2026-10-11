@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-29
-updated: 2026-10-02
-last_reviewed: 2026-09-29
-review_cycle_days: 90
-summary: 身体源采样隔离、回应生命周期、完整表达回放和执行链诊断。
-canonical: doc/character/coordination-and-diagnostics.zh-CN.md
-related: [doc/character/temporal-behavior.zh-CN.md, doc/character/settlement-and-independent-speech.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 身体驱动、时间轴与诊断
 
@@ -76,3 +65,24 @@ superseded_by: []
 角速度和脚底间距用于发现异常，不是解剖正确性或动力学平衡证明。Seed-san 的最大原生/重定向骨段方向差约 44.2°，尚未据此做逐骨段归因；不能用“脚底为零”推断所有角色都没有重定向误差。用户自己的 VRM 仍需按相同执行链复测。
 
 模型生成的收势仍有时长和失败预算；独立动作及最终收势可能合理地超过语音。当前不保证楼梯、游泳、任意接触或物理碰撞质量。此次修复消除已复现的源姿态反馈、错误任务生命周期和回放时间范围问题，没有加入关节动力学控制器或重训动作模型。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-29
+updated: 2026-10-02
+last_reviewed: 2026-09-29
+review_cycle_days: 90
+summary: 身体源采样隔离、回应生命周期、完整表达回放和执行链诊断。
+canonical: doc/character/coordination-and-diagnostics.zh-CN.md
+related: [doc/character/temporal-behavior.zh-CN.md, doc/character/settlement-and-independent-speech.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

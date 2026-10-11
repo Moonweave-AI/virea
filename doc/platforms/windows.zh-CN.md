@@ -1,21 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: Windows native 执行域的外部环境、资源探测、CUDA/CPU 路径和故障恢复。
-canonical: doc/platforms/windows.zh-CN.md
-related:
-  - windows.en.md
-  - README.zh-CN.md
-  - wsl2.zh-CN.md
-  - ../getting-started/installation.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](windows.en.md)
+<!-- END DOC NAV -->
 
 # Windows
 
@@ -60,3 +45,28 @@ pagefile 和磁盘。
 `virea support` 输出诊断摘要；`virea state inspect` 查看状态；`virea model verify <model-id>` 重新验证
 READY snapshot。强制终止后，控制面会按进程创建身份、可执行文件和完整参数核验孤儿 Worker，身份不匹配时
 绝不误杀。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: Windows native 执行域的外部环境、资源探测、CUDA/CPU 路径和故障恢复。
+canonical: doc/platforms/windows.zh-CN.md
+related:
+  - windows.en.md
+  - README.zh-CN.md
+  - wsl2.zh-CN.md
+  - ../getting-started/installation.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

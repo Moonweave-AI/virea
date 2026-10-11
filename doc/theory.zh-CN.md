@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # 理论与目标边界
 
 VIREA 先解决“异构人体动作怎样成为可检查、可执行的 Avatar motion”，再为 text-to-motion、对话驱动动作或实时数字人提供数据底座。
@@ -40,9 +44,13 @@ VIREA 先解决“异构人体动作怎样成为可检查、可执行的 Avatar 
 
 长期方向可以是 `dialogue + emotion + intent -> motion planning/generation -> streaming VRM control`，但它不能绕过当前的时间、空间、语义和来源契约。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -58,5 +66,4 @@ related:
   - math-retarget/README.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

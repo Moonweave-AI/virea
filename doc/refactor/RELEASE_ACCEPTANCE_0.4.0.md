@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # VIREA 0.4.0 重构发布验收
 
 验收日期：2026-08-21
@@ -146,6 +150,12 @@ sdist→sdist-built wheel→离线 fresh install 机制，并验证 bundled reso
 回滚时保留 canonical211 v3、旧 Preview/Viewer 兼容层和历史 artifact；单模型异常只禁用对应
 adapter/runtime。安装按 transaction/event 处理，remove 先移到可恢复位置；Motion IR descriptor 最后原子
 发布。RFC-0003 的历史 0.3 无新增 SHA/安全码裁决继续保留，不用额外门禁替代真实测试和许可审查。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: release-acceptance

@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-02
-updated: 2026-10-02
-last_reviewed: 2026-10-02
-review_cycle_days: 90
-summary: 原生动作窗与身体预订边界的停顿原因、连续播放修复和真实模型回归。
-canonical: doc/character/window-continuity.zh-CN.md
-related: [doc/character/coarse-activity-execution.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 动作窗口连续播放
 
@@ -58,3 +47,24 @@ superseded_by: []
 额外负例保留：完整故事请求触发既有 Qwen 结构化规划未正常结束（`browser-story-planning-failure.json`），约 106.65 秒后失败，尚未产生动作；此问题不属于播放器窗口衔接，不能声称本次已解决。旧版本跨轮次失败的服务器完整快照在 `session-chat-before-receipt-fix.json`；同名浏览器导出的旧文件受文本工具长度限制截断，不用于统计。
 
 这些修复解决播放器人为插入的窗口停顿，不保证模型原始运动本身处处自然。执行 LLM、动作推理或资源争用超过缓冲时仍可能出现真实等待；跨模型末端约束尚未就绪时的调度也与同模型连续窗不同。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-02
+updated: 2026-10-02
+last_reviewed: 2026-10-02
+review_cycle_days: 90
+summary: 原生动作窗与身体预订边界的停顿原因、连续播放修复和真实模型回归。
+canonical: doc/character/window-continuity.zh-CN.md
+related: [doc/character/coarse-activity-execution.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

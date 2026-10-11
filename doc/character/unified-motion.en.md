@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-04
-updated: 2026-10-04
-last_reviewed: 2026-10-04
-review_cycle_days: 30
-summary: Three motion routes, independent speech tracks, native inference and actual demo evidence.
-canonical: doc/character/unified-motion.en.md
-related: [unified-motion.zh-CN.md, ../../README.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](unified-motion.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Independent performance tracks
 
@@ -109,3 +98,24 @@ The [verification record](../assets/unified-motion-demos/verification.json) cont
 Final demos use the requested `VRM-Model-1.vrm`, credited to **Reira** in its embedded metadata. The manifest records avatar, voice and checkpoint hashes and actual preparation latency. The original VRM is not distributed. MotionCraft runs on CUDA and SynTalker on CPU; preparation includes planning, TTS, inference and queueing rather than bare model speed. See the current verification record for pause, interruption and test evidence.
 
 Preparation took 53.6–144.8 seconds for MotionCraft and 58.9–117.7 seconds for SynTalker in these runs. Reduced scene lighting preserves detail in the avatar's light skin and clothing. Shader compilation and audio decoding finish before recording to avoid initial black frames. All 16 videos retain every motion and silent interval; no seams were hidden by editing.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-04
+updated: 2026-10-04
+last_reviewed: 2026-10-04
+review_cycle_days: 30
+summary: Three motion routes, independent speech tracks, native inference and actual demo evidence.
+canonical: doc/character/unified-motion.en.md
+related: [unified-motion.zh-CN.md, ../../README.md]
+supersedes: []
+superseded_by: []
+-->

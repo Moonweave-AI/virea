@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # VIREA Motion Generation 模型总清单
 
 > 快照日期：**2026-08-20**
@@ -676,3 +680,9 @@
 3. `source_status != primary_verified` 不能直接标记 release-ready。
 4. 同名论文保留独立 UID，例如 `LLaMo-2025`/`LLaMo-2026`、`UniMotion-3DV2025`/`UniMotion-2026`、两种 `LaMoGen` 和两种 `PMG`。
 5. 索引冲突必须显式暴露。当前 `TCA-T2M` 的 arXiv 标识仍待独立核验。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->

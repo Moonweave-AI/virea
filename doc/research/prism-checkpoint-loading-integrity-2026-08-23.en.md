@@ -1,22 +1,6 @@
----
-type: research-log
-status: Superseded
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: Root-cause research for PRISM official checkpoint naming, dtype-safe low-memory loading, and immutable source integrity.
-canonical: doc/research/prism-checkpoint-loading-integrity-2026-08-23.en.md
-related:
-  - prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
-  - ../models/prism.en.md
-  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
-  - prism-windows-blackwell-materialization-2026-08-23.en.md
-supersedes: []
-superseded_by:
-  - prism-windows-blackwell-materialization-2026-08-23.en.md
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md)
+<!-- END DOC NAV -->
 
 # PRISM checkpoint-loading and asset-integrity research log
 
@@ -87,3 +71,29 @@ Decision: promote the compatibility and immutability fixes to engineering throug
 Fresh Windows Blackwell acceptance showed that Runtime 0.1.5 entered an upstream native-crash path during Accelerate
 meta-tensor dispatch. The filename and bytecode-integrity findings above remain valid, but the loading implementation and
 promotion decision are superseded by the linked Runtime 0.1.6 research log.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Superseded
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: Root-cause research for PRISM official checkpoint naming, dtype-safe low-memory loading, and immutable source integrity.
+canonical: doc/research/prism-checkpoint-loading-integrity-2026-08-23.en.md
+related:
+  - prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
+  - ../models/prism.en.md
+  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+  - prism-windows-blackwell-materialization-2026-08-23.en.md
+supersedes: []
+superseded_by:
+  - prism-windows-blackwell-materialization-2026-08-23.en.md
+-->

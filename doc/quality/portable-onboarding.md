@@ -1,20 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Evidence and limits for portable first-run setup and model-provider onboarding.
-canonical: doc/quality/portable-onboarding.md
-related:
-  - ../getting-started/automatic-setup.zh-CN.md
-  - ../getting-started/automatic-setup.en.md
-  - ../reference/onboarding-api.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Portable onboarding validation
 
@@ -93,3 +79,27 @@ MotionCraft/SynTalker use existing real inference workers, fixed upstream revisi
 - Linux/macOS model runtimes and upstream binary wheels may have additional limitations even when base startup passes. External proxies, firewall policy, unavailable releases and gated model resources cannot be declared solved by a launcher.
 - VRChat dual-client execution and virtual tracking remain Windows-only.
 - The GitNexus index was ten commits behind and its native rebuild failed during this work. `detect_changes(scope="all")` reported CRITICAL with 13 indexed symbols and 434 processes; every process was attributed to the README title `VIREA`, rather than an edited code symbol. No partial/truncated flag was reported, but this stale, misresolved result does not establish coverage of the new onboarding files. File-node impact checks, source/caller inspection and regression evidence supplement the graph; no empty result is treated as proof of no impact.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Evidence and limits for portable first-run setup and model-provider onboarding.
+canonical: doc/quality/portable-onboarding.md
+related:
+  - ../getting-started/automatic-setup.zh-CN.md
+  - ../getting-started/automatic-setup.en.md
+  - ../reference/onboarding-api.md
+supersedes: []
+superseded_by: []
+-->

@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-01
-updated: 2026-10-01
-last_reviewed: 2026-10-01
-review_cycle_days: 90
-summary: 通过原始论文、协议和实现对照，把对话承诺、角色实现与实播事件编译分离，并记录真实模型失败和验证边界。
-canonical: doc/character/interaction-program-research.zh-CN.md
-related: [doc/character/persistent-motion-intent.zh-CN.md, doc/character/appropriate-timing.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 从反复改写动作计划到可执行交互程序
 
@@ -105,3 +94,24 @@ superseded_by: []
 GitNexus 已用于编辑前影响分析，并刷新索引后通过 MCP 和 CLI 分别执行 `detect_changes(scope=all)`。MCP 列出 17 文件、74 个变更符号，未返回 partial/truncated，风险为 critical；但 `plan_behavior` 的符号 ID 为空，推导的 479 条受影响流程包含无关数据导入/许可证调用，不能把它当作精确影响范围或安全证明。对应实际调用已补充文本核对，角色和前端回归提供另一类证据，不能修复图工具本身的分析缺口。原始结果保存在 `detect-release-mcp.json` 与 `detect-release-cli.log`。
 
 证据目录的 `semantic-audit.json` 为逐项人工语义核对，`manifest.json` 为已归档 JSON、截图、测试和图分析日志的 SHA-256 清单（排除仍在写入的服务日志）。原始图片不提交到公开仓库。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-01
+updated: 2026-10-01
+last_reviewed: 2026-10-01
+review_cycle_days: 90
+summary: 通过原始论文、协议和实现对照，把对话承诺、角色实现与实播事件编译分离，并记录真实模型失败和验证边界。
+canonical: doc/character/interaction-program-research.zh-CN.md
+related: [doc/character/persistent-motion-intent.zh-CN.md, doc/character/appropriate-timing.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Unified runtime execution.
-canonical: doc/architecture/execution.en.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](execution.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Timing, cancellation and execution evidence
 
@@ -20,6 +9,7 @@ superseded_by: []
 Speech and body movement are separate tracks. Place speech at an absolute offset or after a previous clip. The scheduler measures PCM samples, resolves dependencies and publishes final intervals before playback. Generated plans shift overlapping speech forward; explicitly authored plans preserve strict timing and report conflicts.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 sequenceDiagram
     participant User
     participant Session
@@ -62,3 +52,24 @@ A terminal acknowledgement releases body ownership and removes the pending deliv
 | semantically_satisfied | Referenced evidence supports the requested outcome |
 
 Character Studio and VRChat Studio display the current turn and receipt. The immutable native, audio and playback artifacts live in `characters/artifacts/` under the configured VIREA data root. The session's temporary HTTP playback files are released after acknowledgement. Content-addressed audit artifacts remain for inspection; apply the project's [data retention policy](../operations/runtime-data-and-retention.en.md) when clearing a workspace.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Unified runtime execution.
+canonical: doc/architecture/execution.en.md
+related: []
+supersedes: []
+superseded_by: []
+-->

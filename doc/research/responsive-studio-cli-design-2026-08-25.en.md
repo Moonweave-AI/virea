@@ -1,21 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-25
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Primary-source research behind responsive job submission, durable live progress, interactive WebGL viewers, and semantic CLI/Web presentation.
-canonical: doc/research/responsive-studio-cli-design-2026-08-25.en.md
-related:
-  - responsive-studio-cli-design-2026-08-25.zh-CN.md
-  - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
-  - ../getting-started/browser-playback.en.md
-  - ../model-catalog/first-wave-2026-08-20.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](responsive-studio-cli-design-2026-08-25.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Responsive Studio and CLI design research log
 
@@ -87,3 +72,28 @@ typechecking/build, Python contract tests, documentation checks, and the reposit
 The local automated environment cannot prove every GPU driver, browser, model checkpoint, or operating-system build.
 Real production acceptance remains per model, Runtime, execution domain, and machine evidence. The change removes known
 blocking architecture and fails closed; it does not turn unobserved combinations into a universal support claim.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Primary-source research behind responsive job submission, durable live progress, interactive WebGL viewers, and semantic CLI/Web presentation.
+canonical: doc/research/responsive-studio-cli-design-2026-08-25.en.md
+related:
+  - responsive-studio-cli-design-2026-08-25.zh-CN.md
+  - ../engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
+  - ../getting-started/browser-playback.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
+supersedes: []
+superseded_by: []
+-->

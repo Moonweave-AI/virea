@@ -99,6 +99,12 @@ def transcode(ffmpeg, source, destination, extra):
 
 
 def table(entries, chinese):
+    published_path = ROOT / "doc/assets/unified-motion-demos/github-videos.json"
+    published = (
+        json.loads(published_path.read_text(encoding="utf-8"))
+        if published_path.exists()
+        else {}
+    )
     rows = ["<table>"]
     for offset in range(0, len(entries), 2):
         rows.append("<tr>")
@@ -106,10 +112,24 @@ def table(entries, chinese):
             stem = entry["id"]
             title = entry["title"] if chinese else entry["title_en"]
             detail = f"{entry['duration_seconds']:g}s · {len(entry['motions'])} {'段动作' if chinese else 'actions'} · {len(entry['speech'])} {'段语音' if chinese else 'speech clips'}"
+            raw_url = f"https://github.com/Moonweave-AI/virea/raw/refs/heads/main/doc/assets/unified-motion-demos/{stem}.mp4"
+            attachment = published.get(stem, {})
+            # Re-recorded clips must never silently keep an older hosted video.
+            if (
+                entry.get("hashes", {}).get("mp4")
+                and attachment.get("sha256") == entry["hashes"]["mp4"]
+                and re.fullmatch(
+                    r"https://github\.com/user-attachments/assets/[0-9a-f-]{36}",
+                    attachment.get("url", ""),
+                )
+            ):
+                media = f'<video src="{attachment["url"]}" controls muted preload="metadata" width="100%"></video>'
+            else:
+                media = f'<a href="{raw_url}"><img src="../assets/unified-motion-demos/{stem}.jpg" alt="{html.escape(title)}" width="100%"></a>'
             rows.append(
                 f'<td width="50%" valign="top"><strong>{html.escape(title)}</strong><br>'
-                f'<a href="doc/assets/unified-motion-demos/{stem}.mp4"><img src="doc/assets/unified-motion-demos/{stem}.jpg" alt="{html.escape(title)}" width="100%"></a><br>'
-                f"<sub>{detail} · {entry['backend']} + Audio8-TTS</sub></td>"
+                f"{media}<br><sub>{detail} · {entry['backend']} + Audio8-TTS</sub><br>"
+                f'<sub><a href="../assets/unified-motion-demos/{stem}.mp4">MP4</a> · <a href="../assets/unified-motion-demos/{stem}.jpg">{"封面" if chinese else "Poster"}</a></sub></td>'
             )
         rows.append("</tr>")
     rows.append("</table>")
@@ -311,7 +331,10 @@ def main():
         encoding="utf-8",
         newline="\n",
     )
-    for chinese, filename in ((False, "README.md"), (True, "README.zh-CN.md")):
+    for chinese, filename in (
+        (False, "doc/demos/recordings.en.md"),
+        (True, "doc/demos/recordings.zh-CN.md"),
+    ):
         heading = (
             "## 单模型路线：16 个复杂任务 Demo"
             if chinese
@@ -323,9 +346,9 @@ def main():
             else "**Eight recordings per family, each in two columns × four rows.** Click a cover for the complete MP4. Audio8-TTS uses the supplied `audio_reference_chu2.mp3` and `chu2.txt` voice reference. These are actual Studio replays at normal speed; preparation latency is separate."
         )
         limits = (
-            "这些是实际模型输出，**不代表所有动作意图都被准确执行或已通过主观自然度验收**：复杂走位、脚部接触和精细手势仍有限制。技术梗概、配置、实测等待时间和能力边界见[完整技术说明](doc/character/unified-motion.zh-CN.md)。"
+            "对照录像查看动作节奏、脚部接触和手部细节。任务配置、时间轴与实测生成耗时见[技术说明](../character/unified-motion.zh-CN.md)。"
             if chinese
-            else "These are actual model outputs, **not a certification of task fidelity or naturalness**. Complex travel, foot contact and fine gestures remain limited. See the [technical synopsis and reproduction guide](doc/character/unified-motion.en.md) for architecture, measured latency and limitations."
+            else "Compare action timing, foot contact and hand detail in the recordings. See the [technical synopsis](../character/unified-motion.en.md) for task configuration, timelines and measured generation latency."
         )
         section = (
             f"<!-- BEGIN UNIFIED_MOTION_DEMOS -->\n{heading}\n\n{intro}\n\n{limits}\n\n"
@@ -336,7 +359,7 @@ def main():
                 + table([e for e in entries if e["backend"] == backend], chinese)
                 + "\n\n"
             )
-        section += "[Video gallery](doc/assets/unified-motion-demos/index.html) · [Execution manifest](doc/assets/unified-motion-demos/manifest.json)\n<!-- END UNIFIED_MOTION_DEMOS -->"
+        section += "[Local video gallery](../assets/unified-motion-demos/index.html) · [Execution manifest](../assets/unified-motion-demos/manifest.json)\n<!-- END UNIFIED_MOTION_DEMOS -->"
         section = section.replace(
             "<!-- END UNIFIED_MOTION_DEMOS -->",
             f"\n{credit}. Source: `{avatar['source_filename']}`.\n<!-- END UNIFIED_MOTION_DEMOS -->",
@@ -351,10 +374,7 @@ def main():
                 flags=re.S,
             )
         else:
-            anchor = "<!-- BEGIN CHARACTER_DEMOS -->"
-            # Keep the historical demo heading and introduction together.
-            position = content.rfind("\n## ", 0, content.index(anchor))
-            content = content[:position] + "\n" + section + "\n" + content[position:]
+            raise ValueError(f"Missing UNIFIED_MOTION_DEMOS section in {filename}")
         path.write_text(content, encoding="utf-8", newline="\n")
     print(f"Packaged {len(entries)} actual recordings into {args.output}")
 

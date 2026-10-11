@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 <p align="center">
   <img src="../assets/virea-hero.png" width="100%" alt="VIREA canonical humanoid Showcase banner">
 </p>
@@ -163,6 +167,12 @@ HumanML3D uses AMASS-carried motion. [HumanML3D license](https://github.com/Eric
 | HumanML3D GIFs | Modified retargeted renderings; HumanML3D license terms apply, four text-motion test samples. |
 
 No upstream author, dataset publisher, Avatar creator, or licensor endorses VIREA. The exact public allowlist is [machine-readable](publication-policy.json); comprehensive attribution and license text are in [Third-Party Notices](../../THIRD_PARTY_NOTICES.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: eval-report

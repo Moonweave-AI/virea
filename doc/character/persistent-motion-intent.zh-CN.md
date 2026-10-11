@@ -1,17 +1,6 @@
----
-type: explanation
-status: Active
-owner: VIREA maintainers
-created: 2026-09-30
-updated: 2026-09-30
-last_reviewed: 2026-09-30
-review_cycle_days: 90
-summary: 将实际身体任务与背景站姿、随声表达和末尾恢复分开，防止连续运动被多层规划稀释。
-canonical: doc/character/persistent-motion-intent.zh-CN.md
-related: [doc/character/appropriate-timing.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 保留持续运动意图，去除冗余身体阶段
 
@@ -91,3 +80,24 @@ superseded_by: []
 该批测试与用户游戏共享 GPU，显存约 23.7/24 GB；已出现模型请求超时，耗时不用于空载性能结论。概率模型仍可能漏判活动意义，少量测试不构成所有请求无冗余阶段的保证。
 
 仓库文档检查仍报告五篇既有角色文档包含机器专用 Windows 路径；本次新文档未引入该检查错误。全库 GitNexus 流程提取存在分支与跨语言覆盖边界；提交前另外检查当前变更，不能将图中缺失路径理解为不受影响。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: explanation
+status: Active
+owner: VIREA maintainers
+created: 2026-09-30
+updated: 2026-09-30
+last_reviewed: 2026-09-30
+review_cycle_days: 90
+summary: 将实际身体任务与背景站姿、随声表达和末尾恢复分开，防止连续运动被多层规划稀释。
+canonical: doc/character/persistent-motion-intent.zh-CN.md
+related: [doc/character/appropriate-timing.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

@@ -1,19 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-28
-updated: 2026-09-28
-last_reviewed: 2026-09-28
-review_cycle_days: 30
-summary: 意图路由、ARDY 连续动作程序、历史长度对照实验与 Motion Studio 验证。
-canonical: doc/character/motion-studio-upgrade.zh-CN.md
-related:
-  - README.zh-CN.md
-  - semantic-spatial-upgrade.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Motion Studio：按意图分流，按原生时间轴执行
 
@@ -29,6 +16,7 @@ superseded_by: []
 6. 暂停期间不消耗服务端播放回执的超时时间。会话租约仍负责清理失联客户端。打断通过 epoch 撤销旧结果，历史区区分完成、打断和失败。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   U[最新用户消息] --> R[意图分类 / 手动模式]
   R -->|对话| S[一次语言流 → Kokoro → SentiAvatar]
@@ -113,3 +101,26 @@ RTX 5090 Laptop 24 GB；同一随机种子 2、同一自然初始姿态、相同
 ## 验证边界
 
 这是连续的运动学生成与 VRM 播放。尚不具备全场景物理碰撞、任意楼梯地形、游泳流体和抓取后物体刚体跟随；不能把论文演示推断为这些能力已部署。接触以模型手部控制点为参考，VRM 比例可能影响可达性；接近失败会明确报告，不以完成回执掩盖失败。SentiAvatar 的情绪范围仍受语音表现、模型训练分布、手指模板及角色 morph 支持限制。尚未完成多人自然度盲评。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-28
+updated: 2026-09-28
+last_reviewed: 2026-09-28
+review_cycle_days: 30
+summary: 意图路由、ARDY 连续动作程序、历史长度对照实验与 Motion Studio 验证。
+canonical: doc/character/motion-studio-upgrade.zh-CN.md
+related:
+  - README.zh-CN.md
+  - semantic-spatial-upgrade.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

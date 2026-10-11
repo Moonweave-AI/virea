@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the motion-lab workspace.
-canonical: doc/workflows/motion-lab.en.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](motion-lab.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Motion Lab
+
+<!-- WORKSPACE ROUTE -->
+> 🦴 **Prepare → generate → observe → export** · [Watch the demos](../demos/README.en.md)
 
 [中文](motion-lab.zh-CN.md) · [Set up first](../getting-started/automatic-setup.en.md)
 
@@ -31,3 +23,24 @@ Motion Lab uses native model adapters, Motion IR v2 and the public retarget pipe
 For model requirements, see the [catalog](../models/README.en.md). For command-line operation, see [first generation](../getting-started/first-generation.en.md). For mathematical inspection, see [retargeting](../math-retarget/README.zh-CN.md).
 
 ![Motion processing and skeleton conversion visualization](../assets/virea-flow-v3.gif)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the motion-lab workspace.
+canonical: doc/workflows/motion-lab.en.md
+related: []
+supersedes: []
+superseded_by: []
+-->

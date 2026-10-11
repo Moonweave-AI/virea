@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # VIREA 0.4 统一执行环境选择工程简报
 
 ## 结论
@@ -205,6 +209,12 @@ detect domains
 完成选择器只证明统一编排存在。只有当 14 个模型都具备目标系统的真实 CPU Runtime 时，
 才能宣称“任意模型可在 Windows、Linux、WSL、macOS 运行”；每个平台的性能、加速和
 生产可靠性仍以独立 evidence coverage 表达。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: engineering-brief

@@ -1,71 +1,56 @@
-# Security Policy
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](README.md) · [Documentation](doc/README.en.md) · [Set Up](doc/getting-started/automatic-setup.en.md) · [Demos](doc/demos/README.en.md)
+<!-- END DOC NAV -->
 
-VIREA 处理来自外部数据集、模型与多模态文件的输入。即使只做本地预览，也必须把这些内容视为不可信或受限资产。
+# 🛡️ Security & responsible use
 
-## 受支持状态
+VIREA connects model services, motion files and character execution. Protecting the data in that path is part of making the character dependable.
 
-VIREA 当前是研究预览，没有正式 release 或稳定支持分支。安全修复以最新 `main` 为目标；pre-v3 artifact 仅保留受限兼容读取，不获得当前 Avatar motion 支持。
+## Report a vulnerability privately
 
-## 私密报告
+Use the repository's **Security → Report a vulnerability** entry when available. Otherwise, contact **@Joker-of-Gotham** through an established private Moonweave-AI channel.
 
-请优先使用 GitHub 仓库的 private vulnerability reporting / Security Advisory（如果仓库已启用）。如果该入口不可用，请通过 Moonweave-AI 组织已经建立的私密渠道联系仓库 Owner；不要为此公开原始样本、凭据、个人数据、未授权媒体或可直接执行的利用代码。
+Include the affected commit, the entry point, a minimal reproduction, the expected and actual behavior, and any shareable logs or hashes. Keep credentials, private recordings and executable exploit payloads in the private report.
 
-报告尽量包含：
+Security fixes target the latest `main`. VIREA is currently a research preview; reports are triaged by the maintainers without a fixed response SLA.
 
-- 受影响 commit、入口和数据类型；
-- 最小、无隐私数据的复现步骤；
-- 实际影响与预期 fail-closed 行为；
-- 是否涉及 pickle/object array、路径泄漏、浏览器内容、artifact 篡改或媒体权限；
-- 可安全共享的日志与哈希。
+## Practical boundaries
 
-Owner 收到报告后应确认范围、保留证据、制定修复与回归，并在不扩大暴露的前提下协调披露。当前没有承诺固定响应 SLA。
+| Area | How VIREA handles it | What to keep in mind |
+|:--|:--|:--|
+| 🔑 Provider credentials | Server-side storage; user-bound DPAPI on Windows, owner-only storage or environment variables on Linux/macOS | Remove keys and private endpoint details from shared logs |
+| 📦 Motion artifacts | Schemas, hashes and replay checks bind data to the declared representation | Include the manifest and verification record when reporting a corrupted result |
+| 🦴 Retargeted playback | The reader checks the artifact and the viewer verifies the delivered hand data | Preserve the original sample when investigating a pose problem |
+| 🧪 NumPy / pickle | Object and pickle loading is disabled by default; verified legacy data may use a one-time offline opt-in | Keep that opt-in out of public or remote services |
+| 🌐 Browser content | Dataset text and model metadata are treated as text; VRM imports use local file selection | Treat external assets as data, not executable instructions |
+| 🎭 Characters and recordings | Avatar, voice and dataset terms travel with their publication records | Use material you have permission to use and respect participants' privacy |
 
-## 关键威胁边界
+## Responsible character operation
 
-### NumPy object / pickle
+Control accounts you own or have permission to operate. Let other participants know when they are interacting with an AI character. Use consented voice references and avatar assets, and choose quiet playback when a recording only needs subtitles.
 
-GRAB 与部分 SuSuInterActs 容器可能需要 pickle。默认加载路径必须拒绝；一次性 opt-in 只允许用于来源和摘要已经核验的离线会话。公开或远程服务不得启用。
+For a reproducible public bug report, share a synthetic or cleared sample, the model and target identifiers, and a short description of the failure. Use portable names and hashes instead of personal filesystem paths. Retargeted motion and execution evidence should describe the result actually observed.
 
-### 路径与隐私
+[Contributing](CONTRIBUTING.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Runtime storage](doc/operations/runtime-data-and-retention.en.md)
 
-API、日志、metadata、截图和 JSON 报告不得返回 raw root、processed root、用户目录或 VRM 绝对路径。使用 portable token、basename 与 SHA-256。
+<!-- BEGIN DOC FOOTER -->
+---
 
-### Artifact 与 Viewer
-
-Canonical v3 的 manifest、数组、quality、solver report 与证书必须一起验证。Reader 不使用仅基于 path/size/mtime 的可信缓存；Viewer 只接受 replay-verified payload，并对实际 hand quaternion 切片重算摘要。验证失败不得回退到未验证 Avatar motion。
-
-### 浏览器与外部内容
-
-未知字符串不自动变成可点击 URL。Viewer 只从本地文件选择器读取 VRM；不得把 dataset text、模型 metadata 或 annotation 当作 HTML 执行。
-
-### 媒体与知识产权
-
-未经明确 `allowed` 决定的数据集、VRM 与派生媒体保持 local-only。权限错误、无意公开、raw URL 暴露或历史 Git 对象残留都属于需要 Owner/IP reviewer 处理的安全与治理事件。
-
-## 不应进入公开 issue 的内容
-
-- credentials、private URL、个人目录与访问 token；
-- raw dataset、对话、音频、人脸或可识别个人的信息；
-- 未授权 VRM、截图、GIF、视频或模型元数据；
-- 可直接触发恶意 pickle 的 payload；
-- 尚未协调披露的漏洞细节。
-
-一般 bug、文档错误和不含敏感信息的姿态回归可以使用普通 issue，并按 [CONTRIBUTING.md](CONTRIBUTING.md) 提供最小证据。
-
+[📚 Documentation map](doc/catalog.en.md) · [🛠️ Troubleshooting](doc/operations/troubleshooting.en.md) · [🤝 Contributing](CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: policy
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-10
-updated: 2026-08-10
-last_reviewed: 2026-08-10
+updated: 2026-10-11
+last_reviewed: 2026-10-11
 review_cycle_days: 90
 title: VIREA Security Policy
 audience: Users, contributors, and security reporters
 visibility: Public
-summary: VIREA 的漏洞报告、受支持状态、raw/pickle/路径隐私和媒体资产安全边界。
+summary: Private vulnerability reporting, runtime data handling and responsible character operation.
 canonical: SECURITY.md
 related:
   - README.md
@@ -73,5 +58,4 @@ related:
   - doc/validation.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

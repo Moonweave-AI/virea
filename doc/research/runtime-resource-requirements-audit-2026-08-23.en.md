@@ -1,22 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Historical six-model resource-profile evidence audit, with the boundary to the current 14-model integrated catalog, nominal-capacity handling, PRISM Windows CUDA, and WSL2 quota diagnosis.
-canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.en.md
-related:
-  - runtime-resource-requirements-audit-2026-08-23.zh-CN.md
-  - ../models/prism.en.md
-  - ../platforms/wsl2.en.md
-  - ../operations/troubleshooting.en.md
-  - ../model-catalog/first-wave-2026-08-20.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](runtime-resource-requirements-audit-2026-08-23.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Integrated model resource-requirements audit — 2026-08-23
 
@@ -126,3 +110,29 @@ uv run ruff check .
 For the reported machine, update the clone and run `uv run virea`; choose `windows-native` and the PRISM CUDA
 component-split profile. WSL quota editing is optional unless WSL is deliberately selected. No model deletion or download
 restart is required.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Historical six-model resource-profile evidence audit, with the boundary to the current 14-model integrated catalog, nominal-capacity handling, PRISM Windows CUDA, and WSL2 quota diagnosis.
+canonical: doc/research/runtime-resource-requirements-audit-2026-08-23.en.md
+related:
+  - runtime-resource-requirements-audit-2026-08-23.zh-CN.md
+  - ../models/prism.en.md
+  - ../platforms/wsl2.en.md
+  - ../operations/troubleshooting.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
+supersedes: []
+superseded_by: []
+-->

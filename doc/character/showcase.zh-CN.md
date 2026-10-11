@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-02
-updated: 2026-10-03
-last_reviewed: 2026-10-03
-review_cycle_days: 30
-summary: 持续角色的八任务演示、录制方法、执行证据与能力边界。
-canonical: doc/character/showcase.zh-CN.md
-related: [doc/character/coarse-activity-execution.zh-CN.md, doc/character/window-continuity.zh-CN.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](showcase.en.md)
+<!-- END DOC NAV -->
 
 # 八段真实表演：Motion Studio 新阶段
 
@@ -77,3 +66,24 @@ python scripts/character/build_demo_gallery.py --evidence <EVIDENCE_DIR> --ffmpe
 ```
 
 脚本只接收实际已完成、同时包含两个动作模型的记录，生成 MP4、预览、清单和双列画廊。媒体转换不改变系统模型的选择。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-02
+updated: 2026-10-03
+last_reviewed: 2026-10-03
+review_cycle_days: 30
+summary: 持续角色的八任务演示、录制方法、执行证据与能力边界。
+canonical: doc/character/showcase.zh-CN.md
+related: [doc/character/coarse-activity-execution.zh-CN.md, doc/character/window-continuity.zh-CN.md]
+supersedes: []
+superseded_by: []
+-->

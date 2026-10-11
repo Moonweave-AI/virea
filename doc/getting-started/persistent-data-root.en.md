@@ -1,22 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Choose, enter, and persist a VIREA data root without putting models or environments in the system drive.
-canonical: doc/getting-started/persistent-data-root.en.md
-related:
-  - persistent-data-root.zh-CN.md
-  - ../getting-started.en.md
-  - ../reference/cli.en.md
-  - ../../scripts/configure-virea.ps1
-  - ../../scripts/configure-virea.sh
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](persistent-data-root.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Choose and persist the VIREA data root
 
@@ -280,3 +264,29 @@ Stop VIREA processes, choose a new empty root, and run the same configuration sc
 The script changes future environment settings; it does **not** move existing models, jobs, or caches for you. Copying or
 migrating existing state is intentionally a separate, reviewed operation so a large model directory is never silently
 duplicated or deleted.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Choose, enter, and persist a VIREA data root without putting models or environments in the system drive.
+canonical: doc/getting-started/persistent-data-root.en.md
+related:
+  - persistent-data-root.zh-CN.md
+  - ../getting-started.en.md
+  - ../reference/cli.en.md
+  - ../../scripts/configure-virea.ps1
+  - ../../scripts/configure-virea.sh
+supersedes: []
+superseded_by: []
+-->

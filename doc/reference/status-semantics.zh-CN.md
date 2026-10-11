@@ -1,22 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: 模型集成、技术可用性、发行许可、平台声明和真实验收状态的正交语义。
-canonical: doc/reference/status-semantics.zh-CN.md
-related:
-  - status-semantics.en.md
-  - cli.zh-CN.md
-  - ../models/README.zh-CN.md
-  - ../platforms/README.zh-CN.md
-  - ../quality/production-e2e.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](status-semantics.en.md)
+<!-- END DOC NAV -->
 
 # 状态语义
 
@@ -105,3 +89,29 @@ execution domain + resource profile + device
 - 浏览器客户端提交的布尔值不能自行把模型提升为 production E2E 完成。
 - 许可审查失败可以阻止发行，但不能反向伪造为模型“技术不可部署”。
 - 单台机器通过只证明该执行域与配置，不自动外推到其他平台或最低配置。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: 模型集成、技术可用性、发行许可、平台声明和真实验收状态的正交语义。
+canonical: doc/reference/status-semantics.zh-CN.md
+related:
+  - status-semantics.en.md
+  - cli.zh-CN.md
+  - ../models/README.zh-CN.md
+  - ../platforms/README.zh-CN.md
+  - ../quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

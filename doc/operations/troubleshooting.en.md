@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-28
-last_reviewed: 2026-08-28
-review_cycle_days: 30
-summary: English troubleshooting guide for VIREA detection, installation, Worker, result, and browser-playback failures.
-canonical: doc/operations/troubleshooting.en.md
-related:
-  - troubleshooting.zh-CN.md
-  - ../getting-started.en.md
-  - ../reference/cli.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](troubleshooting.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Troubleshooting
 
@@ -278,3 +264,27 @@ uv run virea model verify flood-diffusion-tiny
 When reporting an issue, provide model/result identity, execution domain, doctor report ID, installation/job/result IDs and
 the smallest relevant log tail. Do not upload checkpoints, private Avatars, raw datasets or the complete state database.
 For the one-time root setup and copied-path quotation rules, see [the data-root guide](../getting-started/persistent-data-root.en.md).
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-28
+last_reviewed: 2026-08-28
+review_cycle_days: 30
+summary: English troubleshooting guide for VIREA detection, installation, Worker, result, and browser-playback failures.
+canonical: doc/operations/troubleshooting.en.md
+related:
+  - troubleshooting.zh-CN.md
+  - ../getting-started.en.md
+  - ../reference/cli.en.md
+supersedes: []
+superseded_by: []
+-->

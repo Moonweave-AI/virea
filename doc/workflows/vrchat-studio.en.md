@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the vrchat-studio workspace.
-canonical: doc/workflows/vrchat-studio.en.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](vrchat-studio.zh-CN.md)
+<!-- END DOC NAV -->
 
 # VRChat Studio
+
+<!-- WORKSPACE ROUTE -->
+> 🌐 **Prepare → generate → observe → export** · [Watch the demos](../demos/README.en.md)
 
 [中文](vrchat-studio.zh-CN.md) · [Windows setup and client controls](../character/vrchat-operations.en.md)
 
@@ -32,3 +24,24 @@ Avatar proportions are calibrated independently of the motion model. Generated l
 Each request retains one native sample. Constant rest-frame bindings connect source and target skeletons; MotionCraft playback uses an explicitly recorded SO(3) temporal filter. Hands use per-frame parameters without automatic mean-pose addition. Elbow and knee trackers follow the upper arms and thighs, and floor support adjusts the complete tracking rig. See [motion execution quality](../quality/vrchat-motion.md) for equations and same-sample comparisons.
 
 [Operation and keyboard mapping](../character/vrchat-operations.en.md) · [Native pose transport](../character/vrchat.en.md) · [Real recording evidence](../quality/vrchat-recordings.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the vrchat-studio workspace.
+canonical: doc/workflows/vrchat-studio.en.md
+related: []
+supersedes: []
+superseded_by: []
+-->

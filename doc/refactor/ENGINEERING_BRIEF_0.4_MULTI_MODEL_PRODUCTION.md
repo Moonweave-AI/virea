@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # VIREA 0.4 多模型生产化工程简报
 
 > 状态：Implemented（六模型工程切片已落地；当前 v1.1 E2E 重采集 pending；公开 GA 仍 No-Go）
@@ -275,6 +279,12 @@ memory profile 的旧真实 runtime 不能安装。
 最终完成条件仍包括 frozen-tree full suite 与 fresh artifact 重跑、项目代码 LICENSE、PRISM 许可、
 SentiAvatar MTA63 CC BY-NC、Showcase 页已全部内联的 16 个指定 GIF 权限、CMDM 许可链接 caveat、托管 CI 和生产 SLO/部署后验证。2026-08-21 的
 164633 packaging run 只证明机制，并因含旧 Web 0.3 品牌而被后续源码状态取代。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: engineering-brief

@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 启动器与开发环境的数据位置，以及模型、表演制品和验证记录的保留策略。
-canonical: doc/operations/runtime-data-and-retention.zh-CN.md
-related:
-  - runtime-data-and-retention.en.md
-  - troubleshooting.zh-CN.md
-  - ../getting-started/installation.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](runtime-data-and-retention.en.md)
+<!-- END DOC NAV -->
 
 # Runtime 数据与保留策略
 
@@ -81,3 +67,27 @@ uv run virea state gc --dry-run --older-than-hours 168 --virea-home <external-ho
 便携启动器会启用受管理的 `.virea-runtime/` 目录，并确认它在 Git 忽略规则中。手动运行 CLI 时默认采用源码之外的数据根；开发脚本同时设置 `UV_PROJECT_ENVIRONMENT`、下载缓存和模型目录。两种方式均将运行数据与发布源码分开管理。
 
 表演制品保留原生输出和混合后的播放数据，读取时核对内容摘要。需要保留一次交互用于复核时，归档执行命令、回执及其引用的制品；正在使用的制品保持原位。模型/状态 GC 的范围见各命令的预览输出。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 启动器与开发环境的数据位置，以及模型、表演制品和验证记录的保留策略。
+canonical: doc/operations/runtime-data-and-retention.zh-CN.md
+related:
+  - runtime-data-and-retention.en.md
+  - troubleshooting.zh-CN.md
+  - ../getting-started/installation.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

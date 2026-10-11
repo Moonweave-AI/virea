@@ -1,22 +1,6 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: 从模型选择、资源准入、真实安装到生成和持久化验证的第一条完整命令路径。
-canonical: doc/getting-started/first-generation.zh-CN.md
-related:
-  - first-generation.en.md
-  - ../getting-started.zh-CN.md
-  - installation.zh-CN.md
-  - browser-playback.zh-CN.md
-  - ../models/README.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](first-generation.en.md)
+<!-- END DOC NAV -->
 
 # 第一次真实生成
 
@@ -47,3 +31,29 @@ uv run virea validate-real-e2e --virea-home <external-home> --job-id <job-id>
 ```
 
 该验证覆盖真实安装、结果和 VRMA；浏览器播放是下一步独立证据，不能由 CLI 伪造完成。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: 从模型选择、资源准入、真实安装到生成和持久化验证的第一条完整命令路径。
+canonical: doc/getting-started/first-generation.zh-CN.md
+related:
+  - first-generation.en.md
+  - ../getting-started.zh-CN.md
+  - installation.zh-CN.md
+  - browser-playback.zh-CN.md
+  - ../models/README.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

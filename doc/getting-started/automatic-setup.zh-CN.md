@@ -1,26 +1,24 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 无需预装开发工具，从源码压缩包启动向导，配置语言、语音和本地动作模型。
-canonical: doc/getting-started/automatic-setup.zh-CN.md
-related:
-  - automatic-setup.en.md
-  - ../reference/onboarding-api.md
-  - ../engineering-briefs/portable-onboarding.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](automatic-setup.en.md)
+<!-- END DOC NAV -->
 
 # 从零启动 VIREA
 
 [English](automatic-setup.en.md) · [文档首页](../README.zh-CN.md)
 
 下载项目 ZIP，解压到准备长期使用的文件夹。基础环境约需 5 GiB 空间，本地模型需要额外空间。Windows 10/11、近期 Linux 发行版和 macOS 均可运行配置向导和网页工作台。
+
+
+## 从文件夹到角色
+
+<!-- setup-flow -->
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
+flowchart LR
+    A["📁 Download"] --> B["🚀 Launch"] --> C["🔌 Detect providers"] --> D["✓ Generate a result"] --> E["🎭 Open a workspace"]
+    classDef lunar fill:#262431,stroke:#b9b0c8,color:#f4eef2
+    class A,B,C,D,E lunar
+```
 
 ## 1. 打开启动器
 
@@ -87,3 +85,27 @@ Ollama 提供本地语言模型，Kokoro 提供 CPU 语音，MotionCraft 和 Syn
 密钥保存在服务端：Windows 使用当前用户绑定的 DPAPI 加密，Linux 和 macOS 使用仅当前用户可读的文件或环境变量。生成检验会调用所选服务的正常推理 API。检验回执、哈希和结果保存在连接设置旁的 `verification/` 目录。
 
 [自动化 API](../reference/onboarding-api.md) · [平台指南](../platforms/README.zh-CN.md) · [验证记录](../quality/portable-onboarding.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 无需预装开发工具，从源码压缩包启动向导，配置语言、语音和本地动作模型。
+canonical: doc/getting-started/automatic-setup.zh-CN.md
+related:
+  - automatic-setup.en.md
+  - ../reference/onboarding-api.md
+  - ../engineering-briefs/portable-onboarding.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

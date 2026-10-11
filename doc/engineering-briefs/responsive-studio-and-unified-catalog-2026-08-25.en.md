@@ -1,22 +1,6 @@
----
-type: engineering-brief
-status: Implemented
-owner: VIREA maintainers
-created: 2026-08-25
-updated: 2026-08-26
-last_reviewed: 2026-08-26
-review_cycle_days: 30
-summary: Cross-layer design for immediate generation feedback, durable job streaming, stable interactive viewers, and one truthful model-capability catalog.
-canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
-related:
-  - responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
-  - ../research/responsive-studio-cli-design-2026-08-25.en.md
-  - ../getting-started/browser-playback.en.md
-  - ../reference/cli.en.md
-  - ../model-catalog/first-wave-2026-08-20.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Responsive Studio and unified catalog — Engineering Brief
 
@@ -147,3 +131,29 @@ Implementation evidence collected on 2026-08-25:
 No database or artifact migration is required. Rollback is the prior frontend bundle and control-plane code; persisted
 Jobs and idempotency keys remain valid v1 rows. If metadata readiness is wrong, full verification still blocks Worker
 startup, so rollback does not require deleting models or results.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: engineering-brief
+status: Implemented
+owner: VIREA maintainers
+created: 2026-08-25
+updated: 2026-08-26
+last_reviewed: 2026-08-26
+review_cycle_days: 30
+summary: Cross-layer design for immediate generation feedback, durable job streaming, stable interactive viewers, and one truthful model-capability catalog.
+canonical: doc/engineering-briefs/responsive-studio-and-unified-catalog-2026-08-25.en.md
+related:
+  - responsive-studio-and-unified-catalog-2026-08-25.zh-CN.md
+  - ../research/responsive-studio-cli-design-2026-08-25.en.md
+  - ../getting-started/browser-playback.en.md
+  - ../reference/cli.en.md
+  - ../model-catalog/first-wave-2026-08-20.en.md
+supersedes: []
+superseded_by: []
+-->

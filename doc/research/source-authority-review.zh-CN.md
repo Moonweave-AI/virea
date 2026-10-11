@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # Source Authority Review 研究日志
 
 ## Research question
@@ -63,9 +67,13 @@
 
 本记录已由 [姿态重定向真实核验](pose-retarget-validation-2026-08-08.zh-CN.md) 取代。其仍有效的 versioned profile、HumanML fail-fast、Motion-X 322 重组和 SuSu columns/local 结论已进入 RFC；BEAT converted-NPZ 假设不再有效。研究本身不批准 Release。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: research-log
 status: Superseded
 owner: "@Joker-of-Gotham"
@@ -82,5 +90,4 @@ related:
 supersedes: []
 superseded_by:
   - pose-retarget-validation-2026-08-08.zh-CN.md
----
 -->

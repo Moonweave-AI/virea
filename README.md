@@ -1,193 +1,187 @@
-# VIREA
+<p align="center">
+  <img src="doc/assets/brand/virea-banner.png" alt="VIREA — from avatars to agents, with skeletal motion becoming a living character" width="100%">
+</p>
+<h1 align="center">VIREA</h1>
+<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents</sub></p>
 
-![VIREA — One Foundation. Multiple Embodiments.](doc/assets/virea-foundation.svg)
+<p align="center">
+  <a href="README.md"><img src="doc/assets/brand/nav-english.png" alt="English" width="240"></a>
+  <a href="README.zh-CN.md"><img src="doc/assets/brand/nav-chinese.png" alt="简体中文" width="240"></a><br>
+  <a href="doc/README.en.md"><img src="doc/assets/brand/nav-documentation.png" alt="Documentation" width="240"></a>
+  <a href="doc/getting-started/automatic-setup.en.md"><img src="doc/assets/brand/nav-setup.png" alt="Set Up" width="240"></a>
+  <a href="doc/demos/README.en.md"><img src="doc/assets/brand/nav-demos.png" alt="Demos" width="240"></a>
+</p>
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Documentation](doc/README.en.md) · [Set up](doc/getting-started/automatic-setup.en.md) · [Demos](#demos)
+## ✦ From an idea to a moving character
 
-**VIREA connects language, speech and motion models to interactive characters.** Generate motion on its own, talk to a character in the browser, or operate an independent AI character in VRChat. All three workflows share model connections, skeleton conversion and execution records.
+**VIREA connects language, speech and motion models to characters that you can watch and interact with.** It retargets native skeletal output onto VRM avatars in the browser and Humanoid avatars in VRChat, with a complete path from model setup to generation, playback and inspection.
 
-## Choose your workspace
+<img src="doc/assets/brand/features.png" alt="Skeletal retargeting, interchangeable model capabilities, and shared execution in browser and virtual worlds" width="100%">
 
-| Workspace | What you can do | Start here |
-|---|---|---|
-| **Motion Lab** | Generate motion, compare source and target skeletons, and export animation | [Motion generation](doc/workflows/motion-lab.en.md) |
-| **Character Studio** | Import a VRM, hold a conversation, and arrange independent speech and motion tracks | [Character interaction](doc/workflows/character-studio.en.md) |
-| **VRChat Studio** | Control a separate AI account and watch its motion and subtitles from an observer account | [VRChat operation](doc/workflows/vrchat-studio.en.md) |
+<table>
+<tr>
+<td width="33%" valign="top"><h3>01 · 🦴 Motion that fits your rig</h3><p>Source rest frames, joint hierarchies and rotation conventions enter one retargeting foundation. Inspect the original skeleton beside your avatar, including hands, root movement and ground contact.</p><a href="doc/math-retarget/README.zh-CN.md">Explore the mathematics →</a></td>
+<td width="33%" valign="top"><h3>02 · 🔌 Models you can combine</h3><p>Use MotionCraft, SynTalker, ARDY and other catalog models through adapters for their native output. Connect cloud or local LLMs and TTS through typed capability ports and verify each with a real generation.</p><a href="doc/models/README.en.md">Meet the models →</a></td>
+<td width="33%" valign="top"><h3>03 · 🎬 One complete performance</h3><p>Speech and movement have independent timelines. Prepare an action sequence, place speech where it belongs, and deliver it to the browser or VRChat. Versioned messages, artifacts and execution receipts make each step inspectable.</p><a href="doc/architecture/contracts.en.md">Read the contracts →</a></td>
+</tr>
+</table>
 
-![A generated performance in Character Studio](doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg)
+---
 
-## Start from zero
+## 🧭 Where VIREA fits
 
-1. [Download the source ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) and extract it. On Windows, double-click **Start-VIREA.cmd**. On macOS, open **Start-VIREA.command**. On Linux, run **sh start-virea.sh** in the project folder.
-2. Let the launcher prepare Python, Node and dependencies. It opens the setup wizard and shows deployment progress and the current step.
-3. Choose a cloud provider or a detected local model. Enter a provider key, then select a model and voice from the discovered lists. For local models, click **Detect and deploy**.
-4. Run **Generate and verify**. Inspect the actual text, audio waveform or motion frames and download the result before activating the connection.
-5. Open your workspace. Motion Lab needs a motion model; the two interactive workspaces add language and speech as needed.
+Different projects start from companionship, animation authoring or motion capture. VIREA brings generation, retargeting and embodied execution into a shared runtime.
 
-| Environment | Workflows |
-|---|---|
-| Windows | All three workspaces, including dual VRChat clients and the virtual VR driver |
-| Linux, macOS | Motion Lab, Character Studio, model connections and deployment |
-| Windows + WSL2 | Windows hosts the browser and VRChat; models can run in a selected WSL2 environment |
+| Project | LLM + speech | Generated motion | Native skeleton → VRM | Browser avatar | VRChat execution | Independent tracks | Motion / execution contracts |
+|:--|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| [Project Gabriel](https://github.com/HoppouAI/ProjectGabriel-Remastered/tree/motion-server) | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| [rexclaw](https://github.com/Codemarchant/rexclaw) | ✅ | ✅¹ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| [text-to-vrma](https://github.com/Kirakun0328/text-to-vrma) | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [MotionMind](https://github.com/rohitacharyams/MotionMind) | ✅ | ❌² | ✅ | ✅ | ❌ | ❌ | ❌ |
+| [ChatVRM](https://github.com/pixiv/ChatVRM) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **VIREA** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-Language providers include OpenAI, DeepSeek, Anthropic, Alibaba Bailian, Gemini, OpenRouter and compatible services. Speech providers include OpenAI Speech, Bailian, ElevenLabs, Azure and local services. Setup detects hardware and offers suitable runtimes. See the [model catalog](doc/models/README.en.md) for resource requirements.
+<sub>✅ Implemented in the reviewed scope · ❌ Not provided in that scope. ¹ Through Text-To-VRMA integration. ² MotionMind reconstructs motion from video and composes clips. Independent tracks means explicitly scheduled speech and motion; contracts means both normalized motion and target execution receipts. Reviewed October 11, 2026. [Definitions, revisions and sources](doc/comparison.en.md).</sub>
 
-The first launch opens `http://127.0.0.1:8000/app/setup.html`. Configuration, models and results live under the project's `.virea-runtime/` folder. Later launches reuse the environment. Speech verification generates a file; playback is controlled by the user.
+---
 
-[Installation walkthrough](doc/getting-started/automatic-setup.en.md) · [Choose a data disk](doc/getting-started/persistent-data-root.en.md) · [Troubleshooting](doc/operations/troubleshooting.en.md)
+## 🚀 Set up
 
-## One shared foundation
+**Start with a folder and the launcher.** [Download the source ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) and extract it, or clone with Git:
 
-```mermaid
-flowchart TD
-    ML[Motion Lab] --> M[Motion capability]
-    CS[Character Studio] --> P[Shared performance orchestration]
-    VC[VRChat Studio] --> P
-    P --> L[Language capability]
-    P --> A[Audio capability]
-    P --> M
-    M --> IR[Motion IR v2 · Retarget · Validate]
-    IR --> X[Executable performance]
-    A --> X
-    X --> WEB[Browser / VRM]
-    X --> VR[VRChat / OpenVR / OSC]
-    WEB --> E[Execution receipts]
-    VR --> E
-    IR --> OUT[Preview / Export]
+```sh
+git clone https://github.com/Moonweave-AI/virea.git
+cd virea
 ```
 
-Speech and motion share a timeline while keeping their own lengths and start times. Short English captions describe motion stages; speech can begin anywhere and cross action boundaries. Measured audio samples determine speech duration. Each motion model retains its native history and inference procedure.
+Run the command for your system from the project folder:
 
-Execution records distinguish planning, generation, validation, transmission, device acknowledgement and visual observation. A new turn cancels old work and advances the session epoch. Both execution targets consume the same validated performance data.
+| Windows · PowerShell | macOS / Linux · Terminal |
+|:--|:--|
+| `.\Start-VIREA.cmd` | `sh start-virea.sh` |
 
-[Architecture](doc/architecture/overview.en.md) · [Contracts](doc/architecture/contracts.en.md) · [Timing and execution](doc/architecture/execution.en.md)
+The launcher prepares Python, Node.js and application dependencies, builds the interface and starts VIREA. The same command starts it again next time.
 
-The shared motion foundation manages hierarchy, bone lengths, local axes and rotation propagation. Hands are evaluated from per-frame model parameters. Native output, retargeted motion and playback curves are recorded separately so the same sample can be compared across characters. [Skeletal mathematics and measurements](doc/research/skeletal-retargeting-2026-10-11.md) · [VRChat motion execution](doc/quality/vrchat-motion.md).
+1. Open **[Set Up](http://127.0.0.1:8000/app/setup.html)** when the launcher is ready.
+2. Choose your **language, speech and motion** providers. Detect available models and voices, or deploy a local model from the catalog.
+3. Run **generation verification**, then enter **Motion Lab**, **Character Studio** or **VRChat Studio**.
+
+> [!TIP]
+> Browser workspaces run on Windows, Linux and macOS. VRChat integration runs on Windows. Local model requirements are shown before installation; start with the capabilities you need.
+
+[Full setup guide](doc/getting-started/automatic-setup.en.md) · [Platform guide](doc/platforms/README.en.md) · [Troubleshooting](doc/operations/troubleshooting.en.md)
+
+---
 
 <a id="demos"></a>
-## See it in action
+## 🎞️ Demos
 
-These existing recordings show four continuous VRChat interactions and eight browser performances each for MotionCraft and SynTalker. [Recording conditions and review records](doc/quality/vrchat-recordings.md) include file hashes and check results.
+### VRChat Studio
 
+Conversation and generated movement · 1 min 53 sec
 
-<!-- BEGIN VRCHAT_DEMOS -->
-### Four continuous VRChat interactions
+https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
 
-**1. Exhibition tour — MotionCraft · 5:17.6.** Introduce a fictional exhibit, explain reflected light, adapt to a child visitor, then answer and recap.
+### Character Studio
 
-https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6
-
-**2. Rhythm coaching — SynTalker · 5:39.6.** Establish a turn-taking rule, wait for readiness, correct the learner and recap the practice.
-
-https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656
-
-**3. Lighthouse story — MotionCraft → SynTalker · 5:16.5.** Choose a route, retain the blue-map/no-swimming constraints, adapt to rain and recall the story after switching methods.
-
-https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
-
-**4. Presentation rehearsal — SynTalker → MotionCraft · 5:47.4.** Introduce a book exchange, clarify that it is free, switch to a shortened closing and summarize the corrections.
-
-https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
-<!-- END VRCHAT_DEMOS -->
-
-<!-- BEGIN UNIFIED_MOTION_DEMOS -->
-
-### MotionCraft
+One character, three motion routes.
 
 <table>
+<tr><th width="33%">MotionCraft</th><th width="33%">SynTalker</th><th width="33%">ARDY + SentiAvatar</th></tr>
 <tr>
-<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted preload="metadata" width="250" height="220"></video></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted preload="metadata" width="250" height="220"></video></td>
+<td align="center"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted preload="metadata" width="250" height="220"></video></td>
 </tr>
-<tr>
-<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-03-story.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-04-dance.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-07-tour.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/motioncraft-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/motioncraft-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · motioncraft + Audio8-TTS</sub></td>
-</tr>
+<tr><td align="center">32 s · Text + speech</td><td align="center">32 s · Text + speech</td><td align="center">40 s · Dialogue + behavior</td></tr>
 </table>
 
-### SynTalker
+### Motion Lab
 
-<table>
-<tr>
-<td width="50%" valign="top"><strong>Welcome and introduction</strong><br><a href="doc/assets/unified-motion-demos/syntalker-01-introduction.mp4"><img src="doc/assets/unified-motion-demos/syntalker-01-introduction.jpg" alt="Welcome and introduction" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Warm-up coach</strong><br><a href="doc/assets/unified-motion-demos/syntalker-02-warmup.mp4"><img src="doc/assets/unified-motion-demos/syntalker-02-warmup.jpg" alt="Warm-up coach" width="100%"></a><br><sub>36s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>Garden story</strong><br><a href="doc/assets/unified-motion-demos/syntalker-03-story.mp4"><img src="doc/assets/unified-motion-demos/syntalker-03-story.jpg" alt="Garden story" width="100%"></a><br><sub>35s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Dance lesson</strong><br><a href="doc/assets/unified-motion-demos/syntalker-04-dance.mp4"><img src="doc/assets/unified-motion-demos/syntalker-04-dance.jpg" alt="Dance lesson" width="100%"></a><br><sub>32s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>Fashion presentation</strong><br><a href="doc/assets/unified-motion-demos/syntalker-05-fashion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-05-fashion.jpg" alt="Fashion presentation" width="100%"></a><br><sub>34s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>From tension to celebration</strong><br><a href="doc/assets/unified-motion-demos/syntalker-06-emotion.mp4"><img src="doc/assets/unified-motion-demos/syntalker-06-emotion.jpg" alt="From tension to celebration" width="100%"></a><br><sub>33s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>Walking guide</strong><br><a href="doc/assets/unified-motion-demos/syntalker-07-tour.mp4"><img src="doc/assets/unified-motion-demos/syntalker-07-tour.jpg" alt="Walking guide" width="100%"></a><br><sub>38s · 6 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-<td width="50%" valign="top"><strong>Boxing practice</strong><br><a href="doc/assets/unified-motion-demos/syntalker-08-boxing.mp4"><img src="doc/assets/unified-motion-demos/syntalker-08-boxing.jpg" alt="Boxing practice" width="100%"></a><br><sub>36s · 7 actions · 2 speech clips · syntalker + Audio8-TTS</sub></td>
-</tr>
-</table>
-<!-- END UNIFIED_MOTION_DEMOS -->
+Native skeleton and retargeted VRM, side by side · 14 sec
 
-[MotionCraft / SynTalker — 技术梗概 / Technical notes](doc/character/unified-motion.en.md) · [Gallery](doc/assets/unified-motion-demos/index.html)
+https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
 
-<details>
-<summary>SentiAvatar + ARDY</summary>
+[All demos and reproduction notes](doc/demos/README.en.md) · [Video files and provenance](doc/assets/featured-demos/README.md)
 
-<!-- BEGIN CHARACTER_DEMOS -->
-**8 complete performances in a two-column gallery.** Each recording follows a model-generated plan. Open the task notes for timing measurements.
+<sub>Character Studio demo avatar: Unnamed Character 6 by Reira. <a href="THIRD_PARTY_NOTICES.md">Credits & terms</a>.</sub>
 
-<table>
-<tr>
-<td width="50%" valign="top"><strong>01 · Stage host</strong><br>Opening speech → walking, turning and greeting → invite the audience.<br><video src="https://github.com/user-attachments/assets/7c4006eb-5662-4c46-8697-df720d7d2e9b" controls width="100%"></video><br><sub>Full performance · 39.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>02 · Warm-up coach</strong><br>Explain the technique → side steps and stretching → review and encouragement.<br><video src="https://github.com/user-attachments/assets/6707f2ec-8708-435c-92f1-bc16db2e3573" controls width="100%"></video><br><sub>Full performance · 42.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>03 · Acted story</strong><br>Set a garden story → silently search and discover → tell the ending.<br><video src="https://github.com/user-attachments/assets/0d4e9132-0ebe-41f9-b0af-a43612a20026" controls width="100%"></video><br><sub>Full performance · 54.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>04 · Dance lesson</strong><br>Explain rhythm and balance → improvised combination → review common mistakes.<br><video src="https://github.com/user-attachments/assets/1260333b-e3bc-4c8a-b017-a853a5236c78" controls width="100%"></video><br><sub>Full performance · 49.9s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>05 · Fashion presentation</strong><br>Introduce colors and fabrics → walk, turn and pose → explain the mood.<br><video src="https://github.com/user-attachments/assets/5813e082-8c10-4b98-b369-ed1d321ed98c" controls width="100%"></video><br><sub>Full performance · 51.6s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>06 · From doubt to joy</strong><br>Respond to uncertainty → celebrate through movement → close with reassurance.<br><video src="https://github.com/user-attachments/assets/9fedd92d-179b-4388-a4fc-a05de5c7a5ae" controls width="100%"></video><br><sub>Full performance · 32.2s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><strong>07 · Walking guide</strong><br>Introduce an artwork → walk, speak and point → summarize the exhibition.<br><video src="https://github.com/user-attachments/assets/9fd17b2d-9e5b-473c-9a02-772050581b72" controls width="100%"></video><br><sub>Full performance · 55.3s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-<td width="50%" valign="top"><strong>08 · Boxing practice</strong><br>Explain stance and guard → punches, evasion and recovery → review breathing and rhythm.<br><video src="https://github.com/user-attachments/assets/e15d77f0-649d-4b88-adfc-4d40d6f8ef88" controls width="100%"></video><br><sub>Full performance · 48.1s</sub><br><sub>SentiAvatar ↔ ARDY · Kokoro</sub></td>
-</tr>
-</table>
+---
 
-[Tasks and measurements](doc/character/showcase.en.md) · [Two-column video gallery](doc/assets/character-demos/index.html) (serve locally over HTTP) · [Execution manifest](doc/assets/character-demos/manifest.json)
-<!-- END CHARACTER_DEMOS -->
+<a id="architecture"></a>
+## 🧩 Architecture
 
-</details>
+**One capability system. One motion foundation. Multiple execution targets.** The workspaces share model interfaces and skeletal mathematics. Each target handles its own rendering or device transport.
 
-## Develop and explore
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
+flowchart TB
+    subgraph Workspaces["Three workspaces"]
+        Lab["Motion Lab"]
+        Studio["Character Studio"]
+        VRC["VRChat Studio"]
+    end
+    subgraph Capabilities["Pluggable capabilities"]
+        LLM["LLM · intent and planning"]
+        Audio["TTS · measured speech"]
+        Motion["Motion generators · native outputs"]
+    end
+    Lab --> Motion
+    Studio --> LLM
+    VRC --> LLM
+    LLM --> Plan["Performance compiler · independent tracks"]
+    Plan --> Audio
+    Plan --> Motion
+    Motion --> Source["Source adapters · Motion IR v2"]
+    Source --> Rig["Shared skeletal retargeting<br/>Frames · FK · rotations · hands · contacts"]
+    Audio --> Performance["Executable performance"]
+    Rig --> Performance
+    Performance --> Executor["Session + executor<br/>Timing · ownership · cancellation · receipts"]
+    Rig --> Export["Motion Lab · inspect / export"]
+    Executor --> Browser["Browser VRM"]
+    Executor --> Bridge["OpenVR / OSC → VRChat Humanoid"]
+    Browser -. acknowledgements .-> Executor
+    Bridge -. acknowledgements .-> Executor
+    classDef workspace fill:#23222b,stroke:#b1aabd,color:#f2edf1
+    classDef core fill:#302b3a,stroke:#bbb0ca,color:#f2edf1
+    classDef target fill:#352c33,stroke:#c7adb7,color:#f5eef0
+    class Lab,Studio,VRC workspace
+    class Plan,Source,Rig,Performance,Executor core
+    class Browser,Bridge,Export target
+```
 
-| Topic | Documentation |
-|---|---|
-| Call the API or add a model | [Interaction API](doc/architecture/contracts.en.md), [model integration](doc/development/model-adapter.zh-CN.md) |
-| Skeleton coordinates and retargeting | [Mathematical reference](doc/math-retarget/README.zh-CN.md) |
-| Environments, models and data | [Automatic setup](doc/getting-started/automatic-setup.en.md), [data retention](doc/operations/runtime-data-and-retention.en.md) |
-| Current implementation and migration | [Architecture](doc/architecture/overview.en.md), [RFC-0004](doc/rfcs/0004-unified-embodied-runtime.md) |
-| Model and platform configuration | [Model matrix](doc/models/support-matrix.generated.md), [platform guide](doc/platforms/README.en.md) |
-| Contribute and verify | [Contributing](CONTRIBUTING.md), [validation record](doc/quality/unified-runtime.md) |
+| Layer | Responsibility | Code |
+|:--|:--|:--|
+| Capabilities | Interchangeable language, audio, motion, source and embodiment interfaces | [`src/virea/ports/`](src/virea/ports/) |
+| Contracts & orchestration | Plans, measured timing, immutable artifacts, body ownership and receipts | [`packages/contracts/`](packages/contracts/) · [`src/virea/application/`](src/virea/application/) |
+| Motion foundation | Native source adapters, rest frames, FK and skeletal retargeting | [`src/virea/motion/`](src/virea/motion/) · [`packages/retarget/`](packages/retarget/) |
+| Execution & operations | Browser playback, VRChat tracking, model workers and deployment | [`apps/`](apps/) · [`src/virea/vrchat/`](src/virea/vrchat/) · [`plugins/models/`](plugins/models/) |
 
-The repository follows responsibilities: `apps/` contains the UI and API, `src/virea/application/` owns shared orchestration, `src/virea/ports/` defines capability interfaces, `packages/` holds contracts and infrastructure, `plugins/` contains model runtimes, and `doc/` contains task guides and technical references.
+[Architecture guide](doc/architecture/overview.en.md) · [Timing and execution](doc/architecture/execution.en.md) · [Model integration](doc/development/model-adapter.zh-CN.md)
 
-Demo avatar: **Unnamed Character 6 — Reira**. The repository includes rendered results; users import their own avatar files. Project-code licensing awaits the maintainers' selection. Model, dataset and avatar terms are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [SECURITY.md](SECURITY.md) for reporting security issues.
+---
+
+## 🤝 Contributing
+
+Bring a model adapter, a clearer guide, a reproducible motion example or a fix. Start with the [contribution guide](CONTRIBUTING.md), choose a focused change, and include the checks that show it works. For motion changes, an original-skeleton / target-avatar comparison is especially useful.
+
+---
+
+## 🛡️ Security & responsible use
+
+Use avatars and voice references you have permission to use. Keep provider keys and private conversations local, and operate VRChat accounts with the consent of the people involved. See the [security policy](SECURITY.md) for private reporting and the [asset credits](THIRD_PARTY_NOTICES.md) for model, dataset and avatar terms.
+
+---
+
+## 📄 License
+
+The VIREA code license is awaiting the maintainers' selection. Third-party models, datasets and avatars retain their own licenses, listed in [Third-party notices](THIRD_PARTY_NOTICES.md).
 
 <a id="start-without-a-development-environment"></a>
 <a id="from-motion-generation-to-embodied-conversation"></a>
 <a id="vrchat-execution-bridge"></a>
 <a id="single-family-routes-16-complex-task-demos"></a>
 <a id="motion-studio-demos"></a>
-<a id="architecture"></a>
 <a id="motion-infrastructure"></a>
 <a id="choose-your-path"></a>
 <a id="runtime-and-retargeting-foundation"></a>
@@ -200,16 +194,15 @@ Demo avatar: **Unnamed Character 6 — Reira**. The repository includes rendered
 <a id="validation"></a>
 <a id="documentation"></a>
 <a id="contributing-security-and-distribution"></a>
-
 <!--
 type: readme
 status: Active
 owner: VIREA maintainers
-created: 2026-08-08
+created: 2026-10-11
 updated: 2026-10-11
 last_reviewed: 2026-10-11
 review_cycle_days: 30
-summary: Three workflows over shared capabilities, motion conversion and verifiable execution.
+summary: Project overview, verified comparison, quick setup, five selected videos and shared architecture.
 canonical: README.md
 related: []
 supersedes: []

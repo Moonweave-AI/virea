@@ -1,17 +1,6 @@
----
-type: reference
-status: draft
-owner: VIREA maintainers
-created: 2026-10-04
-updated: 2026-10-11
-last_reviewed: 2026-10-08
-review_cycle_days: 30
-summary: VIREA execution bridge with a software OpenVR rig, generated full-body tracking, setup and validation limits.
-canonical: doc/character/vrchat.en.md
-related: [vrchat.zh-CN.md, unified-motion.en.md, ../../README.md]
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](vrchat.zh-CN.md)
+<!-- END DOC NAV -->
 
 # VIREA → VRChat
 
@@ -208,3 +197,24 @@ If Unity reports `No valid Unity Editor license found`, refresh the existing lic
 [Machine-readable report](../quality/vrchat-evidence.json): both MotionCraft and SynTalker completed an eight-second performance using the real local LLM and cloned TTS through a loopback OSC receiver, each sampled at 241 frames. Audio output was disabled in these runs. All sixteen existing real-model demos, totaling 552 seconds and 16,576 sampled positions, passed offline FK/OSC conversion. Existing Studio videos are not VRChat in-client recordings.
 
 Run `uv run --extra dev --extra vrchat python -m pytest tests/vrchat -q`, the web test suite and web build for reproducible software checks. The four silent demos require real generated body/finger motion in the observer view, both in-game chatboxes, VR calibration, method switching and pause/interrupt behavior. Audible speech and microphone/lip-sync acceptance remain unverified and are outside this silent recording run.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: draft
+owner: VIREA maintainers
+created: 2026-10-04
+updated: 2026-10-11
+last_reviewed: 2026-10-08
+review_cycle_days: 30
+summary: VIREA execution bridge with a software OpenVR rig, generated full-body tracking, setup and validation limits.
+canonical: doc/character/vrchat.en.md
+related: [vrchat.zh-CN.md, unified-motion.en.md, ../../README.md]
+supersedes: []
+superseded_by: []
+-->

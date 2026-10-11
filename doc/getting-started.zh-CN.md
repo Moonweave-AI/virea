@@ -1,24 +1,12 @@
----
-type: tutorial
-status: Active
-owner: VIREA maintainers
-created: 2026-08-10
-updated: 2026-10-11
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: 从 git clone 到执行域选择、模型安装、动作生成和浏览器播放的 VIREA 中文可复现教程。
-canonical: doc/getting-started.zh-CN.md
-related:
-  - README.zh-CN.md
-  - getting-started.en.md
-  - reference/cli.zh-CN.md
-  - platforms/README.zh-CN.md
-  - ../CONTRIBUTING.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md) · [English](getting-started.en.md)
+<!-- END DOC NAV -->
 
 # 从 git clone 到第一个 VIREA 结果
+
+<!-- DOCS-SETUP-ROUTE -->
+> [!TIP]
+> 第一次使用？从[自动部署](getting-started/automatic-setup.zh-CN.md)开始，启动器会准备运行环境。本页保留开发者手动安装与命令行操作。
 
 > [中文](getting-started.zh-CN.md) · [English tutorial](getting-started.en.md) · [完整 CLI 参数参考](reference/cli.zh-CN.md)
 
@@ -240,3 +228,29 @@ uv run virea model gc --dry-run --older-than-hours 168 --virea-home "$VIREA_HOME
 - [平台与执行域](platforms/README.zh-CN.md)
 - [模型目录与能力矩阵](models/README.zh-CN.md)
 - [文档维护规范](development/documentation.zh-CN.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](catalog.zh-CN.md) · [🛠️ 故障排查](operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: tutorial
+status: Active
+owner: VIREA maintainers
+created: 2026-08-10
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 从 git clone 到执行域选择、模型安装、动作生成和浏览器播放的 VIREA 中文可复现教程。
+canonical: doc/getting-started.zh-CN.md
+related:
+  - README.zh-CN.md
+  - getting-started.en.md
+  - reference/cli.zh-CN.md
+  - platforms/README.zh-CN.md
+  - ../CONTRIBUTING.md
+supersedes: []
+superseded_by: []
+-->

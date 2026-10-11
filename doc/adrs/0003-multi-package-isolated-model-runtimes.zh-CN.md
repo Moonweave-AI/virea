@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # ADR-0003：多包仓库与隔离模型运行时
 
 ## 状态
@@ -250,8 +254,13 @@ v3 兼容验证保留。
 | 完成 MoMask/SentiAvatar 与首批模型 | `@Joker-of-Gotham` | WP09-WP12 | `doc/model-catalog/` |
 | 汇总 0.3 QA-L4 与 rollback evidence | `@Joker-of-Gotham` | Release | [0.4.0 当前发布验收](../refactor/RELEASE_ACCEPTANCE_0.4.0.md) |
 
-<!--
+<!-- BEGIN DOC FOOTER -->
 ---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
 type: adr
 status: Accepted
 owner: "@Joker-of-Gotham"
@@ -273,5 +282,4 @@ related:
   - ../refactor/RELEASE_ACCEPTANCE_0.4.0.md
 supersedes: []
 superseded_by: []
----
 -->

@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # RFC-0001：Annotation、时间与 Retarget v1
 
 > 2026-08-09 implementation amendment：本RFC保留最初Accepted proposal中的
@@ -360,9 +364,13 @@ B 段失败关闭 `vrm_annotations_v1` feature flag，普通骨架与详情仍�
 - FCP 窗口：本次 Codex task 的 RFC/ADR 阶段；Data Pipeline、Viewer/VRM、Dataset/IP 三类
   review evidence 必须在 Release Gate 前全部附上。RFC 接受只批准架构方向，不等于许可媒体发布。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: rfc
 status: Accepted
 owner: "@Joker-of-Gotham"
@@ -389,5 +397,4 @@ required_reviewers:
   - "Codex /root/authority_research — source and RFC reviewer"
   - "Codex /root/real_data_audit — data pipeline reviewer"
   - "@Joker-of-Gotham — Viewer, VRM and IP decision"
----
 -->

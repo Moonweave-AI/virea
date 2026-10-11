@@ -1,20 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: English native Linux execution-domain setup and evidence boundaries.
-canonical: doc/platforms/linux.en.md
-related:
-  - linux.zh-CN.md
-  - README.en.md
-  - ../getting-started.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](linux.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Linux native
 
@@ -45,3 +31,27 @@ uv run virea
 CUDA, ROCm and CPU are different Runtimes/profiles, not a device-string change. If no complete profile fits, VIREA rejects
 before download with the missing RAM, VRAM, swap or storage fact. A declared Linux Runtime is not Linux checkpoint-inference
 evidence; inspect the generated matrix and current evidence registry separately.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: English native Linux execution-domain setup and evidence boundaries.
+canonical: doc/platforms/linux.en.md
+related:
+  - linux.zh-CN.md
+  - README.en.md
+  - ../getting-started.en.md
+supersedes: []
+superseded_by: []
+-->

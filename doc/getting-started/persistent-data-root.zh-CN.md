@@ -1,22 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: 一次选择并持久化 VIREA 数据根目录，避免将模型和环境写入系统盘。
-canonical: doc/getting-started/persistent-data-root.zh-CN.md
-related:
-  - persistent-data-root.en.md
-  - ../getting-started.zh-CN.md
-  - ../reference/cli.zh-CN.md
-  - ../../scripts/configure-virea.ps1
-  - ../../scripts/configure-virea.sh
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](persistent-data-root.en.md)
+<!-- END DOC NAV -->
 
 # 选择并持久化 VIREA 数据根目录
 
@@ -270,3 +254,29 @@ Web 页面报告 `ModelResult coordinate_system does not match the manifest`，�
 停止 VIREA 进程，选取新的空数据根后，在 clone 内对这个新根重新运行相同配置脚本。脚本只修改未来终端的环境设置，
 **不会**替你移动已有模型、任务或缓存。复制/迁移既有状态必须作为单独、经过确认的操作，确保不会静默复制或删除大型
 模型目录。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: 一次选择并持久化 VIREA 数据根目录，避免将模型和环境写入系统盘。
+canonical: doc/getting-started/persistent-data-root.zh-CN.md
+related:
+  - persistent-data-root.en.md
+  - ../getting-started.zh-CN.md
+  - ../reference/cli.zh-CN.md
+  - ../../scripts/configure-virea.ps1
+  - ../../scripts/configure-virea.sh
+supersedes: []
+superseded_by: []
+-->

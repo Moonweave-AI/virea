@@ -1,18 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-26
-updated: 2026-09-26
-last_reviewed: 2026-09-26
-review_cycle_days: 30
-summary: RTX 5090 Laptop 上持续角色的实测瓶颈、量化对比、动作连续性与升级顺序。
-canonical: doc/character/performance-continuity-research.zh-CN.md
-related:
-  - README.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 持续角色：速度与连续性调研
 
@@ -272,3 +260,25 @@ SentiAvatar 需要当前音频窗口，不能伪装成零前瞻因果模型。
 ```
 
 独立 resident 脚本绕过生产 admission/租约，专用于空闲设备的模型实验，不能直接当作在线服务部署。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-09-26
+last_reviewed: 2026-09-26
+review_cycle_days: 30
+summary: RTX 5090 Laptop 上持续角色的实测瓶颈、量化对比、动作连续性与升级顺序。
+canonical: doc/character/performance-continuity-research.zh-CN.md
+related:
+  - README.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

@@ -1,19 +1,11 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Use the character-studio workspace.
-canonical: doc/workflows/character-studio.zh-CN.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](character-studio.en.md)
+<!-- END DOC NAV -->
 
 # Character Studio：与角色对话
+
+<!-- WORKSPACE ROUTE -->
+> 🎭 **准备 → 生成 → 观察 → 导出** · [先看演示](../demos/README.zh-CN.md)
 
 [English](character-studio.en.md) · [先完成部署](../getting-started/automatic-setup.zh-CN.md)
 
@@ -31,3 +23,24 @@ superseded_by: []
 ![Character Studio 中的表演](../assets/unified-motion-demos/motioncraft-01-introduction.jpg)
 
 [每个模型八段案例](../character/unified-motion.zh-CN.md) · [声音克隆](../character/audio8-tts.zh-CN.md) · [时序模型](../architecture/execution.zh-CN.md)
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Use the character-studio workspace.
+canonical: doc/workflows/character-studio.zh-CN.md
+related: []
+supersedes: []
+superseded_by: []
+-->

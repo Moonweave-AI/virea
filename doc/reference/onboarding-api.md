@@ -1,20 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Local provider configuration, discovery and allowlisted deployment API contracts.
-canonical: doc/reference/onboarding-api.md
-related:
-  - ../getting-started/automatic-setup.zh-CN.md
-  - ../getting-started/automatic-setup.en.md
-  - ../engineering-briefs/portable-onboarding.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Onboarding API / 配置与部署接口
 
@@ -97,3 +83,27 @@ To install from code, submit a recipe with acceptance established by the user, t
 ## Protocol references
 
 Adapters follow [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [DeepSeek JSON mode](https://api-docs.deepseek.com/guides/json_mode/), [Anthropic tool calls](https://platform.claude.com/docs/en/agents-and-tools/handle-tool-calls), [Google Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), [Bailian speech](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-api), [ElevenLabs speech](https://elevenlabs.io/docs/api-reference/text-to-speech/convert), [Azure Speech REST](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech) and [Ollama pull](https://docs.ollama.com/api/pull). Compatibility tests use contract fixtures; cloud account access and supported model IDs must still be verified against the user's provider.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Local provider configuration, discovery and allowlisted deployment API contracts.
+canonical: doc/reference/onboarding-api.md
+related:
+  - ../getting-started/automatic-setup.zh-CN.md
+  - ../getting-started/automatic-setup.en.md
+  - ../engineering-briefs/portable-onboarding.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

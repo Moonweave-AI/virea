@@ -1,17 +1,6 @@
----
-type: rfc
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Implementation design for a shared capability and performance core across three workspaces.
-canonical: doc/rfcs/0004-unified-embodied-runtime.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Unified capability and embodiment runtime
 
@@ -44,3 +33,24 @@ Existing deployments retain their routes, model environments and saved connectio
 ## Skeletal follow-up
 
 The shared motion implementation now separates immutable native data, explicit source/target rest-frame binding and declared playback conditioning. One `RigGeometry` FK kernel serves offline conversion and VRChat targets. The compiler never changes a seed to hide a retarget failure. Hand poses use per-frame inputs without automatic mean addition. Source geometry provenance and numerical comparisons are recorded in the [skeletal research log](../research/skeletal-retargeting-2026-10-11.md); [execution quality](../quality/vrchat-motion.md) describes device mounts, support and completion semantics.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: rfc
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Implementation design for a shared capability and performance core across three workspaces.
+canonical: doc/rfcs/0004-unified-embodied-runtime.md
+related: []
+supersedes: []
+superseded_by: []
+-->

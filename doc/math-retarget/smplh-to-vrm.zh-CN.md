@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # SMPL / SMPL-H body 到 VRM
 
 覆盖 AMASS 与 BABEL。BABEL 只增加 annotation，motion carrier 仍由 AMASS family 文件提供，因此共享 source decode 与 direct path；两者保留独立 Adapter、carrier 和时间语义。
@@ -111,9 +115,13 @@ Source preview 用同一 body/hand decode 和 source rest FK，随后只做 prof
 - BABEL carrier resolver 和 duration mismatch 是正式发布门禁。
 - AMASS HumanAct12 positions 旁路属于 [position decode/fitting](README.zh-CN.md#8-position-decodefitting-path)，不是本文 direct axis-angle 主路径。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -129,5 +137,4 @@ related:
   - ../references.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

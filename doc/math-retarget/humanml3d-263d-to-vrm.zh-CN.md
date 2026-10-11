@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
+
 # HumanML3D 263D 到 VRM
 
 HumanML3D 的 263D row 不是 SMPL pose，也不能把其中 126D rotation直接当作 VRM node-local quaternion。当前可信主路径严格复现作者 `recover_from_ric`：先恢复 22-joint positions，再进行 position fitting；失败时 fail-fast，不生成 rest-pose 或直线轨迹兜底。
@@ -91,9 +95,13 @@ Caption 保留 native text，不从自然语言生成 bodypart 真值。文本�
 
 下列状态必须拒绝：把 126D 按同名 VRM locals使用、把逐帧增量当每秒速度、用 AMASS Z-up basis重复旋转、decode 失败后输出伪动作，或仅凭 position FK 自洽宣称完整身体 twist 已恢复。
 
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
----
 type: explanation
 status: Active
 owner: "@Joker-of-Gotham"
@@ -110,5 +118,4 @@ related:
   - ../research/pose-retarget-validation-2026-08-08.zh-CN.md
 supersedes: []
 superseded_by: []
----
 -->

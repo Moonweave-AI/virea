@@ -1,17 +1,6 @@
----
-type: reference
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Unified runtime contracts.
-canonical: doc/architecture/contracts.en.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](contracts.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Capability and execution contracts
 
@@ -58,3 +47,24 @@ Use the selected model's manifest input and parameter schema when constructing `
 The timed `PerformancePlan` compatibility import resolves to `virea_contracts.timeline`; new code can use `TimedPerformancePlan`. The semantic planner exports `IntentPlan`. No consumer needs to infer the plan's meaning from an identical class name in another module.
 
 The nine messages have versioned JSON Schemas in `packages/contracts/schemas/v1/`. Regenerate them with `python -m virea_contracts.schema_export`; add `--check` to verify schema drift. The current conversation planner emits speech and motion. Additional tool capabilities are registered through `ToolDispatcher`.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: reference
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Unified runtime contracts.
+canonical: doc/architecture/contracts.en.md
+related: []
+supersedes: []
+superseded_by: []
+-->

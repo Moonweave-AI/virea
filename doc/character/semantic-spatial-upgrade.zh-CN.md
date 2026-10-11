@@ -1,19 +1,6 @@
----
-type: research-record
-status: Active
-owner: VIREA maintainers
-created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
-review_cycle_days: 30
-summary: 单次语义流、SentiAvatar 补帧加速及 ARDY 原生滚动空间控制的研究、部署与验证边界。
-canonical: doc/character/semantic-spatial-upgrade.zh-CN.md
-related:
-  - README.zh-CN.md
-  - streaming-upgrade.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # 语义连续表达与空间控制
 
@@ -73,6 +60,7 @@ ARDY 动作网络约 326M 参数，保留 FP32 与十步采样。显存主要开
 ## 路由与身体所有权
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#302b3a","primaryTextColor":"#f2edf1","primaryBorderColor":"#bdb8d1","secondaryColor":"#352c33","secondaryTextColor":"#f2edf1","secondaryBorderColor":"#c9adb8","tertiaryColor":"#23222b","tertiaryTextColor":"#f2edf1","tertiaryBorderColor":"#a49baa","lineColor":"#a89eb3","textColor":"#716878","edgeLabelBackground":"#eee9ee","clusterBkg":"#23222b","clusterBorder":"#a49baa","titleColor":"#f2edf1","noteBkgColor":"#eee9ee","noteTextColor":"#302b3a","noteBorderColor":"#a49baa"}}}%%
 flowchart LR
   U[用户 / 显式环境事件] --> L[一次语言流：动作计划 + 语义单元]
   L --> T[Kokoro 常驻 / 连续 PCM]
@@ -128,3 +116,26 @@ ARDY 是运动学生成模型。上游也明确没有通用物理动力学保证
 坐下/站起/自由描述接口已接通，但未获得各类体型和场景下的质量认证；没有把它们写成“全场景全动作已完成”。
 情绪语音可继续评估 [CosyVoice](https://github.com/QwenAudio/CosyVoice) 和
 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，本轮没有部署或宣称验证这些模型。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-record
+status: Active
+owner: VIREA maintainers
+created: 2026-09-27
+updated: 2026-09-27
+last_reviewed: 2026-09-27
+review_cycle_days: 30
+summary: 单次语义流、SentiAvatar 补帧加速及 ARDY 原生滚动空间控制的研究、部署与验证边界。
+canonical: doc/character/semantic-spatial-upgrade.zh-CN.md
+related:
+  - README.zh-CN.md
+  - streaming-upgrade.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

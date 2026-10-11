@@ -1,21 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-08-21
-updated: 2026-08-28
-last_reviewed: 2026-08-28
-review_cycle_days: 30
-summary: 环境探测、资源准入、安装、Worker、结果和浏览器播放的分层排错入口。
-canonical: doc/operations/troubleshooting.zh-CN.md
-related:
-  - troubleshooting.en.md
-  - runtime-data-and-retention.zh-CN.md
-  - ../platforms/README.zh-CN.md
-  - ../quality/production-e2e.zh-CN.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](troubleshooting.en.md)
+<!-- END DOC NAV -->
 
 # 排错
 
@@ -262,3 +247,28 @@ uv run virea model verify flood-diffusion-tiny
 报告问题时附 model/result identity、执行域、doctor report ID、installation/job/result ID 与最小日志尾部，
 不要上传 checkpoint、私有 Avatar、原始数据或整个状态数据库。
 一次性数据根配置、复制路径和引号规则见[数据根路径与引号规则](../getting-started/persistent-data-root.zh-CN.md)。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-08-21
+updated: 2026-08-28
+last_reviewed: 2026-08-28
+review_cycle_days: 30
+summary: 环境探测、资源准入、安装、Worker、结果和浏览器播放的分层排错入口。
+canonical: doc/operations/troubleshooting.zh-CN.md
+related:
+  - troubleshooting.en.md
+  - runtime-data-and-retention.zh-CN.md
+  - ../platforms/README.zh-CN.md
+  - ../quality/production-e2e.zh-CN.md
+supersedes: []
+superseded_by: []
+-->

@@ -1,21 +1,6 @@
----
-type: research-log
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 30
-summary: PRISM Runtime 0.1.5 在 Windows Blackwell checkpoint materialization 阶段原生崩溃的根因研究。
-canonical: doc/research/prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
-related:
-  - prism-windows-blackwell-materialization-2026-08-23.en.md
-  - ../models/prism.zh-CN.md
-  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
-supersedes:
-  - prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](prism-windows-blackwell-materialization-2026-08-23.en.md)
+<!-- END DOC NAV -->
 
 # PRISM Windows Blackwell materialization 研究日志
 
@@ -83,3 +68,28 @@ target 在失败时关闭且保留证据。
 
 决策：以 Runtime 0.1.6 推进有界 materialization 修复，继续保持 `integrated_experimental`，复用未改变的已验证
 资产，并在 fresh 真实 checkpoint acceptance 通过前不提高支持证据等级。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 文档地图](../catalog.zh-CN.md) · [🛠️ 故障排查](../operations/troubleshooting.zh-CN.md) · [🤝 参与贡献](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: research-log
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 30
+summary: PRISM Runtime 0.1.5 在 Windows Blackwell checkpoint materialization 阶段原生崩溃的根因研究。
+canonical: doc/research/prism-windows-blackwell-materialization-2026-08-23.zh-CN.md
+related:
+  - prism-windows-blackwell-materialization-2026-08-23.en.md
+  - ../models/prism.zh-CN.md
+  - ../../plugins/models/prism-tp2m-1-4b/manifest.yaml
+supersedes:
+  - prism-checkpoint-loading-integrity-2026-08-23.zh-CN.md
+superseded_by: []
+-->

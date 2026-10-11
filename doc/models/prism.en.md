@@ -1,23 +1,6 @@
----
-type: model-card
-status: Active
-owner: VIREA maintainers
-created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
-review_cycle_days: 14
-summary: PRISM TP2M 1.4B deployment, external assets, component-split memory strategy, representation, and evidence boundaries.
-canonical: doc/models/prism.en.md
-related:
-  - prism.zh-CN.md
-  - README.en.md
-  - ../platforms/wsl2.en.md
-  - ../research/runtime-resource-requirements-audit-2026-08-23.en.md
-  - ../research/prism-checkpoint-loading-integrity-2026-08-23.en.md
-  - ../research/prism-windows-blackwell-materialization-2026-08-23.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](prism.zh-CN.md)
+<!-- END DOC NAV -->
 
 # PRISM TP2M 1.4B
 
@@ -149,3 +132,30 @@ tokenizer, and statistics remain in the configured data root and are reused. Do 
 again. Only the isolated PRISM Runtime must be rebuilt; the wizard performs that migration after the user confirms the
 existing execution domain and resource profile. A previously polluted PRISM source snapshot is small and may be fetched
 again after quarantine; the 32.7 GB checkpoint remains reusable because its revision and integrity tree did not change.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: model-card
+status: Active
+owner: VIREA maintainers
+created: 2026-08-23
+updated: 2026-08-23
+last_reviewed: 2026-08-23
+review_cycle_days: 14
+summary: PRISM TP2M 1.4B deployment, external assets, component-split memory strategy, representation, and evidence boundaries.
+canonical: doc/models/prism.en.md
+related:
+  - prism.zh-CN.md
+  - README.en.md
+  - ../platforms/wsl2.en.md
+  - ../research/runtime-resource-requirements-audit-2026-08-23.en.md
+  - ../research/prism-checkpoint-loading-integrity-2026-08-23.en.md
+  - ../research/prism-windows-blackwell-materialization-2026-08-23.en.md
+supersedes: []
+superseded_by: []
+-->

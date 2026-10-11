@@ -1,17 +1,6 @@
----
-type: evidence
-status: Active
-owner: VIREA maintainers
-created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Validation ledger for the shared capability and performance refactor.
-canonical: doc/quality/unified-runtime.md
-related: []
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
 
 # Unified runtime validation
 
@@ -96,3 +85,24 @@ Comparison of that commit with `main` covers the full PR: 2,583 changed symbols 
 The final skeletal and delivery follow-up rebuilt the index to 18,085 nodes, 42,282 edges and 611 recorded flows. Pre-commit review resolves 128 changed symbols across 41 files and 22 affected flows, with CRITICAL reach through the shared FK and playback callers and a complete listing. The full-PR comparison resolves 2,662 changed symbols and 108 flows across 328 files. The supplementary query recovered every changed symbol from 4,908 candidate rows and verified all 1,000 entries in the capped response; the recovered listing has no partial or truncated flag.
 
 Index-time limits remain for large Unity directory scans, callable-value resolution and bounded process discovery. Graph counts describe recorded flows; source inspection, native-output comparisons and runtime tests provide evidence at dynamic and cross-language boundaries. The complete comparison listing is retained with the private validation artifacts.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: evidence
+status: Active
+owner: VIREA maintainers
+created: 2026-10-11
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Validation ledger for the shared capability and performance refactor.
+canonical: doc/quality/unified-runtime.md
+related: []
+supersedes: []
+superseded_by: []
+-->

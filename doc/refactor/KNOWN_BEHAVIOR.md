@@ -1,3 +1,7 @@
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md)
+<!-- END DOC NAV -->
+
 # WP00 已知行为与兼容边界
 
 本文记录 2026-08-20 工作树中已经存在、后续重构需要明确保留或显式迁移的行为。它描述现状，不把现状全部认定为理想设计。
@@ -73,6 +77,12 @@ Characterization 只创建 app 并检查 route table，不触发 handler 或真�
 - schema/version 常量分布在多个 Python/JSON/JavaScript 文件；若只修改其中一处，会造成 artifact、API 与 Viewer 拒绝彼此。Characterization 测试目前覆盖主要交叉引用，但不是完整 schema validation。
 - 现有完整测试包含真实数据和本地资源 opt-in；WP00 测试刻意不依赖这些资源，因此只证明接口和纯数学基线，不证明模型效果。
 - 当前没有仓库级 CI 配置。后续将 characterization 纳入 CI 前，需要先确定支持的 Python/Node 版本矩阵。
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
 
 <!--
 type: reference

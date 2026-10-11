@@ -1,19 +1,6 @@
----
-type: how-to
-status: Active
-owner: VIREA maintainers
-created: 2026-09-26
-updated: 2026-10-11
-last_reviewed: 2026-10-11
-review_cycle_days: 30
-summary: Deployment and acceptance boundaries for persistent character sessions.
-canonical: doc/character/README.en.md
-related:
-  - README.zh-CN.md
-  - ../getting-started.en.md
-supersedes: []
-superseded_by: []
----
+<!-- BEGIN DOC NAV -->
+[✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](README.zh-CN.md)
+<!-- END DOC NAV -->
 
 # Persistent character sessions (experimental)
 
@@ -189,3 +176,26 @@ generation throughput. Reproduce with `node scripts/character/playback_e2e.mjs A
 A subsequent run with the language model still loaded displayed text in 1.96s and
 began playback in 2.60s. Autonomous repeats with only a changed gesture label are
 stopped before another speech or motion generation task.
+
+<!-- BEGIN DOC FOOTER -->
+---
+
+[📚 Documentation map](../catalog.en.md) · [🛠️ Troubleshooting](../operations/troubleshooting.en.md) · [🤝 Contributing](../../CONTRIBUTING.md)
+<!-- END DOC FOOTER -->
+
+<!--
+type: how-to
+status: Active
+owner: VIREA maintainers
+created: 2026-09-26
+updated: 2026-10-11
+last_reviewed: 2026-10-11
+review_cycle_days: 30
+summary: Deployment and acceptance boundaries for persistent character sessions.
+canonical: doc/character/README.en.md
+related:
+  - README.zh-CN.md
+  - ../getting-started.en.md
+supersedes: []
+superseded_by: []
+-->
