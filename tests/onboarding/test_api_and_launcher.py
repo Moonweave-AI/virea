@@ -266,6 +266,7 @@ def test_discovery_identifies_llamacpp_protocol_from_server(tmp_path, monkeypatc
 
 def test_incomplete_binary_extraction_is_not_reused(tmp_path, monkeypatch):
     import os
+
     from virea.onboarding.recipes import OLLAMA_RELEASE, install_ollama
 
     root = tmp_path / "tools/ollama" / OLLAMA_RELEASE
