@@ -62,6 +62,8 @@ Execution records distinguish planning, generation, validation, transmission, de
 
 [Architecture](doc/architecture/overview.en.md) · [Contracts](doc/architecture/contracts.en.md) · [Timing and execution](doc/architecture/execution.en.md)
 
+The shared motion foundation manages hierarchy, bone lengths, local axes and rotation propagation. Hands are evaluated from per-frame model parameters. Native output, retargeted motion and playback curves are recorded separately so the same sample can be compared across characters. [Skeletal mathematics and measurements](doc/research/skeletal-retargeting-2026-10-11.md) · [VRChat motion execution](doc/quality/vrchat-motion.md).
+
 <a id="demos"></a>
 ## See it in action
 

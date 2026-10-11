@@ -475,7 +475,6 @@ class VRChatService:
             await self._retain_player_pose()
             self.playing = self.player = self.packet = None
             self.next_decision = time.monotonic() + 5
-            await asyncio.sleep(0.05)  # let acknowledgement release the packet
         pending = self.session.pending
         if pending and not self.playing and not self.paused:
             ready, _ = self.output_ready()

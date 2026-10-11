@@ -30,22 +30,22 @@ def smooth_native_pose(root, rotations, *, observed_rotations=False):
     Quaternion hemisphere alignment prevents sign-equivalent samples cancelling.
     This is deterministic retarget postprocessing, not a second motion generator.
     """
-    # SMPL-X supplies actual parent-local rotations. Applying the position-
-    # inferred palm repair to those samples removes genuine pronation and
-    # changes wrist/finger timing independently of the rest of the arm.
-    # Preserve the complete native trajectory; the player interpolates SO(3).
     if observed_rotations:
-        result = {}
-        for name, values in rotations.items():
-            q = np.asarray(values, dtype=np.float64).copy()
-            length = np.linalg.norm(q, axis=1, keepdims=True)
-            if not np.isfinite(q).all() or np.any(length < 1e-6):
-                raise ValueError("invalid observed joint rotation")
-            q /= length
-            signs = np.ones(len(q))
-            signs[1:] = np.where(np.sum(q[1:] * q[:-1], axis=1) < 0, -1, 1)
-            result[name] = q * np.cumprod(signs)[:, None]
-        return np.asarray(root).copy() - root[:1], result
+        from scipy.ndimage import gaussian_filter1d
+
+        from virea.motion.rotation_filter import gaussian_rotation_mean
+
+        # MotionCraft's official visualization uses sigma=3.5 pose / 3 root
+        # samples at 30 Hz. Use the same bandwidth on SO(3), not component-wise
+        # axis angles (which have a branch cut). Raw Motion IR remains intact.
+        names = list(rotations)
+        filtered = gaussian_rotation_mean(
+            np.stack([rotations[n] for n in names], axis=1), 3.5
+        )
+        root = gaussian_filter1d(
+            np.asarray(root, dtype=float), 3.0, axis=0, mode="nearest"
+        )
+        return root - root[:1], {n: filtered[:, i] for i, n in enumerate(names)}
 
     from scipy.ndimage import gaussian_filter1d, median_filter
 
@@ -122,6 +122,8 @@ def native_motion_ir(backend, values):
     if backend == "motioncraft":
         from virea_compat.model_adapters import smplx_fullpose_to_motion_ir
 
+        from virea.motion.source_rig import installed_smplx_rig
+
         poses = np.concatenate(
             (
                 values[:, :66],
@@ -131,8 +133,13 @@ def native_motion_ir(backend, values):
             ),
             axis=1,
         )
+        rig = installed_smplx_rig()
         motion = smplx_fullpose_to_motion_ir(
-            poses, values[:, 309:312], fps=FPS
+            poses,
+            values[:, 309:312],
+            fps=FPS,
+            source_rest_offsets=rig.offsets if rig else None,
+            source_geometry_sha256=rig.sha256 if rig else None,
         ).motion_ir
         return replace(
             motion,
@@ -148,6 +155,9 @@ def native_motion_ir(backend, values):
             provenance={
                 **motion.provenance,
                 "source_representation": "motionx.smplx322.v1",
+                "source_geometry_sha256": rig.sha256 if rig else None,
+                "hand_pose_semantics": "native_axis_angle_as_supplied",
+                "hand_mean_applied": False,
                 "observed_dofs": [
                     "root_translation",
                     "joint_rotations",
@@ -276,6 +286,11 @@ def playback_windows(backend, values, plan, body, motion_ir=None):
                 seconds=(end - start) / FPS,
                 fps=FPS,
                 grounding="prevent_penetration",
+                rotation_conditioning=(
+                    "so3_gaussian_sigma3.5.v1"
+                    if backend == "motioncraft"
+                    else "position_inference.v1"
+                ),
                 root=root[start : end + 1].tolist(),
                 rotations={
                     name: q[start : end + 1].tolist() for name, q in rotations.items()

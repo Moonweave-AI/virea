@@ -29,7 +29,7 @@ The two architecture proposals supplied for this change establish the design dir
 
 `packages/contracts` owns portable, versioned messages. `src/virea/ports` defines language, audio, motion, adapter and embodiment interfaces. `src/virea/application` owns compilation, scheduling, session state and dispatch. Providers, browser playback and VRChat supply adapters. Existing numerical implementations stay in `src/virea/motion` and are reached through `virea_retarget`.
 
-Motion Lab's existing job service already uses native adapters, Motion IR, retargeting and verification without language or speech. Character Studio and VRChat currently share CharacterManager but preparation is embedded in UnifiedCharacterSession. Extract that preparation and its sample-based audio scheduler first. Keep legacy HTTP routes and Python imports during migration. Expose unambiguous TimedPerformancePlan and IntentPlan names without applying the graph tool's ambiguous cross-symbol rename.
+Motion Lab's existing job service uses native adapters, Motion IR, retargeting and verification without language or speech. At the baseline, Character Studio and VRChat shared CharacterManager while preparation lived inside UnifiedCharacterSession. This change extracts that preparation and its sample-based audio scheduler, keeps legacy HTTP routes and Python imports, and exposes unambiguous TimedPerformancePlan and IntentPlan names alongside the compatibility aliases.
 
 ## Failure handling and resource policy
 
@@ -40,3 +40,7 @@ Cancel child synthesis tasks and release worker histories in `finally`. Preserve
 Risk is S2 / QA-L3: shared orchestration and avatar output. GitNexus reports critical reach for timeline contracts and the shared motion conversion boundary; the older index also contains ambiguous function records. Review source callers and rebuild the graph. Cover contract round trips, epoch cancellation, speech dependency ordering, command replay, source/target separation and exact native rotation preservation. Run the existing character, VRChat, model-runtime, retarget and browser suites, then real local generation with silent artifact inspection.
 
 Existing deployments retain their routes, model environments and saved connections. Deploy the API/web build after regression checks. Roll back by restoring the preceding commit and rebuilding the web bundle; no model or user-data migration is required. Owner: VIREA maintainers.
+
+## Skeletal follow-up
+
+The shared motion implementation now separates immutable native data, explicit source/target rest-frame binding and declared playback conditioning. One `RigGeometry` FK kernel serves offline conversion and VRChat targets. The compiler never changes a seed to hide a retarget failure. Hand poses use per-frame inputs without automatic mean addition. Source geometry provenance and numerical comparisons are recorded in the [skeletal research log](../research/skeletal-retargeting-2026-10-11.md); [execution quality](../quality/vrchat-motion.md) describes device mounts, support and completion semantics.

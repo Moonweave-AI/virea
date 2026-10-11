@@ -552,6 +552,8 @@ def smplx_fullpose_to_motion_ir(
     motion_id: str = "motion-smplx",
     source_profile: str = "smplx.official55.axis_angle.v1",
     world_basis: str = "identity_y_up",
+    source_rest_offsets: dict | None = None,
+    source_geometry_sha256: str | None = None,
 ) -> AdapterOutput:
     pose = np.asarray(fullpose_axis_angle, dtype=np.float32)
     if pose.ndim != 2 or pose.shape[1] < 165:
@@ -573,9 +575,11 @@ def smplx_fullpose_to_motion_ir(
             "fullpose": pose,
             "translation": translation,
             "fps": fps,
+            "source_rest_offsets": source_rest_offsets,
             "source_metadata": {
                 "dataset_profile": source_profile,
                 "declared_world_basis": world_basis,
+                "source_geometry_sha256": source_geometry_sha256,
             },
         },
     )

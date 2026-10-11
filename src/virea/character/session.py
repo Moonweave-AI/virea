@@ -287,6 +287,11 @@ class CharacterSession:
             )
         self.body = feedback.body
         self.record("playback_feedback", feedback=feedback.model_dump())
+        # Terminal acknowledgement retires the delivery in the same event-loop
+        # turn as its body lease. The awaiting producer may resume much later;
+        # leaving pending visible until then lets a consumer replay a finished
+        # command whose body channel has already been released.
+        self.pending = None
         self._feedback.set_result(feedback)
         return True
 

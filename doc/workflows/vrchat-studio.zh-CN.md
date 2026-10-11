@@ -29,4 +29,6 @@ AI 控制专用 VRChat 账号，观察者使用另一个账号，在同一房间
 
 角色比例单独校准，不与动作模型绑定。模型旋转经过公共重定向后，再进入目标端追踪与 IK。
 
+每次请求保留同一份原生动作。源骨架与目标骨架通过静止坐标系绑定；MotionCraft 播放曲线采用明确记录的 SO(3) 时间滤波。手部根据逐帧参数演算，不自动叠加平均手型。肘部与膝部追踪器分别随上臂和大腿运动，防穿地约束统一调整整个追踪骨架的高度。具体计算与同样本对照见[动作执行质量](../quality/vrchat-motion.md)。
+
 [操作与键位](../character/vrchat-operations.zh-CN.md) · [真实姿态传输](../character/vrchat.zh-CN.md) · [录制验证](../quality/vrchat-recordings.md)

@@ -49,6 +49,7 @@ Start with the task you want to complete. Set up the environment, then choose yo
 - [Model catalog](models/README.en.md) · [Generated support matrix](models/support-matrix.generated.md).
 - [Platform guide](platforms/README.en.md) · [Runtime data and retention](operations/runtime-data-and-retention.en.md).
 - [Motion IR and retarget mathematics](math-retarget/README.zh-CN.md) · [Dataset processing](pipeline.zh-CN.md).
+- [Skeletal frames and same-sample research](research/skeletal-retargeting-2026-10-11.md) · [Motion execution quality](quality/vrchat-motion.md): geometry, hand parameters and device constraints.
 - [MotionCraft / SynTalker](character/unified-motion.en.md) · [Character runtime](character/README.en.md) · [Audio8 voice cloning](character/audio8-tts.zh-CN.md).
 - [VRChat operation](character/vrchat-operations.en.md) · [VRChat technical reference](character/vrchat.en.md).
 

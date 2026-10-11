@@ -48,6 +48,7 @@ superseded_by: []
 - [模型目录](models/README.zh-CN.md) · [模型支持矩阵](models/support-matrix.generated.md)。
 - [平台指南](platforms/README.zh-CN.md) · [运行数据与清理](operations/runtime-data-and-retention.zh-CN.md)。
 - [Motion IR 与重定向数学](math-retarget/README.zh-CN.md) · [数据集处理](pipeline.zh-CN.md)。
+- [骨骼坐标系与同样本研究](research/skeletal-retargeting-2026-10-11.md) · [动作执行质量](quality/vrchat-motion.md)：源参数、骨长、手部演算与设备约束。
 - [MotionCraft / SynTalker](character/unified-motion.zh-CN.md) · [角色运行时](character/README.zh-CN.md) · [Audio8 语音克隆](character/audio8-tts.zh-CN.md)。
 - [VRChat 操作指南](character/vrchat-operations.zh-CN.md) · [VRChat 技术参考](character/vrchat.zh-CN.md)。
 

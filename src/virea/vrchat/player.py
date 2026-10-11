@@ -6,6 +6,7 @@ import time
 from .audio import PlaybackClock
 from .continuity import ContinuedTimeline, client_identity, copy_pose
 from .desktop import DesktopTimeline
+from .grounding import GroundedTimeline
 from .mapping import chat_chunks, facial_messages, hand_messages, tracker_messages
 from .osc import message
 from .timeline import MotionTimeline, movement
@@ -29,6 +30,11 @@ class PerformancePlayer:
         if config.mode == "generated_vr" and initial_pose is not None:
             self.timeline = ContinuedTimeline(self.timeline, initial_pose)
             self.anchor = (0, 0, 0)
+        self.grounding = None
+        if config.mode in {"generated_vr", "vr_trackers"} and all(
+            window.get("grounding") == "prevent_penetration" for window in windows
+        ):
+            self.timeline = self.grounding = GroundedTimeline(self.timeline)
         self.identity = client_identity(transport)
         self.last_pose = None
         self.desktop = DesktopTimeline(performance)
@@ -284,6 +290,12 @@ class PerformancePlayer:
             "generated_body_transmitted": self.frames > 0
             and self.config.mode in {"vr_trackers", "generated_vr"},
             "pose_driver": self.pose_output,
+            "grounding": {
+                "policy": "prevent_penetration",
+                "max_vertical_correction_m": self.grounding.max_correction_m,
+            }
+            if self.grounding is not None
+            else None,
             "body_representation": "model_fk_tracking_ik"
             if self.config.mode == "generated_vr"
             else "configured_body_trackers"

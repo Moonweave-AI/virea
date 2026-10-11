@@ -18,6 +18,7 @@ class PerformanceExecutor:
         self.artifacts = artifacts
         self.accepted = OrderedDict()
         self.executions = {}
+        self.completed = {}
 
     def accept(
         self, command: ExecutionCommandV1
@@ -42,6 +43,8 @@ class PerformanceExecutor:
             if previous[0] != fingerprint:
                 raise ValueError("idempotency key was reused with a different command")
             return previous[1], False
+        if any(item[2] == command.command_id for item in self.accepted.values()):
+            raise ValueError("command identity was reused with another idempotency key")
         if command.expires_at <= time():
             raise ValueError("execution command expired")
         if command.expected_state_revision != current.revision:
@@ -61,15 +64,28 @@ class PerformanceExecutor:
                 performance.native_motion.artifact, performance.native_motion.sha256
             )
         current.claim_body(command.epoch, command.command_id)
-        self.accepted[command.idempotency_key] = (fingerprint, performance)
+        self.accepted[command.idempotency_key] = (
+            fingerprint,
+            performance,
+            command.command_id,
+        )
         while len(self.accepted) > 128:
-            self.accepted.popitem(last=False)
+            evicted, _ = self.accepted.popitem(last=False)
+            self.completed.pop(evicted, None)
         return performance, True
 
     async def dispatch(self, command, target):
         performance, _ = self.accept(command)
+        completed = self.completed.get(command.idempotency_key)
+        if completed is not None:
+            return completed
         prior = self.coordinator.receipt
-        if prior and prior.command_id == command.command_id:
+        if (
+            prior
+            and prior.command_id == command.command_id
+            and prior.status != "accepted"
+        ):
+            self.completed[command.idempotency_key] = prior
             return prior
         running = self.executions.get(command.command_id)
         if running is not None:
@@ -86,7 +102,11 @@ class PerformanceExecutor:
                     and recorded == receipt
                 ):
                     return recorded
-                if recorded and recorded.command_id == receipt.command_id:
+                if (
+                    recorded
+                    and recorded.command_id == receipt.command_id
+                    and recorded.status != "accepted"
+                ):
                     if (recorded.status, recorded.epoch, recorded.target_id) != (
                         receipt.status,
                         receipt.epoch,
@@ -104,6 +124,16 @@ class PerformanceExecutor:
             except Exception as exc:
                 self.abort(command, "failed", f"{type(exc).__name__}: {exc}")
                 raise
+            finally:
+                receipt = self.coordinator.receipt
+                if (
+                    command.idempotency_key in self.accepted
+                    and receipt is not None
+                    and receipt.command_id == command.command_id
+                    and receipt.epoch == command.epoch
+                    and receipt.status != "accepted"
+                ):
+                    self.completed[command.idempotency_key] = receipt
 
         task = asyncio.create_task(execute())
         self.executions[command.command_id] = task

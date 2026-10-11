@@ -60,13 +60,13 @@ flowchart LR
 
 Motion Lab already normalizes native outputs to Motion IR v2 and calls the public retarget package. The interactive MotionCraft and SynTalker paths now use that same retarget boundary. The numerical implementation remains in `src/virea/motion`; the previous character import paths are compatibility facades.
 
-MotionCraft supplies observed local rotations, which are preserved through conversion. SynTalker supplies joint positions; its existing palm, twist observability and hand constraints remain in effect. Source profiles describe the model's representation. Target rig profiles describe the avatar. Changing an avatar does not change the source profile.
+MotionCraft supplies local rotations; explicit source rest geometry binds them to target axes without discarding observed twist. Its raw artifact and unfiltered normalized rotations are retained separately from conditioned playback. SynTalker supplies recovered joint positions; its palm, twist observability and hand constraints remain in effect. Source profiles describe model output and target profiles describe the avatar. Offline and live poses use one rigid FK kernel. See [skeletal mathematics and evidence](../research/skeletal-retargeting-2026-10-11.md).
 
 Motion IR retains multiple actors and face, gaze, contact and object tracks. The prepared humanoid playback adapter currently consumes one body's windows and speech; its native artifact is retained alongside the playback payload. New track consumers can use the existing IR rather than adding another motion tensor format.
 
 ## Preparation and execution
 
-`PerformanceCompiler` owns speech task cleanup, actual-duration scheduling, native generation and bounded quality retries. `SessionCoordinator` owns the active turn, epoch and body owner. `PerformanceExecutor` validates target identity, revision, expiry, capabilities and payload hashes. `load_delivery` rechecks artifacts immediately before a target loads them.
+`PerformanceCompiler` owns speech task cleanup, actual-duration scheduling and one native generation per request. `SessionCoordinator` owns the active turn, epoch and body owner. `PerformanceExecutor` validates target identity, revision, expiry, capabilities and payload hashes. `load_delivery` rechecks artifacts immediately before a target loads them.
 
 Browser and VRChat playback keep their target-specific clocks and device code. Each performance uses one target playback clock for motion, speech and subtitles. The server's pause-aware acknowledgement deadline measures waiting time, not a second animation timeline.
 

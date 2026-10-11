@@ -6,7 +6,7 @@ import numpy as np
 
 from virea.motion.interpolation import slerp as slerp
 from virea.motion.rotation import quat_apply_xyzw, quat_multiply_xyzw
-from virea.motion.skeleton import CANONICAL_PARENT, DEFAULT_REST_OFFSETS
+from virea.motion.skeleton import CANONICAL_PARENT, canonical_geometry
 
 from .contracts import FACE_PARAMETERS, HAND_PARAMETERS
 from .osc import message
@@ -52,19 +52,10 @@ def unity_euler(q):
 
 
 def world_pose(root, rotations, offsets=None):
-    offsets = offsets or DEFAULT_REST_OFFSETS
-    position = {"hips": np.asarray(root, dtype=np.float64)}
-    orientation = {"hips": unit_quaternion(rotations.get("hips", IDENTITY))}
-    if position["hips"].shape != (3,) or not np.isfinite(position["hips"]).all():
-        raise ValueError("invalid root position")
-    for bone, parent in CANONICAL_PARENT.items():
-        position[bone] = position[parent] + quat_apply_xyzw(
-            orientation[parent], np.asarray(offsets[bone])
-        )
-        orientation[bone] = quat_multiply_xyzw(
-            orientation[parent], unit_quaternion(rotations.get(bone, IDENTITY))
-        )
-    return position, orientation
+    rig = canonical_geometry(offsets)
+    local = np.stack([unit_quaternion(rotations.get(n, IDENTITY)) for n in rig.names])
+    position, orientation = rig.forward(root, local)
+    return dict(zip(rig.names, position)), dict(zip(rig.names, orientation))
 
 
 def tracker_messages(root, rotations, config, anchor, offsets=None):
@@ -88,11 +79,12 @@ def tracker_messages(root, rotations, config, anchor, offsets=None):
     for bone in bones:
         name = "head" if bone == "head" else TRACKERS[bone]
         tracker_p, tracker_q = positions[bone], orientations[bone]
-        if bone in {"leftLowerArm", "rightLowerArm"}:
-            # VRChat's elbow/shoulder tracker is mounted ABOVE the elbow on
-            # the upper arm. A forearm quaternion rotates the shoulder when
-            # only the elbow bends, contradicting the wrist's IK target.
-            upper = bone.replace("LowerArm", "UpperArm")
+        if bone in {"leftLowerArm", "rightLowerArm", "leftLowerLeg", "rightLowerLeg"}:
+            # VRChat binds these trackers to upper arms and thighs. Mount
+            # above the hinge and inherit the proximal segment's orientation.
+            # A forearm/shin rotation would also rotate the shoulder/thigh
+            # when the hinge bends, contradicting the wrist/foot target.
+            upper = CANONICAL_PARENT[bone]
             tracker_p = positions[upper] + 0.9 * (tracker_p - positions[upper])
             tracker_q = orientations[upper]
         p = tracker_p * np.array([-1, 1, 1]) * config.scale

@@ -13,6 +13,7 @@ from virea.motion.canonical import (
     pack_sequence,
 )
 from virea.motion.hand_biomechanics import analyze_hand_joint_positions
+from virea.motion.kinematics import change_local_frames
 from virea.motion.rotation import (
     matrix_to_quat_xyzw,
     normalize_quat_xyzw,
@@ -29,6 +30,7 @@ from virea.motion.skeleton import (
     DEFAULT_REST_OFFSETS,
     FK_BONES,
     FK_INDEX,
+    canonical_geometry,
     forward_kinematics,
     forward_kinematics_from_sequence,
 )
@@ -350,65 +352,29 @@ def retarget_named_quats_to_vrm(
             "direct retarget requires explicit source-to-target body rest-frame corrections; "
             "use an empty mapping only when identity local frames are independently verified"
         )
-    body_corrections = {
-        name: normalize_quat_xyzw(np.asarray(value, dtype=np.float32))
-        for name, value in body_rest_frame_corrections.items()
-    }
-    root_rotation = source_root_rotation.copy()
-    if "hips" in body_corrections:
-        root_rotation = quat_multiply_xyzw(
-            root_rotation, _broadcast_quat(body_corrections["hips"], frame_count)
+    if hand_quats_by_name and hand_rest_frame_corrections is None:
+        raise ValueError(
+            "direct retarget requires explicit source-to-target hand rest-frame corrections; "
+            "use an empty mapping only when identity local frames are independently verified"
         )
-
-    core = identity_quats(frame_count, len(CORE_BONES))
-    for bone_name in CORE_BONES:
-        source_quat = local_quats_by_name.get(bone_name)
-        if source_quat is None:
-            continue
-        mapped = normalize_quat_xyzw(source_quat)
-        parent_name = CANONICAL_PARENT.get(bone_name, "hips")
-        parent_correction = body_corrections.get(parent_name)
-        if parent_correction is not None:
-            mapped = quat_multiply_xyzw(
-                _broadcast_quat(quat_inverse_xyzw(parent_correction), frame_count),
-                mapped,
-            )
-        correction = body_corrections.get(bone_name)
-        if correction is not None:
-            mapped = quat_multiply_xyzw(
-                mapped, _broadcast_quat(correction, frame_count)
-            )
-        core[:, CORE_INDEX[bone_name]] = normalize_quat_xyzw(mapped)
-
-    hand = identity_quats(frame_count, len(HAND_BONES))
-    if hand_quats_by_name:
-        if hand_rest_frame_corrections is None:
-            raise ValueError(
-                "direct retarget requires explicit source-to-target hand rest-frame corrections; "
-                "use an empty mapping only when identity local frames are independently verified"
-            )
-        hand_corrections = {
-            name: normalize_quat_xyzw(np.asarray(value, dtype=np.float32))
-            for name, value in hand_rest_frame_corrections.items()
-        }
-        all_corrections = {**body_corrections, **hand_corrections}
-        for bone_name, source_quat in hand_quats_by_name.items():
-            if bone_name not in HAND_INDEX:
-                continue
-            mapped = normalize_quat_xyzw(source_quat)
-            parent_name = CANONICAL_PARENT.get(bone_name, "hips")
-            parent_correction = all_corrections.get(parent_name)
-            if parent_correction is not None:
-                mapped = quat_multiply_xyzw(
-                    _broadcast_quat(quat_inverse_xyzw(parent_correction), frame_count),
-                    mapped,
-                )
-            correction = hand_corrections.get(bone_name)
-            if correction is not None:
-                mapped = quat_multiply_xyzw(
-                    mapped, _broadcast_quat(correction, frame_count)
-                )
-            hand[:, HAND_INDEX[bone_name]] = normalize_quat_xyzw(mapped)
+    rig = canonical_geometry()
+    corrections = {**body_rest_frame_corrections, **(hand_rest_frame_corrections or {})}
+    observed = {
+        **local_quats_by_name,
+        **(hand_quats_by_name or {}),
+        "hips": source_root_rotation,
+    }
+    identity = np.broadcast_to([0, 0, 0, 1], (frame_count, 4))
+    local = np.stack([observed.get(n, identity) for n in rig.names], axis=1)
+    frames = np.stack([corrections.get(n, [0, 0, 0, 1]) for n in rig.names])
+    mapped = change_local_frames(local, rig.parents, frames)
+    # Missing observations retain the existing neutral-pose contract.
+    for i, name in enumerate(rig.names):
+        if name not in observed:
+            mapped[:, i] = identity
+    root_rotation = mapped[:, 0]
+    core = mapped[:, 1 : 1 + len(CORE_BONES)]
+    hand = mapped[:, 1 + len(CORE_BONES) :]
 
     sequence = pack_sequence(
         root_translation=target_root_translation,

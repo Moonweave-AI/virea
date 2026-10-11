@@ -274,14 +274,25 @@ def test_generated_mode_rejects_preset_and_double_transform_configuration():
 
 
 def test_dashboard_button_is_released_when_manual_control_closes(monkeypatch):
-    monkeypatch.setattr(manual, "GeneratedPoseClient", FakeDriver)
-
     async def run():
+        started, pressed = asyncio.Event(), asyncio.Event()
+
+        class DashboardDriver(FakeDriver):
+            def send_payload(self, *args, **kwargs):
+                super().send_payload(*args, **kwargs)
+                started.set()
+                if kwargs.get("system"):
+                    pressed.set()
+
+        monkeypatch.setattr(manual, "GeneratedPoseClient", DashboardDriver)
         rig = ManualRig()
         token = rig.begin(BridgeConfig(mode="generated_vr"), Sink(), 123)
-        rig.update(token, ManualState(), "dashboard")
-        await asyncio.sleep(0.045)
-        await rig.close()
+        try:
+            await asyncio.wait_for(started.wait(), timeout=3)
+            rig.update(token, ManualState(), "dashboard")
+            await asyncio.wait_for(pressed.wait(), timeout=3)
+        finally:
+            await rig.close()
         driver = FakeDriver.instances[-1]
         assert any(driver.system_buttons)
         assert driver.system_buttons[-1] is False

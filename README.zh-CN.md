@@ -62,6 +62,8 @@ flowchart TD
 
 [架构总览](doc/architecture/overview.zh-CN.md) · [公共契约](doc/architecture/contracts.zh-CN.md) · [时序与执行](doc/architecture/execution.zh-CN.md)
 
+动作底座统一管理骨骼层级、骨长、局部坐标轴和旋转传播。手部使用模型逐帧传入的参数演算；同一份源动作可以绑定到不同角色。原始输出、重定向结果和播放曲线分别记录，便于定位偏差和重复比较。[骨骼数学与同样本对照](doc/research/skeletal-retargeting-2026-10-11.md) · [VRChat 动作执行](doc/quality/vrchat-motion.md)。
+
 <a id="demos"></a>
 ## 看看实际效果
 

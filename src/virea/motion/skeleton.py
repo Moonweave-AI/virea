@@ -9,11 +9,7 @@ from typing import Any
 import numpy as np
 
 from virea.motion.canonical import CORE_BONES, HAND_BONES, unpack_sequence
-from virea.motion.rotation import (
-    normalize_quat_xyzw,
-    quat_apply_xyzw,
-    quat_multiply_xyzw,
-)
+from virea.motion.kinematics import RigGeometry
 
 CANONICAL_BODY_WITH_ROOT = [
     "hips",
@@ -209,32 +205,27 @@ def forward_kinematics(
     joint_names: list[str] | None = None,
 ) -> np.ndarray:
     names = joint_names or FK_BONES
-    frame_count = int(np.asarray(root_translation).shape[0])
-    # Canonical FK is intentionally independent from locally installed avatars.
-    # A concrete VRM applies its own rest pose in the viewer/visual audit path.
-    offsets = merged_offsets(
-        DEFAULT_REST_OFFSETS if rest_offsets is None else rest_offsets
+    frame_count = len(root_translation)
+    identity = np.broadcast_to([0, 0, 0, 1], (frame_count, 4))
+    local = np.stack(
+        [root_rotation_xyzw, *[local_quats.get(n, identity) for n in FK_BONES[1:]]],
+        axis=1,
     )
-    world_pos: dict[str, np.ndarray] = {
-        "hips": np.asarray(root_translation, dtype=np.float32)
-    }
-    world_rot: dict[str, np.ndarray] = {
-        "hips": normalize_quat_xyzw(np.asarray(root_rotation_xyzw, dtype=np.float32))
-    }
+    positions, _ = canonical_geometry(rest_offsets).forward(root_translation, local)
+    return positions[:, [FK_INDEX[n] for n in names]].astype(np.float32)
 
-    for bone in [*CORE_BONES, *HAND_BONES]:
-        parent = CANONICAL_PARENT[bone]
-        parent_pos = world_pos[parent]
-        parent_rot = world_rot[parent]
-        offset = np.broadcast_to(offsets[bone], (frame_count, 3))
-        local = local_quats.get(bone)
-        if local is None:
-            local = np.zeros((frame_count, 4), dtype=np.float32)
-            local[:, 3] = 1.0
-        world_pos[bone] = parent_pos + quat_apply_xyzw(parent_rot, offset)
-        world_rot[bone] = quat_multiply_xyzw(parent_rot, local)
 
-    return np.stack([world_pos[name] for name in names], axis=1).astype(np.float32)
+def canonical_geometry(rest_offsets=None):
+    """One geometric kernel for offline conversion and live device targets."""
+    offsets = merged_offsets(rest_offsets)
+    return _canonical_geometry(tuple(tuple(offsets[n]) for n in FK_BONES[1:]))
+
+
+@lru_cache(maxsize=128)
+def _canonical_geometry(offsets):
+    return RigGeometry.from_named(
+        FK_BONES, CANONICAL_PARENT, dict(zip(FK_BONES[1:], offsets))
+    )
 
 
 def _default_vrm_model_root() -> Path:

@@ -29,4 +29,6 @@ The AI controls its own VRChat account. An observer account watches the result f
 
 Avatar proportions are calibrated independently of the motion model. Generated local rotations pass through the shared retarget pipeline before target-specific tracking and IK.
 
+Each request retains one native sample. Constant rest-frame bindings connect source and target skeletons; MotionCraft playback uses an explicitly recorded SO(3) temporal filter. Hands use per-frame parameters without automatic mean-pose addition. Elbow and knee trackers follow the upper arms and thighs, and floor support adjusts the complete tracking rig. See [motion execution quality](../quality/vrchat-motion.md) for equations and same-sample comparisons.
+
 [Operation and keyboard mapping](../character/vrchat-operations.en.md) · [Native pose transport](../character/vrchat.en.md) · [Real recording evidence](../quality/vrchat-recordings.md)

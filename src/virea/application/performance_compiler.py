@@ -173,46 +173,20 @@ class PerformanceCompiler:
             self.artifacts,
         ) as speech:
             motion_started = monotonic()
-            for attempt in range(2):
-                sampled = plan.model_copy(
-                    update={"seed": (plan.seed + attempt) % 2147483648}
+            async with self.motion_slot:
+                native = await self.motion.generate(
+                    MotionRequestV1(
+                        request_id=uuid4().hex, model_id=backend, plan=plan
+                    ),
+                    resolve_before=speech.before,
+                    resolve_all=speech.all,
+                    record=record,
                 )
-                async with self.motion_slot:
-                    native = await self.motion.generate(
-                        MotionRequestV1(
-                            request_id=uuid4().hex, model_id=backend, plan=sampled
-                        ),
-                        resolve_before=speech.before,
-                        resolve_all=speech.all,
-                        record=record,
-                    )
-                try:
-                    normalized = await asyncio.to_thread(self.adapter.normalize, native)
-                    values = read_native(self.artifacts, native)
-                    windows = await asyncio.to_thread(
-                        self.retarget, backend, values, plan, body, normalized
-                    )
-                    break
-                except ValueError as exc:
-                    code = getattr(exc, "code", None)
-                    if (
-                        not generated_plan
-                        or attempt
-                        or code
-                        not in {
-                            "rotation_180_degenerate",
-                            "temporal_180_degenerate",
-                        }
-                    ):
-                        raise
-                    record(
-                        "motion_quality_retry",
-                        reason=code,
-                        rejected_seed=sampled.seed,
-                        next_seed=(plan.seed + 1) % 2147483648,
-                        attempt=2,
-                        max_attempts=2,
-                    )
+            normalized = await asyncio.to_thread(self.adapter.normalize, native)
+            values = read_native(self.artifacts, native)
+            windows = await asyncio.to_thread(
+                self.retarget, backend, values, plan, body, normalized
+            )
             metrics["motion_seconds"] = monotonic() - motion_started
             return PreparedPerformance(
                 plan,
@@ -223,8 +197,8 @@ class PerformanceCompiler:
                     "checkpoint_sha256": native.checkpoint_digest,
                 },
                 len(values),
-                sampled.seed,
-                attempt + 1,
+                plan.seed,
+                1,
                 native,
                 response.plan_id,
             )

@@ -47,7 +47,9 @@ MotionCraft text-only windows can run while speech is being synthesized. Speech-
 
 The session epoch increases on interruption or replacement. Old acknowledgements and late publications are rejected. Only one command owns the body channel. Interruption preserves the last acknowledged body state; it does not invent a new rest pose.
 
-Execution commands include the expected state revision, expiration, authorized capabilities and a payload digest. Identical replay does not start another execution. Reusing an idempotency key with another command is rejected. Artifact integrity is checked again when the target loads it.
+Execution commands include the expected state revision, expiration, authorized capabilities and a payload digest. The session retains its latest 128 accepted commands and their terminal receipts: retries join an active execution or return its receipt, even after a later command completes. Command IDs and idempotency keys remain paired. An `accepted` acknowledgement advances to the terminal playback result. Artifact integrity is checked again when the target loads it.
+
+A terminal acknowledgement releases body ownership and removes the pending delivery in one synchronous update. The producer subsequently updates history and removes temporary files. Playback consumers can continue immediately without a timed cleanup delay or rereading the finished motion.
 
 | Evidence | What it establishes |
 |---|---|

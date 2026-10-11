@@ -60,13 +60,13 @@ flowchart LR
 
 Motion Lab 已经通过 Motion IR v2 调用公共重定向包。交互场景中的 MotionCraft 和 SynTalker 现在也经过同一个入口。数学实现继续放在 `src/virea/motion`；原有角色模块路径作为兼容入口保留。
 
-MotionCraft 提供局部旋转，转换保留这些已观测的旋转。SynTalker 提供关节位置，继续采用已有的掌部修正、扭转可观测性策略和手部约束。源表示描述模型输出，目标骨架描述角色；更换角色不会改变源表示。
+MotionCraft 提供局部旋转，通过显式源骨架几何转换到目标局部轴，保留已观测的扭转。原始制品、未滤波的标准化旋转和播放曲线分别保留。SynTalker 使用恢复出的关节位置及对应的扭转可观测性与手部约束。源表示描述模型输出，目标骨架描述角色；离线转换和实时设备目标使用同一套刚体 FK。推导与对照见[骨骼数学研究记录](../research/skeletal-retargeting-2026-10-11.md)。
 
 Motion IR 保留多角色、面部、视线、接触和物体轨道。当前准备式人形播放适配器消费单个身体的动作窗口和语音，原生制品随播放制品一起保留。后续轨道消费者可继续使用同一份 IR。
 
 ## 准备与执行
 
-`PerformanceCompiler` 管理语音任务、真实时长排程、原生动作生成和有次数上限的质量重试。`SessionCoordinator` 管理当前轮次、版本和身体控制权。`PerformanceExecutor` 校验目标、版本、有效期、能力与制品摘要。`load_delivery` 在播放端加载前再次检查文件。
+`PerformanceCompiler` 管理语音任务、真实时长排程，以及每次请求的一次原生动作生成。`SessionCoordinator` 管理当前轮次、版本和身体控制权。`PerformanceExecutor` 校验目标、版本、有效期、能力与制品摘要。`load_delivery` 在播放端加载前再次检查文件。
 
 网页和 VRChat 分别保留自己的播放时钟与设备代码。每次表演由一个目标播放时钟驱动动作、语音和字幕；服务端可暂停的确认等待期限只负责超时。
 
