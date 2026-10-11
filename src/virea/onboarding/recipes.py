@@ -13,21 +13,66 @@ from pathlib import Path
 import httpx
 from virea_bootstrap.environment import sanitized_python_environment
 
-from .connections import ConnectionInput, ConnectionStore, private_json
-from .language import completion, provider_error
+from .catalog import resolve_options
+from .connections import PRESETS, ConnectionInput, ConnectionStore, private_json
+from .language import provider_error
+from .verification import result_directory, verify_motion, verify_provider
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 OLLAMA_RELEASE = "v0.40.3"
 
 
-def record_connection(config, connection):
+def record_connection(config, connection, verification=None):
     store = ConnectionStore(Path(config.connections_path))
     active = store.public()["active"].get(
         "language" if connection.provider == "ollama" else "speech"
     )
     store.put(connection)
     if active in {None, connection.id}:
-        store.activate(connection.id)
+        store.activate(connection.id, verification=verification)
+    elif verification is not None:
+        store.record_verification(
+            connection.id, verification, expected=store.get(connection.id)
+        )
+
+
+async def verify_local(jobs, identifier, client, name, url, connection=None):
+    config = jobs.characters.config
+    jobs.step(identifier, 5, "运行真实模型生成检验；语音保持静音")
+    if name in {"motioncraft", "syntalker"}:
+        proof = await verify_motion(
+            config,
+            client,
+            name,
+            url,
+            result_directory(config),
+            lambda event, **facts: jobs.update(
+                identifier, message=f"真实动作推理：已生成 {facts.get('frames', 0)} 帧"
+            ),
+        )
+        setattr(config, f"{name}_url", url)
+        return proof
+    if connection is None:
+        profile = {
+            **PRESETS["local-speech"],
+            "provider": "local-speech",
+            "base_url": url + "/v1",
+            "model": "auto",
+        }
+        options = await resolve_options(profile, client)
+        connection = ConnectionInput(
+            id="local-kokoro",
+            provider="local-speech",
+            base_url=profile["base_url"],
+            model=options["model"],
+            voice=options["voice"],
+        )
+    profile = connection.model_dump(exclude={"api_key"})
+    preset = PRESETS[connection.provider]
+    profile.update(kind=preset["kind"], protocol=preset["protocol"])
+    proof = await verify_provider(profile, client, result_directory(config))
+    record_connection(config, connection, proof)
+    return proof
 
 
 def environment(paths):
@@ -211,19 +256,13 @@ async def deploy(jobs, identifier, request):
     jobs.step(identifier, 1, "检测已安装服务与运行环境")
     async with httpx.AsyncClient(trust_env=False) as client:
         if await health(client, url, name) and name != "ollama":
-            if name in {"motioncraft", "syntalker"}:
-                setattr(config, f"{name}_url", url)
-            else:
-                record_connection(
-                    config,
-                    ConnectionInput(
-                        id="local-kokoro",
-                        provider="local-speech",
-                        base_url=url + "/v1",
-                        model="kokoro",
-                    ),
-                )
-            return {"endpoint": url, "reused": True, "recipe": name}
+            proof = await verify_local(jobs, identifier, client, name, url)
+            return {
+                "endpoint": url,
+                "reused": True,
+                "recipe": name,
+                "verification": proof,
+            }
         if not request.accepted_license:
             raise ValueError("请先阅读并勾选本地模型及依赖的使用条款，再开始下载")
         minimum = 20 if name in {"motioncraft", "syntalker"} else 8
@@ -275,21 +314,9 @@ async def deploy(jobs, identifier, request):
                 connection = ConnectionInput(
                     id="local-ollama", provider="ollama", model=request.model
                 )
-                value = await completion(
-                    connection.model_dump() | {"protocol": "ollama"},
-                    client,
-                    [{"role": "user", "content": 'Return JSON {"ready":true}.'}],
-                    {
-                        "type": "object",
-                        "properties": {"ready": {"type": "boolean"}},
-                        "required": ["ready"],
-                    },
-                    tokens=128,
-                    temperature=0,
+                proof = await verify_local(
+                    jobs, identifier, client, name, url, connection
                 )
-                if value != {"ready": True}:
-                    raise ValueError("本地模型未通过结构化输出检查，请尝试另一模型")
-                record_connection(config, connection)
             elif name == "kokoro":
                 jobs.step(identifier, 2, "安装隔离语音环境并下载 Kokoro 权重")
                 env["VIREA_TTS_DEVICE"] = "cpu"
@@ -311,13 +338,7 @@ async def deploy(jobs, identifier, request):
                 )
                 jobs.step(identifier, 5, "等待语音模型完成加载与无声合成自检")
                 await wait_ready(jobs, client, process, url, name)
-                connection = ConnectionInput(
-                    id="local-kokoro",
-                    provider="local-speech",
-                    base_url=url + "/v1",
-                    model="kokoro",
-                )
-                record_connection(config, connection)
+                proof = await verify_local(jobs, identifier, client, name, url)
             else:
                 available_cuda = await cuda_available()
                 if request.device == "cuda" and not available_cuda:
@@ -460,9 +481,14 @@ async def deploy(jobs, identifier, request):
                     REPOSITORY,
                 )
                 await wait_ready(jobs, client, process, url, name)
-                setattr(config, f"{name}_url", url)
+                proof = await verify_local(jobs, identifier, client, name, url)
             jobs.step(identifier, 6, "保存已验证的连接与部署结果")
-            return {"endpoint": url, "recipe": name, "reused": False}
+            return {
+                "endpoint": url,
+                "recipe": name,
+                "reused": False,
+                "verification": proof,
+            }
         except BaseException:
             if process is not None:
                 await jobs.terminate(process)

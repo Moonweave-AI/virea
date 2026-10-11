@@ -32,6 +32,8 @@ Download and extract the source ZIP. On Windows, double-click **`Start-VIREA.cmd
 
 Configure OpenAI, DeepSeek, Anthropic, Alibaba Bailian and other compatible language APIs; connect OpenAI Speech, Bailian, ElevenLabs, Azure or local speech. Detect, install and start Ollama, Kokoro, MotionCraft and SynTalker with visible steps, progress, cancellation and retry. Keys stay on the local server; speech checks do not play audio.
 
+Models and named voices are discovered, recommended and selectable without typing IDs. Local speech discovers the running endpoint and preserves existing clones. Activation and deployment require **real generated results**, displaying the structured reply, speech waveform/duration or motion frame count with a download. Health checks alone cannot pass; editing a configuration invalidates its previous receipt.
+
 [Step-by-step setup](doc/getting-started/automatic-setup.en.md) · [Automation API](doc/reference/onboarding-api.md) · [Validation scope](doc/quality/portable-onboarding.md). The wizard and Studio target all three operating systems; VRChat dual clients and virtual VR remain Windows-only. Local model usability still depends on upstream assets, licenses, hardware and measured inference.
 
 ## From motion generation to embodied conversation
@@ -58,6 +60,8 @@ Run an **independent AI account** while your own desktop account observes it in 
 The bridge follows the AI account's current **FBT-compatible Humanoid avatar**. No specific Avatar ID, VIREA Unity controller or `AI_*` parameter set is required for body and finger tracking. Switching avatars stops the previous performance and automatically recalibrates the new rig; a fixed Avatar ID remains optional. See [avatar-independent control](doc/character/vrchat.en.md#avatar-independent-control) and the [validation scope](doc/quality/vrchat-avatar-follow.md).
 
 Model-generated head, wrist and finger poses go through OpenVR; eight body targets go through OSC. VRChat applies its own avatar IK. Generated VR rejects preset emotes and coarse hand-pose substitution. Speech and motion keep separate timelines; measured speech overlaps are deferred, and completion/interruption retains the final pose for a continuous next turn. Exact per-joint fidelity and universal action accuracy are not claimed.
+
+Retargeting preserves MotionCraft's observed joint rotations and timing. Elbow targets use upper-arm mounting frames so forearm flexion does not contradict shoulder tracking. A new bridge coordinator completes calibration instead of treating an old tracking mode as proof of success. See the [conversion fixes and silent live validation](doc/quality/vrchat-recordings.md#native-rotation-and-tracker-mount-regression-2026-10-11).
 
 Start the configured services with `./scripts/vrchat/start.ps1`, then open `http://127.0.0.1:18001/app/vrchat.html`. Separate buttons start/restart the observer and AI. Use **同房间**, wait for matching live arrivals, then complete **自动校准** with its local percentage and `[step/8]` display. A private room requires a valid invitation; a running scene alone does not prove API authentication. Both accounts passed repeated invitation and room-entry checks on 2026-10-11; see the [network and room evidence](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11).
 

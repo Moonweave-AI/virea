@@ -95,6 +95,10 @@ class DeploymentJobs:
         self.update(identifier, status="running")
         try:
             result = await deploy(self, identifier, request)
+            if not result.get("verification", {}).get("generated"):
+                raise ValueError(
+                    "服务启动成功，但缺少真实生成检验结果，不能标记为部署完成"
+                )
             desired = (
                 json.loads(self.services_path.read_text(encoding="utf-8"))
                 if self.services_path.exists()
@@ -108,7 +112,7 @@ class DeploymentJobs:
                 step=6,
                 percent=100,
                 stage_percent=100,
-                message="部署完成，服务健康检查通过",
+                message="部署完成，真实生成检验通过；可查看检验结果",
                 result=result,
             )
         except asyncio.CancelledError:

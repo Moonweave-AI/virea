@@ -201,9 +201,11 @@ class FakeRig:
         self.closed = True
 
 
-def test_auto_calibration_requires_fresh_game_confirmation():
+@pytest.mark.parametrize("initial_tracking", [3, 6])
+def test_auto_calibration_requires_fresh_game_confirmation(initial_tracking):
     async def scenario():
         transport = FakeTransport()
+        transport.protocol.values["TrackingType"] = (initial_tracking, time.monotonic())
         rig = FakeRig(transport)
 
         async def identify(config):

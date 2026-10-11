@@ -109,6 +109,7 @@ def test_environment_key_and_config_serialization(tmp_path, monkeypatch):
         ("deepseek", "openai", "/chat/completions", "json_object"),
         ("bailian-cn", "openai", "/chat/completions", "json_object"),
         ("bailian-intl", "openai", "/chat/completions", "json_object"),
+        ("gemini", "openai", "/v1beta/openai/chat/completions", "json_object"),
         ("anthropic", "anthropic", "/messages", None),
         ("ollama", "ollama", "/api/chat", None),
     ],
@@ -170,6 +171,31 @@ def test_native_protocol_auth_and_json_completion(
                 tokens=256,
                 temperature=0,
             ) == {"ready": True}
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "provider,error,expected",
+    [
+        ("local-speech", httpx.ConnectError, "重新检测"),
+        ("openai-speech", httpx.ConnectError, "网络或代理"),
+        ("local-speech", httpx.ReadTimeout, "生成结果超时"),
+    ],
+)
+def test_speech_failures_explain_the_actual_failed_stage(
+    tmp_path, provider, error, expected
+):
+    store = connected(tmp_path, provider)
+
+    def offline(request):
+        raise error("private server details", request=request)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(offline)) as client:
+            with pytest.raises(ValueError, match=expected) as raised:
+                await synthesize(store.get("primary"), client, "你好")
+            assert "private server details" not in str(raised.value)
 
     asyncio.run(run())
 
@@ -486,7 +512,7 @@ def test_restart_restores_successful_services_and_keeps_failures_visible(
         attempts.append(request.recipe)
         if request.recipe == "ollama":
             raise ValueError("network unavailable")
-        return {"reused": True}
+        return {"reused": True, "verification": {"generated": True}}
 
     monkeypatch.setattr(recipes, "deploy", deploy)
 

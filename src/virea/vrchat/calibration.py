@@ -159,14 +159,22 @@ class AutoCalibration:
             and (self.stage in {"failed", "cancelled"} or not transport.ready()[0])
         ):
             return self.snapshot()
-        changed_avatar = self.attempted is not None and key != self.attempted
+        # TrackingType=6 reports tracked feet, not completion of our calibration.
+        # After a service restart or interrupted setup the game can still report
+        # 6 while its avatar is stuck in T-pose. Only reuse a calibration that
+        # this coordinator actually completed for the same client and avatar.
+        verified = (
+            key == self.attempted
+            and self.stage == "completed"
+            and self.completed_at is not None
+        )
         self.attempted = key
         self.pid, self.avatar = key
         self.advance("preparing")
         self.error, self.completed_at, self.idle_token = None, None, None
         self.started_at = time.time()
         self.task = asyncio.create_task(
-            self._run(config, transport, views, recalibrate=force or changed_avatar),
+            self._run(config, transport, views, recalibrate=force or not verified),
             name="vrchat-auto-fbt",
         )
         return self.snapshot()

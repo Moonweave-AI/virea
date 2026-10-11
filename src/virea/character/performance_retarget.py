@@ -19,13 +19,30 @@ from .performance_hands import (
 )
 
 
-def smooth_native_pose(root, rotations):
+def smooth_native_pose(root, rotations, *, observed_rotations=False):
     """Suppress sub-100 ms native jitter without changing the timeline length.
 
     Offline centered filtering is possible because a full performance is prepared.
     Quaternion hemisphere alignment prevents sign-equivalent samples cancelling.
     This is deterministic retarget postprocessing, not a second motion generator.
     """
+    # SMPL-X supplies actual parent-local rotations. Applying the position-
+    # inferred palm repair to those samples removes genuine pronation and
+    # changes wrist/finger timing independently of the rest of the arm.
+    # Preserve the complete native trajectory; the player interpolates SO(3).
+    if observed_rotations:
+        result = {}
+        for name, values in rotations.items():
+            q = np.asarray(values, dtype=np.float64).copy()
+            length = np.linalg.norm(q, axis=1, keepdims=True)
+            if not np.isfinite(q).all() or np.any(length < 1e-6):
+                raise ValueError("invalid observed joint rotation")
+            q /= length
+            signs = np.ones(len(q))
+            signs[1:] = np.where(np.sum(q[1:] * q[:-1], axis=1) < 0, -1, 1)
+            result[name] = q * np.cumprod(signs)[:, None]
+        return np.asarray(root).copy() - root[:1], result
+
     from scipy.ndimage import gaussian_filter1d, median_filter
 
     root = gaussian_filter1d(
@@ -172,7 +189,9 @@ def playback_windows(backend, values, plan, body):
             rotations[CANONICAL_TO_VRM_BONE_NAME.get(name, name)] = unpacked[key][
                 :, index
             ]
-    root, rotations = smooth_native_pose(root, rotations)
+    root, rotations = smooth_native_pose(
+        root, rotations, observed_rotations=backend == "motioncraft"
+    )
     root += np.array(
         [body.position.x, body.position.y + (body.pelvis_height or 1), body.position.z]
     )

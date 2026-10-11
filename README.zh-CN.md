@@ -31,6 +31,8 @@ VIREA 是一个实验性的持续角色运行系统：把对话、声音、表�
 
 向导支持 OpenAI、DeepSeek、Anthropic、阿里云百炼及其他兼容语言接口；语音支持 OpenAI、百炼、ElevenLabs、Azure 和本机服务。本地 Ollama、Kokoro、MotionCraft、SynTalker 可检测、安装、启动，显示百分比、步骤、失败原因及重试入口。密钥保留在本机服务端，语音检查保持静音。
 
+模型和声线自动检测、推荐并提供下拉选择；本地语音自动发现实际端口并保留已有克隆声线。点击“自动检测并启用”后必须完成**真实生成检验**，页面显示实际回复、语音波形/时长或动作帧数，并提供结果下载。仅能连接接口不会判定通过；配置修改会使旧检验结果失效。
+
 [新手逐步指南](doc/getting-started/automatic-setup.zh-CN.md) · [自动化 API](doc/reference/onboarding-api.md) · [验证范围](doc/quality/portable-onboarding.md)。通用向导与 Studio 面向三种系统；VRChat 双客户端及虚拟 VR 驱动仍仅支持 Windows。本地模型是否适用取决于上游资源、授权、硬件与实际推理验证。
 
 ## 从动作生成，走向持续的具身对话
@@ -52,6 +54,8 @@ AI 控制**独立账号**，你的桌面账号在同一实例中观察。AI 使�
 默认跟随 AI 账号当前使用的**支持全身追踪的 Humanoid 角色**，身体和手指控制不要求指定 Avatar ID、安装 VIREA Unity 控制器或 `AI_*` 参数。更换角色会停止旧动作并自动重新校准；固定角色 ID 仅作为可选设置。详见[通用角色控制](doc/character/vrchat.zh-CN.md#avatar-independent-control)及[验证范围](doc/quality/vrchat-avatar-follow.md)。
 
 模型生成的头部、手腕、手指通过 OpenVR 输出，八个身体追踪目标通过 OSC 输出，由 VRChat 自身的 IK 求解角色姿态。生成式 VR 模式禁止预设动画和粗略手势替换。语音与动作使用独立时间轴，实测语音重叠会顺延；完成、中断与下一轮交接保留末帧姿态。这里不承诺逐骨骼完全相同或每个动作提示都精确实现。
+
+重定向会保留 MotionCraft 原生关节旋转与时序，肘部追踪使用上臂安装坐标，避免前臂弯曲反向干扰肩部。服务重新连接后会完成完整校准，不再把旧追踪模式当作校准成功。修正依据与静音实测见[骨骼转换验收记录](doc/quality/vrchat-recordings.md#native-rotation-and-tracker-mount-regression-2026-10-11)。
 
 运行 `./scripts/vrchat/start.ps1` 启动已配置的服务，打开 `http://127.0.0.1:18001/app/vrchat.html`。观察者和 AI 分别有启动、重启按钮；点击**同房间**并等待双方实时到达确认，再查看**自动校准**旁的百分比与 `[当前步骤/8]`。私有房间需要有效邀请，场景在线不能代替 API 认证成功。2026-10-11 已完成重复邀请和入房复验，详见[网络与同房间证据](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11)。
 

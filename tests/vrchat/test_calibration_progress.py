@@ -85,7 +85,7 @@ def test_calibration_timeout_keeps_failed_step_and_never_claims_completion():
     asyncio.run(scenario())
 
 
-def test_existing_tracking_restores_stance_without_menu_and_stops_on_identity_loss():
+def test_verified_tracking_restores_stance_without_menu_and_stops_on_identity_loss():
     async def scenario():
         transport = FakeTransport()
         transport.protocol.values["TrackingType"] = (6, time.monotonic())
@@ -95,6 +95,9 @@ def test_existing_tracking_restores_stance_without_menu_and_stops_on_identity_lo
             return 12
 
         calibration = AutoCalibration(rig=rig, identify=identify)
+        calibration.attempted = calibration.key(transport)
+        calibration.stage = "completed"
+        calibration.completed_at = time.time()
         calibration.start(BridgeConfig(mode="generated_vr"), transport, object())
         await calibration.task
         assert calibration.stage == "completed" and not rig.commands
@@ -129,6 +132,9 @@ def test_missing_hand_ack_cannot_complete_and_does_not_restart_forever():
             return 12
 
         calibration = AutoCalibration(rig=rig, identify=identify)
+        calibration.attempted = calibration.key(transport)
+        calibration.stage = "completed"
+        calibration.completed_at = time.time()
         config = BridgeConfig(mode="generated_vr")
         calibration.start(config, transport, object())
         await calibration.task

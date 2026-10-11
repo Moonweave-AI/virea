@@ -286,6 +286,12 @@ class ConnectionStore:
                         )
                         and state["active"].get(row["kind"]) == row["id"]
                         and state["activated"][row["kind"]] != row,
+                        "verification": state.get("verified", {})
+                        .get(row["id"], {})
+                        .get("result")
+                        if state.get("verified", {}).get(row["id"], {}).get("profile")
+                        == row
+                        else None,
                     }
                     for row in state["connections"].values()
                 ],
@@ -331,7 +337,7 @@ class ConnectionStore:
             )
             return row
 
-    def activate(self, identifier: str, *, expected=None):
+    def activate(self, identifier: str, *, expected=None, verification=None):
         with _LOCK:
             state = self.read()
             row = state["connections"][identifier]
@@ -341,12 +347,30 @@ class ConnectionStore:
                 raise ValueError("测试期间连接设置发生变化，请重新测试并启用")
             state["active"][row["kind"]] = identifier
             state.setdefault("activated", {})[row["kind"]] = dict(row)
+            if verification is not None:
+                state.setdefault("verified", {})[identifier] = {
+                    "profile": dict(row),
+                    "result": verification,
+                }
+            private_json(self.path, state)
+
+    def record_verification(self, identifier, result, *, expected):
+        with _LOCK:
+            state = self.read()
+            row = state["connections"][identifier]
+            if row != {k: v for k, v in expected.items() if k != "api_key"}:
+                raise ValueError("检验期间连接设置发生变化，请重新检验")
+            state.setdefault("verified", {})[identifier] = {
+                "profile": dict(row),
+                "result": result,
+            }
             private_json(self.path, state)
 
     def remove(self, identifier: str):
         with _LOCK:
             state = self.read()
             state["connections"].pop(identifier)
+            state.get("verified", {}).pop(identifier, None)
             state["active"] = {
                 k: v for k, v in state["active"].items() if v != identifier
             }

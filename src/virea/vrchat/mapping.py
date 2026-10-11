@@ -98,9 +98,17 @@ def tracker_messages(root, rotations, config, anchor, offsets=None):
         bones.append("head")
     for bone in bones:
         name = "head" if bone == "head" else TRACKERS[bone]
-        p = positions[bone] * np.array([-1, 1, 1]) * config.scale
+        tracker_p, tracker_q = positions[bone], orientations[bone]
+        if bone in {"leftLowerArm", "rightLowerArm"}:
+            # VRChat's elbow/shoulder tracker is mounted ABOVE the elbow on
+            # the upper arm. A forearm quaternion rotates the shoulder when
+            # only the elbow bends, contradicting the wrist's IK target.
+            upper = bone.replace("LowerArm", "UpperArm")
+            tracker_p = positions[upper] + 0.9 * (tracker_p - positions[upper])
+            tracker_q = orientations[upper]
+        p = tracker_p * np.array([-1, 1, 1]) * config.scale
         p = quat_apply_xyzw(reference, p) + np.asarray(config.origin)
-        q = quat_multiply_xyzw(reference, unity_quaternion(orientations[bone]))
+        q = quat_multiply_xyzw(reference, unity_quaternion(tracker_q))
         result += [
             message(f"/tracking/trackers/{name}/position", *map(float, p)),
             message(f"/tracking/trackers/{name}/rotation", *unity_euler(q)),

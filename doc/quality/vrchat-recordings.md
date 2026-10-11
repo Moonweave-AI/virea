@@ -406,6 +406,51 @@ UI evidence are under `.virea-runtime/vrchat/evidence/room-routing/`.
 These results verify setup and room arrival, **not** generated-motion visual
 quality. Accepted generated-motion recordings remain **0/4**.
 
+<a id="native-rotation-and-tracker-mount-regression-2026-10-11"></a>
+
+## Native rotation and tracker mounting regression — 2026-10-11
+
+The distortion investigation found two distinct conversion errors. MotionCraft
+provides observed SMPL-X parent-local rotations, but its wrist/finger samples
+were also passing through the smoothing and repair policy intended for
+position-reconstructed motion. The MotionCraft path now only validates,
+normalizes and hemisphere-aligns those quaternions, preserving source rotation
+and root timing. SynTalker's position-reconstruction repairs remain separate.
+Frame-by-frame adapter tests retain legitimate rotations above 100 degrees;
+they do not substitute a hand pose or slow an observed motion to an arbitrary
+angular limit.
+
+The OSC elbow targets also used the forearm orientation. VRChat's combined
+elbow/shoulder tracker is mounted **above the elbow**, on the upper arm, as
+specified in its [full-body tracking documentation](https://docs.vrchat.com/docs/full-body-tracking).
+Its target now follows the upper-arm orientation and a point just above the
+elbow. Independent elbow-flexion tests verify that bending the forearm moves
+the wrist without rotating that upper-arm tracker against the wrist target.
+Calibration, manual standing, playback and held poses share this mapping.
+
+Live testing exposed another invalid assumption: an API restart could reuse
+`TrackingType=6` and report calibration complete while the avatar stayed in
+T-pose. That value reports tracking mode; it does not prove this setup completed
+the calibration interaction. Reuse now requires a successful calibration by
+the current coordinator for the same client/avatar. New coordinators perform
+the complete stationary procedure, and cancellation/failure cannot certify it.
+
+After a complete automatic calibration, a new 18-second MotionCraft performance
+ran through both real clients with native subtitles, no preset emotes and no
+audio output. Observer frames showed the arms rising and returning instead of
+remaining in T-pose. After deploying the restart fix, the API automatically
+completed all eight calibration steps again while retaining both game sessions.
+The following fresh performance completed 533 pose updates in 18 seconds, with
+545 driver packets / 544 acknowledgements, zero emotes, zero dropped captions
+and zero audio seconds. Its captured model windows and observer frames show
+waving, raised arms and a squat; the capture includes generation time rather
+than presenting inference as real-time.
+Local diagnostic capture and model-window evidence are kept under
+`.virea-runtime/qa/retarget-20261011/`. These probes are not four replacement
+long-form demos. Driver acknowledgements remain explicitly distinct from
+rendered-pose verification; VRChat IK, avatar proportions and the world's bright
+lighting still limit claims about exact joint reproduction and fine fingers.
+
 ## Wrist and hand retargeting regression — 2026-10-10
 
 The OpenVR hand adapter now converts generated joint frames into Valve's bone

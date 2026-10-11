@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import json
+import os
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
+from virea.onboarding.catalog import resolve_options
 from virea.onboarding.connections import PRESETS, ConnectionInput, ConnectionStore
-from virea.onboarding.discovery import discover
+from virea.onboarding.discovery import discover, local_language_choices
 from virea.onboarding.jobs import DeploymentRequest
-from virea.onboarding.language import completion, list_models
-from virea.onboarding.speech import synthesize, voices
+from virea.onboarding.language import list_models
+from virea.onboarding.speech import voices
+from virea.onboarding.verification import result_directory, verify_provider
 
 
 def local_setup(request: Request):
@@ -97,10 +103,106 @@ async def detect(request: Request):
     )
 
 
+async def resolve_local_address(request, draft):
+    """Normalize the default address at BOTH discovery and persistence boundaries."""
+    preset = PRESETS[draft.provider]
+    key = draft.api_key.get_secret_value().strip() if draft.api_key else ""
+    config = request.app.state.characters.config
+    # A preset port is a discovery hint, not a running service. In particular,
+    # Audio8 and the managed Kokoro worker do not use the same default port.
+    if (
+        draft.provider == "local-speech"
+        and draft.base_url == preset["base_url"]
+        and not key
+        and not draft.api_key_env
+    ):
+        report = await discover(request.app.state.control_plane.paths, config)
+        available = [s for s in report["services"] if s["kind"] == "speech"]
+        if not available:
+            raise HTTPException(
+                409,
+                "没有检测到正在运行的本地语音服务。请在下方选择“本地语音 · Kokoro”并点击“检测并部署”，完成后重新检测。",
+            )
+        service = next(
+            (s for s in available if s["base_url"] == config.tts_url), available[0]
+        )
+        return draft.model_copy(
+            update={
+                "base_url": service["base_url"].rstrip("/"),
+                "voice": draft.voice or service.get("voice", ""),
+            }
+        )
+    return draft
+
+
+@router.post("/resolve")
+async def resolve_connection(request: Request, body: dict = Body(...)):
+    """Enumerate a draft without persisting it or changing the active service."""
+    try:
+        draft = ConnectionInput.model_validate(
+            {
+                "id": body.get("provider", ""),
+                **body,
+                "model": body.get("model") or "auto",
+            }
+        )
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(422, "请选择服务并检查接口地址；密钥请填专用字段") from exc
+    draft = await resolve_local_address(request, draft)
+    profile = draft.model_dump(exclude={"api_key"})
+    preset = PRESETS[draft.provider]
+    profile.update(kind=preset["kind"], protocol=preset["protocol"])
+    key = draft.api_key.get_secret_value().strip() if draft.api_key else ""
+    config = request.app.state.characters.config
+    if not key and not draft.api_key_env:
+        try:
+            saved = store(request).get(draft.id)
+        except KeyError:
+            saved = {}
+        if all(saved.get(k) == profile[k] for k in ("provider", "base_url")):
+            key = saved.get("api_key", "")
+    profile["api_key"] = os.getenv(draft.api_key_env, "") or key
+    if (
+        profile["kind"] == "speech"
+        and not body.get("voice")
+        and profile["base_url"] == config.tts_url.rstrip("/")
+    ):
+        profile["voice"] = config.tts_voice
+    try:
+        return {
+            **await resolve_options(profile, request.app.state.characters.client),
+            "base_url": profile["base_url"],
+        }
+    except httpx.TimeoutException as exc:
+        raise HTTPException(
+            409, "模型服务读取超时，请等待服务启动完成后重新检测"
+        ) from exc
+    except httpx.RequestError as exc:
+        local = urlsplit(profile["base_url"]).hostname in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }
+        raise HTTPException(
+            409,
+            "无法连接本地模型服务，请点击“重新检测”查找已运行的服务，或在下方部署。"
+            if local
+            else "无法连接模型服务，请检查接口地址、网络或代理后重新检测。",
+        ) from exc
+    except (ValueError, httpx.HTTPError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            409,
+            str(exc)
+            if isinstance(exc, ValueError)
+            else "服务返回的模型或声线列表格式不兼容，请检查所选提供方与接口类型。",
+        ) from exc
+
+
 @router.put("/connections")
 async def save_connection(request: Request, body: dict = Body(...)):
     try:
         value = ConnectionInput.model_validate(body)
+        value = await resolve_local_address(request, value)
         store(request).put(value)
     except (ValueError, ValidationError) as exc:
         # Pydantic's default validation response may echo the complete input, including a key.
@@ -127,7 +229,7 @@ async def models(identifier: str, request: Request):
         }
     except (ValueError, httpx.HTTPError) as exc:
         raise HTTPException(
-            409, "无法获取模型列表；请检查密钥与地址，或手工填写控制台中的模型 ID"
+            409, "无法获取模型列表；请检查密钥与地址后重新检测"
         ) from exc
 
 
@@ -140,40 +242,54 @@ async def list_voices(identifier: str, request: Request):
         return {"voices": await voices(profile, request.app.state.characters.client)}
     except (ValueError, httpx.HTTPError, KeyError) as exc:
         raise HTTPException(
-            409, "无法读取声线，请检查接口设置或填写供应商控制台的声线 ID"
+            409, "无法读取声线，请检查接口连接与该账号的声线权限后重新检测"
         ) from exc
 
 
-async def verify_connection(profile, client):
-    if profile["kind"] == "language":
-        schema = {
-            "type": "object",
-            "properties": {"ready": {"type": "boolean"}},
-            "required": ["ready"],
-            "additionalProperties": False,
-        }
-        result = await completion(
-            profile,
-            client,
-            [{"role": "user", "content": 'Return exactly this JSON: {"ready":true}'}],
-            schema,
-            tokens=4096,
-            temperature=0,
+async def verify_connection(profile, client, directory):
+    return await verify_provider(profile, client, directory)
+
+
+def verification_state(request, identifier, profile, status, message):
+    try:
+        store(request).record_verification(
+            identifier,
+            {
+                "generated": False,
+                "ready": False,
+                "status": status,
+                "message": message,
+            },
+            expected=profile,
         )
-        if result != {"ready": True}:
-            raise ValueError("模型未按结构化契约返回测试结果，请更换模型或输出模式")
-        return {"ready": True, "structured_output": True}
-    audio, seconds = await synthesize(profile, client, "你好。")
-    return {"ready": True, "seconds": seconds, "bytes": len(audio), "played": False}
+    except (ValueError, KeyError):
+        if status != "failed":
+            raise
+        # A late failure must not overwrite a newly edited/deleted profile.
 
 
 @router.post("/connections/{identifier}/test")
 async def test_connection(identifier: str, request: Request):
+    profile = connection(request, identifier)
     try:
-        return await verify_connection(
-            connection(request, identifier), request.app.state.characters.client
+        verification_state(
+            request, identifier, profile, "running", "正在运行真实生成检验"
         )
+        result = await verify_connection(
+            profile,
+            request.app.state.characters.client,
+            result_directory(request.app.state.characters.config),
+        )
+        store(request).record_verification(identifier, result, expected=profile)
+        return result
     except (ValueError, httpx.HTTPError, KeyError) as exc:
+        verification_state(
+            request,
+            identifier,
+            profile,
+            "failed",
+            "生成检验失败，请按错误提示修正后重试",
+        )
         raise HTTPException(
             409,
             str(exc)
@@ -186,9 +302,23 @@ async def test_connection(identifier: str, request: Request):
 async def activate_connection(identifier: str, request: Request):
     profile = connection(request, identifier)
     try:
-        await verify_connection(profile, request.app.state.characters.client)
-        store(request).activate(identifier, expected=profile)
+        verification_state(
+            request, identifier, profile, "running", "正在运行真实生成检验"
+        )
+        result = await verify_connection(
+            profile,
+            request.app.state.characters.client,
+            result_directory(request.app.state.characters.config),
+        )
+        store(request).activate(identifier, expected=profile, verification=result)
     except (ValueError, httpx.HTTPError, KeyError) as exc:
+        verification_state(
+            request,
+            identifier,
+            profile,
+            "failed",
+            "生成检验失败，本次更改未启用",
+        )
         raise HTTPException(
             409,
             str(exc)
@@ -202,9 +332,38 @@ async def activate_connection(identifier: str, request: Request):
     return store(request).public()
 
 
+@router.get("/verification/{identifier}/artifact")
+async def verification_artifact(identifier: str, request: Request):
+    if not re.fullmatch(r"[a-f0-9]{32}", identifier):
+        raise HTTPException(404, "检验结果不存在")
+    directory = result_directory(request.app.state.characters.config)
+    try:
+        data = json.loads(
+            (directory / f"{identifier}.receipt.json").read_text(encoding="utf-8")
+        )
+        suffix = data["format"]
+        if suffix not in {"json", "wav", "npz"}:
+            raise ValueError("unsupported result")
+        path = directory / f"{identifier}.{suffix}"
+        if not path.is_file():
+            raise FileNotFoundError
+    except (OSError, ValueError, KeyError) as exc:
+        raise HTTPException(404, "检验结果不存在，请重新检验生成") from exc
+    # Always an attachment: downloading a speech result must not autoplay it.
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=f"virea-{data['kind']}-check.{suffix}",
+    )
+
+
 @router.post("/deployments", status_code=202)
 async def deploy(body: DeploymentRequest, request: Request):
     try:
+        if body.recipe == "ollama" and body.model == "auto":
+            body = body.model_copy(
+                update={"model": local_language_choices()["recommended_language_model"]}
+            )
         return request.app.state.deployments.submit(body)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
