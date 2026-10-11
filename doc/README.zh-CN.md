@@ -56,6 +56,7 @@ superseded_by: []
 
 | 目标 | 从这里开始 | 完成标志 |
 |---|---|---|
+| 零基础接入语言、语音与本地动作模型 | [自动配置向导](getting-started/automatic-setup.zh-CN.md) → [API 参考](reference/onboarding-api.md) | 接口测试通过、本地部署就绪，再进行实际生成 |
 | 第一次生成动作 | [安装](getting-started/installation.zh-CN.md) → [首次生成](getting-started/first-generation.zh-CN.md) | 得到绑定模型、Runtime、原生骨骼和目标骨骼的真实结果 |
 | 在 Avatar 上播放 | [浏览器播放](getting-started/browser-playback.zh-CN.md) | Avatar 完整可见、动画时钟推进、控制台零错误 |
 | 选择正确模型 | [模型目录](models/README.zh-CN.md) → [生成矩阵](models/support-matrix.generated.md) | 明确 task、原生 skeleton/representation、资源和许可边界 |

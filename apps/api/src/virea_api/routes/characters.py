@@ -55,6 +55,8 @@ async def character_preferences(request: Request) -> dict:
         error = None
     except httpx.HTTPError as exc:
         voices, error = [], speech_error(exc).detail
+    except ValueError as exc:
+        voices, error = [], str(exc)
     return {
         "voice": manager.config.tts_voice,
         "persona": manager.config.persona,

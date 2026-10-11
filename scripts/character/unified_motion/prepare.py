@@ -43,6 +43,10 @@ def sha256(path):
 
 def checkout(backend, destination):
     url, revision = SOURCES[backend]
+    if not destination.exists() and not shutil.which("git"):
+        from .source_archive import checkout_archive
+
+        checkout_archive(url, revision, destination)
     if not destination.exists():
         destination.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(

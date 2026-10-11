@@ -30,6 +30,15 @@ def load_config() -> CharacterConfig:
 class CharacterManager:
     def __init__(self, control, config: CharacterConfig | None = None):
         self.config = config or load_config()
+        self.config.connections_path = str(
+            control.paths.root / "config" / "model-connections.json"
+        )
+        from virea.onboarding.connections import selected_connection
+
+        speech_connection = selected_connection(self.config, "speech")
+        if speech_connection:
+            self.config.tts_model = speech_connection["model"]
+            self.config.tts_voice = speech_connection.get("voice", "")
         self.directory = control.paths.root / "characters"
         self.client = httpx.AsyncClient(trust_env=False)
         self.language = LanguageProvider(self.config, self.client)

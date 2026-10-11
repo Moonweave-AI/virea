@@ -25,6 +25,14 @@ superseded_by: []
 
 VIREA 是一个实验性的持续角色运行系统：把对话、声音、表情、手势与空间动作组织成由 VRM 角色实际完成的表演。
 
+## 从零开始，无需先安装开发工具
+
+下载并解压源码：Windows 双击 **`Start-VIREA.cmd`**；Linux / macOS 在项目目录运行 **`sh start-virea.sh`**。启动器自动准备 Python、Node、依赖和网页，并打开配置向导。已有部署可从页面的“环境与模型配置”入口进入。
+
+向导支持 OpenAI、DeepSeek、Anthropic、阿里云百炼及其他兼容语言接口；语音支持 OpenAI、百炼、ElevenLabs、Azure 和本机服务。本地 Ollama、Kokoro、MotionCraft、SynTalker 可检测、安装、启动，显示百分比、步骤、失败原因及重试入口。密钥保留在本机服务端，语音检查保持静音。
+
+[新手逐步指南](doc/getting-started/automatic-setup.zh-CN.md) · [自动化 API](doc/reference/onboarding-api.md) · [验证范围](doc/quality/portable-onboarding.md)。通用向导与 Studio 面向三种系统；VRChat 双客户端及虚拟 VR 驱动仍仅支持 Windows。本地模型是否适用取决于上游资源、授权、硬件与实际推理验证。
+
 ## 从动作生成，走向持续的具身对话
 
 VIREA 已经历动作数据与重定向、多模型隔离生成两个基础阶段，现在进入 **Motion Studio：与一个持续运动的角色交互**。

@@ -17,6 +17,7 @@ export const studioShell = `
     <button id="history-toggle" class="icon-button" aria-label="打开历史记录" aria-expanded="false" title="历史记录">${icon("panel")}</button>
     <button id="trace-toggle" class="icon-button" aria-label="打开执行链" aria-expanded="false" title="执行链与诊断">${icon("body")}</button>
     <button id="new-session" class="icon-button" aria-label="新建会话" title="新建会话">${icon("plus")}</button>
+    <a class="icon-button" href="./setup.html" aria-label="部署与模型接入" title="部署与模型接入">${icon("settings")}</a>
     <button id="settings-toggle" class="icon-button rail-bottom" aria-label="角色与设置" title="角色与设置">${icon("settings")}</button>
   </nav>
   <main class="workspace">

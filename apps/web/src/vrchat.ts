@@ -12,7 +12,7 @@ root.innerHTML = `
     <button class="new-chat" id="new-chat">${icon("plus")} <span>新对话</span><kbd>Ctrl ⇧ O</kbd></button>
     <label class="search"><span class="sr-only">搜索本机对话</span><input id="search" type="search" placeholder="搜索对话" autocomplete="off"></label>
     <p class="nav-label">最近的对话</p><nav id="conversations" aria-label="聊天记录"></nav>
-    <div class="sidebar-bottom"><a href="./character.html">Motion Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
+    <div class="sidebar-bottom"><a href="./setup.html">部署与模型接入 <span>↗</span></a><a href="./character.html">Motion Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
   </aside>
   <div class="chat-shell">
     <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">Virea <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>

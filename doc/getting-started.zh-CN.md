@@ -3,7 +3,7 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-10
-updated: 2026-08-23
+updated: 2026-10-11
 last_reviewed: 2026-08-23
 review_cycle_days: 30
 summary: 从 git clone 到执行域选择、模型安装、动作生成和浏览器播放的 VIREA 中文可复现教程。
@@ -25,7 +25,9 @@ superseded_by: []
 复制任何命令前，请先阅读[数据根路径与引号规则](getting-started/persistent-data-root.zh-CN.md)：其中明确说明 Windows
 复制路径该输入什么、引号是否属于路径，以及一次配置如何在新终端持续生效。
 
-本页是新用户的唯一入口。它将可变数据放在 checkout 之外，先检测你的实际执行域，再由你显式选择目标域后
+零基础用户优先使用[自动配置向导](getting-started/automatic-setup.zh-CN.md)，可从源码 ZIP 开始，无需预装开发工具。
+
+本页保留开发者手动安装流程。它将可变数据放在 checkout 之外，先检测你的实际执行域，再由你显式选择目标域后
 安装模型或创建任务。英文逐步说明见 [English tutorial](getting-started.en.md)。
 
 ## 1. 安装前提工具

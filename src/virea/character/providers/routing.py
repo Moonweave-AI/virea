@@ -5,6 +5,9 @@ import re
 
 from pydantic import Field
 
+from virea.onboarding.connections import selected_connection
+from virea.onboarding.language import completion
+
 from ..contracts import Contract, Decision, SceneAction
 from ..decision_schema import decision_schema
 from ..executors import available_executors, executor_context
@@ -116,6 +119,16 @@ async def structured_completion(
         payload["messages"][0]["content"] += (
             "\nprevious_turns (context only): "
             + json.dumps(history[:-1], ensure_ascii=False)
+        )
+    connection = selected_connection(config, "language")
+    if connection:
+        return await completion(
+            connection,
+            client,
+            payload["messages"],
+            schema,
+            tokens=tokens,
+            temperature=config.planning_temperature,
         )
     response = await client.post(
         config.llm_url.rstrip("/") + endpoint,

@@ -40,6 +40,8 @@ async def import_character_voice(request: Request) -> dict:
         raise HTTPException(422, "请提供声线名称、参考音频和对应逐字文本")
     try:
         return await request.app.state.characters.speech.import_voice(data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPError as exc:
         raise speech_error(exc) from exc
 
@@ -56,5 +58,7 @@ async def delete_character_voice(voice: str, request: Request):
             raise HTTPException(409, "这条声线仍在当前回复中使用，请在回复结束后删除")
     try:
         await manager.speech.delete_voice(voice)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPError as exc:
         raise speech_error(exc) from exc

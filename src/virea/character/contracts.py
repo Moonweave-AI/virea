@@ -144,6 +144,7 @@ class SessionRequest(Contract):
 
 
 class CharacterConfig(Contract):
+    connections_path: str | None = Field(default=None, exclude=True)
     motion_backend: Literal["sentiavatar_ardy", "motioncraft", "syntalker"] = (
         "sentiavatar_ardy"
     )

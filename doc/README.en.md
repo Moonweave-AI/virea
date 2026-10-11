@@ -23,9 +23,9 @@ superseded_by: []
 
 > [English](README.en.md) · [中文文档中心](README.zh-CN.md)
 
-Start every user workflow from a clean `git clone`. Keep environments and mutable data outside the checkout, run `doctor`,
-choose an execution domain, then install, generate, and play a result. Each active entry below has a Chinese or English
-counterpart; the command reference is complete in both languages.
+New users can start from a source ZIP with the [automatic setup wizard](getting-started/automatic-setup.en.md).
+Developers can use the manual clean-clone workflow, external data root and explicit execution domain.
+The portable launcher uses an ignored project-local data folder by default and also accepts an external data root.
 
 The current catalog contains 14 integrated-experimental model plugins and 19 public tasks; the former
 six-integrated/eight-upstream-only split is superseded. Every task has an immutable acceptance contract, but declared
@@ -40,6 +40,7 @@ No model is promoted to `supported` until its required release evidence and lice
 
 | Goal | English | 中文 |
 |---|---|---|
+| Start without Python, Node or Git | [Automatic setup](getting-started/automatic-setup.en.md) | [自动配置向导](getting-started/automatic-setup.zh-CN.md) |
 | Clone to first result | [Tutorial](getting-started.en.md) | [教程](getting-started.zh-CN.md) |
 | Choose a persistent data root and enter copied paths safely | [Data-root guide](getting-started/persistent-data-root.en.md) | [数据根指南](getting-started/persistent-data-root.zh-CN.md) |
 | Learn every command and option | [CLI reference](reference/cli.en.md) | [CLI 参数参考](reference/cli.zh-CN.md) |

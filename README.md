@@ -26,6 +26,14 @@ planned together and performed by a persistent VRM character.
 
 </div>
 
+## Start without a development environment
+
+Download and extract the source ZIP. On Windows, double-click **`Start-VIREA.cmd`**. On Linux/macOS, run **`sh start-virea.sh`** in the project folder. The launcher prepares Python, Node, dependencies and the web app, then opens the setup wizard. Existing installations can use the **环境与模型配置** navigation link.
+
+Configure OpenAI, DeepSeek, Anthropic, Alibaba Bailian and other compatible language APIs; connect OpenAI Speech, Bailian, ElevenLabs, Azure or local speech. Detect, install and start Ollama, Kokoro, MotionCraft and SynTalker with visible steps, progress, cancellation and retry. Keys stay on the local server; speech checks do not play audio.
+
+[Step-by-step setup](doc/getting-started/automatic-setup.en.md) · [Automation API](doc/reference/onboarding-api.md) · [Validation scope](doc/quality/portable-onboarding.md). The wizard and Studio target all three operating systems; VRChat dual clients and virtual VR remain Windows-only. Local model usability still depends on upstream assets, licenses, hardware and measured inference.
+
 ## From motion generation to embodied conversation
 
 VIREA has grown from a motion-data and retargeting pipeline, through isolated multi-model generation,

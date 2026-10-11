@@ -5,6 +5,12 @@ from pathlib import Path
 
 
 def verify_source(source: Path, revision: str):
+    if not (source / ".git").exists() and (source / ".virea-source.json").is_file():
+        from .source_archive import verify_archive
+
+        verify_archive(source, revision)
+        return
+
     def git(*args):
         return subprocess.check_output(
             ["git", "-C", str(source), *args], text=True, encoding="utf-8"
