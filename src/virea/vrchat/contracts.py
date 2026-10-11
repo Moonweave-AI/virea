@@ -61,12 +61,16 @@ class BridgeConfig(StrictModel):
     tracker_bones: tuple[str, ...] = ("hips", "leftFoot", "rightFoot")
     head_alignment: bool = False
     avatar_id: AvatarId | None = None
-    auto_bind: bool = False
+    # Follow the avatar worn by the verified AI client, not a particular asset.
+    # Explicit avatar_id-only configurations retain their legacy fixed binding.
+    auto_bind: bool = True
     auto_calibrate: bool = True
     oscquery: bool = False
 
     @model_validator(mode="after")
     def coherent(self):
+        if self.avatar_id and "auto_bind" not in self.model_fields_set:
+            self.auto_bind = False
         if self.mode == "generated_vr" and (
             self.desktop_emotes
             or self.locomotion
@@ -116,6 +120,10 @@ class BridgeConfig(StrictModel):
     def capabilities(self):
         return {
             "mode": self.mode,
+            "avatar_binding": "follow_ai_client" if self.auto_bind else "fixed_avatar",
+            "requires_virea_avatar": False,
+            "skeletal_avatar_requirement": "VRChat humanoid rig compatible with full-body IK",
+            "custom_expressions": "optional; requires the avatar's writable parameters",
             "body_trackers": self.mode in {"vr_trackers", "generated_vr"},
             "body_target_bones": list(self.tracker_bones)
             if self.mode in {"vr_trackers", "generated_vr"}

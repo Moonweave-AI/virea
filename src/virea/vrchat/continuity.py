@@ -153,7 +153,10 @@ class GeneratedPoseHold:
             outgoing = tracker_messages(
                 self.pose.root, self.pose.rotations, config, (0, 0, 0)
             )
-            outgoing.append(message("/avatar/parameters/AI_Active", False))
+            if "AI_Active" in transport.protocol.query_status.get(
+                "writable_parameters", []
+            ):
+                outgoing.append(message("/avatar/parameters/AI_Active", False))
             started = time.monotonic()
             while True:
                 if (

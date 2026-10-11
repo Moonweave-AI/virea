@@ -41,6 +41,8 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 
 AI 控制**独立账号**，你的桌面账号在同一实例中观察。AI 使用项目内的软件头显和手柄，**无需实体 VR 设备**。默认 MotionCraft；可在对话中切换 SynTalker，保留会话历史。
 
+默认跟随 AI 账号当前使用的**支持全身追踪的 Humanoid 角色**，身体和手指控制不要求指定 Avatar ID、安装 VIREA Unity 控制器或 `AI_*` 参数。更换角色会停止旧动作并自动重新校准；固定角色 ID 仅作为可选设置。详见[通用角色控制](doc/character/vrchat.zh-CN.md#avatar-independent-control)及[验证范围](doc/quality/vrchat-avatar-follow.md)。
+
 模型生成的头部、手腕、手指通过 OpenVR 输出，八个身体追踪目标通过 OSC 输出，由 VRChat 自身的 IK 求解角色姿态。生成式 VR 模式禁止预设动画和粗略手势替换。语音与动作使用独立时间轴，实测语音重叠会顺延；完成、中断与下一轮交接保留末帧姿态。这里不承诺逐骨骼完全相同或每个动作提示都精确实现。
 
 运行 `./scripts/vrchat/start.ps1` 启动已配置的服务，打开 `http://127.0.0.1:18001/app/vrchat.html`。观察者和 AI 分别有启动、重启按钮；点击**同房间**并等待双方实时到达确认，再查看**自动校准**旁的百分比与 `[当前步骤/8]`。私有房间需要有效邀请，场景在线不能代替 API 认证成功。2026-10-11 已完成重复邀请和入房复验，详见[网络与同房间证据](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11)。

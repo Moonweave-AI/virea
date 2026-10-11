@@ -151,6 +151,8 @@ def test_idle_releases_before_model_takes_pose_ownership(tmp_path, monkeypatch):
 
         class Calibration:
             active = False
+            stage = "completed"
+            attempted = (12, "avtr_test")
 
             def start(self, *args):
                 pass
@@ -173,6 +175,7 @@ def test_idle_releases_before_model_takes_pose_ownership(tmp_path, monkeypatch):
         service.config = BridgeConfig(mode="generated_vr")
         service.calibration = Calibration()
         service.transport = FakeTransport()
+        service.transport.protocol.query_status = {"pid": 12}
         service.transport.protocol.values["TrackingType"] = (6, time.monotonic())
         service.session = SimpleNamespace(
             id="s",

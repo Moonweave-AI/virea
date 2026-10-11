@@ -22,6 +22,7 @@ from .menu_vision import (
     calibration_label,
     read_labels,
 )
+from .osc import message
 from .views import ViewUnavailable
 
 STEPS = (
@@ -158,13 +159,14 @@ class AutoCalibration:
             and (self.stage in {"failed", "cancelled"} or not transport.ready()[0])
         ):
             return self.snapshot()
+        changed_avatar = self.attempted is not None and key != self.attempted
         self.attempted = key
         self.pid, self.avatar = key
         self.advance("preparing")
         self.error, self.completed_at, self.idle_token = None, None, None
         self.started_at = time.time()
         self.task = asyncio.create_task(
-            self._run(config, transport, views, recalibrate=force),
+            self._run(config, transport, views, recalibrate=force or changed_avatar),
             name="vrchat-auto-fbt",
         )
         return self.snapshot()
@@ -250,7 +252,10 @@ class AutoCalibration:
         async def capture():
             await guard()
             changed = time.monotonic()
-            while time.monotonic() - changed < 4:
+            # Avatar reload can restart window capture. Its isolated Windows
+            # worker permits 20s for cold spawn/import; keep renewing the pose
+            # lease through that interval, under the overall 120s deadline.
+            while time.monotonic() - changed < 24:
                 await hold(0.15)
                 try:
                     target, frame = await asyncio.to_thread(
@@ -285,9 +290,18 @@ class AutoCalibration:
 
         async def pulse(command):
             await guard()
-            if command in {"menu", "back"}:
-                # A short Menu press opens Quick Menu; a held Menu opens the
-                # Action Menu. Renew the lease without extending this press.
+            if command == "menu":
+                # The virtual controller's current action set can omit Menu
+                # after an avatar reload. Use the documented OSC input alone:
+                # sending a native edge as well would toggle the menu twice.
+                try:
+                    transport.send([message("/input/QuickMenuToggleLeft", 1)])
+                    await hold(0.3)
+                finally:
+                    transport.send([message("/input/QuickMenuToggleLeft", 0)])
+                await hold(0.5)
+                return
+            if command == "back":
                 self.rig.update(token, self.rig.state, command)
                 await hold(0.8)
                 return
@@ -323,9 +337,13 @@ class AutoCalibration:
                     await self.finish_standing(token, transport, hold, transition=False)
                     return
                 self.advance("waking")
-                # Establish all trackers while keeping the menu hand in place.
-                # An early T-pose moves an already open wrist menu out of view;
-                # enter T-pose only after the calibration button was confirmed.
+                # After an avatar reload, establish a coherent head/hands/body
+                # pose before aiming a controller. Otherwise the game can stay
+                # in three-point mode and omit its FBT menu entry. This changes
+                # limb pose only; the head/feet and player location stay fixed.
+                self.rig.update(token, ManualState(calibration=True))
+                await hold(1.5)
+                # Put an already open wrist menu back in view before locating it.
                 self.rig.update(token, menu_view(-25, stow_pointer=True))
                 await hold(1.5)  # all eight OSC targets must exist before opening FBT
                 self.advance("finding_menu")

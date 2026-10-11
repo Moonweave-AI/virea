@@ -103,10 +103,29 @@ class VRChatService:
                 raise
             return self.snapshot()
 
-    def snapshot(self):
+    def output_ready(self):
         ready, reason = (
             self.transport.ready() if self.transport else (False, "disconnected")
         )
+        if (
+            ready
+            and self.config
+            and self.config.mode == "generated_vr"
+            and self.config.auto_calibrate
+        ):
+            if (
+                self.calibration.stage != "completed"
+                or self.calibration.attempted != client_identity(self.transport)
+            ):
+                return (
+                    False,
+                    self.calibration.error
+                    or "waiting for the current avatar's automatic full-body calibration",
+                )
+        return ready, reason
+
+    def snapshot(self):
+        ready, reason = self.output_ready()
         feedback = self.transport.protocol.snapshot() if self.transport else None
         query = (feedback or {}).get("query", {})
         age = query.get("last_checked_seconds_ago")
@@ -303,6 +322,7 @@ class VRChatService:
             if self.playing or self.goal_active:
                 raise ValueError("stop the current task before binding an avatar")
             self.config.avatar_id = avatar_id
+            self.config.auto_bind = False
             return self.snapshot()
 
     async def performance(self, plan):
@@ -410,7 +430,7 @@ class VRChatService:
             return
         if not self.playing and not self.paused and self.pose_hold.pose is None:
             await self.calibration.maintain(self.transport)
-        ready, _ = self.transport.ready()
+        ready, _ = self.output_ready()
         self.session.playback_clock.set_paused(self.paused or not ready)
         if self.playing and self.playing.done():
             result, status, detail = (
@@ -455,7 +475,7 @@ class VRChatService:
             await asyncio.sleep(0.05)  # let acknowledgement release the packet
         pending = self.session.pending
         if pending and not self.playing and not self.paused:
-            ready, _ = self.transport.ready()
+            ready, _ = self.output_ready()
             if ready:
                 performance = pending.get("performance")
                 if not performance:

@@ -74,6 +74,16 @@ class PerformancePlayer:
         if paused:
             self.transport.release()
 
+    def check_target(self):
+        ready, reason = self.transport.ready()
+        if not ready:
+            raise RuntimeError(reason)
+        if client_identity(self.transport) != self.identity:
+            raise RuntimeError(
+                "AI client or avatar changed during playback; "
+                "submit a new task after automatic calibration"
+            )
+
     async def run(self):
         use_emotes = self.config.mode == "desktop" and self.config.desktop_emotes
         if use_emotes and any(c["emote"] for c in self.desktop.clips):
@@ -92,8 +102,8 @@ class PerformancePlayer:
         last_chat = -100.0
         last_progress = time.monotonic()
         next_frame = last_progress
-        avatar = self.transport.protocol.values.get("avatar_id", (None,))[0]
         try:
+            self.check_target()
             if self.config.mode == "generated_vr":
                 from .generated_pose import GeneratedPoseClient
 
@@ -107,6 +117,7 @@ class PerformancePlayer:
                 )
                 first = self.timeline.sample(0)
                 for _ in range(12):
+                    self.check_target()
                     self.pose_driver.send(first, self.anchor, scale=self.config.scale)
                     await asyncio.sleep(0.025)
                 status = self.pose_driver.snapshot()
@@ -117,16 +128,7 @@ class PerformancePlayer:
             if not self.paused:
                 clock.resume()
             while self.elapsed < self.timeline.duration:
-                ready, reason = self.transport.ready()
-                if not ready:
-                    raise RuntimeError(reason)
-                if (
-                    self.transport.protocol.values.get("avatar_id", (None,))[0]
-                    != avatar
-                ):
-                    raise RuntimeError(
-                        "avatar changed during playback; submit a new task after checking its parameters"
-                    )
+                self.check_target()
                 if self.paused:
                     # Pause the timeline, not the tracking lease: losing the
                     # virtual devices would replace this frame with runtime idle.
@@ -213,7 +215,10 @@ class PerformancePlayer:
                     # The existing published rig shares AI_Active between face
                     # and coarse finger-animation layers. Enabling it would
                     # overlay presets on the tracked finger skeleton.
-                    outgoing.append(message("/avatar/parameters/AI_Active", False))
+                    if "AI_Active" in self.transport.protocol.query_status.get(
+                        "writable_parameters", []
+                    ):
+                        outgoing.append(message("/avatar/parameters/AI_Active", False))
                 elif self.config.expressions:
                     outgoing.append(message("/avatar/parameters/AI_Active", True))
                     outgoing += hand_messages(pose.rotations)

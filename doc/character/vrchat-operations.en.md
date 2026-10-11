@@ -23,7 +23,9 @@ Use two Windows clients: your account observes in desktop mode; the dedicated AI
 
 Start with the [repository installation guide](../getting-started.en.md), then complete the [virtual rig, avatar and model-service setup](vrchat.en.md). Keep the Unity avatar project in `.virea-runtime/vrchat/unity/avatar/`, with configuration, driver builds, logs and recordings in separate sibling directories. Git ignores this runtime root. Unity Editor and Steam may be installed on E:; do not copy those installations into Git.
 
-The AI needs an uploaded avatar for another account to see it. SDK local test avatars are visible only to their wearer. The AI account must meet VRChat's upload permissions. Game login, Unity licensing, SDK authentication and publishing are separate steps.
+Use any published Humanoid avatar available to the AI account that supports full-body tracking. Using an existing compatible avatar requires neither a Unity project nor upload permissions. Those are needed only to import and publish your own VRM. SDK local test avatars are visible only to their wearer.
+
+Keep **Automatically follow the AI's current avatar** enabled. No Avatar ID or VIREA expression parameters are needed for skeletal control. After an avatar switch, wait for the new avatar's automatic calibration to finish before sending the next task; the old performance and retained pose are discarded. Non-humanoid rigs and custom animation layers overriding tracked bones are outside the compatibility guarantee. See [control and binding rules](vrchat.en.md#avatar-independent-control).
 
 Create `VIREA_HOME/config/vrchat-clients.json` from [client-launch.example.json](../../integrations/vrchat/client-launch.example.json), using the installed paths and two actual account IDs. It does not store passwords. This machine uses `.virea-runtime/vrchat/home/` as `VIREA_HOME`.
 

@@ -48,9 +48,30 @@ test("API loss overrides cached ready state", () => {
   assert.ok(view.steps.every(([, ok]) => !ok));
   assert.match(view.title, /不可用/);
 });
-test("avatar mismatch and missing rig have actionable distinct messages", () => {
+test("fixed avatar mismatch is actionable without requiring an optional expression rig", () => {
   assert.match(connectionView({connected: true, config: {avatar_id: "avtr_old"}, feedback: {values: {avatar_id: "avtr_new"}}}).title, /角色已切换/);
-  assert.match(connectionView({connected: true, feedback: {query: {state: "verified", last_checked_seconds_ago: 0, missing_parameters: ["AI_Active"]}}}).title, /缺少控制参数/);
+  const state = {connected: true, ready: false, config: {mode: "generated_vr", auto_bind: true, avatar_id: "avtr_generic"}, feedback: {values: {avatar_id: "avtr_generic", VRMode: 1, TrackingType: 3}, query: {state: "verified", last_checked_seconds_ago: 0, missing_parameters: ["AI_Active"]}}};
+  assert.match(connectionView(state).title, /等待全身校准/);
+  state.feedback.values.TrackingType = 6;
+  state.ready = true;
+  assert.equal(connectionView(state).ready, true);
+  assert.match(connectionView(state).detail, /跟随 AI 当前角色/);
+});
+
+test("a changed avatar's active calibration takes priority over cached TrackingType=6", () => {
+  const state = {connected: true, ready: true, config: {mode: "generated_vr", auto_bind: true, avatar_id: "avtr_second"}, calibration: {active: true, percent: 25, step: 3, total_steps: 8, step_label: "定位校准入口"}, feedback: {values: {avatar_id: "avtr_second", VRMode: 1, TrackingType: 6}, query: {state: "verified", last_checked_seconds_ago: 0}}};
+  const view = connectionView(state);
+  assert.equal(view.ready, false);
+  assert.match(view.title, /正在自动校准全身/);
+  assert.match(view.detail, /25% · 3\/8/);
+  assert.ok(view.steps.some(([name, complete]) => name === "全身校准" && !complete));
+});
+
+test("failed calibration does not ask an automatically followed avatar to install or bind a rig", () => {
+  const view = connectionView({connected: true, ready: false, config: {mode: "generated_vr", auto_bind: true}, calibration: {stage: "failed", error: "等待画面超时"}, feedback: {values: {avatar_id: "avtr_generic", TrackingType: 6, VRMode: 1}, query: {state: "verified", last_checked_seconds_ago: 0}}});
+  assert.match(view.title, /自动校准未完成/);
+  assert.match(view.detail, /等待画面超时/);
+  assert.doesNotMatch(view.detail, /绑定|安装/);
 });
 test("settings tolerate corrupt storage and preserve deliberate disconnect", () => {
   assert.equal(readConnectionSettings("bad"), null);

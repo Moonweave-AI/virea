@@ -95,6 +95,9 @@ class ClientQuery:
         nodes = contents.get("parameters", {}).get("CONTENTS", {})
         supported = {"AI_Active", *FACE_PARAMETERS, *HAND_PARAMETERS}
         parameters = sorted(supported.intersection(nodes))
+        # Missing built-ins in a new poll must not inherit an old tracking mode.
+        for name in ("VRMode", "TrackingType"):
+            self.protocol.values.pop(name, None)
         for name, node in nodes.items():
             value = node.get("VALUE", [])
             if len(value) == 1 and isinstance(value[0], (bool, int, float)):
@@ -102,19 +105,16 @@ class ClientQuery:
                     message(f"/avatar/parameters/{name}", value[0]),
                     ("127.0.0.1", self.config.send_port),
                 )
-        # Initial auto-binding requires a verified process and the installed rig.
-        # Later avatar switches retain the pin and close the output gate.
-        if (
-            self.config.auto_bind
-            and not self.config.avatar_id
-            and supported <= nodes.keys()
-        ):
+        # PID/port ownership and HOST_INFO were checked by run/read. Standard
+        # humanoid tracking is independent of the optional AI_* expression rig.
+        if self.config.auto_bind:
             self.config.avatar_id = avatar
         self.protocol.query_checked = time.monotonic()
         self.protocol.query_status = {
             "state": "verified",
             "pid": pid,
             "port": port,
+            "avatar_id": avatar,
             "parameters": parameters,
             "missing_parameters": sorted(supported - nodes.keys()),
             "writable_parameters": sorted(

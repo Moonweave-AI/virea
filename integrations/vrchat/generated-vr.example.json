@@ -1,0 +1,12 @@
+{
+  "mode": "generated_vr",
+  "target_role": "independent_ai",
+  "send_port": 19010,
+  "receive_port": 19011,
+  "pose_driver_port": 19030,
+  "auto_bind": true,
+  "avatar_id": null,
+  "auto_calibrate": true,
+  "audio_enabled": false,
+  "desktop_emotes": false
+}
