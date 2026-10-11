@@ -1,0 +1,4 @@
+{
+  "driver_virea_pose": {"enable": true, "loadPriority": 100},
+  "virea_pose": {"port": 19030, "graphicsAdapterIndex": -1}
+}

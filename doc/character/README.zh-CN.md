@@ -3,7 +3,7 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-10-03
+updated: 2026-10-11
 last_reviewed: 2026-10-03
 review_cycle_days: 30
 summary: 持续角色的部署、状态反馈、播放与测量。
@@ -43,6 +43,8 @@ SentiAvatar 与 ARDY 分时接管身体；ARDY 接收英文当前活动描述，
 
 重播属于本地预览，不触发新的自主回应。初次载入建立放松手臂姿态，之后持续保留实际执行状态。
 「导出视频」按原速录制完整回放，包含声音、字幕与身体驱动标签。WebM 暂存在本地 Runtime，单段上限 128 MiB；结束会话时删除临时副本，因此请先保存视频。
+
+[VRChat: 双账号操作 / independent AI operation](vrchat-operations.zh-CN.md) · [录制验收 / recording evidence](../quality/vrchat-recordings.md)
 
 ## 部署
 

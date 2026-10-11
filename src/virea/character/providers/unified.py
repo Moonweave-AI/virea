@@ -41,9 +41,13 @@ Natural small combinations are allowed: 'A person raises both arms and lowers th
 Do not mechanically split preparation, holding and settling into separate segments.
 Split only overly complex choreography, distinct action goals, or actions whose timing
 the user explicitly controls. Preserve the requested timing and give actions enough time.
-Set speech_gestures=true only for conversational gesturing, presenting or explaining.
-Keep it false for explicit physical actions such as walking, squatting, dancing or boxing;
-speech still plays at its own scheduled time during those actions.
+Default speech_gestures=false. Spoken words, presenting or explaining do not by
+themselves request speech-driven motion. Preserve explicit actions such as waving,
+pointing, clapping, opening arms, walking, squatting, dancing or boxing with false,
+even when the character speaks during them. Speech still plays independently.
+Use speech_gestures=true only when the user requests free, speech-driven beat
+gestures without a specific physical action to preserve. Never let a speech
+gesture branch overwrite an explicitly requested action.
 Continuity comes from compatible adjacent poses and native history, not verbose prompts.
 """
 
@@ -74,6 +78,16 @@ class UnifiedMotionProvider:
         return value
 
     async def plan(self, history, context):
+        # The bridge's goal planner has selected an unfinished step. This is a
+        # transient planning instruction, not a fabricated user/history message.
+        environment = context.get("environment", "")
+        if (
+            context.get("trigger") == "context"
+            and isinstance(environment, str)
+            and environment.startswith("VIREA_AUTONOMOUS_STEP\n")
+        ):
+            instruction = environment.split("\n", 1)[1]
+            history = [*history, {"role": "user", "content": instruction}]
         requested_duration = requested_motion_duration(history)
         schema = PerformancePlan.model_json_schema()
         # Optional API defaults are not optional output fields for a constrained LLM.

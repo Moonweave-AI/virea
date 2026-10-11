@@ -7,7 +7,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
+
 import yaml
 from virea_compat import adapter_spec_for_family, real_adapter_families
 from virea_contracts.model import ModelSupportStatus

@@ -3,8 +3,8 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-10-04
-last_reviewed: 2026-10-04
+updated: 2026-10-11
+last_reviewed: 2026-10-09
 review_cycle_days: 14
 summary: VIREA 的持续角色新阶段：对话、语音和连续动作编排，真实演示、架构与部署入口。
 canonical: README.zh-CN.md
@@ -36,6 +36,49 @@ LLM 组织动作意图与独立台词；Audio8-TTS 0.6B 根据参考录音克隆
 语音可以跨动作边界，动作可以比声音长，音频结束不会停止身体。原生历史跨推理窗口延续，详见[技术梗概与部署说明](doc/character/unified-motion.zh-CN.md)。
 
 这一阶段仍为**实验性能力**。下面展示的是本机真实运行与录制，并保留实际时序与已知限制；它不等于全场景物理交互、任意地形运动或生产级可靠性。
+
+## VRChat 执行桥接
+
+AI 控制**独立账号**，你的桌面账号在同一实例中观察。AI 使用项目内的软件头显和手柄，**无需实体 VR 设备**。默认 MotionCraft；可在对话中切换 SynTalker，保留会话历史。
+
+模型生成的头部、手腕、手指通过 OpenVR 输出，八个身体追踪目标通过 OSC 输出，由 VRChat 自身的 IK 求解角色姿态。生成式 VR 模式禁止预设动画和粗略手势替换。语音与动作使用独立时间轴，实测语音重叠会顺延；完成、中断与下一轮交接保留末帧姿态。这里不承诺逐骨骼完全相同或每个动作提示都精确实现。
+
+运行 `./scripts/vrchat/start.ps1` 启动已配置的服务，打开 `http://127.0.0.1:18001/app/vrchat.html`。观察者和 AI 分别有启动、重启按钮；点击**同房间**并等待双方实时到达确认，再查看**自动校准**旁的百分比与 `[当前步骤/8]`。私有房间需要有效邀请，场景在线不能代替 API 认证成功。2026-10-11 已完成重复邀请和入房复验，详见[网络与同房间证据](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11)。
+
+侧栏接入两个真实游戏窗口。直接在 AI 画面中使用鼠标瞄准、左键扳机、右键转头、键盘、小键盘及滚轮；全身校准保持原地。静音使用时，保持 Windows 所有播放设备静音并关闭桥接音频，用户消息与 AI 回复均有原生聊天框输出。
+
+| 需要做什么 | 文档 |
+|---|---|
+| 日常启动、入房、校准、按键与恢复 | [操作指南](doc/character/vrchat-operations.zh-CN.md) |
+| 首次安装、角色发布、端口与 API | [技术参考](doc/character/vrchat.zh-CN.md) |
+| 双窗口采集与手柄射线对齐 | [双视角参考](doc/character/vrchat-views.md) |
+| 连续录制、哈希、检查和实测边界 | [验收记录](doc/quality/vrchat-recordings.md) |
+
+<!-- BEGIN VRCHAT_DEMOS -->
+### 四条连续 VRChat 交互实录
+
+每条包含四轮真实交互，**总计 22 分 1 秒**，同屏记录观察者与 AI 两个游戏窗口，保持原速及生成等待。四个文件均通过完整解码、哈希及执行校验：**无音轨、无预设动作、无字幕发送丢弃、无采集错误**。已目视检查生成身体动作和双方原生聊天字幕；逐条证据与边界见[绑定视频哈希的验收记录](doc/quality/vrchat-recordings.md#accepted-recordings-2026-10-11)。
+
+**1. 展厅导览 — MotionCraft · 5:17.6。** 介绍虚构展品、解释反射光、适应儿童访客，再回答并复盘。
+
+https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6
+
+**2. 节奏教学 — SynTalker · 5:39.6。** 建立轮流互动规则、等待准备、纠正理解，再总结练习。
+
+https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656
+
+**3. 灯塔故事 — MotionCraft → SynTalker · 5:16.5。** 选择路线、记住蓝色地图和不会游泳的限制、应对下雨，切换方法后继续并回顾故事。
+
+https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
+
+**4. 活动排练 — SynTalker → MotionCraft · 5:47.4。** 介绍图书交换、澄清免费规则、临时压缩成闭幕环节，再总结修订。
+
+https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
+
+这些录像验证真实集成链路，不代表每个手势、手指或回答都已完美：指向／鼓掌可能生成为较宽泛或较小的手臂动作；AI 镜头随模型头部运动，以稳定的观察者画面作为动作依据。下方 16 条 Studio 视频属于浏览器角色渲染的独立功能。
+<!-- END VRCHAT_DEMOS -->
+
+角色为 **Unnamed Character 6 — Reira**，导入自用户的 `VRM-Model-1.vrm`，仅署名非商业展示，不分发模型。可听语音和麦克风验收不属于本次静音录制。
 
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## 单模型路线：16 个复杂任务 Demo

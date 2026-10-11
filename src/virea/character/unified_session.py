@@ -7,6 +7,8 @@ from uuid import uuid4
 
 import numpy as np
 
+from virea.motion.hand_solver import HandConstraintError
+
 from .performance_audio import place, read_pcm, slice_audio, wav_bytes
 from .performance_contracts import FPS, SAMPLE_RATE
 from .performance_retarget import playback_windows
@@ -80,6 +82,7 @@ class UnifiedCharacterSession(CharacterSession):
         try:
             # Identity/readiness first: never start expensive TTS for a different worker.
             await self.unified.health()
+            generated_plan = self._submitted_plan is None
             plan = self._submitted_plan or await self.unified.plan(
                 list(self.history), self._context(trigger)
             )
@@ -144,7 +147,27 @@ class UnifiedCharacterSession(CharacterSession):
                         await resolve(
                             next(c for c in plan.speech if c.id == clip.after_clip)
                         )
-                    resolved[clip.id] = place(clip, await tasks[clip.id], resolved)
+                    value = place(
+                        clip,
+                        await tasks[clip.id],
+                        resolved,
+                        defer_overlaps=generated_plan,
+                    )
+                    resolved[clip.id] = value
+                    requested_start = (
+                        clip.start_seconds
+                        if clip.start_seconds is not None
+                        else resolved[clip.after_clip].end_sample / SAMPLE_RATE
+                        + clip.gap_seconds
+                    )
+                    if value.start_sample > round(requested_start * SAMPLE_RATE):
+                        self.record(
+                            "speech_timing_adjusted",
+                            clip_id=clip.id,
+                            requested_start_seconds=requested_start,
+                            start_seconds=value.start_sample / SAMPLE_RATE,
+                            reason="actual_tts_duration",
+                        )
                     self.record("speech_clip_ready", **resolved[clip.id].metadata())
 
             async def resolve_before(seconds):
@@ -158,16 +181,47 @@ class UnifiedCharacterSession(CharacterSession):
 
             self.status = "generating"
             motion_started = monotonic()
-            async with self.generation_slot:
-                values, clips, health = await self.unified.generate(
-                    plan, resolve_before, resolve_all, self.record
+            # Generated plans may retry one rejected sample, using the same
+            # model, actions and resolved TTS. Explicit plans keep their seed
+            # contract. Never weaken the hand validator or substitute a pose.
+            for attempt in range(2):
+                sampled_plan = plan.model_copy(
+                    update={"seed": (plan.seed + attempt) % 2147483648}
                 )
+                async with self.generation_slot:
+                    values, clips, health = await self.unified.generate(
+                        sampled_plan, resolve_before, resolve_all, self.record
+                    )
+                if epoch != self.epoch:
+                    return
+                try:
+                    windows = await asyncio.to_thread(
+                        playback_windows,
+                        self.config.motion_backend,
+                        values,
+                        plan,
+                        self.body,
+                    )
+                    break
+                except HandConstraintError as exc:
+                    if (
+                        not generated_plan
+                        or attempt
+                        or exc.code
+                        not in {"rotation_180_degenerate", "temporal_180_degenerate"}
+                    ):
+                        raise
+                    self.record(
+                        "motion_quality_retry",
+                        reason=exc.code,
+                        rejected_seed=sampled_plan.seed,
+                        next_seed=(plan.seed + 1) % 2147483648,
+                        attempt=2,
+                        max_attempts=2,
+                    )
             self.metrics["motion_seconds"] = monotonic() - motion_started
             if epoch != self.epoch:
                 return
-            windows = await asyncio.to_thread(
-                playback_windows, self.config.motion_backend, values, plan, self.body
-            )
             duration = len(values) / FPS
             # This is an output mix only. Model conditions use explicit ranges, not silence detection.
             if clips:
@@ -185,6 +239,8 @@ class UnifiedCharacterSession(CharacterSession):
                 motions=[s.model_dump() for s in plan.motions],
                 speech=speech,
                 model_revision=health.get("source_revision"),
+                generation_seed=sampled_plan.seed,
+                generation_attempts=attempt + 1,
                 native_history=True,
                 status="ready",
             )

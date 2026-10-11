@@ -12,7 +12,11 @@ from virea.motion.canonical import (
 from virea.motion.rotation import quat_apply_xyzw, quat_multiply_xyzw
 
 from .performance_contracts import FPS
-from .performance_hands import reconcile_palms
+from .performance_hands import (
+    continuous_forearm_frames,
+    reconcile_palms,
+    stabilize_wrist,
+)
 
 
 def smooth_native_pose(root, rotations):
@@ -47,8 +51,10 @@ def smooth_native_pose(root, rotations):
         hand = name in {"leftHand", "rightHand"} or any(
             finger in name for finger in ("Thumb", "Index", "Middle", "Ring", "Little")
         )
-        if hand:
-            limit = np.deg2rad(450 if name.endswith("Hand") else 720) / FPS
+        if name in {"leftHand", "rightHand"}:
+            q = stabilize_wrist(q, FPS)
+        elif hand:
+            limit = np.deg2rad(360) / FPS
             for indices in (range(1, len(q)), range(len(q) - 2, -1, -1)):
                 step = 1 if indices.step == 1 else -1
                 for i in indices:
@@ -139,7 +145,9 @@ def canonical_motion(backend, values):
     return pack_sequence(
         sequence["root_translation"],
         sequence["root_rotation_xyzw"],
-        sequence["core_quats_xyzw"],
+        continuous_forearm_frames(
+            sequence["core_quats_xyzw"], sequence["root_rotation_xyzw"]
+        ),
         constrained.quats_xyzw,
     )
 

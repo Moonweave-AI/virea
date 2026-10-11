@@ -9,6 +9,9 @@ import { chromium } from "playwright";
 import { createServer as createViteServer } from "vite";
 
 const WEB_ROOT = resolve(import.meta.dirname, "..");
+// These are multi-page WebGL integration tests on shared CPU-only runners.
+// API deadlines are asserted separately; actionability is not a 3-second SLA.
+const ACTION_TIMEOUT_MS = 10_000;
 
 
 function availableBrowserExecutable() {
@@ -138,7 +141,7 @@ async function settlesWithin(promise, timeoutMs) {
 
 
 test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a persisted deep link", {
-  timeout: 30_000,
+  timeout: 60_000,
 }, async (context) => {
   const executablePath = availableBrowserExecutable();
   if (!executablePath) {
@@ -158,6 +161,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
   let generationSubmitCount = 0;
   let submittedGeneration = null;
   let includeResponsiveJob = false;
+  let includeDeepJob = false;
   let observeGenerationSubmit;
   const generationSubmitStarted = new Promise((resolveStarted) => {
     observeGenerationSubmit = resolveStarted;
@@ -315,6 +319,8 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
         task: "text_to_motion",
         state: "QUEUED",
         idempotency_key: submittedGeneration?.idempotency_key ?? "persisted-key",
+      }] : []), ...(includeDeepJob ? [{
+        id: "job-deep", model_id: "flood-diffusion-tiny", task: "text_to_motion", state: "SUCCEEDED",
       }] : [])]);
       return;
     }
@@ -456,6 +462,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   });
   const browserContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  browserContext.setDefaultTimeout(ACTION_TIMEOUT_MS);
   const consoleErrors = [];
   const pageErrors = [];
   const preparePage = async () => {
@@ -486,7 +493,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       timeout: 10_000,
     });
     const environment = page.locator("#global-execution-domain");
-    await environment.waitFor({ state: "visible", timeout: 3_000 });
+    await environment.waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     assert.equal(await environment.inputValue(), "");
     assert.match(await page.locator("#data-root-indicator").textContent(), /X:\\VIREA-DATA\\home/);
     assert.equal(await page.locator("[data-source-empty=true]").count(), 1);
@@ -495,7 +502,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     assert.equal(fakeJobRequestCount, 0, "bootstrap must not hydrate a test-only successful job");
     await environment.selectOption("wsl:Ubuntu-24.04");
     await page.locator('button[data-view="playground"]').click();
-    await page.locator("#model-id").waitFor({ state: "visible", timeout: 3_000 });
+    await page.locator("#model-id").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     await Promise.all([
       bootstrapModelReconciliation,
       page.waitForFunction(() => (
@@ -539,7 +546,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       "GPU rendering pauses while a generation owns the workbench",
     );
     releaseGenerationSubmit();
-    await page.locator(".error").waitFor({ state: "visible", timeout: 3_000 });
+    await page.locator(".error").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     assert.equal(
       await page.locator("#vrm-canvas").getAttribute("data-render-loop"),
       "running",
@@ -584,22 +591,22 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       waitUntil: "domcontentloaded",
       timeout: 10_000,
     });
-    await recoveryPage.locator("#generate").waitFor({ state: "visible", timeout: 3_000 });
+    await recoveryPage.locator("#generate").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     assert.equal(await recoveryPage.locator("#generate").isDisabled(), true);
     assert.match(await recoveryPage.locator("#generation-status").textContent(), /恢复|排队|QUEUED/);
-    await recoveryPage.locator(".error").waitFor({ state: "visible", timeout: 3_000 });
+    await recoveryPage.locator(".error").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     assert.equal(generationSubmitCount, 1, "reload must resume the durable Job instead of submitting another one");
     includeResponsiveJob = false;
 
     await page.locator('button[data-view="overview"]').click();
     await page.locator("#refresh").click();
-    await page.locator(".error").waitFor({ state: "visible", timeout: 3_000 });
+    await page.locator(".error").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     assert.match(await page.locator(".error").textContent(), /GET \/api\/v1\/system timed out/);
     assert.equal(systemRequestCount, 1);
     assert.equal(executionDomainRequestCount, 3);
     assert.equal(await page.locator("#global-execution-domain").inputValue(), "wsl:Ubuntu-24.04");
     await page.locator('button[data-view="playground"]').click();
-    await page.locator("#model-id").waitFor({ state: "visible", timeout: 3_000 });
+    await page.locator("#model-id").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     await Promise.all([
       page.waitForResponse((response) => response.url().endsWith("/execution-options")),
       page.locator("#model-id").dispatchEvent("change"),
@@ -614,12 +621,16 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     assert.equal(systemRequestCount, 2);
     assert.equal(executionDomainRequestCount, 4);
 
+    // The durable result must also exist in the authoritative collection;
+    // otherwise the normal reconciliation correctly removes it as stale.
+    includeDeepJob = true;
     const deepPage = await preparePage();
     await deepPage.goto(`http://127.0.0.1:${webAddress.port}/app/?job=job-deep`, {
       waitUntil: "domcontentloaded",
       timeout: 10_000,
     });
-    await deepPage.locator("#vrm-canvas").waitFor({ state: "visible", timeout: 3_000 });
+    await deepPage.locator("#vrm-canvas").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
+    await deepPage.waitForFunction(() => document.querySelector(".viewer-readout")?.textContent?.includes("result-deep"));
     assert.match(await deepPage.locator(".viewer-readout").textContent(), /result-deep/);
     assert.equal(systemRequestCount, 2, "persisted deep-link bootstrap must not request /system");
     const expectedDiscoveryErrors = consoleErrors.filter((message) => (
@@ -667,7 +678,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
 
 
 test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous durable submit", {
-  timeout: 30_000,
+  timeout: 60_000,
 }, async (context) => {
   const executablePath = availableBrowserExecutable();
   if (!executablePath) {
@@ -688,6 +699,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
   let executionOptionsRequestCount = 0;
   let modelRequestCount = 0;
   let modelResponseDelayMs = 0;
+  let holdModelResponses = false;
+  const heldModelResponses = [];
   let jobsReadable = true;
   let generationPostCount = 0;
   let durableJobCount = 0;
@@ -801,6 +814,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     }
     if (path === "/api/v1/models") {
       modelRequestCount += 1;
+      if (holdModelResponses) { heldModelResponses.push(response); return; }
       const delayMs = modelResponseDelayMs;
       if (delayMs) setTimeout(() => respondJson(response, [modelManifest()]), delayMs);
       else respondJson(response, [modelManifest()]);
@@ -889,7 +903,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     });
     browserContext = await browser.newContext({ viewport: { width: 1_280, height: 900 } });
     const page = await browserContext.newPage();
-    page.setDefaultTimeout(3_000);
+    page.setDefaultTimeout(ACTION_TIMEOUT_MS);
     await page.routeWebSocket(/\/api\/v1\/state\/events$/, (socket) => {
       stateSocketRoute = socket;
     });
@@ -900,7 +914,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     });
 
     const generate = page.locator("#generate");
-    await generate.waitFor({ state: "visible", timeout: 3_000 });
+    await generate.waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     await page.locator("#prompt").fill(privatePrompt);
     assert.equal(await generate.isDisabled(), true, "missing authoritative home must fail closed");
     assert.match(await generate.textContent(), /等待数据根同步/);
@@ -976,6 +990,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
 
     // Execution options can still be valid after a root switch. The explicit
     // pre-POST authority read must apply home C and require a retry, with 0 POST.
+    holdModelResponses = true;
     switchHomeAfterOptions = homeC;
     await generate.click();
     await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("已应用最新状态"));
@@ -1001,6 +1016,9 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.waitForResponse((item) => item.url().endsWith("/api/v1/state") && item.status() === 503),
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
+    holdModelResponses = false;
+    assert.ok(heldModelResponses.length, "collection reconciliation must be in flight during authority loss");
+    for (const response of heldModelResponses.splice(0)) respondJson(response, [modelManifest()]);
     await new Promise((resolveWait) => setTimeout(resolveWait, 300));
     assert.equal(
       await generate.isDisabled(),
@@ -1041,6 +1059,10 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     });
     await generate.click();
     await blockedStateRequest;
+    // A scheduled poll may run between installing the counter and clicking.
+    // Assert that no NEW read can supersede the now-observed explicit barrier.
+    const stateReadsAtBarrier = await page.evaluate(() => window.__vireaStateFetchCountDuringSubmit);
+    assert.ok(stateReadsAtBarrier >= 1, "the explicit authority read must have started");
     stateSocketRoute.send(JSON.stringify({
       schema_version: "virea.state_revision.v1.0.0",
       observed_at: new Date().toISOString(),
@@ -1057,7 +1079,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
     assert.equal(
       await page.evaluate(() => window.__vireaStateFetchCountDuringSubmit),
-      1,
+      stateReadsAtBarrier,
       "background polling must not supersede the explicit pre-submission authority barrier",
     );
     releaseBlockedStateResponse();

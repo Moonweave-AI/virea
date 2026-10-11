@@ -3,7 +3,7 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-10-03
+updated: 2026-10-11
 last_reviewed: 2026-10-03
 review_cycle_days: 30
 summary: Deployment and acceptance boundaries for persistent character sessions.
@@ -52,6 +52,8 @@ Subtitles start and end with speech. Set `playback_mode` when creating a session
 `synchronized`. Replays do not trigger autonomous responses. “导出视频” captures a real-time
 replay with sound, captions and body-owner labels as WebM. Save the file before ending
 the session; the temporary Runtime copy is limited to 128 MiB and removed with that session.
+
+[VRChat: 双账号操作 / independent AI operation](vrchat-operations.en.md) · [录制验收 / recording evidence](../quality/vrchat-recordings.md)
 
 ## Run locally
 

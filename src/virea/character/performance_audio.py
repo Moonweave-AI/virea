@@ -61,7 +61,11 @@ def read_pcm(payload: bytes) -> np.ndarray:
 
 
 def place(
-    clip: SpeechClip, pcm: np.ndarray, resolved: dict[str, ResolvedSpeech]
+    clip: SpeechClip,
+    pcm: np.ndarray,
+    resolved: dict[str, ResolvedSpeech],
+    *,
+    defer_overlaps: bool = False,
 ) -> ResolvedSpeech:
     start = (
         round(clip.start_seconds * SAMPLE_RATE)
@@ -69,14 +73,18 @@ def place(
         else resolved[clip.after_clip].end_sample
         + round(clip.gap_seconds * SAMPLE_RATE)
     )
+    # LLM-generated absolute times are lower bounds, not measured TTS lengths.
+    # Resolve once, before conditioning motion. Never truncate, mix or stretch speech.
+    for other in sorted(resolved.values(), key=lambda item: item.start_sample):
+        if start < other.end_sample and start + len(pcm) > other.start_sample:
+            if not defer_overlaps:
+                raise ValueError(
+                    f"speech clips {other.clip.id} and {clip.id} overlap after TTS; adjust their starts or use after_clip"
+                )
+            start = other.end_sample
     value = ResolvedSpeech(clip, start, pcm)
     if value.end_sample > MAX_SECONDS * SAMPLE_RATE:
         raise ValueError(f"speech {clip.id} exceeds the 180-second performance limit")
-    for other in resolved.values():
-        if start < other.end_sample and value.end_sample > other.start_sample:
-            raise ValueError(
-                f"speech clips {other.clip.id} and {clip.id} overlap after TTS; adjust their starts or use after_clip"
-            )
     return value
 
 

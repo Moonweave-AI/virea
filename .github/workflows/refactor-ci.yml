@@ -97,7 +97,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --python 3.10 --locked --all-packages --extra dev
-      - run: uv run --python 3.10 python -m pytest tests/refactor -q
+      - run: uv run --python 3.10 python -m pytest tests/refactor tests/vrchat -q
 
   windows-runtime-lifecycle:
     runs-on: windows-latest

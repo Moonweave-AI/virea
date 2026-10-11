@@ -40,6 +40,24 @@ GPU_UUID = "GPU-12345678-1234-1234-1234-123456789abc"
 GPU_UUID_RAW = "12345678-1234-1234-1234-123456789ABC"
 
 
+@pytest.fixture
+def runtime_machine_snapshot(tmp_path: Path, monkeypatch):
+    # These tests measure admission/ownership, not ambient Python/WSL discovery.
+    # Take one real snapshot before their bounded waits; worker processes and
+    # resource leases remain real and all rejection/serialization assertions stay.
+    machine = service_module.detect_machine(
+        VireaPaths(tmp_path / "machine-snapshot"),
+        include_wsl=True,
+        required_accelerators=("cpu",),
+    )
+    monkeypatch.setattr(
+        ControlPlane,
+        "_detect_runtime_machine",
+        lambda self, manifest, **kwargs: machine,
+    )
+    return machine
+
+
 def _selection(uuid: str | None) -> AcceleratorSelection:
     return AcceleratorSelection(
         kind="nvidia",
@@ -300,7 +318,7 @@ def test_cancel_interrupts_full_verification_before_runtime_or_worker_start(
 
 
 def test_invalid_execution_target_is_rejected_before_installation_hashing(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, runtime_machine_snapshot
 ) -> None:
     control = ControlPlane(
         paths=VireaPaths(tmp_path / "home"),
@@ -708,7 +726,7 @@ def test_two_real_python_processes_enforce_one_control_plane_owner(
 
 
 def test_second_control_plane_cannot_recover_first_live_worker(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, runtime_machine_snapshot
 ) -> None:
     paths = VireaPaths(tmp_path / "home")
     control = ControlPlane(
@@ -751,7 +769,7 @@ def test_second_control_plane_cannot_recover_first_live_worker(
 
 
 def test_two_real_adapter_jobs_serialize_on_ram_and_waiter_cancels(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, runtime_machine_snapshot
 ) -> None:
     paths = VireaPaths(tmp_path / "home")
     control = ControlPlane(

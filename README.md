@@ -43,6 +43,49 @@ See the [technical synopsis](doc/character/unified-motion.en.md) for implementat
 This stage is **experimental**. The demos below show actual local runs, including their timing and limitations;
 they are not a claim of universal physical interaction, all-terrain locomotion, or production readiness.
 
+## VRChat execution bridge
+
+Run an **independent AI account** while your own desktop account observes it in the same instance. The AI uses a project-local virtual HMD and controllers: **no physical VR hardware is required**. MotionCraft is the default; SynTalker is selectable during a conversation without losing its history.
+
+Model-generated head, wrist and finger poses go through OpenVR; eight body targets go through OSC. VRChat applies its own avatar IK. Generated VR rejects preset emotes and coarse hand-pose substitution. Speech and motion keep separate timelines; measured speech overlaps are deferred, and completion/interruption retains the final pose for a continuous next turn. Exact per-joint fidelity and universal action accuracy are not claimed.
+
+Start the configured services with `./scripts/vrchat/start.ps1`, then open `http://127.0.0.1:18001/app/vrchat.html`. Separate buttons start/restart the observer and AI. Use **同房间**, wait for matching live arrivals, then complete **自动校准** with its local percentage and `[step/8]` display. A private room requires a valid invitation; a running scene alone does not prove API authentication. Both accounts passed repeated invitation and room-entry checks on 2026-10-11; see the [network and room evidence](doc/quality/vrchat-recordings.md#network-session-investigation-2026-10-11).
+
+The side panel shows both real game windows. Operate the AI directly with mouse aiming/trigger, right-drag head movement, keyboard/numpad and wheel controls. Calibration stays in place. Keep all Windows render devices muted and bridge audio disabled for silent use; both user and AI messages have native chatbox routes.
+
+| Need | Guide |
+|---|---|
+| Daily startup, joining, calibration, controls and recovery | [Operations guide](doc/character/vrchat-operations.en.md) |
+| First installation, avatar publishing, ports and API contracts | [Technical reference](doc/character/vrchat.en.md) |
+| Window capture and hand-ray calibration | [Dual-view reference](doc/character/vrchat-views.md) |
+| Continuous recordings, hashes, checks and measured limitations | [Acceptance record](doc/quality/vrchat-recordings.md) |
+
+<!-- BEGIN VRCHAT_DEMOS -->
+### Four continuous VRChat interactions
+
+Four real four-turn sessions, **22 min 1 s total**, with the observer and AI windows captured together at normal speed. All four files passed full decode, hash and execution checks: **no audio track, no preset emotes, no dropped chatbox chunks or capture errors**. Native generated body movement and both native chatbox routes were visually reviewed. Waiting time remains in each video. See the [hash-bound review and limits](doc/quality/vrchat-recordings.md#accepted-recordings-2026-10-11).
+
+**1. Exhibition tour — MotionCraft · 5:17.6.** Introduce a fictional exhibit, explain reflected light, adapt to a child visitor, then answer and recap.
+
+https://github.com/user-attachments/assets/df0ff097-dec3-4400-afe8-5341554778f6
+
+**2. Rhythm coaching — SynTalker · 5:39.6.** Establish a turn-taking rule, wait for readiness, correct the learner and recap the practice.
+
+https://github.com/user-attachments/assets/e8725f1d-dc6b-4e38-bb59-ad93d6596656
+
+**3. Lighthouse story — MotionCraft → SynTalker · 5:16.5.** Choose a route, retain the blue-map/no-swimming constraints, adapt to rain and recall the story after switching methods.
+
+https://github.com/user-attachments/assets/be775ee7-0f9e-42c3-8a15-da52c81487af
+
+**4. Presentation rehearsal — SynTalker → MotionCraft · 5:47.4.** Introduce a book exchange, clarify that it is free, switch to a shortened closing and summarize the corrections.
+
+https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
+
+These are integration demonstrations, not perfect gesture/finger-quality or dialogue-accuracy benchmarks. Generated pointing/clapping may become broad or small arm gestures; the AI camera follows its generated head. The observer feed is the stable reference. The 16 Studio videos below are a separate browser-rendered feature.
+<!-- END VRCHAT_DEMOS -->
+
+Avatar: **Unnamed Character 6 — Reira**, imported from the owner's `VRM-Model-1.vrm`. Noncommercial rendering with attribution; the model is not redistributed. Audible voice/microphone acceptance is outside the silent recording run.
+
 <!-- BEGIN UNIFIED_MOTION_DEMOS -->
 ## Single-family routes: 16 complex task demos
 

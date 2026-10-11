@@ -1,0 +1,738 @@
+{
+  "schema_version": "virea.vrchat.evidence.v1",
+  "date": "2026-10-08",
+  "branch": "feat/vrchat/detail-technical-method",
+  "base_commit": "4f32acdf6a645431c0d73592c6d7bd7e9530df95",
+  "live_model_to_osc": [
+    {
+      "backend": "motioncraft",
+      "result": {
+        "packet_id": "46f04d97a1f04f749afef7e842c5b383",
+        "status": "completed",
+        "motion_seconds": 8.0,
+        "audio_seconds": 0,
+        "frames": 241,
+        "chat_dropped": 0,
+        "detail": "OSC output completed; avatar/world pose is unobserved."
+      },
+      "osc_messages": 1478,
+      "wall_seconds": 17.938000000009197,
+      "audio_output_enabled": false,
+      "receiver": "dedicated loopback UDP test receiver",
+      "voice_reference": "audio_reference_chu2.mp3 + chu2.txt",
+      "metrics": {
+        "generated_seconds": 8.0,
+        "generation_seconds": 9.389999999999418,
+        "first_expression_seconds": 9.389999999999418,
+        "rtf": 1.1737499999999272,
+        "first_audio_seconds": 4.827999999994063,
+        "language_seconds": 3.139999999999418,
+        "tts_seconds": 1.687999999994645,
+        "motion_seconds": 6.14100000000326
+      }
+    },
+    {
+      "backend": "syntalker",
+      "metrics": {
+        "generated_seconds": 8.0,
+        "generation_seconds": 16.186999999990803,
+        "first_expression_seconds": 16.186999999990803,
+        "rtf": 2.0233749999988504,
+        "first_audio_seconds": 3.75,
+        "language_seconds": 3.0,
+        "tts_seconds": 0.75,
+        "motion_seconds": 12.468999999997322
+      },
+      "result": {
+        "packet_id": "440465a735c042bea87703e24bd48bbe",
+        "status": "completed",
+        "motion_seconds": 8.0,
+        "audio_seconds": 0,
+        "frames": 241,
+        "chat_dropped": 0,
+        "detail": "OSC output completed; avatar/world pose is unobserved."
+      },
+      "osc_messages": 1478,
+      "wall_seconds": 24.735000000000582,
+      "audio_output_enabled": false,
+      "receiver": "dedicated loopback UDP test receiver",
+      "voice_reference": "audio_reference_chu2.mp3 + chu2.txt"
+    }
+  ],
+  "offline_demo_conversion": {
+    "kind": "offline real-model motion to OSC conversion, no VRChat client or audio output",
+    "elapsed_seconds": 51.23399999999674,
+    "demos": [
+      {
+        "demo": "motioncraft-01-introduction",
+        "duration_seconds": 32.0,
+        "validated_frames": 961,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-02-warmup",
+        "duration_seconds": 36.0,
+        "validated_frames": 1081,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-03-story",
+        "duration_seconds": 35.0,
+        "validated_frames": 1051,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-04-dance",
+        "duration_seconds": 32.0,
+        "validated_frames": 961,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-05-fashion",
+        "duration_seconds": 34.0,
+        "validated_frames": 1021,
+        "windows": 7,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-06-emotion",
+        "duration_seconds": 33.0,
+        "validated_frames": 991,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-07-tour",
+        "duration_seconds": 38.0,
+        "validated_frames": 1141,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "motioncraft-08-boxing",
+        "duration_seconds": 36.0,
+        "validated_frames": 1081,
+        "windows": 7,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-01-introduction",
+        "duration_seconds": 32.0,
+        "validated_frames": 961,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-02-warmup",
+        "duration_seconds": 36.0,
+        "validated_frames": 1081,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-03-story",
+        "duration_seconds": 35.0,
+        "validated_frames": 1051,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-04-dance",
+        "duration_seconds": 32.0,
+        "validated_frames": 961,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-05-fashion",
+        "duration_seconds": 34.0,
+        "validated_frames": 1021,
+        "windows": 7,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-06-emotion",
+        "duration_seconds": 33.0,
+        "validated_frames": 991,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-07-tour",
+        "duration_seconds": 38.0,
+        "validated_frames": 1141,
+        "windows": 6,
+        "status": "passed"
+      },
+      {
+        "demo": "syntalker-08-boxing",
+        "duration_seconds": 36.0,
+        "validated_frames": 1081,
+        "windows": 7,
+        "status": "passed"
+      }
+    ]
+  },
+  "ui_checks": [
+    "connection",
+    "awaiting_avatar_feedback",
+    "pause",
+    "resume",
+    "disconnect",
+    "default_audio_disabled",
+    "automatic reconnection after API restart",
+    "automatic local SDK avatar binding from live client query",
+    "separate local OSC readiness and logged online API errors",
+    "user VRM preview with explicit non-gameplay label",
+    "manual disconnect survives page reload",
+    "conversation survives API restart and page reload",
+    "actual observer and AI window frames in the side panel",
+    "1440x900 layout: chat and two live views without horizontal overflow",
+    "narrow overlay: keyboard focus containment and Escape closure",
+    "frame requests stop when hidden or closed"
+  ],
+  "tests": {
+    "status": "Full Python run completed; its sole route-contract failure was corrected and the entire 46-test API integration file passed on rerun. 1,220 unique Python cases verified, 34 skipped. Web: 162 passed. No unresolved test failures; no audible acceptance claimed.",
+    "unresolved_failures": 0,
+    "python_full_regression": {
+      "command": "uv run pytest -q",
+      "date": "2026-10-08",
+      "passed": 1219,
+      "failed": 1,
+      "skipped": 34,
+      "seconds": 843.63,
+      "failure": "Versioned route contract omitted the newly added POST /api/v1/vrchat/settings.",
+      "resolution": "Route contract corrected. Entire tests/refactor/test_api_cli_integration.py rerun: 46 passed, including the failed case; no application behavior changed for this correction.",
+      "verified_unique_passes_after_correction": 1220,
+      "full_suite_repeated_after_correction": false
+    },
+    "correction_verification": {
+      "command": "uv run pytest tests/vrchat tests/refactor/test_api_cli_integration.py -q",
+      "passed": 118,
+      "failed": 0,
+      "seconds": 80.37,
+      "changes": [
+        "Fixed local TestClient Host for preview test",
+        "Handled Windows closed-pipe errors in poll and receive while preserving input release",
+        "Added deterministic poll/receive broken-pipe tests",
+        "Added login diagnostics and fixed local VRM endpoint tests"
+      ]
+    },
+    "web": {
+      "passed": 162,
+      "skipped": 0,
+      "failed": 0,
+      "seconds": 22.877
+    },
+    "web_build": "passed; existing bundle-size warning remains",
+    "ruff_check": "passed repository-wide",
+    "ruff_format": "All 10 changed Python files pass ruff format --check.",
+    "documentation": "2 documentation/publication contract tests passed, including the actual clap screenshot and its provenance.",
+    "diff_whitespace": "git diff --check HEAD passed after LF normalization",
+    "latest_vrchat": {
+      "command": "uv run pytest tests/vrchat -q",
+      "passed": 102,
+      "failed": 0,
+      "seconds": 32.87
+    },
+    "resource_coordination": {
+      "command": "uv run pytest tests/refactor/test_resource_coordination.py -q",
+      "passed": 22,
+      "failed": 0,
+      "seconds": 146.04,
+      "correction": "Take one real machine snapshot before timed lease/worker assertions; repeated ambient Python/WSL discovery no longer consumes their 5/15-second deadlines."
+    },
+    "historical_python_regression": {
+      "command": "uv run pytest -q",
+      "passed": 1186,
+      "failed": 0,
+      "skipped": 34,
+      "seconds": 557.38,
+      "date": "2026-10-04"
+    },
+    "latest_character": {
+      "command": "uv run pytest tests/character -q",
+      "passed": 285,
+      "failed": 0,
+      "seconds": 29.51
+    },
+    "web_fixture_correction": "Deep-link result now exists in authoritative jobs collection; collection responses held until authority loss, avoiding transient-state timing assertions.",
+    "latest_api_integration": {
+      "command": "uv run pytest tests/refactor/test_api_cli_integration.py -q",
+      "passed": 46,
+      "failed": 0,
+      "seconds": 115.59,
+      "correction": "Added the new /vrchat/settings route to the versioned public route contract."
+    },
+    "previous_python_baseline": {
+      "command": "uv run pytest -q",
+      "date": "2026-10-08",
+      "passed": 1207,
+      "failed": 0,
+      "skipped": 34,
+      "seconds": 809.41
+    }
+  },
+  "graph_change_analysis": {
+    "scope": "all",
+    "changed_count": 94,
+    "affected_count": 1,
+    "changed_files": 23,
+    "risk_level": "medium",
+    "partial": false,
+    "truncated": false,
+    "listed_processes": [
+      "Configure → Voices"
+    ],
+    "indexed_at": "2026-10-08T14:23:43.936Z",
+    "index_nodes": 15913,
+    "index_edges": 37238,
+    "review": "Reviewed configure -> validate_voice -> voices, current-task cancellation and provider replacement; API and browser dynamic callers confirmed by text inspection and real hot-switch tests.",
+    "limitations": "The completed diff analysis is not truncated. The global index still reports C# directory-scan caps, 1,510 entry candidates omitted, 39 budget-cut walks, 10 depth-capped traces and 1,407 callee cuts; dynamic and cross-language callers were checked manually.",
+    "recovery": "Initial incremental index hit its 256 MiB LadybugDB buffer limit. Forced rebuild with a 4 GiB buffer succeeded."
+  },
+  "not_verified": [
+    "virtual microphone routing and audible VRChat lip sync",
+    "hand pose appearance and full supported face-expression set",
+    "reliable remote-player avatar loading and gesture/expression synchronization",
+    "physical VR tracking calibration"
+  ],
+  "not_implemented": [
+    "virtual HMD/controller and skeletal driver",
+    "world vision and player speech recognition",
+    "arbitrary desktop bone animation"
+  ],
+  "unity": {
+    "sdk": "3.10.5",
+    "compilation": "passed",
+    "project": ".virea-runtime/vrchat/unity/avatar",
+    "scene": "Assets/VIREA/Scenes/IndependentAI.unity",
+    "face_bindings": {
+      "unmatched": [
+        "AI_BrowUp",
+        "AI_Cheek"
+      ],
+      "matched": 4
+    },
+    "structural_validation": "passed: one active Humanoid; nine AI parameters; custom FX/Gesture; 15 native visemes",
+    "version": "2022.3.22f1",
+    "build_and_test": "passed; local avatar bundle generated and worn by real AI client",
+    "local_bundle_bytes": 4190902,
+    "upload": "User completed publication; Unity displayed Upload Succeeded; live AI client wears published avatar",
+    "license": "existing Unity Personal license refreshed in Hub; project opened successfully in Unity 2022.3.22f1",
+    "published_avatar_id": "avtr_c0d301d1-3274-4ecd-99c7-3f7f766893d0",
+    "published_visibility": "public on user-provided avatar page; not changed by agent",
+    "performance_rating": "Very Poor; optimization not completed"
+  },
+  "real_client": {
+    "ai_profile": 2,
+    "actual_avatar_feedback_received": true,
+    "observed_avatar_bound": true,
+    "bridge_ready": true,
+    "date": "2026-10-04",
+    "receive_port": 19011,
+    "worn_avatar": "user VRM through local SDK Build & Test",
+    "send_port": 19010,
+    "observer_untouched": true,
+    "separate_accounts_verified": true,
+    "custom_avatar_visual_validation": "pending",
+    "audio_enabled": false,
+    "avatar_kind": "local:sdk",
+    "query": "read-only OSCQuery endpoint verified against owning VRChat process and dedicated UDP port",
+    "ai_rig_parameters_observed": 9,
+    "online_authentication": "API authentication errors logged by both clients; not proof of account logout or inability to join a room",
+    "same_instance": "unverified",
+    "remote_custom_avatar_visibility": "historical October 4 state; superseded by recovery_2026_10_08",
+    "live_frontend_task": {
+      "backend": "motioncraft",
+      "duration_seconds": 4,
+      "frames_sent": 122,
+      "status": "completed",
+      "audio_enabled": false,
+      "visual_pose": "unverified"
+    },
+    "historical": true
+  },
+  "audio_routing": {
+    "enabled": false,
+    "existing_virtual_pair_loopback": "no captured signal",
+    "official_cable": "Installed signed official VB-CABLE driver; Windows device status OK and both endpoints enumerate without a reboot.",
+    "restart_performed": false,
+    "format_validation": {
+      "output": "Windows WASAPI|CABLE Input (VB-Audio Virtual Cable)",
+      "input": "CABLE Output (VB-Audio Virtual Cable)",
+      "sample_rate": 48000,
+      "channels": 2,
+      "dtype": "float32",
+      "passed": true,
+      "stream_started": false
+    },
+    "silence_requirement": {
+      "user_request": "Public area; no sound playback",
+      "active_playback_endpoints_muted_and_verified": 5,
+      "bridge_audio_enabled": false,
+      "test_audio_played": false
+    },
+    "audible_acceptance": "Deferred at user request; no PCM loopback, game microphone or observer-hearing pass claimed."
+  },
+  "recovery_2026_10_08": {
+    "offline_launch_fix": "official launch.exe bootstrapper; real second client passed AntiCheat Session Begin and connected to online world",
+    "ai_profile": 1,
+    "ai_send_port": 19000,
+    "ai_receive_port": 19001,
+    "observer_profile": 2,
+    "observer_send_port": 9000,
+    "observer_receive_port": 9001,
+    "same_instance": "both running clients record both accounts joining; full instance keys match",
+    "same_instance_time_local": "2026-10-08T18:09:16+08:00",
+    "frontend": "live OSC verified; same-room log evidence shown separately from avatar binding and audio",
+    "current_ai_avatar": "Published VIREA Independent AI, with all nine AI parameters verified by owning-process OSCQuery",
+    "bounded_movement": "AI-only OSC moved the character toward the mirror; inputs returned to zero. Observer saw movement of fallback robot.",
+    "targeted_python_tests": {
+      "passed": 25
+    },
+    "connection_web_tests": {
+      "passed": 8
+    },
+    "web_build": "passed; existing three-vrm bundle size warning",
+    "audio": "VB-CABLE installed. Endpoint enumeration/format checks passed. Audible acceptance deferred by user; Windows playback endpoints muted and bridge speech disabled.",
+    "avatar_publication": "completed by user; upload permission no longer blocks testing",
+    "local_face_visual_test": {
+      "parameter": "AI_Smile",
+      "values": [
+        1.0,
+        0.0
+      ],
+      "result": "local mirror visibly changes between smiling/open mouth and neutral mouth",
+      "source": "real VRChat AI client, published user VRM",
+      "artifacts": [
+        "ai-smile-on.png",
+        "ai-smile-off.png"
+      ],
+      "artifact_location": "ignored .virea-runtime/vrchat/evidence/; local verification evidence, not repository demo media"
+    },
+    "hand_control_test": {
+      "sent": {
+        "AI_Active": true,
+        "AI_LeftHandPose": 1,
+        "AI_RightHandPose": 2
+      },
+      "live_feedback_matched": true,
+      "visual_accepted": false,
+      "reason": "fingers not sufficiently visible in captured view; parameters alone do not prove pose quality",
+      "released_after_test": true
+    },
+    "observer_avatar": {
+      "initial_render": "custom avatar visible at approximately 17:53",
+      "latest_render": "After recovery the observer unpacks the custom avatar; rendered pose quality has not been accepted.",
+      "error": "Historical FailedFetchingSecurityScan with API 401 before reauthentication; zero recurrences in latest client logs through 21:20.",
+      "recovery": "Both accounts recovered after sequential restart and rejoined the same private instance. Current asset-load verification passed; visual pose acceptance remains false.",
+      "remote_visual_acceptance": false
+    },
+    "input_types": {
+      "client": "VRChat 2026.3.3",
+      "oscquery_button_type": "T (boolean)",
+      "quick_menu": "boolean press/release observed to open and close menu; integer messages had no effect",
+      "production_correction": "Voice, Run and Jump release messages now boolean; Voice hold follows boolean contract"
+    },
+    "log_diagnostics": "Incremental bounded per-process log scan retains current-session identity/arrival evidence beyond 128 KiB, including append and truncation handling.",
+    "frontend_recovery": "API restarted after OSC input correction; existing page restored connection and avatar binding automatically.",
+    "live_frontend_syntalker": {
+      "result": {
+        "packet_id": "d5eb1fec0f9e43058d67d23adf2bb7f3",
+        "status": "completed",
+        "motion_seconds": 6.0,
+        "audio_seconds": 0,
+        "frames": 181,
+        "chat_dropped": 0,
+        "detail": "OSC output completed; avatar/world pose is unobserved.",
+        "performance": {
+          "id": "d5eb1fec0f9e43058d67d23adf2bb7f3",
+          "backend": "syntalker",
+          "duration_seconds": 6.0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 6.0,
+              "prompt": "A person opens both hands.",
+              "label": "无声连接测试",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [],
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "native_history": true,
+          "status": "ready",
+          "asset_url": "/api/v1/characters/324c5ac880ed4679a86c8c675d78180c/performances/d5eb1fec0f9e43058d67d23adf2bb7f3"
+        }
+      },
+      "metrics": {
+        "generated_seconds": 6.0,
+        "generation_seconds": 109.78100000000268,
+        "first_expression_seconds": 109.78100000000268,
+        "rtf": 18.29683333333378,
+        "first_audio_seconds": null,
+        "language_seconds": 88.20299999999406,
+        "tts_seconds": null,
+        "motion_seconds": 18.937000000005355
+      },
+      "frames_sent": 181,
+      "receiver": "real independently authenticated AI client on 19000/19001",
+      "audio_enabled": false,
+      "visual_pose_accepted": false
+    },
+    "live_frontend_syntalker_pause_resume": {
+      "result": {
+        "packet_id": "0af877928af94bc1be0879867e27eb66",
+        "status": "completed",
+        "motion_seconds": 12.0,
+        "audio_seconds": 0,
+        "frames": 362,
+        "chat_dropped": 0,
+        "detail": "OSC output completed; avatar/world pose is unobserved.",
+        "performance": {
+          "id": "0af877928af94bc1be0879867e27eb66",
+          "backend": "syntalker",
+          "duration_seconds": 12.0,
+          "motions": [
+            {
+              "id": "m1",
+              "start_seconds": 0.0,
+              "duration_seconds": 12.0,
+              "prompt": "A person opens both hands.",
+              "label": "无声测试",
+              "speech_gestures": false
+            }
+          ],
+          "speech": [],
+          "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+          "native_history": true,
+          "status": "ready",
+          "asset_url": "/api/v1/characters/324c5ac880ed4679a86c8c675d78180c/performances/0af877928af94bc1be0879867e27eb66"
+        }
+      },
+      "metrics": {
+        "generated_seconds": 12.0,
+        "generation_seconds": 37.171999999991385,
+        "first_expression_seconds": 37.171999999991385,
+        "rtf": 3.097666666665949,
+        "first_audio_seconds": null,
+        "language_seconds": 12.296999999991385,
+        "tts_seconds": null,
+        "motion_seconds": 21.563000000009197
+      },
+      "pause_observation": {
+        "elapsed_before": 6.2189999999973224,
+        "elapsed_after_one_second": 6.2189999999973224,
+        "AI_Active": false,
+        "AI_LeftHandPose": 0,
+        "AI_RightHandPose": 0,
+        "VelocityX": 0.0,
+        "VelocityZ": 0.0
+      },
+      "resume": "UI returned to executing; output subsequently completed all 12 seconds and released AI_Active",
+      "visual_pose_accepted": false
+    },
+    "interrupt_test": {
+      "trigger": "Stop task clicked during language planning",
+      "server_status": "waiting",
+      "autonomy_active": false,
+      "pending": null,
+      "performance": null,
+      "AI_Active": false,
+      "output_frames_unchanged": 543,
+      "ui_regression": "Old completed performance was incorrectly shown after stopping a newer task; fixed by selecting current-epoch feedback/interruption events. Reloaded actual page shows 已停止."
+    }
+  },
+  "live_views": {
+    "date": "2026-10-08",
+    "status": "verified with both actual Windows VRChat clients",
+    "binding": "observer UDP 9000; AI UDP 19000; different process identities verified",
+    "implementation": "Windows Graphics Capture, at most one pending fetch and one retained JPEG per view; no desktop capture or automatic recording",
+    "sample_api_frame": {
+      "status": 200,
+      "width": 903,
+      "height": 540,
+      "age_ms": 16
+    },
+    "browser_proof": "doc/assets/vrchat/live-views.jpg",
+    "browser_proof_note": "Real game menus visible in both windows; proof of live capture only, not avatar or voice acceptance.",
+    "desktop_viewport": [
+      1440,
+      900
+    ],
+    "desktop_horizontal_overflow": false,
+    "small_screen": "dialog overlay, inert background, Tab focus containment and Escape return to toggle verified",
+    "capture_component_close_seconds": 3.31,
+    "native_minimized_recovery": "Handling corrected; mocked regression passed. Actual minimize/restore retest is still pending.",
+    "dependencies": {
+      "windows-capture": "2.0.1",
+      "opencv-python": "5.0.0.93"
+    },
+    "boundary": "No vision-model input, mouse forwarding or audio capture from these views.",
+    "post_restart": {
+      "checked_at_local": "2026-10-08T21:20:59+08:00",
+      "observer_pid": 53080,
+      "ai_pid": 32996,
+      "both_frame_http_status": 200,
+      "different_processes": true,
+      "both_browser_labels": "real-time",
+      "proof": "doc/assets/vrchat/recovered-views.jpg",
+      "visible_scene": "Both clients in the same Home; game menus remain visible."
+    }
+  },
+  "online_api_recovery": {
+    "checked_at_local": "2026-10-08T21:20:59+08:00",
+    "scene_connection": "Both authenticated accounts in the same private Home instance; full instance keys match in current live-client logs.",
+    "observer_latest_401_local": "2026-10-08T20:36:39+08:00",
+    "ai_latest_401_local": "2026-10-08T20:38:10+08:00",
+    "status": "Recovered. Zero API 401 and zero FailedFetchingSecurityScan after latest authentication in both current client logs.",
+    "root_cause": "Old client post-login flow threw UI null-reference exceptions. Fresh processes enter worlds; original authentication-loss cause remains unknown.",
+    "next_step": "Remote rendered gesture/face appearance remains unaccepted. Audible voice acceptance is deferred at user request.",
+    "client_windows_preserved": "Clients sequentially restarted with their existing isolated profile/OSC settings; AI remained running while observer restarted.",
+    "ai_authenticated_local": "2026-10-08T21:02:15+08:00",
+    "observer_authenticated_local": "2026-10-08T21:04:38+08:00",
+    "same_instance_restored_local": "2026-10-08T21:15:46+08:00",
+    "observer_avatar_asset": "Observer recognizes MoonweaveAI as a remote player and unpacks VIREA Independent AI at 21:15:46. This is asset-load evidence, not a rendered pose-quality acceptance."
+  },
+  "response_fix_2026_10_08": {
+    "base_commit": "ce18fe4c471c33900be8052a69b32cfbbd14d706",
+    "root_causes": [
+      "Connected UI disabled all settings; provider selection fixed at connection creation.",
+      "Desktop player sent coarse finger controls but no body animation and omitted facial_messages during performance playback."
+    ],
+    "method_switches": [
+      {
+        "from": "syntalker",
+        "to": "motioncraft",
+        "before_status": "generating",
+        "after_status": "waiting",
+        "same_session": true,
+        "same_history": true,
+        "epoch_increment": 1,
+        "bridge_ready": true,
+        "audio_enabled": false,
+        "released_emote": 0,
+        "released_active": false
+      },
+      {
+        "from": "motioncraft",
+        "to": "syntalker",
+        "before_status": "awaiting_playback",
+        "after_status": "waiting",
+        "same_session": true,
+        "same_history": true,
+        "epoch_increment": 1,
+        "bridge_ready": true,
+        "audio_enabled": false,
+        "released_emote": 0,
+        "released_active": false
+      }
+    ],
+    "live_tasks": [
+      {
+        "status": "completed",
+        "frames": 361,
+        "motion_seconds": 12.0,
+        "audio_seconds": 0,
+        "execution": {
+          "mode": "desktop",
+          "generated_body_transmitted": false,
+          "body_representation": "SDK avatar presets",
+          "segments": [
+            {
+              "id": "m1",
+              "prompt": "A person claps hands together.",
+              "body_output": "avatar_preset:clap",
+              "face_cues": []
+            }
+          ],
+          "emotes_sent": [
+            2
+          ],
+          "emotes_observed": [
+            2
+          ],
+          "rendered_pose_verified": false
+        },
+        "backend": "syntalker",
+        "model_revision": "4301ada4d5affe6a77beaf5f8e19bc1904d3ea41",
+        "speech_clips": 0
+      },
+      {
+        "status": "completed",
+        "frames": 362,
+        "motion_seconds": 12.0,
+        "audio_seconds": 0,
+        "execution": {
+          "mode": "desktop",
+          "generated_body_transmitted": false,
+          "body_representation": "SDK avatar presets",
+          "segments": [
+            {
+              "id": "m_wave_01",
+              "prompt": "A person waves one hand gently.",
+              "body_output": "avatar_preset:wave",
+              "face_cues": []
+            }
+          ],
+          "emotes_sent": [
+            1
+          ],
+          "emotes_observed": [
+            1
+          ],
+          "rendered_pose_verified": false
+        },
+        "backend": "motioncraft",
+        "model_revision": "a72b1327b5ffefa4f1a9e3ffa2427b9b83f840f9",
+        "speech_clips": 0
+      }
+    ],
+    "visual_observation": "Observer actually saw MoonweaveAI clapping in the shared private room. MotionCraft wave has parameter feedback and a captured raised-hand pose, not an accepted full animation-quality evaluation.",
+    "observer_proof": "doc/assets/vrchat/desktop-clap.jpg",
+    "desktop_contract": "Opt-in SDK action presets from explicit clip intent. Unknown body actions remain not_transmitted; generated full-body skeleton is never claimed as desktop output.",
+    "silence": "audio_enabled=false throughout; no test sound or voice stream",
+    "limits": [
+      "Preset transitions/loops belong to the SDK controller, not exact generated motion timing.",
+      "Fine fingers and full facial quality remain unaccepted.",
+      "Arbitrary generated body streaming in desktop is not implemented."
+    ],
+    "final_runtime": {
+      "backend": "motioncraft",
+      "audio_enabled": false,
+      "desktop_emotes": true,
+      "ready": true,
+      "autonomous_decisions": 3,
+      "no_active_task": true
+    }
+  },
+  "previous_graph_change_analysis": {
+    "scope": "all",
+    "changed_count": 557,
+    "affected_count": 9,
+    "changed_files": 71,
+    "risk_level": "high",
+    "partial": false,
+    "truncated": false,
+    "listed_processes": [
+      "LoadAvatar → Clear",
+      "Selected_client_status → Accept",
+      "Setup_apply → _virea_source_checkout_containing",
+      "Main → From_motion_ir",
+      "Main → String",
+      "Play → Clear",
+      "Run → _virea_source_checkout_containing",
+      "ExecuteActions → Clear",
+      "Collect_retention_candidates → _virea_source_checkout_containing"
+    ],
+    "limitations": "Static analysis has dynamic-dispatch and cross-language boundaries. Index extraction reported 600 flows with 1506 entry candidates omitted, 39 walks budget-cut and a C# directory-scan cap. Listed flows are not proof that unlisted consumers are unaffected.",
+    "status": "Final force index refreshed 2026-10-08T12:45:32.451Z (15861 nodes, 37088 edges); complete detect_changes result reviewed before commit. HIGH impact communicated to user.",
+    "review": "Reviewed API lifecycle/loopback routes, per-process log identity and session reset, model-to-OSC playback/input release, and checkout-local storage opt-in. The three Clear flows are conservative name matches: the new clear callback is lexically scoped inside mountViews; unrelated clear methods remain unchanged. Full Python and web regressions passed."
+  }
+}

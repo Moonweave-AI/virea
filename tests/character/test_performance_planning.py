@@ -7,6 +7,15 @@ from virea.character.performance_planning import requested_motion_duration
 from virea.character.providers.unified import UnifiedMotionProvider
 
 
+def test_later_round_duration_is_not_applied_to_the_current_performance():
+    for text in (
+        "第一轮做8秒欢迎介绍，下一轮用4秒站立。现在只规划第一轮。",
+        "First round: wave 8 seconds. Next round: stand for 4 seconds.",
+        "用8秒挥手，再用4秒站立。",
+    ):
+        assert requested_motion_duration([{"role": "user", "content": text}]) is None
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
