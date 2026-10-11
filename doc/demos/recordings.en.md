@@ -75,6 +75,9 @@ https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
 
 ---
 
+<a id="character-studio"></a>
+## ARDY + SentiAvatar
+
 <!-- BEGIN CHARACTER_DEMOS -->
 **8 complete performances in a two-column gallery.** Each recording follows a model-generated plan. Open the task notes for timing measurements.
 

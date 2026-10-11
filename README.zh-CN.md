@@ -12,6 +12,9 @@
   <a href="doc/demos/README.zh-CN.md"><img src="doc/assets/brand/nav-demos.png" alt="Demos" width="240"></a>
 </p>
 
+<a id="从动作生成走向持续的具身对话"></a>
+<a id="model-support"></a>
+<a id="documentation"></a>
 ## ✦ 让想法成为角色的行动
 
 **VIREA 把语言、语音和动作模型连接到可观看、可交互的角色。** 它将模型的原始骨骼输出重定向到网页中的 VRM 角色，以及 VRChat 中的 Humanoid 角色，串起从模型部署、动作生成到播放与检查的完整工作流。
@@ -45,6 +48,13 @@
 
 ---
 
+<a id="从零开始无需先安装开发工具"></a>
+<a id="从这里开始"></a>
+<a id="先决条件"></a>
+<a id="最短可复现路径"></a>
+<a id="高级手动选择执行域并安装模型"></a>
+<a id="高级手动运行生成与播放"></a>
+<a id="quick-start"></a>
 ## 🚀 部署与启动
 
 **准备一个文件夹，运行启动器即可开始。** [下载源码 ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) 并解压，或通过 Git 下载：
@@ -74,6 +84,9 @@ cd virea
 ---
 
 <a id="demos"></a>
+<a id="vrchat-执行桥接"></a>
+<a id="单模型路线16-个复杂任务-demo"></a>
+<a id="motion-studio-演示"></a>
 ## 🎞️ 演示
 
 ### VRChat Studio
@@ -109,6 +122,8 @@ https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
 ---
 
 <a id="architecture"></a>
+<a id="现在的系统如何工作"></a>
+<a id="能力实测和发布不是同一件事"></a>
 ## 🧩 技术架构
 
 **一套能力接口，一套动作基础，多个执行目标。** 三个工作区共享模型接口与骨骼数学，各执行端负责自己的渲染或设备传输。
@@ -161,6 +176,8 @@ flowchart TB
 
 ---
 
+<a id="维护与贡献"></a>
+<a id="contributing-security-and-distribution"></a>
 ## 🤝 Contributing · 参与贡献
 
 欢迎带来模型适配器、清晰的教程、可复现的动作样本或问题修复。从[贡献指南](CONTRIBUTING.md)开始，选择一个明确的改动，并附上能说明效果的检查结果。涉及动作时，原始骨架与目标角色的同帧对照尤其有帮助。
@@ -177,23 +194,6 @@ flowchart TB
 
 VIREA 项目代码的许可证由维护者确定，目前尚未选定。第三方模型、数据集和角色保留各自的许可，详见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
-<a id="从零开始无需先安装开发工具"></a>
-<a id="从动作生成走向持续的具身对话"></a>
-<a id="vrchat-执行桥接"></a>
-<a id="单模型路线16-个复杂任务-demo"></a>
-<a id="motion-studio-演示"></a>
-<a id="现在的系统如何工作"></a>
-<a id="从这里开始"></a>
-<a id="先决条件"></a>
-<a id="最短可复现路径"></a>
-<a id="高级手动选择执行域并安装模型"></a>
-<a id="高级手动运行生成与播放"></a>
-<a id="能力实测和发布不是同一件事"></a>
-<a id="维护与贡献"></a>
-<a id="model-support"></a>
-<a id="quick-start"></a>
-<a id="documentation"></a>
-<a id="contributing-security-and-distribution"></a>
 <!--
 type: readme
 status: Active

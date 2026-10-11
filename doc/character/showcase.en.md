@@ -8,7 +8,7 @@ These demos turn one conversation into narration, silent demonstrations, travel,
 
 ## Watch
 
-The [README](../../README.md#motion-studio-demos) embeds all eight complete recordings in a two-column, four-row table. Videos are uploaded as GitHub attachments and play inline with seek, sound and full-screen controls; downloading is not required. GitHub initially mutes embedded players, so enable sound in the player. The [attachment manifest](../assets/character-demos/github-videos.json) maps each upload to its original MP4 and SHA-256. The [standalone gallery](../assets/character-demos/index.html) remains available for local playback over HTTP.
+The [complete demo gallery](../demos/recordings.en.md#character-studio) embeds all eight recordings in two columns and four rows. GitHub's inline players support seeking and full screen, with sound available from the player controls. The [attachment manifest](../assets/character-demos/github-videos.json) maps each upload to its original MP4 and SHA-256. Open the [standalone gallery](../assets/character-demos/index.html) over HTTP for local playback.
 
 ```powershell
 python -m http.server 8766 --bind 127.0.0.1 --directory doc/assets/character-demos

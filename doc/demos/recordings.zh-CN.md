@@ -75,6 +75,9 @@ https://github.com/user-attachments/assets/34f49bd8-a4d7-4852-be7c-875032a364b5
 
 ---
 
+<a id="character-studio"></a>
+## ARDY + SentiAvatar
+
 <!-- BEGIN CHARACTER_DEMOS -->
 **8 段完整表演，按两列四行排列。** 每段录制执行模型生成的计划，任务说明提供时长和实测数据。
 

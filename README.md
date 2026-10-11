@@ -12,6 +12,10 @@
   <a href="doc/demos/README.en.md"><img src="doc/assets/brand/nav-demos.png" alt="Demos" width="240"></a>
 </p>
 
+<a id="from-motion-generation-to-embodied-conversation"></a>
+<a id="choose-your-path"></a>
+<a id="model-support"></a>
+<a id="documentation"></a>
 ## ✦ From an idea to a moving character
 
 **VIREA connects language, speech and motion models to characters that you can watch and interact with.** It retargets native skeletal output onto VRM avatars in the browser and Humanoid avatars in VRChat, with a complete path from model setup to generation, playback and inspection.
@@ -45,6 +49,8 @@ Different projects start from companionship, animation authoring or motion captu
 
 ---
 
+<a id="start-without-a-development-environment"></a>
+<a id="quick-start"></a>
 ## 🚀 Set up
 
 **Start with a folder and the launcher.** [Download the source ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) and extract it, or clone with Git:
@@ -74,6 +80,9 @@ The launcher prepares Python, Node.js and application dependencies, builds the i
 ---
 
 <a id="demos"></a>
+<a id="vrchat-execution-bridge"></a>
+<a id="single-family-routes-16-complex-task-demos"></a>
+<a id="motion-studio-demos"></a>
 ## 🎞️ Demos
 
 ### VRChat Studio
@@ -109,6 +118,13 @@ https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
 ---
 
 <a id="architecture"></a>
+<a id="motion-infrastructure"></a>
+<a id="runtime-and-retargeting-foundation"></a>
+<a id="execution-domain-selection-and-evidence"></a>
+<a id="resource-admission-and-fallback"></a>
+<a id="motion-and-result-contracts"></a>
+<a id="repository-structure"></a>
+<a id="validation"></a>
 ## 🧩 Architecture
 
 **One capability system. One motion foundation. Multiple execution targets.** The workspaces share model interfaces and skeletal mathematics. Each target handles its own rendering or device transport.
@@ -161,6 +177,7 @@ flowchart TB
 
 ---
 
+<a id="contributing-security-and-distribution"></a>
 ## 🤝 Contributing
 
 Bring a model adapter, a clearer guide, a reproducible motion example or a fix. Start with the [contribution guide](CONTRIBUTING.md), choose a focused change, and include the checks that show it works. For motion changes, an original-skeleton / target-avatar comparison is especially useful.
@@ -177,23 +194,6 @@ Use avatars and voice references you have permission to use. Keep provider keys 
 
 The VIREA code license is awaiting the maintainers' selection. Third-party models, datasets and avatars retain their own licenses, listed in [Third-party notices](THIRD_PARTY_NOTICES.md).
 
-<a id="start-without-a-development-environment"></a>
-<a id="from-motion-generation-to-embodied-conversation"></a>
-<a id="vrchat-execution-bridge"></a>
-<a id="single-family-routes-16-complex-task-demos"></a>
-<a id="motion-studio-demos"></a>
-<a id="motion-infrastructure"></a>
-<a id="choose-your-path"></a>
-<a id="runtime-and-retargeting-foundation"></a>
-<a id="model-support"></a>
-<a id="execution-domain-selection-and-evidence"></a>
-<a id="quick-start"></a>
-<a id="resource-admission-and-fallback"></a>
-<a id="motion-and-result-contracts"></a>
-<a id="repository-structure"></a>
-<a id="validation"></a>
-<a id="documentation"></a>
-<a id="contributing-security-and-distribution"></a>
 <!--
 type: readme
 status: Active

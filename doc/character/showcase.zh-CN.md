@@ -8,7 +8,7 @@
 
 ## 观看
 
-[README](../../README.zh-CN.md#motion-studio-演示) 以两列四行内嵌八段完整视频，可直接播放、拖动进度、开启声音和全屏观看，无需下载。视频已上传为 GitHub 原生附件；GitHub 默认将播放器静音，请按需开启声音。[附件清单](../assets/character-demos/github-videos.json) 记录每个上传地址、原始 MP4 与 SHA-256。仓库同时保留 [本地双列画廊](../assets/character-demos/index.html)，可通过 HTTP 服务打开。
+[完整演示集](../demos/recordings.zh-CN.md#character-studio) 以两列四行内嵌八段录像。GitHub 播放器支持拖动进度和全屏观看，也可以按需开启声音。[附件清单](../assets/character-demos/github-videos.json) 记录每个上传地址、原始 MP4 与 SHA-256。[本地双列画廊](../assets/character-demos/index.html) 可通过 HTTP 服务打开。
 
 ```powershell
 python -m http.server 8766 --bind 127.0.0.1 --directory doc/assets/character-demos
