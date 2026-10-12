@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import numpy as np
 
 from .connections import private_json
@@ -67,6 +68,32 @@ async def verify_provider(profile, client, directory):
             or result["ready"] is not True
         ):
             raise ValueError("模型未按结构化契约返回测试结果，请更换模型或输出模式")
+        compute = {}
+        if profile["protocol"] == "ollama":
+            response = await client.get(profile["base_url"] + "/api/ps", timeout=10)
+            response.raise_for_status()
+            loaded = next(
+                (
+                    m
+                    for m in response.json().get("models", [])
+                    if profile["model"] in {m.get("name"), m.get("model")}
+                ),
+                None,
+            )
+            if not loaded:
+                raise ValueError("生成完成，但 Ollama 没有报告当前模型的运行设备")
+            gpu_bytes = int(loaded.get("size_vram", 0))
+            requested = profile.get("compute_device", "auto")
+            if requested in {"gpu", "cuda"} and gpu_bytes == 0:
+                raise ValueError(
+                    "Ollama 已生成结果，但 GPU 未实际加载模型；请检查驱动或选择 CPU"
+                )
+            if requested == "cpu" and gpu_bytes > 0:
+                raise ValueError("Ollama 未按 CPU 配置加载模型，请更新 Ollama 后重试")
+            compute = {
+                "compute_device": "gpu" if gpu_bytes else "cpu",
+                "gpu_bytes": gpu_bytes,
+            }
         return receipt(
             directory,
             "language",
@@ -76,6 +103,7 @@ async def verify_provider(profile, client, directory):
             "json",
             result=result,
             structured_output=True,
+            **compute,
         )
     text = "你好，这是一条真实生成的语音检验。"
     try:
@@ -95,6 +123,28 @@ async def verify_provider(profile, client, directory):
         round(float(np.max(np.abs(part))) / 32768, 4)
         for part in np.array_split(samples, min(64, len(samples)))
     ]
+    compute = {}
+    if profile["protocol"] == "virea_tts":
+        try:
+            health = await client.get(
+                profile["base_url"].removesuffix("/v1") + "/health", timeout=10
+            )
+            if health.status_code == 200:
+                details = health.json()
+                if isinstance(details, dict):
+                    compute = {
+                        key: details[key]
+                        for key in (
+                            "device",
+                            "execution_provider",
+                            "reference_encoder_device",
+                        )
+                        if key in details
+                    }
+        except (httpx.HTTPError, ValueError):
+            # Compatible speech services may have no device-telemetry endpoint.
+            # A validated generated waveform remains the acceptance criterion.
+            pass
     return receipt(
         directory,
         "speech",
@@ -108,6 +158,7 @@ async def verify_provider(profile, client, directory):
         voice=profile.get("voice", ""),
         waveform=waveform,
         played=False,
+        **compute,
     )
 
 

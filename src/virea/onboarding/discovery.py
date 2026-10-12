@@ -7,6 +7,8 @@ import shutil
 import httpx
 import psutil
 
+from .hardware import inspect_hardware
+
 
 def local_language_choices():
     memory = psutil.virtual_memory().total / 1024**3
@@ -25,6 +27,7 @@ def local_language_choices():
 
 
 async def discover(paths, config):
+    machine = asyncio.create_task(asyncio.to_thread(inspect_hardware, paths.root))
     candidates = [
         ("ollama", "language", "http://127.0.0.1:11434", "/api/tags"),
         ("lmstudio", "language", "http://127.0.0.1:1234/v1", "/models"),
@@ -38,6 +41,7 @@ async def discover(paths, config):
         ("local-speech", "speech", "http://127.0.0.1:8081/v1", "/audio/voices"),
         ("local-speech", "speech", "http://127.0.0.1:8083/v1", "/audio/voices"),
         ("local-speech", "speech", "http://127.0.0.1:18082/v1", "/audio/voices"),
+        ("local-speech", "speech", "http://127.0.0.1:18083/v1", "/audio/voices"),
         (
             "motioncraft",
             "motion",
@@ -107,6 +111,7 @@ async def discover(paths, config):
             *(probe(*candidate) for candidate in dict.fromkeys(candidates))
         )
     return {
+        "hardware": await machine,
         **local_language_choices(),
         "platform": platform.system(),
         "architecture": platform.machine(),

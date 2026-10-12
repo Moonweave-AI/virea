@@ -1,0 +1,165 @@
+@layer theme, base, studio-layout, components, utilities;
+@import "tailwindcss";
+@import "@heroui/styles";
+
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --background:#f5f2f5; --foreground:#302d3a; --surface:#fffdfd; --surface-foreground:#302d3a;
+  --surface-secondary:#eee9f0; --surface-secondary-foreground:#302d3a; --surface-tertiary:#e6dfe9; --surface-tertiary-foreground:#302d3a;
+  --overlay:#fffdfd; --overlay-foreground:#302d3a; --accent:#74617f; --accent-foreground:#fff;
+  --default:#e7e0eb; --default-foreground:#393040; --muted:#746d7e; --border:#dcd5e0; --separator:#e2dbe6;
+  --field-background:#fffdfd; --field-foreground:#302d3a; --field-placeholder:#8b8294; --field-border:#dcd5e0;
+  --focus:#907aa0; --link:#75617f; --success:#477961; --warning:#946a38; --danger:#a64f65;
+  --moon-silver:#bdb8d1; --moon-rose:#c9adb8; --moon-violet:#383747;
+  --studio-shadow:0 12px 40px #3837470b;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background:#151722; --foreground:#f2edf1; --surface:#20212d; --surface-foreground:#f2edf1;
+  --surface-secondary:#292936; --surface-secondary-foreground:#f2edf1; --surface-tertiary:#383747; --surface-tertiary-foreground:#f2edf1;
+  --overlay:#252532; --overlay-foreground:#f2edf1; --accent:#bdb8d1; --accent-foreground:#25212e;
+  --default:#383747; --default-foreground:#f2edf1; --muted:#b0a8ba; --border:#41404f; --separator:#373642;
+  --field-background:#1b1c28; --field-foreground:#f2edf1; --field-placeholder:#a19aa9; --field-border:#41404f;
+  --focus:#c9adb8; --link:#d8b9ce; --success:#9ac4ad; --warning:#dcc099; --danger:#edacbb;
+  --studio-shadow:0 14px 45px #0003;
+}
+:root[data-theme] {
+  --accent-soft:color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --canvas:var(--background); --bg:var(--background); --ink:var(--foreground); --text:var(--foreground);
+  --paper:var(--surface); --paper-strong:var(--surface); --paper-hover:var(--surface-secondary); --topbar:var(--surface);
+  --sidebar:var(--surface); --user:var(--surface-secondary); --line:var(--border); --line-strong:var(--border);
+  --signal:var(--accent); --signal-dark:var(--accent); --signal-soft:var(--accent-soft); --on-signal:var(--accent-foreground);
+  --stage:var(--surface-secondary); --shadow:var(--studio-shadow); --canvas-glow-a:transparent; --canvas-glow-b:transparent;
+  font-family:Inter,"Segoe UI Variable","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--background); color:var(--foreground);
+}
+body {background:var(--background); color:var(--foreground); margin:0}
+body[data-studio="character"]{--panel-width:340px}
+.mw-chrome {height:60px; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:0 24px; border-bottom:1px solid var(--separator); background:var(--surface); position:relative; z-index:40; font:13px/1.4 Inter,"Segoe UI",sans-serif}
+.mw-identity,.mw-logo,.mw-preferences {display:flex; align-items:center; gap:10px}
+.mw-logo {color:var(--foreground); text-decoration:none; letter-spacing:.07em}
+.mw-logo svg {color:var(--accent)} .mw-logo strong {font-size:17px; font-weight:650}
+.mw-logo > span {border-left:1px solid var(--separator); padding-left:12px; margin-left:2px; font-size:8px; color:var(--muted); letter-spacing:.15em}
+.mw-chrome nav {display:flex; gap:6px}
+.mw-chrome nav a,.mw-navigation nav a {display:flex; gap:8px; align-items:center; padding:9px 12px; border-radius:12px; color:var(--muted); white-space:nowrap}
+.mw-chrome nav a[aria-current],.mw-navigation nav a[aria-current] {color:var(--accent); background:var(--accent-soft)}
+.mw-chrome nav a:hover {background:var(--surface-secondary); color:var(--foreground)}
+.mw-preferences {gap:2px}.mw-preferences .button {font-size:12px; padding:0 10px}.mw-docs {color:var(--muted); padding:8px}.mw-menu {display:none!important}
+.mw-navigation {width:280px;background:var(--surface);color:var(--foreground)}.mw-navigation nav {display:flex;flex-direction:column;gap:8px}
+body[data-studio] :is(button,input,textarea,select,summary,a):focus-visible {outline:2px solid var(--focus);outline-offset:3px}
+body[data-studio] :is(input,select,textarea) {color:var(--field-foreground);background:var(--field-background);border-color:var(--field-border);accent-color:var(--accent)}
+body[data-studio] :is(input,textarea)::placeholder {color:var(--field-placeholder)}
+body[data-studio] [hidden] {display:none!important}
+body[data-studio] :is(.card,.connection-card,.composer,.chat-dock,.history-drawer,.trace-drawer,dialog,.modal) {background:var(--surface);color:var(--foreground);border-color:var(--border);box-shadow:var(--studio-shadow)}
+body[data-studio] :is(.chat-header,.topbar,.rail,.viewport-tools,.drawer-heading,.dialog-heading) {background:var(--surface);color:var(--foreground);border-color:var(--border)}
+body[data-studio] :is(.brand span,.wordmark-dot,.live-dot) {color:var(--accent)}
+body[data-studio] :is(.primary,.send-button) {background:var(--accent);color:var(--accent-foreground);border-color:transparent}
+body[data-studio] :is(.hint,.note,.setup-help,.eyebrow,.composer-footnote,.stage-heading p) {color:var(--muted)}
+body[data-studio] :is(.button,.input) {font-family:inherit}
+body[data-studio] .button {border-radius:10px}
+body[data-studio] dialog {inset:0;margin:auto;max-height:calc(100dvh - 40px);overflow:auto}
+body[data-studio] dialog::backdrop {background:#090a1280;backdrop-filter:blur(5px)}
+body[data-studio="character"] .workspace {height:calc(100dvh - 60px)}
+body[data-studio="character"] .stage {height:100%}
+body[data-studio="character"] .session-tools {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 0 14px}
+body[data-studio="character"] :is(#history-close,#trace-close) {display:none}
+body[data-studio="character"] .drawer-heading {margin-bottom:18px}
+body[data-studio="character"] .rail {top:60px}
+body[data-studio="character"] .history-drawer {top:60px;position:absolute;box-shadow:none;z-index:20}
+body[data-studio="character"] .trace-drawer {top:60px;bottom:0;left:60px;width:360px;border-radius:0;box-shadow:none;padding:20px}
+body[data-studio="character"] .workspace:has(~ .trace-drawer:not([hidden])) {margin-left:420px}
+body[data-studio="character"] .workspace:has(~ .history-drawer:not([hidden])) {margin-left:370px}
+body[data-studio="character"] #subtitle:not(:empty) {background:var(--surface);color:var(--foreground);border-color:var(--border)}
+body[data-studio="character"] .chat-dock {box-shadow:var(--studio-shadow)}
+body[data-studio="character"] #composer {background:var(--field-background);border-color:var(--border)}
+body[data-studio="character"] .rail>.brand {display:none}
+body[data-studio="character"] .stage-heading h1 {color:var(--foreground)}
+body[data-studio="character"] .avatar-picker {background:var(--surface-secondary);border-color:var(--border);color:var(--foreground)}
+body[data-studio="character"] .icon-button[aria-pressed=true] {background:var(--accent-soft);color:var(--accent)}
+body[data-studio="character"] :is(.chat-content,.settings-content,.latest-reply,.expression-panel,.track,.route-card,.diagnostics,details,.voice-import-fields) {background:transparent;color:var(--foreground);border-color:var(--border)}
+body[data-studio="character"] :is(.stage,.stage canvas) {background:var(--background)}
+body[data-studio="vrchat"] #vrchat {height:calc(100dvh - 60px)}
+body[data-studio="vrchat"] .live-views {animation:mw-enter .22s ease-out}
+body[data-studio="vrchat"] .sidebar {position:relative;z-index:10}
+body[data-studio="vrchat"] .sidebar-heading {display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+body[data-studio="vrchat"] .sidebar-heading .wordmark {padding:0 10px 0 44px;font-size:14px}
+body[data-studio="vrchat"] .live-views {flex-basis:clamp(290px,35vw,640px)}
+body[data-studio="vrchat"] :is(.welcome-mark,.welcome-mark span,.view-symbol) {color:var(--accent)}
+body[data-studio] :is(.error-banner,.inline-error) {background:var(--danger-soft);color:var(--danger);border-color:var(--border)}
+body[data-studio="character"] :is(.quiet,.stage-label,.stage-status,.chat-label,.drawer-empty) {color:var(--muted)}
+body[data-studio="character"] :is(.icon-button,.quiet) {background:transparent}
+body[data-studio="character"] :is(.icon-button,.quiet):hover {background:var(--surface-secondary)}
+@media(max-width:1150px) {.mw-logo > span {display:none}.mw-chrome {gap:10px;padding:0 16px}.mw-chrome nav a {padding:9px}}
+@media(max-width:850px) {
+ .mw-menu {display:inline-flex!important}.mw-desktop-nav {display:none}.mw-chrome {height:56px;padding:0 12px}
+ body[data-studio="character"] .workspace {height:calc(100dvh - 56px)}
+ body[data-studio="character"] .rail {top:56px}
+ body[data-studio="character"] .workspace:has(~ .history-drawer:not([hidden])) {margin-left:60px}
+ body[data-studio="character"] .workspace:has(~ .trace-drawer:not([hidden])) {margin-left:60px}
+ body[data-studio="vrchat"] #vrchat {height:calc(100dvh - 56px)}
+}
+@media(max-width:900px) {
+ body[data-studio="vrchat"] .sidebar {position:absolute;top:60px;bottom:0;left:0;z-index:30;transform:translateX(-100%);margin-left:0;transition:transform .2s;width:252px}
+ body[data-studio="vrchat"].sidebar-open .sidebar {transform:translateX(0);box-shadow:var(--studio-shadow)}
+}
+@media(max-width:850px) {body[data-studio="vrchat"] .sidebar {top:56px}}
+@media(max-width:640px) {body[data-studio="vrchat"] .live-views {top:56px;z-index:35}}
+.mw-select-host{display:block;min-width:0;width:100%}
+body[data-studio] select.mw-native-select{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)}
+.mw-select-host .select__trigger{width:100%;min-height:42px;border:1px solid var(--field-border);border-radius:11px;background:var(--field-background);box-shadow:none;padding:10px 12px;gap:10px;font-size:13px;color:var(--foreground)}
+.mw-select-host .select__value{text-overflow:ellipsis;overflow:hidden;white-space:nowrap;min-width:0;text-align:left}
+.mw-select-popover{max-height:min(360px,70dvh);overflow:auto;border:1px solid var(--border);border-radius:14px;padding:6px;background:var(--overlay);color:var(--overlay-foreground);box-shadow:0 18px 48px #0003;z-index:100}
+.mw-select-popover .list-box-item{font-size:13px;min-height:38px;padding:9px 12px;border-radius:8px}
+.mw-select-popover .list-box-item:is([data-focused=true],[data-selected=true]){background:var(--accent-soft);color:var(--foreground)}
+.mw-select-popover .label{font-size:inherit;color:inherit}
+@keyframes mw-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes mw-slide{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+body[data-studio] :is(dialog[open],.tab-content,.page-frame,.mw-job,.mw-metric){animation:mw-enter .2s ease-out}
+body[data-studio] :is(.history-drawer,.trace-drawer):not([hidden]){animation:mw-slide .22s ease-out}
+body[data-studio] :is(.workspace,.sidebar,.live-views){transition:margin .24s ease,flex-basis .24s ease,transform .24s ease}
+body[data-studio] :is(.button,.select__trigger,input,textarea,a){transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease}
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:mw-enter .12s ease-in reverse}
+::view-transition-new(root){animation:mw-enter .18s ease-out}
+@media(prefers-reduced-motion:reduce) {*,*::before,*::after {scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* One navigation bar; tools stay beside the content they operate. */
+body[data-studio="vrchat"] #vrchat {position:relative}
+body[data-studio="vrchat"] .sidebar-toggle {position:absolute;left:16px;top:18px;z-index:36;background:var(--surface);border:1px solid var(--separator)}
+.sidebar-toggle svg {width:20px;height:20px}
+body[data-studio="vrchat"] .chat-shell>.views-toggle {position:absolute;right:20px;top:18px;z-index:6;background:var(--surface);border:1px solid var(--separator)}
+body[data-studio="vrchat"] .chat-scroll {padding-top:70px}
+body[data-studio="vrchat"] .composer-model {width:150px;flex:none}
+body[data-studio="vrchat"] .composer-model .select__trigger {min-height:32px;padding:5px 9px;background:transparent;border:0;font-size:12px}
+body[data-studio="vrchat"] .composer-status {display:flex;justify-content:center;margin-top:8px}
+body[data-studio="vrchat"] .composer-status .connection-pill {background:none;border:0;padding:0;font-size:10px}
+body[data-studio="vrchat"] .composer-footnote {margin-top:5px}
+body[data-studio="vrchat"] .sidebar {padding-top:24px}
+body[data-studio] #settings-dialog {width:min(680px,calc(100vw - 32px));padding:0;overflow:hidden;border-radius:22px;max-height:min(860px,calc(100dvh - 40px))}
+body[data-studio] #settings-dialog>.dialog-heading {padding:24px 28px 18px;border-bottom:1px solid var(--separator);gap:24px}
+body[data-studio] #settings-dialog .dialog-heading h2 {font-size:20px;letter-spacing:-.02em;margin:0}
+body[data-studio] #settings-dialog :is(.dialog-body,.settings-scroll) {max-height:calc(100dvh - 180px);overflow:auto;padding:24px 28px;scrollbar-gutter:stable}
+body[data-studio] #settings-dialog .dialog-tabs {padding:12px 28px;gap:6px;border-bottom:1px solid var(--separator)}
+body[data-studio] #settings-dialog .dialog-tabs button {padding:8px 18px;border:0;border-radius:10px}
+body[data-studio] #settings-dialog .dialog-tabs [aria-selected=true] {background:var(--accent-soft);color:var(--accent)}
+body[data-studio] #settings-dialog label {line-height:1.6}
+body[data-studio] #settings-dialog :is(input:not([type=checkbox]),textarea) {border:1px solid var(--border);border-radius:10px;padding:10px 12px;width:100%}
+body[data-studio] #settings-dialog :is(details,.settings-group) {border:1px solid var(--separator);border-radius:14px;padding:0 18px;margin:18px 0}
+body[data-studio] #settings-dialog details>summary {padding:15px 0;font-weight:500;font-size:13px}
+body[data-studio] #settings-dialog :is(.note,.hint,.setup-help) {font-size:12px;line-height:1.7}
+body[data-studio="character"] #settings-dialog .settings {gap:16px;padding:0}
+body[data-studio="character"] #settings-dialog .file {padding:22px;border-radius:16px;background:var(--accent-soft);border:1px dashed var(--border)}
+body[data-studio="character"] #settings-dialog .voice-heading {border-top:1px solid var(--separator);padding-top:24px;margin-top:12px}
+@media(max-width:900px) {body[data-studio="vrchat"] .sidebar {top:0!important}body[data-studio="vrchat"] .composer-tools {flex-wrap:wrap}body[data-studio="vrchat"] #output-label {display:none}}
+
+/* Native top-layer dialogs and disclosures use the same motion rhythm as HeroUI. */
+:root{--studio-ease:cubic-bezier(.22,.8,.24,1)}
+.mw-chrome{view-transition-name:studio-navigation}
+::view-transition-old(studio-navigation),::view-transition-new(studio-navigation){animation:none}
+body[data-studio] dialog{opacity:0;transform:translateY(10px) scale(.985);transition:opacity .22s var(--studio-ease),transform .22s var(--studio-ease),display .22s allow-discrete,overlay .22s allow-discrete}
+body[data-studio] dialog[open]{opacity:1;transform:none;animation:none}
+body[data-studio] dialog::backdrop{background:#100e1880;backdrop-filter:blur(5px);transition:opacity .22s var(--studio-ease),display .22s allow-discrete,overlay .22s allow-discrete}
+@starting-style{body[data-studio] dialog[open]{opacity:0;transform:translateY(10px) scale(.985)}body[data-studio] dialog[open]::backdrop{opacity:0}}
+@supports(interpolate-size:allow-keywords){body[data-studio] details::details-content{interpolate-size:allow-keywords;height:0;opacity:0;overflow:clip;transition:height .24s var(--studio-ease),opacity .2s ease,content-visibility .24s allow-discrete}body[data-studio] details[open]::details-content{height:auto;opacity:1}}
+@media(prefers-reduced-motion:reduce){body[data-studio] :is(dialog,dialog::backdrop,details::details-content){transition:none!important}}
+@media(max-width:640px){body[data-studio] #settings-dialog>.dialog-heading{padding:20px}body[data-studio] #settings-dialog :is(.dialog-body,.settings-scroll){padding:20px}}

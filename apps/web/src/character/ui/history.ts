@@ -81,6 +81,7 @@ export class StudioHistory {
     this.current = value.id;
     if (!this.selected || !this.records.some(r => r.id === this.selected) || record.turns.length === 1 && record.turns[0]?.status === "thinking") this.selected = value.id;
     try { localStorage.setItem(storageKey, JSON.stringify(this.records)); } catch { /* Current history remains available when storage is full. */ }
+    this.el("#workspace-title").toggleAttribute("data-ui-copy", !record.turns.length);
     this.el("#workspace-title").textContent = record.title;
     this.render();
   }

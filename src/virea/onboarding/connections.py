@@ -7,6 +7,7 @@ import os
 import re
 import threading
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
@@ -197,6 +198,7 @@ class ConnectionInput(BaseModel):
     api_key: SecretStr | None = None
     api_key_env: str = Field(default="", max_length=100)
     structured: str = "auto"
+    compute_device: Literal["auto", "cpu", "gpu", "cuda"] = "auto"
 
     @model_validator(mode="after")
     def coherent(self):

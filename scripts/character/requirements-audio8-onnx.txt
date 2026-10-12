@@ -1,0 +1,11 @@
+# Official Audio8 ONNX requirements, with explicit gateway dependencies.
+numpy==2.4.3
+# ONNX Runtime is installed separately for the selected CPU / CUDA backend.
+soundfile==0.13.1
+scipy==1.17.1
+fastapi==0.135.2
+uvicorn==0.42.0
+pydantic==2.13.5
+python-multipart==0.0.22
+# Imported by the official PromptBuilder, omitted from its minimal requirements.
+tokenizers==0.22.2

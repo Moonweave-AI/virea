@@ -1,5 +1,6 @@
 import { executionLabel } from "./character/execution.mjs";
 import "./vrchat.css";
+import {mountStudioChrome} from "./studio/chrome";
 import {acceptSnapshot, bridgeError, executionResult, executionNote, mergeTranscript, readConversations, statusLabel, type Conversation} from "./vrchat-conversation.mjs";
 import {connectionView, readConnectionSettings} from "./vrchat-connection.mjs";
 import {mountViews} from "./vrchat-view-panel";
@@ -8,15 +9,16 @@ import {mountClientLaunchers} from "./vrchat-client-panel";
 const icon = (name: string) => ({menu: "☰", plus: "+", settings: "⚙", arrow: "↑", stop: "■", close: "×"})[name] ?? name;
 const root = document.querySelector<HTMLElement>("#vrchat")!;
 root.innerHTML = `
+  <button class="icon-button sidebar-toggle" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></button>
   <aside class="sidebar" id="sidebar" aria-label="对话导航">
-    <a class="wordmark" href="./">VIREA<span class="wordmark-dot"></span></a>
+    <div class="sidebar-heading"><span class="wordmark">对话</span></div>
     <button class="new-chat" id="new-chat">${icon("plus")} <span>新对话</span><kbd>Ctrl ⇧ O</kbd></button>
     <label class="search"><span class="sr-only">搜索本机对话</span><input id="search" type="search" placeholder="搜索对话" autocomplete="off"></label>
     <p class="nav-label">最近的对话</p><nav id="conversations" aria-label="聊天记录"></nav>
-    <div class="sidebar-bottom"><a href="./">Motion Lab <span>↗</span></a><a href="./setup.html">部署与模型接入 <span>↗</span></a><a href="./character.html">Character Studio <span>↗</span></a><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
+    <div class="sidebar-bottom"><button id="open-settings">${icon("settings")} <span>角色与连接设置</span></button><p>对话记录仅保存在此浏览器</p></div>
   </aside>
   <div class="chat-shell">
-    <header class="chat-header"><div><button class="icon-button" id="toggle-sidebar" aria-label="切换侧栏" aria-expanded="true" aria-controls="sidebar">${icon("menu")}</button><label class="model-button">VRChat Studio <select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></div><div class="header-tools"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button><button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button></div></header>
+    <button id="toggle-views" class="icon-button views-toggle" aria-label="展开实时双视角" aria-expanded="false" aria-controls="live-views" title="实时双视角"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M11 3v14m0-7h7" stroke="currentColor" stroke-width="1.4"/></svg></button>
     <div class="chat-scroll" id="chat-scroll">
       <section class="connection-card" aria-label="AI 角色连接" aria-live="polite"><div class="connection-card-heading"><span class="avatar-mark">V</span><div><strong id="connection-title">正在连接控制服务</strong><p id="character-name">正在识别角色</p></div><button id="reconnect" type="button">重新连接</button></div><div id="connection-steps" class="connection-steps"></div><p id="connection-detail"></p><button id="connection-settings" type="button">查看角色与输出设置 ↗</button></section>
       <section class="avatar-preview" aria-label="导入模型预览"><canvas id="avatar-canvas" aria-label="可拖动旋转的 VRM 模型预览"></canvas><p id="avatar-preview-note">正在加载导入的角色…</p><button id="reload-avatar" type="button" hidden>重新加载模型</button></section>
@@ -28,18 +30,19 @@ root.innerHTML = `
     <div class="composer-wrap">
       <div id="error" class="error-banner" role="alert" hidden><span id="error-text"></span><button id="retry">重试</button><button id="dismiss-error" class="icon-button" aria-label="关闭错误提示">×</button></div>
       <div id="context-note" class="context-note"></div>
-      <form id="message-form" class="composer"><label class="sr-only" for="message">给 Virea 发消息</label><textarea id="message" rows="1" maxlength="4000" placeholder="给 Virea 发消息，或安排一个任务…" required></textarea><div class="composer-tools"><button id="quick-settings" type="button" aria-label="输出设置">${icon("settings")} <span id="output-label">桌面模式 · 语音关闭</span></button><span id="character-count"></span><button id="send" class="send-button" type="submit" aria-label="发送消息">${icon("arrow")}</button></div></form>
+      <form id="message-form" class="composer"><label class="sr-only" for="message">给 Virea 发消息</label><textarea id="message" rows="1" maxlength="4000" placeholder="给 Virea 发消息，或安排一个任务…" required></textarea><div class="composer-tools"><label class="composer-model"><select id="model-choice" aria-label="动作方法"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label><button id="quick-settings" type="button" aria-label="输出设置">${icon("settings")} <span id="output-label">桌面模式 · 语音关闭</span></button><span id="character-count"></span><button id="send" class="send-button" type="submit" aria-label="发送消息">${icon("arrow")}</button></div></form>
+      <div class="composer-status"><button id="connection" class="connection-pill" aria-label="查看连接状态"><i></i><span>尚未连接</span></button></div>
       <p class="composer-footnote">Enter 发送 · Shift + Enter 换行 <span>关闭页面后，当前任务仍会继续。</span></p>
     </div>
   </div>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><h2 id="settings-title">角色与连接</h2><button id="close-settings" class="icon-button" aria-label="关闭设置">×</button></div><div class="dialog-tabs"><button id="configuration-tab" aria-selected="true">设置</button><button id="diagnostics-tab" aria-selected="false">诊断</button></div><div class="dialog-body"><section id="configuration-panel">  <form id="connect-form"><fieldset id="settings">
-    <section class="setup-guide"><h3>AI 是独立角色，你是观察者</h3><p>保留你当前的 VRChat 窗口。AI 使用第二个客户端和专用端口，登录独立账号。两个账号进入同一在线房间后，才能从你的视角观察 AI。</p><ol><li>启动 AI 客户端，并登录 AI 账号。<button type="button" id="copy-launch">复制 AI 启动参数</button></li><li>在 AI 窗口开启 Action Menu → Options → OSC，使用支持全身追踪的 Humanoid 角色。</li><li>本页面自动跟随 AI 当前角色，换角色后重新校准，无需填写 Avatar ID 或安装 VIREA 参数。</li></ol><p>可以使用账号已有的兼容角色。只有导入自己的 VRM 时才需要 Unity 和上传权限；SDK Build &amp; Test 角色仅本客户端可见。<a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" target="_blank" rel="noreferrer">官方角色导入流程 ↗</a></p></section>
+    <details class="setup-guide"><summary>AI 是独立角色，你是观察者</summary><p>保留你当前的 VRChat 窗口。AI 使用第二个客户端和专用端口，登录独立账号。两个账号进入同一在线房间后，才能从你的视角观察 AI。</p><ol><li>启动 AI 客户端，并登录 AI 账号。<button type="button" id="copy-launch">复制 AI 启动参数</button></li><li>在 AI 窗口开启 Action Menu → Options → OSC，使用支持全身追踪的 Humanoid 角色。</li><li>本页面自动跟随 AI 当前角色，换角色后重新校准，无需填写 Avatar ID 或安装 VIREA 参数。</li></ol><p>可以使用账号已有的兼容角色。只有导入自己的 VRM 时才需要 Unity 和上传权限；SDK Build &amp; Test 角色仅本客户端可见。<a href="https://creators.vrchat.com/avatars/creating-your-first-avatar/" target="_blank" rel="noreferrer">官方角色导入流程 ↗</a></p></details>
     <label>运行模式<select id="mode"><option value="generated_vr">模型姿态 → 虚拟 VR 设备</option><option value="desktop">桌面兼容模式（无生成全身动作）</option><option value="vr_trackers">实体 VR 设备 + 身体追踪</option></select></label>
     <p id="mode-note" class="note">桌面版输出移动、语音和自定义手势；不能通过 OSC 播放任意全身骨骼动画。</p>
     <label>动作模型<select id="backend"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label>
     <p class="note">可以随时切换；保存后停止当前任务，保留对话和 VRChat 连接。新消息使用新方法。</p>
-    <label><input type="checkbox" id="desktop-emotes"> 桌面动作：使用角色的 SDK 预设动画</label>
-    <p class="note">适用于已准备的 VIREA 角色：挥手、鼓掌、指向、欢呼和跳舞。预设动画按动作时间轴播放，不等同于 MotionCraft / SynTalker 生成骨骼的原样播放。其他动作会注明未传递。</p>
+    <div class="desktop-emote-settings"><label><input type="checkbox" id="desktop-emotes"> 桌面动作：使用角色的 SDK 预设动画</label>
+    <p class="note">适用于已准备的 VIREA 角色：挥手、鼓掌、指向、欢呼和跳舞。预设动画按动作时间轴播放，不等同于 MotionCraft / SynTalker 生成骨骼的原样播放。其他动作会注明未传递。</p></div>
     <label>克隆声音<select id="voice"><option value="">使用已配置声音</option></select></label>
     <label>角色设定<textarea id="persona" rows="2" placeholder="留空沿用 VIREA 的角色设定"></textarea></label>
     <label>每个任务的自主跟进次数<input id="autonomy" type="number" value="3" min="0" max="10" required></label>
@@ -58,6 +61,7 @@ root.innerHTML = `
   <button id="disconnect" type="button" hidden>断开连接</button>
 <p class="setup-help">全身和手指使用通用追踪输入，由 VRChat 的 Humanoid IK 适配角色；无需专用动画层。额外表情取决于角色支持，不影响骨骼控制。非人形骨架不在此通用控制范围内。</p></section><section id="diagnostics-panel" hidden><h3>真实回传</h3><p id="receiver"></p><dl id="feedback"></dl><p class="note">发送帧数：<span id="frames">0</span>。UDP 发送成功并不代表角色已执行；此处不会将命令当作观测结果。</p><h3>最近执行记录</h3><pre id="results">[]</pre></section></div></dialog>`;
 
+mountStudioChrome("vrchat", root);
 function element<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
 function value(id: string) { return element<HTMLInputElement>(id).value; }
 function checked(id: string) { return element<HTMLInputElement>(id).checked; }
@@ -134,7 +138,7 @@ function selectConversation(item: Conversation) {
   drafts.set(active.id, input.value); active = item;
   input.value = drafts.get(item.id) ?? "";
   messagesKey = ""; render(state); resizeInput();
-  if (innerWidth < 900) document.body.classList.remove("sidebar-open");
+  if (innerWidth <= 900) setSidebar(false);
   input.focus();
 }
 function renderNavigation() {
@@ -145,6 +149,7 @@ function renderNavigation() {
   const nav = element("conversations"); nav.replaceChildren();
   for (const item of list.slice(0, 50)) {
     const button = document.createElement("button"); button.className = "conversation";
+    if (!item.messages.length && item.title === "新的对话") button.dataset.uiCopy = "true";
     button.textContent = item.title; button.title = item.title;
     button.setAttribute("aria-current", item.id === active.id ? "page" : "false");
     if (item.sessionId && item.sessionId === state.session?.id) button.classList.add("live-conversation");
@@ -225,6 +230,7 @@ function render(next: any) {
   element<HTMLInputElement>("avatar-id").disabled ||= checked("auto-bind");
   const desktopMode = value("mode") === "desktop";
   element<HTMLInputElement>("desktop-emotes").disabled = busy || !desktopMode;
+  element("desktop-emotes").closest<HTMLElement>(".desktop-emote-settings")!.hidden = !desktopMode;
   if (!desktopMode) element<HTMLInputElement>("desktop-emotes").checked = false;
   element("mode-note").textContent = value("mode") === "generated_vr" ? "模型每帧生成的头、手、手指和身体姿态进入 SteamVR / OSC；AI 客户端需要 VR 模式及 FBT 校准。观察者可继续使用桌面版。" : desktopMode ? "桌面兼容模式没有模型生成的全身姿态输出。" : "使用实体头手设备和模型身体追踪，需要 VRMode=1 及 FBT 校准。";
   element("connect").textContent = state.connected ? "保存对话设置" : "连接 VRChat 桥接";
@@ -365,7 +371,18 @@ for (const id of ["show-diagnostics", "connection", "diagnostics-tab"]) element(
 element("configuration-tab").addEventListener("click", () => showSettings());
 element("close-settings").addEventListener("click", () => dialog.close());
 dialog.addEventListener("click", event => { if (event.target === dialog) { const box = dialog.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close(); } });
-element("toggle-sidebar").addEventListener("click", () => { const narrow = innerWidth < 900; document.body.classList.toggle(narrow ? "sidebar-open" : "sidebar-closed"); element("toggle-sidebar").setAttribute("aria-expanded", String(narrow ? document.body.classList.contains("sidebar-open") : !document.body.classList.contains("sidebar-closed"))); });
+const sidebarViewport = matchMedia("(max-width:900px)");
+function setSidebar(open: boolean) {
+  document.body.classList.toggle("sidebar-open", sidebarViewport.matches && open);
+  document.body.classList.toggle("sidebar-closed", !sidebarViewport.matches && !open);
+  element("toggle-sidebar").setAttribute("aria-expanded", String(open));
+  element("sidebar").inert = !open;
+}
+setSidebar(!sidebarViewport.matches);
+sidebarViewport.addEventListener("change", () => setSidebar(!sidebarViewport.matches));
+element("toggle-sidebar").addEventListener("click", () => setSidebar(element("toggle-sidebar").getAttribute("aria-expanded") !== "true"));
+document.addEventListener("keydown", event => {if (event.key === "Escape" && !document.querySelector("dialog[open]")) setSidebar(false);});
+element("sidebar").addEventListener("virea:close-sidebar", () => setSidebar(false));
 element("connect-form").addEventListener("submit", event => { event.preventDefault(); void action(state.connected ? applySessionSettings : connectCurrent); });
 element("connection-settings").addEventListener("click", () => showSettings());
 element("reconnect").addEventListener("click", () => void action(async () => {

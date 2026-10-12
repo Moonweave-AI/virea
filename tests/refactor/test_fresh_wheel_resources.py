@@ -173,7 +173,15 @@ def _read_tar_text(archive: tarfile.TarFile, member_name: str) -> str:
 
 def _assert_web_release_branding(bundle: bytes, member_name: str) -> None:
     text = bundle.decode("utf-8")
-    assert "Motion Lab 0.4.0" in text, member_name
+    for label in (
+        "VIREA",
+        "MOONWEAVE AI",
+        "Set Up",
+        "Motion Lab",
+        "Character Studio",
+        "VRChat Studio",
+    ):
+        assert label in text, (member_name, label)
     assert "Motion Studio 0.3" not in text, member_name
 
 
@@ -368,7 +376,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         sdist_web_bundles = tuple(
             name
             for name in sdist_names
-            if name.startswith(sdist_prefix + "apps/web/dist/assets/index-")
+            if name.startswith(sdist_prefix + "apps/web/dist/assets/chrome-")
             and name.endswith(".js")
         )
         assert len(sdist_web_bundles) == 1
@@ -492,7 +500,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         wheel_web_bundles = tuple(
             name
             for name in wheel_names
-            if name.startswith("virea/_bundled/apps/web/dist/assets/index-")
+            if name.startswith("virea/_bundled/apps/web/dist/assets/chrome-")
             and name.endswith(".js")
         )
         assert len(wheel_web_bundles) == 1
@@ -1002,8 +1010,14 @@ with TestClient(application) as client:
     asset_response = client.get(match.group(1))
     assert asset_response.status_code == 200
     assert asset_response.content
-    assert "Motion Lab 0.4.0" in asset_response.text
     assert "Motion Studio 0.3" not in asset_response.text
+    shell = re.search(r'["\'](/app/assets/chrome-[^"\']+\.js)["\']', response.text)
+    assert shell is not None
+    shell_response = client.get(shell.group(1))
+    assert shell_response.status_code == 200
+    for label in ("VIREA", "MOONWEAVE AI", "Set Up", "Motion Lab", "Character Studio", "VRChat Studio"):
+        assert label in shell_response.text, label
+    assert "Motion Studio 0.3" not in shell_response.text
 print(json.dumps({"origin": assets.origin, "asset": match.group(1), "descriptor_assets_checked": descriptor_assets_checked}))
 """
     checked = _run(

@@ -53,14 +53,20 @@ async def speech_models(profile, client):
     response = await client.get(
         profile["base_url"] + "/models", headers=headers(profile), timeout=15
     )
-    if (
-        response.status_code in {404, 405, 501}
-        and profile.get("model")
-        and protocol == "virea_tts"
-    ):
-        return [
-            {"id": profile["model"], "name": profile["model"]}
-        ], "service_configuration"
+    if response.status_code in {404, 405, 501} and protocol == "virea_tts":
+        model = profile.get("model")
+        if model and model != "auto":
+            return [{"id": model, "name": model}], "service_configuration"
+        # Recognize the older bundled Kokoro service by its own health contract.
+        # Its inference API accepts 'kokoro', not the upstream HF repository ID.
+        health = await client.get(
+            profile["base_url"].removesuffix("/v1") + "/health", timeout=10
+        )
+        if health.status_code == 200 and str(health.json().get("model", "")).startswith(
+            "hexgrad/Kokoro-"
+        ):
+            return [{"id": "kokoro", "name": "Kokoro"}], "legacy_kokoro"
+        return [], "service_configuration"
     provider_error(response)
     payload = response.json()
     rows = (
@@ -108,6 +114,10 @@ async def resolve_options(profile, client):
             if isinstance(model, str) and model and model != "auto"
             else []
         )
+        if not models:
+            # A voice catalogue is not required to repeat /models. Read the
+            # service's advertised model before considering a configured alias.
+            models, source = await speech_models(profile, client)
         voice_rows = payload.get("voices", [])
     else:
         (models, source), voice_rows = await asyncio.gather(
@@ -115,7 +125,9 @@ async def resolve_options(profile, client):
         )
     if not models:
         raise ValueError(
-            "服务没有返回可用的模型。请检查该账号的模型权限，或选择另一服务后重新检测。"
+            "语音服务未返回模型标识，请更新本地语音服务后重新检测。"
+            if profile["protocol"] == "virea_tts"
+            else "服务没有返回可用的模型。请检查该账号的模型权限，或选择另一服务后重新检测。"
         )
     # Preserve a user's saved choice only while the provider still lists it.
     preferred = profile.get("model") or PRESETS[profile["provider"]].get("model")

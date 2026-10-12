@@ -48,9 +48,9 @@ To choose another disk or port, use the options in [persistent data locations](p
 |---|---|---|
 | Language | Choose a provider, enter its key, then choose a discovered model | A generated structured reply, elapsed time and a downloadable result |
 | Speech | Choose a provider, model and named voice; Azure also asks for a region | A generated waveform, duration and WAV download |
-| Motion | Choose MotionCraft or SynTalker for interactive performances, or a model from Motion Lab's catalog | Generated motion frames, dimensions, elapsed time and an NPZ download |
+| Motion | Choose MotionCraft or SynTalker for interactive performances, or a model from the Set Up motion library | Generated motion frames, dimensions, elapsed time and an NPZ download |
 
-Use **自动检测并启用** to detect, test and activate a connection. Use **重新生成检验** to repeat the test. An edited connection stays a draft until its new generation check passes. Speech verification creates a file; press a playback control when you want to hear it.
+Use **Detect, test & activate** to detect, test and activate a connection. Use **Run generation test** to repeat the test. An edited connection stays a draft until its new generation check passes. Speech verification creates a file; press a playback control when you want to hear it.
 
 The language presets include OpenAI, DeepSeek, Anthropic, Alibaba Bailian, Gemini, OpenRouter, Groq and SiliconFlow. Local discovery finds Ollama, LM Studio, llama.cpp and VIREA endpoints. Speech presets include OpenAI Speech, Bailian, ElevenLabs, Azure and local services. Choose the region that belongs to your provider key. Models and voices are selected from lists.
 
@@ -58,17 +58,32 @@ For voice cloning, use an existing provider clone or import reference audio and 
 
 ## 3. Deploy a local model
 
-Choose an installation recipe and click **检测并部署**. The page shows the current step, percentage and download progress. VIREA reuses healthy local services and cached assets; otherwise it prepares an isolated environment, downloads the pinned source and model files, starts the service and runs a generation check.
+Choose an installation recipe and click **Detect & deploy**. The page shows the current step, percentage and download progress. VIREA reuses healthy local services and cached assets; otherwise it prepares an isolated environment, downloads the pinned source and model files, starts the service and runs a generation check.
 
-Ollama supplies local language models; Kokoro supplies CPU speech; MotionCraft and SynTalker supply motion. Hardware detection selects a runtime. The automatic motion selection starts with CUDA when the detected NVIDIA GPU has at least 12 GiB VRAM, or selects CPU. Compare model requirements and available memory in the [model catalog](../models/README.en.md).
+| Local model | Compute options | What is installed |
+|---|---|---|
+| Ollama | Automatic, CPU, supported GPU | Selected language model and service |
+| Kokoro | CPU, NVIDIA CUDA, Apple MPS | Speech model, dictionaries and voices |
+| Audio8 | CPU, NVIDIA CUDA | Official INT4 ONNX model and reference-voice encoder |
+| MotionCraft / SynTalker | CPU or NVIDIA CUDA | Isolated runtime, source and model weights |
 
-Cancel and retry keep reusable downloads. Successful services restart with VIREA. **停止与关闭自动启动** stops a VIREA-managed service and turns off its automatic recovery.
+Choose **Automatic** for a device recommendation, or choose CPU/GPU explicitly. An unsupported accelerator produces an actionable error; it is never reported as working GPU inference after silently using CPU. Audio8’s reference-voice encoder runs on CPU; its speech model uses the selected device. See the [model catalog](../models/README.en.md) for memory requirements.
+
+**Your device** shows OS, CPU, available RAM, disks, GPU memory, tools and discovered local services. **Environments & storage** lists host/WSL execution domains, Python candidates, Conda/Mamba environments and registered runtimes. These settings live in Set Up; Motion Lab opens directly into creation.
+
+Each model has one deployment card. Its current run shows six steps, overall percentage, download bytes, transfer speed, elapsed time and an expandable process log. Earlier attempts are folded into history. Completed cards include the generated result and service controls. The launcher prints the same deployment events while the page is used, then lists links to all three studios.
+
+The **Motion model library** distinguishes **Ready**, **Found locally** and **Available**. Ready models open directly in Motion Lab. Connect an existing model to reuse its pinned local files and verify its environment. Sources must match the requested revision; immutable weights are shared with hard links when possible. Keep project data in ignored `.virea-runtime/`; external shared model stores such as Ollama are detected in place.
+
+Cancel and retry keep reusable downloads. Successful services restart with VIREA. **Stop & disable autostart** stops a VIREA-managed service and turns off its automatic recovery.
 
 ## 4. Open a workspace
 
 - [Motion Lab](../workflows/motion-lab.en.md): describe an action, generate it, compare skeletons and export.
 - [Character Studio](../workflows/character-studio.en.md): import a VRM and interact through independent speech and motion tracks.
 - [VRChat Studio](../workflows/vrchat-studio.en.md): on Windows, connect separate AI and observer accounts, calibrate and inspect the AI from the observer's view.
+
+The header provides English/Chinese and light/dark/system appearance settings. Character Studio opens settings only when requested. Conversation text keeps its original language.
 
 The browser shows generation and execution separately. Inspect the model result first, then check movement and subtitles in the selected target.
 
@@ -97,8 +112,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Start from a source ZIP, configure model providers, and deploy local models through the setup wizard.
 canonical: doc/getting-started/automatic-setup.en.md

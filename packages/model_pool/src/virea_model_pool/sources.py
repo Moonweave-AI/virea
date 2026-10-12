@@ -359,6 +359,11 @@ def fetch_source(
     progress: ArtifactProgressCallback | None = None,
 ) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=True)
+    from .library import reuse_source
+
+    reused = reuse_source(source, destination, progress)
+    if reused is not None:
+        return reused
     if source.kind == "manual":
         raise ArtifactFetchError(
             f"artifact {source.id} requires manual placement; no automatic source is declared"

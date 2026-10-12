@@ -49,6 +49,8 @@ async def lifespan(application: FastAPI):
     device = os.environ.get("VIREA_TTS_DEVICE", "cpu")
     if device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is not available")
+    if device == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("Apple GPU was requested but MPS is not available")
     application.state.device = device
     application.state.precision = os.environ.get("VIREA_TTS_PRECISION", "float32")
     if application.state.precision not in {"auto", "float32", "float16", "bfloat16"}:
@@ -93,10 +95,20 @@ def health() -> dict:
 @app.get("/v1/audio/voices")
 def voices() -> dict:
     return {
+        "model": "kokoro",
+        "provider": "kokoro",
         "voices": [
             {"id": name, "name": name, "language": app.state.language}
             for name in app.state.voices
-        ]
+        ],
+    }
+
+
+@app.get("/v1/models")
+def models() -> dict:
+    return {
+        "object": "list",
+        "data": [{"id": "kokoro", "object": "model", "owned_by": "hexgrad"}],
     }
 
 

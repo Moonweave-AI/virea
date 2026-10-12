@@ -1,5 +1,6 @@
 import { executionLabel } from "./execution.mjs";
 import "./style.css";
+import {mountStudioChrome} from "../studio/chrome";
 import { studioShell } from "./ui/shell";
 import { StudioHistory, downloadJSON } from "./ui/history";
 import { StudioPreferences } from "./ui/preferences";
@@ -11,6 +12,7 @@ import type { Expression, Session, PlaybackProgress } from "./contracts";
 
 const root = document.querySelector<HTMLDivElement>("#character")!;
 root.innerHTML = studioShell;
+mountStudioChrome("character", root);
 
 function element<T extends HTMLElement>(selector: string): T { return root.querySelector<T>(selector)!; }
 const stage = new CharacterStage(element("canvas"));
@@ -96,6 +98,7 @@ function renderState(value: Session): void {
   element("#status").textContent = previewing ? "动作预览" : labels[value.status] ?? value.status;
   const seconds = (value: number | null) => value?.toFixed(2) ?? "—";
   element("#metrics").textContent = `语言流水线 ${seconds(value.metrics.language_seconds)}s · TTS ${seconds(value.metrics.tts_seconds)}s · 动作 ${seconds(value.metrics.motion_seconds)}s\n语音就绪 ${seconds(value.metrics.first_audio_seconds)}s · 首包就绪 ${seconds(value.metrics.first_expression_seconds)}s · ${value.playback_mode === "synchronized" ? "动作" : "生成"} RTF ${seconds(value.metrics.rtf)}`;
+  element("#response-text").toggleAttribute("data-ui-copy", !value.draft_text);
   element("#response-text").textContent = value.draft_text || (value.route?.engine === "ardy" ? "" : ["thinking", "routing"].includes(value.status) ? "正在准备…" : "和角色聊聊。");
   element("#reply-owner").textContent = "VIREA";
   element("#route-card").hidden = !value.route;
@@ -305,9 +308,15 @@ element("#export-motion").onclick = () => {
 element("#settings-toggle").onclick = () => element<HTMLDialogElement>("#settings-dialog").showModal();
 element("#settings-close").onclick = () => element<HTMLDialogElement>("#settings-dialog").close();
 const toggleHistory = (open: boolean) => {
+  const wasOpen = !element("#history-drawer").hidden;
   element("#history-drawer").hidden = !open;
   element("#history-toggle").setAttribute("aria-expanded", String(open));
-  if (open) element<HTMLInputElement>("#history-search").focus();
+  if (open) {
+    element("#trace-drawer").hidden = true;
+    element("#trace-toggle").setAttribute("aria-expanded", "false");
+    element<HTMLInputElement>("#history-search").focus();
+  }
+  else if (wasOpen) element("#history-toggle").focus();
 };
 element("#history-toggle").onclick = () => toggleHistory(element("#history-drawer").hidden);
 element("#history-close").onclick = () => toggleHistory(false);
@@ -346,12 +355,6 @@ element("#close").onclick = async () => {
     element<HTMLButtonElement>("#start").disabled = false;
     for (const id of ["#send", "#interrupt", "#close"]) element<HTMLButtonElement>(id).disabled = true;
   }
-};
-
-element("#new-session").onclick = async () => {
-  if (mutating || closing) return;
-  if (session) await element("#close").onclick?.(new PointerEvent("click"));
-  element<HTMLDialogElement>("#settings-dialog").showModal();
 };
 
 async function poll(): Promise<void> {
@@ -401,4 +404,3 @@ window.addEventListener("pagehide", () => {
   if (session) void fetch(`/api/v1/characters/${session.id}`, { method: "DELETE", keepalive: true });
 });
 void poll();
-element<HTMLDialogElement>("#settings-dialog").showModal();
