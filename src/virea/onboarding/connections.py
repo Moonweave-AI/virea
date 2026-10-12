@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -220,16 +223,39 @@ class ConnectionInput(BaseModel):
 
 
 _LOCK = threading.RLock()
+_REPLACE_DELAYS = (0.02, 0.05, 0.1, 0.2, 0.4)
+_logger = logging.getLogger(__name__)
 
 
 def private_json(path: Path, value: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-        json.dump(value, stream, ensure_ascii=False, indent=2)
-    os.chmod(temporary, 0o600)
-    temporary.replace(path)
+    """Atomically save private state; critical callers still receive write failures."""
+    with _LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        )
+        temporary = Path(name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                json.dump(value, stream, ensure_ascii=False, indent=2)
+            os.chmod(temporary, 0o600)
+            for attempt in range(len(_REPLACE_DELAYS) + 1):
+                try:
+                    os.replace(temporary, path)
+                    return
+                except PermissionError as exc:
+                    # Windows readers/scanners can briefly deny rename/delete sharing.
+                    if getattr(exc, "winerror", None) not in (5, 32) or attempt == len(
+                        _REPLACE_DELAYS
+                    ):
+                        raise
+                    time.sleep(_REPLACE_DELAYS[attempt])
+        finally:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # Cleanup must not replace the original persistence error.
+                _logger.warning("Unable to remove temporary state file %s", temporary)
 
 
 def protect_key(key: str, *, decrypt: bool = False) -> str:

@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import logging
 import threading
 import time
 from contextvars import ContextVar
@@ -10,12 +11,13 @@ from functools import wraps
 from uuid import uuid4
 
 from .activity import activity_log, safe_text
-from .connections import private_json
+from .connections import _LOCK, private_json
 
 _current = ContextVar("model_installation_progress", default=None)
 _session = uuid4().hex
 _locks = {}
 _guard = threading.Lock()
+_logger = logging.getLogger(__name__)
 
 
 def progress_path(paths, model_id):
@@ -25,7 +27,8 @@ def progress_path(paths, model_id):
 
 
 def read_progress(path):
-    row = json.loads(path.read_text(encoding="utf-8"))
+    with _LOCK:
+        row = json.loads(path.read_text(encoding="utf-8"))
     if row.get("status") == "running" and row.get("session") != _session:
         row.update(
             status="interrupted", message="服务已重启；已下载文件保留，可继续部署"
@@ -54,20 +57,43 @@ def record_installation(function):
             started_at=time.time(),
             message="检测模型与运行环境",
         )
-        log = activity_log(control.paths.root / "setup")
         last_write = [0.0]
+        warned = set()
+
+        def warn_write_failure(sink, exc):
+            if sink not in warned:
+                _logger.warning(
+                    "Unable to persist %s for model %s; installation continues: %s",
+                    sink,
+                    request.model_id,
+                    safe_text(exc),
+                )
+                warned.add(sink)
 
         def publish(stage=None, message=None, **facts):
-            row.update(facts, updated_at=time.time())
-            if stage:
-                row["stage"] = stage
-            if message:
-                row["message"] = safe_text(message)
-            if stage or row["updated_at"] - last_write[0] >= 0.4:
-                private_json(path, row)
-                last_write[0] = row["updated_at"]
-            if stage:
-                log.emit(request.model_id, row["message"], status=row["status"])
+            with _LOCK:
+                row.update(facts, updated_at=time.time())
+                if stage:
+                    row["stage"] = stage
+                if message:
+                    row["message"] = safe_text(message)
+                if stage or time.monotonic() - last_write[0] >= 0.4:
+                    try:
+                        private_json(path, row)
+                        warned.discard("model progress")
+                    except OSError as exc:
+                        warn_write_failure("model progress", exc)
+                    finally:
+                        # Throttle failures too: a locked file must not stall every chunk.
+                        last_write[0] = time.monotonic()
+                if stage:
+                    try:
+                        activity_log(control.paths.root / "setup").emit(
+                            request.model_id, row["message"], status=row["status"]
+                        )
+                        warned.discard("activity log")
+                    except OSError as exc:
+                        warn_write_failure("activity log", exc)
 
         token = _current.set(publish)
         try:
