@@ -48,6 +48,81 @@ def test_revision_changes_with_application_code_but_not_model_data(tmp_path):
     assert source_revision(tmp_path) != original
 
 
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "plugins/models/sample/manifest.yaml",
+        "plugins/models/sample/runtime/src/plugin.py",
+        "plugins/models/sample/runtime/uv.lock",
+        "registries/models/sample.yaml",
+        "registries/bundles/release-assets.v1.json",
+        "configs/project.yaml",
+        "packages/contracts/schemas/example.json",
+        "src/virea/data/skeleton.json",
+    ],
+)
+def test_revision_changes_with_startup_resources(tmp_path, relative):
+    resource = tmp_path / relative
+    resource.parent.mkdir(parents=True)
+    before = source_revision(tmp_path)
+    resource.write_text("first")
+    added = source_revision(tmp_path)
+    assert added != before
+    resource.write_text("second")
+    assert source_revision(tmp_path) not in {before, added}
+    resource.unlink()
+    assert source_revision(tmp_path) == before
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "plugins/models/sample/runtime/.venv/lib/dependency.py",
+        "src/virea/__pycache__/module.pyc",
+        "packages/core/build/lib/module.py",
+        "packages/core/src/virea_core.egg-info/requires.txt",
+        ".virea-runtime/home/config/providers.json",
+        ".virea-runtime/home/model-store/weights.bin",
+    ],
+)
+def test_revision_excludes_installed_environments_and_user_data(tmp_path, relative):
+    before = source_revision(tmp_path)
+    generated = tmp_path / relative
+    generated.parent.mkdir(parents=True)
+    generated.write_bytes(b"generated")
+    assert source_revision(tmp_path) == before
+
+
+@pytest.mark.parametrize("arguments", [[], ["--help"], ["-h"], ["serve"]])
+def test_core_module_remains_usable_without_studio_extra(
+    monkeypatch, capsys, arguments
+):
+    import builtins
+
+    from virea import cli
+
+    original_import = builtins.__import__
+
+    def without_studio(name, *args, **kwargs):
+        if name == "virea_cli.main":
+            raise ModuleNotFoundError("No module named 'virea_cli'", name="virea_cli")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_studio)
+    monkeypatch.setattr(sys, "argv", ["virea", *arguments])
+    if arguments == ["serve"]:
+        with pytest.raises(SystemExit) as error:
+            cli.main()
+        assert error.value.code == 2
+        assert "virea[studio]" in capsys.readouterr().err
+    else:
+        cli.main()
+        output = capsys.readouterr().out
+        assert "process" in output
+        assert "build-demo" in output
+        assert "virea[studio]" in output
+
+
 @pytest.mark.parametrize("arguments", [["serve", "--port", "18321"], ["--help"], []])
 def test_python_module_entry_delegates_to_application_cli(monkeypatch, arguments):
     from virea_cli import main as application

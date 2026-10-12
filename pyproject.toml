@@ -31,6 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+studio = ["virea-cli==0.4.0"]
 vrchat = [
     "openvr==2.12.1401; sys_platform == 'win32'",
     "pycaw==20251023; sys_platform == 'win32'",

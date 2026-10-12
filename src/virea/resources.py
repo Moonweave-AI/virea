@@ -7,6 +7,8 @@ from functools import lru_cache
 from importlib import resources
 from pathlib import Path
 
+from .workspaces import WORKSPACES
+
 
 class ResourceDiscoveryError(RuntimeError):
     """Raised when required VIREA product assets are unavailable."""
@@ -315,10 +317,12 @@ def web_dist() -> Path:
         discover_resources().web_dist,
         "Web distribution",
     )
-    if not (root / "index.html").is_file():
-        raise ResourceDiscoveryError(
-            f"Web entrypoint is missing: {root / 'index.html'}"
-        )
+    for _, page in WORKSPACES:
+        if not (root / page).is_file():
+            raise ResourceDiscoveryError(
+                f"Web workspace entrypoint is missing: {root / page}; "
+                "rebuild the complete four-workspace frontend"
+            )
     assets = root / "assets"
     if not assets.is_dir() or not any(path.is_file() for path in assets.iterdir()):
         raise ResourceDiscoveryError(f"Web production assets are missing: {assets}")

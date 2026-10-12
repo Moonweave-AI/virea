@@ -42,6 +42,8 @@ from virea_core import StateStore, VireaPaths
 from virea_model_pool import InstallOutcome
 from virea_runtime import RuntimeBuildError
 
+from virea.workspaces import WORKSPACES
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "models"
 TERMINAL_STATES = {"SUCCEEDED", "CANCELLED", "FAILED", "TIMED_OUT", "REJECTED"}
@@ -655,10 +657,11 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
     dist = tmp_path / "dist"
     assets = dist / "assets"
     assets.mkdir(parents=True)
-    (dist / "index.html").write_text(
-        '<!doctype html><script type="module" src="/app/assets/app.js"></script>',
-        encoding="utf-8",
-    )
+    for _, page in WORKSPACES:
+        (dist / page).write_text(
+            '<!doctype html><script type="module" src="/app/assets/app.js"></script>',
+            encoding="utf-8",
+        )
     (assets / "app.js").write_text("export const ready = true;\n", encoding="utf-8")
     monkeypatch.setenv("VIREA_WEB_DIST", str(dist))
     app = create_app(
@@ -687,12 +690,30 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
         )
 
 
+@pytest.mark.parametrize("missing_page", [page for _, page in WORKSPACES])
+def test_custom_web_distribution_requires_every_advertised_workspace(
+    tmp_path, monkeypatch, missing_page
+):
+    from virea.resources import ResourceDiscoveryError
+
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "assets/app.js").write_text("export {}", encoding="utf-8")
+    for _, page in WORKSPACES:
+        if page != missing_page:
+            (dist / page).write_text("<!doctype html>", encoding="utf-8")
+    monkeypatch.setenv("VIREA_WEB_DIST", str(dist))
+    with pytest.raises(ResourceDiscoveryError, match=missing_page):
+        create_app(virea_home=tmp_path / "home", include_legacy_preview=False)
+
+
 def test_default_app_keeps_legacy_data_api_but_never_legacy_web_ui(
     tmp_path, monkeypatch
 ) -> None:
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<h1>current VIREA Web</h1>", encoding="utf-8")
+    for _, page in WORKSPACES:
+        (dist / page).write_text("<h1>current VIREA Web</h1>", encoding="utf-8")
     assets = dist / "assets"
     assets.mkdir()
     (assets / "app.js").write_text("export const ready = true;\n", encoding="utf-8")

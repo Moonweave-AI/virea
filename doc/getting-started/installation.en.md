@@ -22,6 +22,8 @@ On Windows, add `--extra vrchat` to `uv sync` to install the VRChat integration 
 
 The server prints all four URLs. `python -m virea serve` uses the same application entry point. A source update rebuilds stale web assets before serving; all four HTML entries are checked.
 
+For wheel-based installations, select `virea[studio]` to install the application CLI and API together. The base `virea` package provides the `process` and `build-demo` data commands; its help explains how to add the studios. The automatic launcher already installs the complete workspace.
+
 ## Test a change
 
 ```sh

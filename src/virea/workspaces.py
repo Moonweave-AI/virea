@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 WORKSPACES = (
@@ -56,20 +57,61 @@ def web_distribution_is_current(root: Path) -> bool:
 def source_revision(root: Path) -> str:
     """Identify running code, not just its unchanged package version or health."""
     paths = set(web_source_files(root))
+    source_extensions = {
+        ".py",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".lock",
+        ".cfg",
+        ".ini",
+        ".npz",
+        ".npy",
+        ".csv",
+        ".txt",
+        ".ps1",
+        ".sh",
+        ".cmd",
+        ".js",
+        ".ts",
+        ".cpp",
+        ".h",
+    }
+    generated_directories = {"__pycache__", "node_modules", "build", "dist", "venv"}
     for directory in (
         "src",
-        "apps/api/src",
-        "apps/cli/src",
+        "apps/api",
+        "apps/cli",
         "packages",
-        "scripts/setup",
+        "plugins",
+        "registries",
+        "configs",
+        "scripts",
     ):
-        paths.update((root / directory).rglob("*.py"))
-    paths.update(root / file for file in ("pyproject.toml", "uv.lock"))
+        # Prune environments before descending: a runtime may contain gigabytes
+        # of installed dependencies beside its small, versioned source project.
+        for parent, directories, files in os.walk(root / directory):
+            directories[:] = [
+                name
+                for name in directories
+                if not name.startswith(".")
+                and name not in generated_directories
+                and not name.endswith((".egg-info", ".dist-info"))
+            ]
+            paths.update(
+                Path(parent) / name
+                for name in files
+                if Path(name).suffix in source_extensions
+            )
+    paths.update(
+        root / file for file in ("pyproject.toml", "uv.lock", "setup.py", "MANIFEST.in")
+    )
     digest = hashlib.sha256()
     for path in sorted(paths):
-        if path.is_file() and "__pycache__" not in path.parts:
-            digest.update(path.relative_to(root).as_posix().encode())
-            digest.update(path.read_bytes())
+        if path.is_file():
+            digest.update(path.relative_to(root).as_posix().encode() + b"\0")
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
     return digest.hexdigest()
 
 

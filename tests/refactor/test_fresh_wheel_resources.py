@@ -645,8 +645,7 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
             "--offline",
             "--find-links",
             str(offline_wheelhouse),
-            "virea-cli==0.4.0",
-            "virea-api==0.4.0",
+            "virea==0.4.0",
         ],
         cwd=outside_checkout,
     )
@@ -672,6 +671,51 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         clean_environment.pop(name, None)
     clean_environment["PYTHONNOUSERSITE"] = "1"
     clean_environment["VIREA_HOME"] = str(acceptance_root / "virea-home")
+
+    standalone_probe = r"""
+import importlib.util
+import subprocess
+import sys
+
+assert importlib.util.find_spec("virea_cli") is None
+for module in ("virea", "virea.cli"):
+    for arguments in ([], ["--help"], ["process", "--help"], ["build-demo", "--help"]):
+        result = subprocess.run(
+            [sys.executable, "-m", module, *arguments],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "usage:" in result.stdout
+    result = subprocess.run(
+        [sys.executable, "-m", module, "serve"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 2, result.stderr
+    assert "virea[studio]" in result.stderr
+    assert "Traceback" not in result.stderr
+"""
+    _run(
+        [str(venv_python), "-c", standalone_probe],
+        cwd=outside_checkout,
+        environment=clean_environment,
+    )
+    # Installing the advertised extra must bring both the CLI and API through
+    # declared dependencies, without relying on an all-workspace installation.
+    _run(
+        [
+            uv,
+            "pip",
+            "install",
+            "--python",
+            str(venv_python),
+            "--offline",
+            "--find-links",
+            str(offline_wheelhouse),
+            "virea[studio]==0.4.0",
+        ],
+        cwd=outside_checkout,
+        environment=clean_environment,
+    )
 
     # Reproduce the original Windows failure from the installed wheel: uv's
     # compact 3.12 venv launcher puts its base interpreter in PYTHONHOME and

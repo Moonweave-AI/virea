@@ -22,6 +22,8 @@ Windows 用户可在 `uv sync` 中追加 `--extra vrchat` 安装 VRChat 接入�
 
 服务启动后打印四个页面地址。`python -m virea serve` 也进入同一应用。源码更新后，服务会先检查四个 HTML 入口及其资源，构建过期前端。
 
+通过 wheel 安装时，选择 `virea[studio]`，会一起安装应用 CLI 和 API。基础 `virea` 包提供 `process`、`build-demo` 数据命令，其帮助中会说明如何补装工作区。自动启动器已安装完整工作区，无需额外操作。
+
 ## 验证修改
 
 ```sh

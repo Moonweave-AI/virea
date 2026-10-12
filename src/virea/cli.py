@@ -506,7 +506,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     if len(sys.argv) <= 1 or sys.argv[1] not in {"process", "build-demo"}:
-        from virea_cli.main import main as application_main
+        try:
+            from virea_cli.main import main as application_main
+        except ModuleNotFoundError as exc:
+            if exc.name != "virea_cli":
+                raise
+            parser = build_parser()
+            parser.epilog = (
+                "Studio commands (including serve) are available with the studio extra: "
+                'python -m pip install "virea[studio]==0.4.0"'
+            )
+            if len(sys.argv) <= 1 or sys.argv[1:] in (["--help"], ["-h"]):
+                parser.print_help()
+                return
+            parser.error(parser.epilog)
 
         application_main()
         return
