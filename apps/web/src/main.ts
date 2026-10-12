@@ -1,3 +1,5 @@
+// Establish the shared cascade layers before any page-specific stylesheet.
+import "./studio/theme.css";
 import "./styles.css";
 import {mountStudioChrome} from "./studio/chrome";
 import webPackage from "../package.json";

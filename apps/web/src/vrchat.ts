@@ -1,4 +1,5 @@
 import { executionLabel } from "./character/execution.mjs";
+import "./studio/theme.css";
 import "./vrchat.css";
 import {mountStudioChrome} from "./studio/chrome";
 import {acceptSnapshot, bridgeError, executionResult, executionNote, mergeTranscript, readConversations, statusLabel, type Conversation} from "./vrchat-conversation.mjs";

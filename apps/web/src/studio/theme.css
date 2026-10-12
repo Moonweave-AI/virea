@@ -56,7 +56,9 @@ body[data-studio] :is(.brand span,.wordmark-dot,.live-dot) {color:var(--accent)}
 body[data-studio] :is(.primary,.send-button) {background:var(--accent);color:var(--accent-foreground);border-color:transparent}
 body[data-studio] :is(.hint,.note,.setup-help,.eyebrow,.composer-footnote,.stage-heading p) {color:var(--muted)}
 body[data-studio] :is(.button,.input) {font-family:inherit}
-body[data-studio] .button {border-radius:10px}
+/* Labels may wrap in every language; icon-only controls keep their square size. */
+body[data-studio] .button {border-radius:10px;max-width:100%}
+body[data-studio] .button:not(.button--icon-only,.icon-button) {height:auto;min-height:36px;white-space:normal;overflow-wrap:anywhere}
 body[data-studio] dialog {inset:0;margin:auto;max-height:calc(100dvh - 40px);overflow:auto}
 body[data-studio] dialog::backdrop {background:#090a1280;backdrop-filter:blur(5px)}
 body[data-studio="character"] .workspace {height:calc(100dvh - 60px)}
@@ -66,9 +68,11 @@ body[data-studio="character"] :is(#history-close,#trace-close) {display:none}
 body[data-studio="character"] .drawer-heading {margin-bottom:18px}
 body[data-studio="character"] .rail {top:60px}
 body[data-studio="character"] .history-drawer {top:60px;position:absolute;box-shadow:none;z-index:20}
-body[data-studio="character"] .trace-drawer {top:60px;bottom:0;left:60px;width:360px;border-radius:0;box-shadow:none;padding:20px}
-body[data-studio="character"] .workspace:has(~ .trace-drawer:not([hidden])) {margin-left:420px}
-body[data-studio="character"] .workspace:has(~ .history-drawer:not([hidden])) {margin-left:370px}
+body[data-studio="character"] .trace-drawer {top:60px;bottom:0;left:60px;width:min(360px,calc(100% - 60px));border-radius:0;box-shadow:none;padding:20px}
+@media(min-width:1101px) {
+ body[data-studio="character"] .workspace:has(~ .trace-drawer:not([hidden])) {margin-left:420px}
+ body[data-studio="character"] .workspace:has(~ .history-drawer:not([hidden])) {margin-left:370px}
+}
 body[data-studio="character"] #subtitle:not(:empty) {background:var(--surface);color:var(--foreground);border-color:var(--border)}
 body[data-studio="character"] .chat-dock {box-shadow:var(--studio-shadow)}
 body[data-studio="character"] #composer {background:var(--field-background);border-color:var(--border)}
@@ -103,7 +107,11 @@ body[data-studio="character"] :is(.icon-button,.quiet):hover {background:var(--s
  body[data-studio="vrchat"].sidebar-open .sidebar {transform:translateX(0);box-shadow:var(--studio-shadow)}
 }
 @media(max-width:850px) {body[data-studio="vrchat"] .sidebar {top:56px}}
-@media(max-width:640px) {body[data-studio="vrchat"] .live-views {top:56px;z-index:35}}
+@media(max-width:640px) {
+ body[data-studio="vrchat"] .live-views {top:0;z-index:35}
+ body[data-studio="character"] :is(.history-drawer,.trace-drawer) {left:48px;width:calc(100% - 48px)}
+ body[data-studio="character"] .workspace:has(~ :is(.history-drawer,.trace-drawer):not([hidden])) {margin-left:48px}
+}
 .mw-select-host{display:block;min-width:0;width:100%}
 body[data-studio] select.mw-native-select{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)}
 .mw-select-host .select__trigger{width:100%;min-height:42px;border:1px solid var(--field-border);border-radius:11px;background:var(--field-background);box-shadow:none;padding:10px 12px;gap:10px;font-size:13px;color:var(--foreground)}
@@ -112,6 +120,8 @@ body[data-studio] select.mw-native-select{position:absolute!important;width:1px!
 .mw-select-popover .list-box-item{font-size:13px;min-height:38px;padding:9px 12px;border-radius:8px}
 .mw-select-popover .list-box-item:is([data-focused=true],[data-selected=true]){background:var(--accent-soft);color:var(--foreground)}
 .mw-select-popover .label{font-size:inherit;color:inherit}
+.mw-select-popover{max-width:calc(100vw - 24px)}
+.mw-select-popover .list-box-item .label{white-space:normal;overflow-wrap:anywhere;min-width:0}
 @keyframes mw-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes mw-slide{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
 body[data-studio] :is(dialog[open],.tab-content,.page-frame,.mw-job,.mw-metric){animation:mw-enter .2s ease-out}
@@ -128,7 +138,7 @@ body[data-studio="vrchat"] #vrchat {position:relative}
 body[data-studio="vrchat"] .sidebar-toggle {position:absolute;left:16px;top:18px;z-index:36;background:var(--surface);border:1px solid var(--separator)}
 .sidebar-toggle svg {width:20px;height:20px}
 body[data-studio="vrchat"] .chat-shell>.views-toggle {position:absolute;right:20px;top:18px;z-index:6;background:var(--surface);border:1px solid var(--separator)}
-body[data-studio="vrchat"] .chat-scroll {padding-top:70px}
+body[data-studio="vrchat"] .chat-scroll {padding-top:clamp(52px,12dvh,70px)}
 body[data-studio="vrchat"] .composer-model {width:150px;flex:none}
 body[data-studio="vrchat"] .composer-model .select__trigger {min-height:32px;padding:5px 9px;background:transparent;border:0;font-size:12px}
 body[data-studio="vrchat"] .composer-status {display:flex;justify-content:center;margin-top:8px}
@@ -136,13 +146,18 @@ body[data-studio="vrchat"] .composer-status .connection-pill {background:none;bo
 body[data-studio="vrchat"] .composer-footnote {margin-top:5px}
 body[data-studio="vrchat"] .sidebar {padding-top:24px}
 body[data-studio] #settings-dialog {width:min(680px,calc(100vw - 32px));padding:0;overflow:hidden;border-radius:22px;max-height:min(860px,calc(100dvh - 40px))}
+body[data-studio] #settings-dialog[open] {display:flex;flex-direction:column}
+body[data-studio] #settings-dialog :is(.dialog-heading,.dialog-tabs) {flex:none}
 body[data-studio] #settings-dialog>.dialog-heading {padding:24px 28px 18px;border-bottom:1px solid var(--separator);gap:24px}
 body[data-studio] #settings-dialog .dialog-heading h2 {font-size:20px;letter-spacing:-.02em;margin:0}
-body[data-studio] #settings-dialog :is(.dialog-body,.settings-scroll) {max-height:calc(100dvh - 180px);overflow:auto;padding:24px 28px;scrollbar-gutter:stable}
+body[data-studio] #settings-dialog :is(.dialog-body,.settings-scroll) {flex:1;min-height:0;max-height:none;overflow:auto;padding:24px 28px;scrollbar-gutter:stable}
 body[data-studio] #settings-dialog .dialog-tabs {padding:12px 28px;gap:6px;border-bottom:1px solid var(--separator)}
 body[data-studio] #settings-dialog .dialog-tabs button {padding:8px 18px;border:0;border-radius:10px}
 body[data-studio] #settings-dialog .dialog-tabs [aria-selected=true] {background:var(--accent-soft);color:var(--accent)}
 body[data-studio] #settings-dialog label {line-height:1.6}
+body[data-studio] #settings-dialog :is(label,section,fieldset,.settings,.voice-import-fields,.pair) {min-width:0}
+body[data-studio] #settings-dialog :is(input,textarea,select,audio) {min-width:0;max-width:100%}
+body[data-studio] #settings-dialog :is(p,code,summary) {overflow-wrap:anywhere}
 body[data-studio] #settings-dialog :is(input:not([type=checkbox]),textarea) {border:1px solid var(--border);border-radius:10px;padding:10px 12px;width:100%}
 body[data-studio] #settings-dialog :is(details,.settings-group) {border:1px solid var(--separator);border-radius:14px;padding:0 18px;margin:18px 0}
 body[data-studio] #settings-dialog details>summary {padding:15px 0;font-weight:500;font-size:13px}
@@ -163,3 +178,15 @@ body[data-studio] dialog::backdrop{background:#100e1880;backdrop-filter:blur(5px
 @supports(interpolate-size:allow-keywords){body[data-studio] details::details-content{interpolate-size:allow-keywords;height:0;opacity:0;overflow:clip;transition:height .24s var(--studio-ease),opacity .2s ease,content-visibility .24s allow-discrete}body[data-studio] details[open]::details-content{height:auto;opacity:1}}
 @media(prefers-reduced-motion:reduce){body[data-studio] :is(dialog,dialog::backdrop,details::details-content){transition:none!important}}
 @media(max-width:640px){body[data-studio] #settings-dialog>.dialog-heading{padding:20px}body[data-studio] #settings-dialog :is(.dialog-body,.settings-scroll){padding:20px}}
+
+/* One scrollbar treatment for document, panels, menus and logs. Keep a visible
+   thumb for mouse users; use native scrolling and system colours in high contrast. */
+@layer base {
+ :root,* {scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--muted) 48%,transparent) transparent}
+ @supports not (scrollbar-width:thin) {
+  ::-webkit-scrollbar {width:8px;height:8px}
+  ::-webkit-scrollbar-track {background:transparent}
+  ::-webkit-scrollbar-thumb {background:color-mix(in srgb,var(--muted) 48%,transparent);border:2px solid transparent;border-radius:999px;background-clip:padding-box}
+ }
+ @media(forced-colors:active) {:root,* {scrollbar-color:auto}}
+}

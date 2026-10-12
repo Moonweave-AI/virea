@@ -1,4 +1,5 @@
 import { executionLabel } from "./execution.mjs";
+import "../studio/theme.css";
 import "./style.css";
 import {mountStudioChrome} from "../studio/chrome";
 import { studioShell } from "./ui/shell";

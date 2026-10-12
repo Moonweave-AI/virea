@@ -1,3 +1,4 @@
+import "./studio/theme.css";
 import "./setup.css";
 import {mountModelLibrary} from "./studio/model-library";
 import {mountEnvironments} from "./studio/environments";
