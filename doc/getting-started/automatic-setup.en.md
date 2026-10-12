@@ -40,7 +40,7 @@ The browser opens `http://127.0.0.1:8000/app/setup.html`. Your files stay togeth
   home/          Configuration, model files, results and service logs
 ```
 
-To choose another disk or port, use the options in [persistent data locations](persistent-data-root.en.md). On this repository's existing VRChat installation, the saved service address may be `http://127.0.0.1:18001`.
+To choose another disk or port, use the options in [persistent data locations](persistent-data-root.en.md). The terminal prints all four workspace links using your selected port.
 
 ## 2. Connect the capabilities you need
 

@@ -3,9 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from typing import Any
-
-import uvicorn
 
 from virea.data.registry import DatasetRegistry
 from virea.paths import AVAILABLE_DATA_SOURCES, ProjectPaths
@@ -430,36 +429,6 @@ def _cmd_process(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI: serve command
-# ---------------------------------------------------------------------------
-
-
-def _cmd_serve(args: argparse.Namespace) -> None:
-    source = args.data_source or "demo"
-    host = args.host or os.getenv("VIREA_SERVE_HOST") or None
-    env_port = os.getenv("VIREA_SERVE_PORT")
-    port = args.port or (int(env_port) if env_port else None)
-    paths = ProjectPaths(data_source=source)
-    print(f"\n  Data source: {source}")
-    print(
-        f"  Raw root:    {paths.raw_root} {'(OK)' if paths.raw_root.exists() else '(NOT FOUND)'}"
-    )
-    print(f"  Processed:   {paths.processed_root}")
-    if host and port:
-        print(f"  Server:      http://{host}:{port}")
-    else:
-        print("  Server:      uvicorn default bind")
-    print()
-    os.environ["VIREA_DATA_SOURCE"] = source
-    run_kwargs: dict[str, Any] = {"reload": args.reload}
-    if host:
-        run_kwargs["host"] = host
-    if port:
-        run_kwargs["port"] = port
-    uvicorn.run("virea.server.app:app", **run_kwargs)
-
-
-# ---------------------------------------------------------------------------
 # CLI parser
 # ---------------------------------------------------------------------------
 
@@ -523,29 +492,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     proc.set_defaults(func=_cmd_process)
 
-    # --- serve ---
-    srv = sub.add_parser(
-        "serve",
-        help="Start the visualization web server for previewing raw/processed motion.",
-    )
-    srv.add_argument(
-        "--data-source",
-        choices=AVAILABLE_DATA_SOURCES,
-        default="demo",
-        help="Data source for the viewer (default: demo).",
-    )
-    srv.add_argument(
-        "--host", default="", help="Bind host. Can also be set with VIREA_SERVE_HOST."
-    )
-    srv.add_argument(
-        "--port",
-        type=int,
-        default=None,
-        help="Bind port. Can also be set with VIREA_SERVE_PORT.",
-    )
-    srv.add_argument("--reload", action="store_true")
-    srv.set_defaults(func=_cmd_serve)
-
     # --- build-demo ---
     demo = sub.add_parser(
         "build-demo",
@@ -559,6 +505,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    if len(sys.argv) <= 1 or sys.argv[1] not in {"process", "build-demo"}:
+        try:
+            from virea_cli.main import main as application_main
+        except ModuleNotFoundError as exc:
+            if exc.name != "virea_cli":
+                raise
+            parser = build_parser()
+            parser.epilog = (
+                "Studio commands (including serve) are available with the studio extra: "
+                'python -m pip install "virea[studio]==0.4.0"'
+            )
+            if len(sys.argv) <= 1 or sys.argv[1:] in (["--help"], ["-h"]):
+                parser.print_help()
+                return
+            parser.error(parser.epilog)
+
+        application_main()
+        return
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

@@ -95,36 +95,9 @@ A recognized access-denial dialog is surfaced as an instance/permission failure,
 
 ## Run
 
-Configure the existing [model and voice services](unified-motion.en.md), then:
+Run `Start-VIREA.cmd`, detect and deploy the required models in Set Up, then open VRChat Studio from the header. All pages share one service and data home. Follow the [VRChat operations guide](vrchat-operations.en.md).
 
-```powershell
-uv sync --all-packages --extra dev --extra vrchat
-npm --prefix apps/web run build
-$env:VIREA_ALLOW_CHECKOUT_RUNTIME = '1'
-$env:VIREA_HOME = Join-Path $PWD '.virea-runtime/vrchat/home'
-$env:VIREA_CHARACTER_CONFIG = Join-Path $PWD '.virea-runtime/vrchat/config/character.json'
-uv run --package virea-api python -m uvicorn virea_api.app:app --host 127.0.0.1 --port 18001
-```
-
-Open `http://127.0.0.1:18001/app/vrchat.html`. Keep the observer's existing Steam client in desktop mode. For generated full-body motion, start SteamVR with the registered virtual rig, then run `scripts/vrchat/start_ai_client.ps1 -VRChatExe '<installed-VRChat.exe>' -Profile 1 -SendPort 19000 -ReceivePort 19001 -VR`. This starts the official online launcher without `--no-vr`. Log into the dedicated **VRChat account only in this second window**. Profiles isolate local configuration but do not guarantee a different authenticated account; verify both identities. Never reuse a running observer's profile or ports. Omitting `-VR` from this low-level helper selects the legacy desktop route, which cannot execute generated full-body motion. [Official launch options](https://docs.vrchat.com/docs/launch-options)
-
-Enable OSC in the AI client. In the page select `generated_vr` and the matching **19000/19001** ports for the command above. Automatic binding follows the avatar currently worn by the verified AI client, without requiring VIREA parameters. Unconfigured installations default to **19010/19011** on loopback; client and page must agree. Discovery verifies the unique VRChat process owning that UDP port, then reads the same process's OSCQuery endpoint and validates its reported port. It does not advertise mDNS or change another client's routing. Published `avtr_*` and local SDK `local:sdk_*` identities are supported. Query loss exceeding three seconds closes the output gate. [Official OSC ports](https://docs.vrchat.com/docs/osc-overview)
-
-The ignored `.virea-runtime/vrchat/` directory contains `config/` (local service settings), `home/` (session data), `unity/avatar/` (character project), `logs/` and `evidence/`. Source tools stay in `scripts/vrchat/` and `integrations/vrchat/unity/Editor/`. Checkout-local runtime storage requires the explicit environment opt-in above and the root `/.virea-runtime/` Git ignore rule. `scripts/vrchat/start.ps1` starts the services described by the local `config/stack.json`; `-CheckOnly` checks readiness without starting anything.
-
-With local services configured and SteamVR running, run `./scripts/vrchat/launch.ps1 -VRChatExe '<installed-VRChat.exe>' -VR`, supplying the full path to your installation. Alternatively, persist `"vr": true` inside `ai_client` in local `stack.json`; the wrapper now forwards that choice to the client helper. It builds the page, copies the project's VRM to the fixed local preview location, starts or reuses healthy services and preserves an AI client already owning the dedicated port. The observer remains running. Saved settings restore the connection after refresh or service recovery; an explicit disconnect disables automatic reconnection. The rotatable VRM preview is labeled as a model preview, not VRChat gameplay. Read-only login diagnostics return states from the selected process's log, never account data or raw log lines. Same-room visibility still requires a real test.
-
-Audio, captions and locomotion default to disabled. For speech, select the virtual cable's playback endpoint and its matching recording endpoint in VRChat. No default speaker is selected automatically. Verify the microphone meter before enabling output. Manual microphone control is the default; optional hold-to-talk requires VRChat's Toggle Voice setting to be off. [Input semantics](https://docs.vrchat.com/docs/osc-as-input-controller)
-
-### Live views and recovery
-
-The top-right live-views button shows the actual observer client above the AI client. A wide screen keeps the conversation usable beside the panel; a narrow screen uses an accessible overlay that closes with Escape. Only those VRChat windows are captured, at up to 15 fps, with explicit waiting states for minimized, missing or stale windows. Closing the panel or hiding the page stops requests and releases idle capture. These views do not feed a vision model. Optional AI menu control uses a separate, explicitly enabled lease. See [capture architecture and acceptance](vrchat-views.md).
-
-Keep the game windows in windowed mode and restore them if minimized. For online errors, inspect fresh process-specific log evidence: an OSC connection or visible world does not establish a healthy online API session. Both clients returned fresh `401 Missing Credentials` at 20:36–20:38 on 2026-10-08. User reauthentication succeeded at 20:46 with no subsequent 401, but post-login UI initialization threw a null-reference exception and left the loading background visible. Sequential restarts then restored both authenticated accounts to separate Home instances at 21:02/21:04, without new 401 responses. Both rejoined the same private instance at 21:15; the observer unpacks VIREA Independent AI. No new API 401 or FailedFetchingSecurityScan is present through 21:20. The two live views verified their new process bindings; This historical connectivity check does not establish pose quality; see the current recording evidence.
-
-The signed official VB-CABLE driver is installed and reports Windows status OK without a system restart. Its **CABLE Input** playback endpoint and **CABLE Output** recording endpoint accept 48 kHz stereo format checks. The user requires silence in a public area: all five active playback endpoints are muted, VIREA speech is disabled, and no test audio is played. A later authorized audible test must select CABLE Output only in the AI client and verify the microphone meter and what the observer actually hears. Endpoint presence, PCM loopback, game microphone activity and audible remote speech are separate acceptance steps; only enumeration and format support have passed so far.
-
-Each goal allows 0–10 autonomous follow-up decisions, default three. Pause freezes playback and releases inputs. Interrupt cancels generation, playback and follow-up decisions. Disconnect closes the owned session and ports. An external perception source can post environment events; this API is not an implemented camera or ASR subsystem.
+The default home is `.virea-runtime/portable/home/`. Keep Unity avatar projects and driver builds under ignored `.virea-runtime/vrchat/`. Existing installations can retain their data with `--virea-home`. The default page is `http://127.0.0.1:8000/app/vrchat.html`; custom ports appear in the terminal links.
 
 ## Avatar-independent control
 
@@ -209,8 +182,8 @@ type: reference
 status: draft
 owner: VIREA maintainers
 created: 2026-10-04
-updated: 2026-10-11
-last_reviewed: 2026-10-08
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: VIREA execution bridge with a software OpenVR rig, generated full-body tracking, setup and validation limits.
 canonical: doc/character/vrchat.en.md

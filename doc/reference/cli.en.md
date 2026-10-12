@@ -6,23 +6,20 @@
 
 > [中文 CLI 参考](cli.zh-CN.md) · [English](cli.en.md) · [Clone-to-result tutorial](../getting-started.en.md)
 
-Run every command from a clean clone after `uv sync --locked --all-packages --extra dev`. Prefixing with `uv run` uses the
-locked project environment. Set `VIREA_HOME` on a volume with enough model-data capacity, outside the clone, and pass it
-explicitly as `--virea-home PATH` in automation. Commands that create or access persistent state reject an omitted home;
-they do not silently place model data in `LOCALAPPDATA` or `$HOME`.
 
-For the exact one-time path entry procedure (including copied Windows paths, outer quotation marks, spaces, and future
-terminals), use [Choose and persist the VIREA data root](../getting-started/persistent-data-root.en.md). After that
-procedure, normal interactive commands below intentionally omit `--virea-home`: they use the persisted `VIREA_HOME`.
+Use the [launcher and Set Up](../getting-started/automatic-setup.en.md) for everyday setup. This reference covers the terminal wizard, scripts and automation. All forms—`virea`, `python -m virea` and `python -m virea.cli`—use the same commands and server.
 
-## Recommended interactive entry point
+After preparing the [development environment](../getting-started/installation.en.md), prefix commands with `uv run`. Persistent commands accept `--virea-home PATH` or `VIREA_HOME`. The launcher uses `.virea-runtime/portable/home` by default; pass that same home when accessing its models from a separate terminal. A custom data disk is also supported. See [data locations](../getting-started/persistent-data-root.en.md).
+
+## Optional terminal wizard
+
 
 ```bash
 # Start the complete step-by-step workflow: confirm the data root, initialize state, select a model/domain/Runtime/profile, approve installation, generate, and optionally start local playback.
 uv run virea
 ```
 
-This is the normal human-facing command, and it does not restart from zero. The wizard restores the last model,
+The optional terminal wizard resumes saved choices. The wizard restores the last model,
 execution domain, Runtime, and resource profile from `VIREA_HOME/config/wizard-preferences.json`; it restores persisted
 deployment metadata and recent jobs from durable state, then performs full byte verification at the execution boundary.
 A restored item is marked `[saved / 已保存]`: press Enter to reuse it,
@@ -169,7 +166,7 @@ uv run virea state inspect --virea-home $env:VIREA_HOME
 uv run virea state inspect --virea-home "$VIREA_HOME"
 ```
 
-## One-time data-root configuration
+## Optional: persist the terminal data root
 
 Run the applicable script once immediately after cloning, before `uv sync`. It creates `home/`, `dev-venv/`, `uv-cache/`,
 `npm-cache/` and `pnpm-store/` beneath the selected data root. `home/` is `VIREA_HOME` and holds model data plus the
@@ -394,6 +391,8 @@ uv run virea serve --host 127.0.0.1 --port 8000
 The root redirects to `/app/`, which is a mount path rather than a second UI. CLI changes made under the same
 `VIREA_HOME` appear automatically through a local state stream with polling fallback.
 
+The command prints all four links: `/app/setup.html`, `/app/`, `/app/character.html` and `/app/vrchat.html`. Source checkouts rebuild stale web output before starting. `python -m virea serve` and `python -m virea.cli serve` reach this same server.
+
 ## `state` and `support`
 
 ```bash
@@ -453,8 +452,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples.
 canonical: doc/reference/cli.en.md

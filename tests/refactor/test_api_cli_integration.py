@@ -42,10 +42,33 @@ from virea_core import StateStore, VireaPaths
 from virea_model_pool import InstallOutcome
 from virea_runtime import RuntimeBuildError
 
+from virea.workspaces import WORKSPACES
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "models"
 TERMINAL_STATES = {"SUCCEEDED", "CANCELLED", "FAILED", "TIMED_OUT", "REJECTED"}
 RELEASE_VERSION = "0.4.0"
+
+
+def test_console_api_and_packaged_pages_share_the_same_links(tmp_path):
+    from scripts.setup.console import studio_links
+    from virea.workspaces import workspace_links
+
+    links = workspace_links(18321)
+    assert studio_links(18321) == links
+    assert workspace_links(8000, "::1")["Set Up"].startswith("http://[::1]:8000/")
+    app = create_app(virea_home=tmp_path)
+    # Page availability does not need to start model services or game capture.
+    client = TestClient(app)
+    entries = client.get("/api/v1/workspaces").json()["entries"]
+    for entry in entries:
+        assert links[entry["name"]] == "http://127.0.0.1:18321" + entry["path"]
+        response = client.get(entry["path"])
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "no-store" in response.headers["cache-control"]
+    for retired in ("/ui/index.html", "/vendor/three/build/three.module.js"):
+        assert client.get(retired).status_code == 404
 
 
 @pytest.fixture
@@ -189,6 +212,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
 
     assert routes == {
         ("GET", "/api/v1/health"),
+        ("GET", "/api/v1/workspaces"),
         ("GET", "/api/v1/state"),
         ("GET", "/api/v1/system"),
         ("GET", "/api/v1/execution-domains"),
@@ -633,10 +657,11 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
     dist = tmp_path / "dist"
     assets = dist / "assets"
     assets.mkdir(parents=True)
-    (dist / "index.html").write_text(
-        '<!doctype html><script type="module" src="/app/assets/app.js"></script>',
-        encoding="utf-8",
-    )
+    for _, page in WORKSPACES:
+        (dist / page).write_text(
+            '<!doctype html><script type="module" src="/app/assets/app.js"></script>',
+            encoding="utf-8",
+        )
     (assets / "app.js").write_text("export const ready = true;\n", encoding="utf-8")
     monkeypatch.setenv("VIREA_WEB_DIST", str(dist))
     app = create_app(
@@ -665,12 +690,30 @@ def test_web_mount_serves_app_scoped_entrypoint_and_asset(
         )
 
 
+@pytest.mark.parametrize("missing_page", [page for _, page in WORKSPACES])
+def test_custom_web_distribution_requires_every_advertised_workspace(
+    tmp_path, monkeypatch, missing_page
+):
+    from virea.resources import ResourceDiscoveryError
+
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "assets/app.js").write_text("export {}", encoding="utf-8")
+    for _, page in WORKSPACES:
+        if page != missing_page:
+            (dist / page).write_text("<!doctype html>", encoding="utf-8")
+    monkeypatch.setenv("VIREA_WEB_DIST", str(dist))
+    with pytest.raises(ResourceDiscoveryError, match=missing_page):
+        create_app(virea_home=tmp_path / "home", include_legacy_preview=False)
+
+
 def test_default_app_keeps_legacy_data_api_but_never_legacy_web_ui(
     tmp_path, monkeypatch
 ) -> None:
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<h1>current VIREA Web</h1>", encoding="utf-8")
+    for _, page in WORKSPACES:
+        (dist / page).write_text("<h1>current VIREA Web</h1>", encoding="utf-8")
     assets = dist / "assets"
     assets.mkdir()
     (assets / "app.js").write_text("export const ready = true;\n", encoding="utf-8")
@@ -1560,10 +1603,12 @@ def test_source_checkout_serve_reuses_a_current_web_distribution(
     source.mkdir(parents=True)
     assets.mkdir(parents=True)
     (source / "main.ts").write_text("export const current = true;", encoding="utf-8")
-    (web / "dist" / "index.html").write_text("current", encoding="utf-8")
+    for page in ("index.html", "setup.html", "character.html", "vrchat.html"):
+        (web / "dist" / page).write_text("current", encoding="utf-8")
     (assets / "index-current.js").write_text("current", encoding="utf-8")
     current_timestamp = 1_800_000_000
-    os.utime(web / "dist" / "index.html", (current_timestamp, current_timestamp))
+    for page in ("index.html", "setup.html", "character.html", "vrchat.html"):
+        os.utime(web / "dist" / page, (current_timestamp, current_timestamp))
     os.utime(assets / "index-current.js", (current_timestamp, current_timestamp))
 
     monkeypatch.delenv("VIREA_WEB_DIST", raising=False)

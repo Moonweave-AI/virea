@@ -4,6 +4,9 @@
 
 # dots.tts 语音克隆
 
+> [!NOTE]
+> 这是当时实验的设计与测量记录。当前部署请使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)，模型和运行环境由统一服务管理。
+
 本文保留 dots.tts 的历史部署、测量及回退说明。当前默认已切换为 [Audio8-TTS 0.6B](audio8-tts.zh-CN.md)；
 以下启动命令与 NF4 参数仅适用于手动回退至 dots.tts 的部署。
 
@@ -61,7 +64,7 @@ GPU 默认使用 **NF4 4-bit 语言骨干 + BF16 声学核心**，vocoder / spea
 `--model`、`--revision`、`--voices-dir` 支持本地模型或不同 dots.tts 普通 TTS checkpoint。
 `VIREA_TTS_REPOSITORY` / `VIREA_TTS_REVISION` 也可设置模型。STTS 和编辑模型使用不同运行时，本入口不支持。
 
-`start_gpu_stack.ps1` 已改用 WSL dots.tts，并检查 `/health` 的 provider、CUDA 设备与采样率。
+[当时的启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1) 已改用 WSL dots.tts，并检查 `/health` 的 provider、CUDA 设备与采样率。
 发现 8083 上仍是 Kokoro 会拒绝继续，需先停止旧语音进程。没有声线时跳过表达预热，
 让用户进入设置导入后再生成。SOAR 是 2B 模型，显存需求显著高于旧 82M TTS；
 必须重新安排语言/动作/语音并发显存，不沿用旧系统的性能和资源结论。
@@ -173,11 +176,11 @@ pnpm --dir apps/web build
 
 <!--
 type: how-to
-status: Active
+status: Historical
 owner: VIREA maintainers
 created: 2026-10-03
-updated: 2026-10-03
-last_reviewed: 2026-10-03
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: dots.tts 参考音频克隆、独立运行时、48 kHz 流式音频和迁移说明。
 canonical: doc/character/dots-tts.zh-CN.md

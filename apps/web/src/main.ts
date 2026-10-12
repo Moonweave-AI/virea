@@ -1,6 +1,6 @@
 import "./styles.css";
 import {mountStudioChrome} from "./studio/chrome";
-import {setTheme} from "./studio/preferences";
+import webPackage from "../package.json";
 import {
   api,
   jobEventsUrl,
@@ -49,10 +49,8 @@ import {
   type PendingSubmissionAttempt,
 } from "./submission";
 
-type View = "playground" | "catalog" | "overview";
 type SyncStatus = "connecting" | "live" | "polling" | "degraded" | "offline";
 type GenerationPhase = "idle" | "validating" | "submitting" | "tracking" | "loading_result";
-type ThemePreference = "system" | "light" | "dark";
 type Draft = GenerationFormDraft;
 type JobEvent = NonNullable<JobRecord["events"]>[number];
 
@@ -66,24 +64,18 @@ const TERMINAL_JOB_STATES = new Set([
 const STATE_POLL_INTERVAL_MS = 4_000;
 const JOB_STREAM_STALL_MS = 10_000;
 const PENDING_SUBMISSION_STORAGE_KEY = "virea.pending-generation.v1";
-const THEME_STORAGE_KEY = "virea.theme.v1";
 
 const state: {
-  view: View;
   models: ModelManifest[];
   jobs: JobRecord[];
   health: HealthStatus | null;
   vireaHome: string;
   vireaHomeAuthorityFresh: boolean;
-  system: Record<string, unknown> | null;
-  systemLoading: boolean;
   executionDomains: ExecutionDomainCandidates | null;
   executionOptions: Record<string, ModelExecutionOption[]>;
   selectedExecutionDomainId: string;
-  executionDomainTouched: boolean;
   selectedModelId: string;
   drafts: Record<string, Draft>;
-  installingModelId: string;
   activeJob: JobRecord | null;
   lastResult: VrmMotionResult | null;
   lastModelResult: ModelResult | null;
@@ -100,21 +92,16 @@ const state: {
   notice: string;
   error: string;
 } = {
-  view: "playground",
   models: [],
   jobs: [],
   health: null,
   vireaHome: "",
   vireaHomeAuthorityFresh: false,
-  system: null,
-  systemLoading: false,
   executionDomains: null,
   executionOptions: {},
   selectedExecutionDomainId: "",
-  executionDomainTouched: false,
   selectedModelId: "",
   drafts: {},
-  installingModelId: "",
   activeJob: null,
   lastResult: null,
   lastModelResult: null,
@@ -136,34 +123,6 @@ const appNode = document.querySelector<HTMLDivElement>("#app");
 if (!appNode) throw new Error("#app is missing");
 const app: HTMLDivElement = appNode;
 mountStudioChrome("motion", app);
-
-function storedThemePreference(): ThemePreference {
-  try {
-    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return value === "light" || value === "dark" ? value : "system";
-  } catch {
-    return "system";
-  }
-}
-
-let themePreference = storedThemePreference();
-
-function applyThemePreference(preference: ThemePreference): void {
-  themePreference = preference;
-  setTheme(preference);
-  document.querySelectorAll<HTMLButtonElement>("[data-theme-preference]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.themePreference === preference));
-  });
-}
-
-applyThemePreference(themePreference);
-app.addEventListener("click", (event) => {
-  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-theme-preference]");
-  const preference = button?.dataset.themePreference;
-  if (preference === "system" || preference === "light" || preference === "dark") {
-    applyThemePreference(preference);
-  }
-});
 
 let viewerRuntime: RealVrmViewer | null = null;
 let viewerCanvas: HTMLCanvasElement | null = null;
@@ -432,8 +391,7 @@ function ensureSelectedExecutionDomain(): void {
   const domains = state.executionDomains?.execution_domains ?? [];
   const installed = installedExecutionTarget(selectedManifest());
   if (
-    !state.executionDomainTouched
-    && installed
+    installed
     && domains.some((domain) => domain.id === installed.execution_domain_id)
   ) {
     state.selectedExecutionDomainId = installed.execution_domain_id;
@@ -488,6 +446,7 @@ function layout(content: string): string {
         ${state.error ? `<div class="message error" role="alert"><strong>需要处理</strong><span>${escapeHtml(state.error)}</span><button id="dismiss-error" aria-label="关闭错误">关闭</button></div>` : ""}
         ${state.notice ? `<div class="message success" role="status"><strong>已完成</strong><span>${escapeHtml(state.notice)}</span><button id="dismiss-notice" aria-label="关闭提示">关闭</button></div>` : ""}
         ${content}
+        <small class="workspace-version" data-application-version>Motion Lab ${webPackage.version}</small>
       </main>
     </div>`;
 }
@@ -722,7 +681,7 @@ function playground(): string {
   const active = state.activeJob && !TERMINAL_JOB_STATES.has(state.activeJob.state)
     ? state.activeJob
     : null;
-  const busy = Boolean(active || state.installingModelId || state.generationPhase !== "idle");
+  const busy = Boolean(active || state.generationPhase !== "idle");
   const canGenerate = Boolean(
     manifest
     && integrated
@@ -747,7 +706,7 @@ function playground(): string {
         </div>
         ${manifest && ready && integrated ? `<p class="readiness-evidence">${escapeHtml(modelIntegrityNote(manifest))}</p>` : ""}
         ${manifest && !integrated ? `<div class="capability-note" role="note"><strong>仅上游登记，尚未接入 VIREA</strong><p>${escapeHtml(capabilityReason(manifest))}。此模型仍可浏览，但不会伪装成可部署。</p></div>` : ""}
-        ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "在 Set Up 部署"}</button>` : ""}
+        ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" >在 Set Up 部署</button>` : ""}
         ${hiddenGenerationFieldCount > 0 ? `<div class="guided-mode-note" role="note"><i></i><span>简洁模式：只填写下方动作；其余 ${hiddenGenerationFieldCount} 项使用已通过生产验收的默认值。<small>Guided mode keeps verified audio, dialogue, and runtime parameters automatically.</small></span></div>` : ""}
         <div class="parameter-grid schema-parameter-grid ${generationFields.length === 1 ? "single-field" : ""}">${generationFields.map(([name, field]) => generationFieldMarkup(name, field, draft.values[name], !integrated)).join("")}</div>
         <button class="primary generate-button" id="generate" ${canGenerate ? "" : "disabled"}>
@@ -804,10 +763,6 @@ function playground(): string {
     </section>`;
 }
 
-function catalog(): string {
-  return `<section class="page-heading"><div><p class="eyebrow">MODEL LIBRARY</p><h1>模型管理已集中到 Set Up</h1><p>选择运行设备、复用已有模型、查看部署进度与真实生成结果。</p><a class="button button--primary" href="./setup.html#motion-models">打开模型库 ↗</a></div></section>`;
-}
-
 interface FocusSnapshot {
   id: string;
   start: number | null;
@@ -844,12 +799,7 @@ function render(): void {
   const focus = focusedControl();
   if (viewerCanvas?.isConnected) viewerCanvas.remove();
   if (sourceViewerCanvas?.isConnected) sourceViewerCanvas.remove();
-  const content = {
-    playground: playground(),
-    catalog: catalog(),
-    overview: catalog(),
-  }[state.view];
-  app.innerHTML = layout(content);
+  app.innerHTML = layout(playground());
   bind();
   setViewerActivity();
   restoreFocus(focus);
@@ -858,7 +808,7 @@ function render(): void {
 function setViewerActivity(): void {
   const generating = state.generationPhase !== "idle"
     || Boolean(state.activeJob && !TERMINAL_JOB_STATES.has(state.activeJob.state));
-  const active = state.view === "playground" && !generating && document.visibilityState !== "hidden";
+  const active = !generating && document.visibilityState !== "hidden";
   viewerRuntime?.setActive(active);
   sourceViewerRuntime?.setActive(active);
 }
@@ -867,8 +817,6 @@ function renderLiveRegions(): void {
   updateVireaHomeIndicator();
   const manifest = selectedManifest();
   const presentation = generationPresentation();
-  const domainSelector = document.querySelector<HTMLSelectElement>("#global-execution-domain");
-  if (domainSelector) domainSelector.disabled = presentation.busy;
   const modelSelector = document.querySelector<HTMLSelectElement>("#model-id");
   if (modelSelector) modelSelector.disabled = presentation.busy || !availableModels().length;
   const button = document.querySelector<HTMLButtonElement>("#generate");
@@ -878,8 +826,7 @@ function renderLiveRegions(): void {
       || !modelReady(manifest)
       || !hasFreshVireaHomeAuthority()
       || !state.selectedExecutionDomainId
-      || presentation.busy
-      || Boolean(state.installingModelId);
+      || presentation.busy;
     button.classList.toggle("is-busy", presentation.busy);
     button.setAttribute("aria-busy", String(presentation.busy));
     const label = button.querySelector<HTMLElement>("[data-generate-button-label]");
@@ -941,19 +888,6 @@ function supportedBrowserAudioMime(file: File): string | null {
 
 function normalizedAudioDataUri(value: string, mimeType: string): string {
   return value.replace(/^data:[^;,]*;base64,/i, `data:${mimeType};base64,`);
-}
-
-function output(id: string, value: unknown): void {
-  const node = document.querySelector<HTMLElement>(`#${id}`);
-  if (node) node.textContent = JSON.stringify(value, null, 2);
-}
-
-function setView(view: View): void {
-  state.view = view;
-  state.error = "";
-  state.notice = "";
-  render();
-  setViewerActivity();
 }
 
 function bindDraftInputs(): void {
@@ -1037,23 +971,12 @@ function bindDraftInputs(): void {
 }
 
 function bind(): void {
-  document.querySelector("#brand-home")?.addEventListener("click", () => setView("playground"));
-  document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((button) => {
-    button.addEventListener("click", () => setView(button.dataset.view as View));
-  });
   document.querySelector("#dismiss-error")?.addEventListener("click", () => {
     state.error = "";
     render();
   });
   document.querySelector("#dismiss-notice")?.addEventListener("click", () => {
     state.notice = "";
-    render();
-  });
-  document.querySelector<HTMLSelectElement>("#global-execution-domain")?.addEventListener("change", (event) => {
-    state.selectedExecutionDomainId = (event.currentTarget as HTMLSelectElement).value;
-    state.executionDomainTouched = true;
-    state.executionOptions = {};
-    state.error = "";
     render();
   });
   document.querySelector<HTMLSelectElement>("#model-id")?.addEventListener("change", (event) => {
@@ -1073,38 +996,15 @@ function bind(): void {
   document.querySelectorAll<HTMLButtonElement>("[data-install]").forEach((button) => {
     button.addEventListener("click", () => void installModel(button));
   });
-  document.querySelectorAll<HTMLButtonElement>("[data-use-model]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedModelId = button.dataset.useModel ?? state.selectedModelId;
-      ensureSelectedModel();
-      ensureSelectedExecutionDomain();
-      setView("playground");
-    });
-  });
   document.querySelectorAll<HTMLButtonElement>("[data-open-job]").forEach((button) => {
     button.addEventListener("click", () => void openJob(button.dataset.openJob ?? ""));
   });
   document.querySelector("#generate")?.addEventListener("click", () => void generate());
-  document.querySelector("#refresh")?.addEventListener("click", () => void refreshSystem());
-  document.querySelector("#setup-plan")?.addEventListener("click", () => void runOutput("setup-output", api.setupPlan));
-  document.querySelector("#setup-apply")?.addEventListener("click", () => void runOutput("setup-output", api.setupApply));
-  document.querySelector("#support")?.addEventListener("click", () => void runOutput("support-output", api.supportBundle));
   document.querySelector("#open-viewer")?.addEventListener("click", () => {
     document.querySelector("#viewer-stage")?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
-  if (state.view === "playground") {
-    bindSourceViewer();
-    bindViewer();
-  }
-}
-
-async function runOutput(id: string, action: () => Promise<unknown>): Promise<void> {
-  try {
-    output(id, await action());
-  } catch (error) {
-    state.error = errorMessage(error);
-    render();
-  }
+  bindSourceViewer();
+  bindViewer();
 }
 
 function publishViewerStatus(status: ViewerStatus): void {
@@ -1220,28 +1120,6 @@ function bindViewer(): void {
 async function installModel(button: HTMLButtonElement): Promise<void> {
   const id = button.dataset.install;
   if (id) location.assign(`./setup.html?model=${encodeURIComponent(id)}#motion-models`);
-}
-
-async function refreshSystem(): Promise<void> {
-  state.systemLoading = true;
-  state.error = "";
-  state.executionOptions = {};
-  render();
-  const previousExecutionDomainId = state.selectedExecutionDomainId;
-  const [systemResult, domainResult] = await Promise.allSettled([api.system(), api.executionDomains()]);
-  if (systemResult.status === "fulfilled") state.system = systemResult.value;
-  if (domainResult.status === "fulfilled") {
-    state.executionDomains = domainResult.value;
-    state.selectedExecutionDomainId = previousExecutionDomainId;
-    ensureSelectedExecutionDomain();
-  } else {
-    state.executionDomains = null;
-    state.selectedExecutionDomainId = "";
-  }
-  const failure = [systemResult, domainResult].find((item) => item.status === "rejected");
-  state.error = failure?.status === "rejected" ? errorMessage(failure.reason) : "";
-  state.systemLoading = false;
-  render();
 }
 
 function upsertJob(job: JobRecord): void {
@@ -1674,7 +1552,6 @@ async function performLoadPersistedSuccessfulJob(jobId: string, epoch: number): 
     seed: 0,
   };
   upsertJob(job);
-  state.view = "playground";
 }
 
 async function openJob(jobId: string): Promise<void> {

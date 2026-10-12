@@ -149,15 +149,3 @@ class Settings:
     @property
     def virea_src(self) -> Path:
         return self.virea_root / "src"
-
-    @property
-    def virea_viewer(self) -> Path:
-        return self.virea_root / "apps" / "viewer-web"
-
-    @property
-    def three_root(self) -> Path:
-        return self.virea_root / "node_modules" / "three"
-
-    @property
-    def three_vrm_root(self) -> Path:
-        return self.virea_root / "node_modules" / "@pixiv" / "three-vrm"

@@ -14,6 +14,7 @@ from virea.character.manager import CharacterManager
 from virea.resources import plugin_root as bundled_plugin_root
 from virea.resources import runtime_source_root as bundled_runtime_source_root
 from virea.resources import web_dist as bundled_web_dist
+from virea.workspaces import WORKSPACES, home_identity, source_revision
 
 from .routes import (
     avatars_router,
@@ -58,10 +59,8 @@ def _web_dist() -> Path:
 def _include_legacy_preview(app: FastAPI) -> None:
     """Keep legacy data APIs without exposing the retired legacy Web UI."""
 
-    try:
-        from virea.server.app import app as legacy_app
-    except Exception:
-        return
+    from virea.server.app import app as legacy_app
+
     reserved = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
     existing = {
         (
@@ -173,6 +172,19 @@ def create_app(
     if include_legacy_preview:
         _include_legacy_preview(application)
     web_dist = _web_dist()
+    build_revision = source_revision(runtime_sources)
+
+    @application.get("/api/v1/workspaces")
+    async def workspace_index() -> dict:
+        return {
+            "schema_version": "virea.workspaces.v1",
+            "source_revision": build_revision,
+            "home_identity": home_identity(paths.root),
+            "entries": [
+                {"name": name, "path": "/app/" + ("" if file == "index.html" else file)}
+                for name, file in WORKSPACES
+            ],
+        }
 
     @application.get("/", include_in_schema=False)
     async def web_root() -> RedirectResponse:

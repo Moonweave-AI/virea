@@ -40,7 +40,7 @@ flowchart LR
   home/          设置、模型文件、生成结果和服务日志
 ```
 
-需要选择其他磁盘或端口时，参阅[数据保存位置](persistent-data-root.zh-CN.md)。本项目已有的 VRChat 部署可能使用保存的 `http://127.0.0.1:18001` 地址。
+需要选择其他磁盘或端口时，参阅[数据保存位置](persistent-data-root.zh-CN.md)。启动器会按照所选端口打印全部四个页面链接。
 
 ## 2. 接入所需能力
 

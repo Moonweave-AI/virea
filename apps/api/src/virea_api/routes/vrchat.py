@@ -128,7 +128,8 @@ async def avatar_preview(request: Request):
     path = request.app.state.control_plane.paths.avatars / "vrchat.vrm"
     if not path.is_file():
         raise HTTPException(
-            404, "Run scripts/vrchat/launch.ps1 to prepare the imported avatar preview"
+            404,
+            "The optional local preview uses VIREA_HOME/avatars/vrchat.vrm. Open Dual views for live VRChat windows.",
         )
     return FileResponse(
         path, media_type="model/gltf-binary", headers={"Cache-Control": "no-cache"}

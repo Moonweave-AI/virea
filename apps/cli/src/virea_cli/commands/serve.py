@@ -13,51 +13,21 @@ from typing import BinaryIO, TextIO
 import uvicorn
 
 from virea.resources import discover_resources
+from virea.workspaces import (
+    web_distribution_is_current,
+    web_source_files,
+    workspace_links,
+)
 
 _APP_FACTORY = "virea_api.app:create_app"
 
 
 def _web_source_files(repository_root: Path) -> tuple[Path, ...]:
-    project_root = repository_root / "apps" / "web"
-    fixed = (
-        project_root / "index.html",
-        project_root / "package.json",
-        project_root / "tsconfig.json",
-        project_root / "vite.config.ts",
-        repository_root / "pnpm-lock.yaml",
-        repository_root / "pnpm-workspace.yaml",
-    )
-    trees = (project_root / "src", project_root / "public")
-    return tuple(
-        sorted(
-            (
-                *(path for path in fixed if path.is_file()),
-                *(
-                    path
-                    for tree in trees
-                    if tree.is_dir()
-                    for path in tree.rglob("*")
-                    if path.is_file()
-                ),
-            ),
-            key=lambda path: path.as_posix(),
-        )
-    )
+    return web_source_files(repository_root)
 
 
 def _web_distribution_is_current(repository_root: Path) -> bool:
-    sources = _web_source_files(repository_root)
-    distribution = repository_root / "apps" / "web" / "dist"
-    index = distribution / "index.html"
-    assets = distribution / "assets"
-    if not sources or not index.is_file() or not assets.is_dir():
-        return False
-    outputs = (index, *(path for path in assets.iterdir() if path.is_file()))
-    if len(outputs) == 1:
-        return False
-    newest_source = max(path.stat().st_mtime_ns for path in sources)
-    oldest_output = min(path.stat().st_mtime_ns for path in outputs)
-    return oldest_output >= newest_source
+    return web_distribution_is_current(repository_root)
 
 
 def _prepare_web_distribution() -> None:
@@ -165,6 +135,11 @@ def run(args) -> int:
             file=sys.stderr,
         )
         environment["VIREA_DATA_SOURCE"] = str(data_source)
+
+    print("\n  VIREA / MOONWEAVE AI")
+    for name, url in workspace_links(args.port, args.host).items():
+        print(f"  {name:<19} {url}")
+    print("  Ctrl+C stops the service.\n", flush=True)
 
     with _temporary_environment(environment):
         # The factory resolves VIREA_HOME after the CLI environment is applied.  A

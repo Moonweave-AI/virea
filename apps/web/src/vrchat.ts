@@ -329,7 +329,7 @@ async function loadAvatarPreview() {
     disposeAvatar = await avatarPreview(element<HTMLCanvasElement>("avatar-canvas"));
     element("avatar-preview-note").textContent = "导入模型预览 · 可拖动旋转 · 非 VRChat 游戏画面";
   } catch {
-    element("avatar-preview-note").textContent = "模型预览未加载。请运行完整启动脚本准备模型；VRChat 连接不受影响。";
+    element("avatar-preview-note").textContent = "尚未配置本地模型预览。打开双视角即可查看 VRChat 实时画面。";
     element("reload-avatar").hidden = false;
   }
 }

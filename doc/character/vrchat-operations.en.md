@@ -16,7 +16,7 @@ Use any published Humanoid avatar available to the AI account that supports full
 
 Keep **Automatically follow the AI's current avatar** enabled. No Avatar ID or VIREA expression parameters are needed for skeletal control. After an avatar switch, wait for the new avatar's automatic calibration to finish before sending the next task; the old performance and retained pose are discarded. Non-humanoid rigs and custom animation layers overriding tracked bones are outside the compatibility guarantee. See [control and binding rules](vrchat.en.md#avatar-independent-control).
 
-Create `VIREA_HOME/config/vrchat-clients.json` from [client-launch.example.json](../../integrations/vrchat/client-launch.example.json), using the installed paths and two actual account IDs. It does not store passwords. This machine uses `.virea-runtime/vrchat/home/` as `VIREA_HOME`.
+Create `VIREA_HOME/config/vrchat-clients.json` from [client-launch.example.json](../../integrations/vrchat/client-launch.example.json), using the installed paths and two actual account IDs. It does not store passwords. The launcher defaults to `.virea-runtime/portable/home/`; existing installations can keep their current home.
 
 | Role | Profile | Mode | OSC input / output |
 |---|---:|---|---|
@@ -27,16 +27,9 @@ These are the verified local settings. The unconfigured low-level AI helper defa
 
 ## Start after reboot
 
-From the repository root, start or reuse the services defined in local `stack.json`. Wait for language, speech, MotionCraft, SynTalker and API readiness.
+Run `Start-VIREA.cmd` from the project root. In Set Up, confirm language, speech and motion readiness, then open **VRChat Studio** from the header. The default address is `http://127.0.0.1:8000/app/vrchat.html`; use the launcher's printed link when choosing another port.
 
-```powershell
-# Start configured local services; reuse processes that pass identity/readiness checks.
-./scripts/vrchat/start.ps1
-# Check readiness without launching anything.
-./scripts/vrchat/start.ps1 -CheckOnly
-```
-
-Open `http://127.0.0.1:18001/app/vrchat.html` and use the separate observer and AI start buttons. AI startup includes SteamVR and the registered VIREA virtual rig. Starts reuse matching processes; a single-client restart preserves the other window. Steam/VRChat restores its valid saved sessions. If authentication or verification is requested, complete it in the correct window; a running process is not proof of login.
+Use the separate observer and AI start buttons. AI startup includes SteamVR and the registered VIREA virtual rig. Restart targets only that client; the game restores its saved sessions.
 
 Keep both windows unminimized. The top-right live-view panel shows the observer above the AI. Closing the panel stops capture, while the backend conversation continues.
 
@@ -122,8 +115,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Start, join, calibrate, operate, recover and record a silent two-account VRChat session.
 canonical: doc/character/vrchat-operations.en.md

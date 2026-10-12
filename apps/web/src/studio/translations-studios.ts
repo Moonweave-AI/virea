@@ -101,7 +101,7 @@ export const studioEnglish: Record<string,string> = {
   "重启此窗口": "Restart this client",
   "尚未配置本机 VRChat 启动器：请配置 VIREA_HOME/config/vrchat-clients.json": "Client launcher settings are missing. Open Set Up to inspect this workspace’s configuration.",
   "游戏会恢复各自保存的登录状态；凭据失效或需要验证码时，在对应窗口完成验证。重启后自动恢复画面与角色连接。": "Each client restores its saved login. If verification is needed, complete it in that client. Capture and avatar connections resume after restart.",
-  "模型预览未加载。请运行完整启动脚本准备模型；VRChat 连接不受影响。": "No local avatar preview loaded. Your VRChat connection is available independently.",
+  "尚未配置本地模型预览。打开双视角即可查看 VRChat 实时画面。": "No local avatar preview configured. Open Dual views to see the live VRChat windows.",
   "重新加载模型": "Reload avatar",
   "有什么想让 Virea 做的？": "What would you like VIREA to do?",
   "对话、语音与角色任务，都从这里开始。": "Start a conversation, shape a performance, or give your character a task.",

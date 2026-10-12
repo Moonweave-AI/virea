@@ -117,7 +117,7 @@ Marker sprite 使用对象池；每帧只更新 $a_{t,b}$ 对应 transform。文
 | v3 artifact hand record、evidence serialization 与 replay | `src/virea/pipelines/artifact_manifest.py` |
 | persisted v3 replay 门禁 | `src/virea/pipelines/preview_reader.py` |
 | payload 中 canonical-to-VRM mapping | `src/virea/pipelines/preview_builder.py` |
-| normalized pose、raw node marker、interpolation | `apps/viewer-web/vrm-viewer.js` |
+| normalized pose、raw node marker、interpolation | `apps/web/src/viewer.ts` |
 
 ## 8. 必须拒绝的状态
 
@@ -145,8 +145,8 @@ type: reference
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-08
-updated: 2026-08-10
-last_reviewed: 2026-08-10
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 60
 summary: Canonical v3 的 211 维、手部证书、确定性 FK 与真实 VRM/glTF humanoid node 目标层契约。
 canonical: doc/math-retarget/vrm-gltf-target.zh-CN.md

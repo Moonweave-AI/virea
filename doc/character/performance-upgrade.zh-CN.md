@@ -4,6 +4,9 @@
 
 # 持续角色：GPU 提速与连续性升级
 
+> [!NOTE]
+> 这是当时实验的设计与测量记录。当前部署请使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)，模型和运行环境由统一服务管理。
+
 > 本页保留此前测量。当前实现、流式生成、自然站姿及动作执行后端见[连续生成升级记录](streaming-upgrade.zh-CN.md)。
 
 本页保留最初升级时的配置和测量；当前角色播放已按用户要求改为
@@ -137,13 +140,7 @@ SentiAvatar 规划器继续使用 BF16，保留原 6 步补帧。
 
 将 `VIREA_HOME`、`HF_HOME` 设置为仓库外目录，将下方尖括号替换为本机已下载的绝对路径：
 
-```powershell
-./scripts/character/start_gpu_stack.ps1 `
-  -VireaHome $env:VIREA_HOME `
-  -LlamaServer "<llama.cpp 目录>/llama-server.exe" `
-  -ModelFile "<模型目录>/Qwen3.5-9B-Q4_K_M.gguf" `
-  -HfHome $env:HF_HOME
-```
+[当时的实验启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1)已由统一启动器替代。
 
 启动器检查端口、复用符合配置的语言/语音服务、启动单 Worker API 并预热。
 端口 8000 已占用时会退出；先关闭该 API 再运行。日志与此次新建的进程 ID 在
@@ -183,11 +180,11 @@ VRM 面部映射仍是近似，不承诺音素级唇形。小样本测试证明�
 
 <!--
 type: research-record
-status: Active
+status: Historical
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-27
-last_reviewed: 2026-09-27
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: 常驻 GPU 推理、语言质量、严格同步双缓冲与动作连续性的落地和实测。
 canonical: doc/character/performance-upgrade.zh-CN.md

@@ -16,7 +16,7 @@
 
 保持勾选**自动跟随 AI 账号当前角色**，无需填写 Avatar ID，也无需安装 VIREA 表情参数。更换角色后等新角色自动校准完成，再发送下一项任务；旧表演和旧末帧会停止保留。非人形骨架、覆盖追踪骨骼的自定义动画层不在通用兼容保证内。详见[控制和绑定规则](vrchat.zh-CN.md#avatar-independent-control)。
 
-按 [client-launch.example.json](../../integrations/vrchat/client-launch.example.json) 创建 `VIREA_HOME/config/vrchat-clients.json`，填写安装路径和两个实际账号 ID。示例配置不是密码存储。`VIREA_HOME` 在本机位于 `.virea-runtime/vrchat/home/`。
+按 [client-launch.example.json](../../integrations/vrchat/client-launch.example.json) 创建 `VIREA_HOME/config/vrchat-clients.json`，填写安装路径和两个实际账号 ID。示例配置不是密码存储。默认 `VIREA_HOME` 为 `.virea-runtime/portable/home/`；已有部署可以继续使用原目录。
 
 | 角色 | Profile | 模式 | OSC 输入 / 输出 |
 |---|---:|---|---|
@@ -27,16 +27,9 @@
 
 ## 每次开机后的启动
 
-在仓库根目录运行以下命令，启动或复用本地 `stack.json` 中的服务。语言、语音、MotionCraft、SynTalker 和 API 全部就绪后再进入页面。
+从项目根目录运行 `Start-VIREA.cmd`。在 Set Up 确认语言、语音和动作服务就绪，再从顶栏进入 **VRChat Studio**。默认地址为 `http://127.0.0.1:8000/app/vrchat.html`；使用自定义端口时，以启动器打印的链接为准。
 
-```powershell
-# 启动配置好的本地服务；复用身份与健康检查通过的现有进程。
-./scripts/vrchat/start.ps1
-# 只检查服务，不启动进程。
-./scripts/vrchat/start.ps1 -CheckOnly
-```
-
-打开 `http://127.0.0.1:18001/app/vrchat.html`，分别点击观察者和 AI 的启动按钮。AI 启动链包括 SteamVR 与已注册的 VIREA 虚拟设备。按钮复用正确的现有进程；单端重启仅操作对应窗口。游戏恢复自己的有效登录会话；出现登录或验证页时，应在对应窗口完成认证，不能把“进程存在”当作“已登录”。
+分别点击观察者和 AI 的启动按钮。AI 启动包括 SteamVR 与已注册的 VIREA 虚拟设备。单端重启只操作对应客户端；游戏恢复各自保存的会话。
 
 保持两个窗口未最小化。右上角双视角面板显示真实窗口：上面是观察者，下面是 AI；关闭面板只停止画面采集，后台对话仍继续。
 
@@ -122,8 +115,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: 双账号 VRChat 的启动、同房间、自动校准、静音交互、故障恢复和录制指南。
 canonical: doc/character/vrchat-operations.zh-CN.md

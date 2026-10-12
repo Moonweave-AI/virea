@@ -4,6 +4,8 @@
 
 # WP00 重构基线报告
 
+> 历史基线记录。当前前端位于 `apps/web/`，部署统一通过根目录启动器与 Set Up。
+
 快照日期：2026-08-20
 
 历史工作分支：`codex/vmf-stage1`（仅用于识别 2026-08-20 基线；训练支线已于 2026-08-21 退役）
@@ -36,8 +38,8 @@
 - `schemas/canonical_artifact.schema.json`
 - `schemas/motion_sample.schema.json`
 - `schemas/preview_payload.schema.json`
-- `apps/viewer-web/vrm-canonical-alignment.js`
-- `apps/viewer-web/vrm-viewer.js`
+- [历史 vrm-canonical-alignment.js](https://github.com/Moonweave-AI/virea/blob/4387b89/apps/viewer-web/vrm-canonical-alignment.js)
+- [历史 vrm-viewer.js](https://github.com/Moonweave-AI/virea/blob/4387b89/apps/viewer-web/vrm-viewer.js)
 
 ## 本次验证
 
@@ -60,7 +62,7 @@ $ node --test tests/characterization/viewer_contract.test.mjs
 - Python 包采用 `src/virea/` 布局，`virea.cli:main` 是 console script；核心依赖声明在 `pyproject.toml`。
 - canonical 数学与布局位于 `src/virea/motion/canonical.py`；artifact/schema 常量分布在 motion、pipeline 与 annotation 模块。
 - Preview Runtime 使用 FastAPI，应用工厂为 `src/virea/server/app.py:create_app`。
-- Viewer 是 `apps/viewer-web/` 下的 ES module，normalized humanoid 对齐的纯函数位于 `vrm-canonical-alignment.js`。
+- Viewer 是 [历史 Viewer](https://github.com/Moonweave-AI/virea/tree/4387b89/apps/viewer-web) 下的 ES module，normalized humanoid 对齐的纯函数位于 `vrm-canonical-alignment.js`。
 - 仓库根没有 `.github/`，当前没有可由本报告确认的 CI 门禁。
 
 ## 未在 WP00 验证的范围
@@ -82,11 +84,11 @@ $ node --test tests/characterization/viewer_contract.test.mjs
 
 <!--
 type: report
-status: Active
+status: Historical
 owner: "@Joker-of-Gotham"
 created: 2026-08-20
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: VIREA 0.3 重构前公共契约、可复现证据与未验证范围的基线报告。
 canonical: doc/refactor/BASELINE_REPORT.md

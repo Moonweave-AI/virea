@@ -427,7 +427,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("scenario", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--base-url", default="http://127.0.0.1:18001")
+    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     args = parser.parse_args()
     DemoRecorder(
         json.loads(args.scenario.read_text(encoding="utf-8")),

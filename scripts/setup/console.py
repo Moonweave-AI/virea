@@ -5,6 +5,10 @@ import os
 import sys
 import time
 import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from virea.workspaces import workspace_links  # noqa: E402
 
 
 def tint(value, color="38;2;189;184;209"):
@@ -24,13 +28,7 @@ def stage(step, message, total=8):
 
 
 def studio_links(port):
-    base = f"http://127.0.0.1:{port}/app/"
-    return {
-        "Set Up": base + "setup.html",
-        "Motion Lab": base,
-        "Character Studio": base + "character.html",
-        "VRChat Studio": base + "vrchat.html",
-    }
+    return workspace_links(port)
 
 
 def ready(port):

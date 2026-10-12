@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from virea.workspaces import WORKSPACES
+
 
 def _subprocess_environment() -> dict[str, str]:
     environment = os.environ.copy()
@@ -48,7 +50,8 @@ def test_public_app_exports_remain_compatible_when_requested(tmp_path: Path) -> 
     web_dist = tmp_path / "web-dist"
     assets = web_dist / "assets"
     assets.mkdir(parents=True)
-    (web_dist / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    for _, page in WORKSPACES:
+        (web_dist / page).write_text("<!doctype html>", encoding="utf-8")
     (assets / "app.js").write_text("", encoding="utf-8")
     environment = _subprocess_environment()
     environment["VIREA_WEB_DIST"] = str(web_dist)

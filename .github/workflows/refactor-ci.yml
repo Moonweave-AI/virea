@@ -234,8 +234,6 @@ jobs:
           version: 10.33.0
       - run: npm ci
       - run: npm run check
-      - run: npm run test:viewer
-      - run: node --test tests/characterization/viewer_contract.test.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @virea/web test
       - run: pnpm --filter @virea/web build

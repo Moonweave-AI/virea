@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@pixiv/three-vrm':
-        specifier: 3.5.1
-        version: 3.5.1(three@0.183.2)
-      three:
-        specifier: 0.183.2
-        version: 0.183.2
     devDependencies:
       playwright:
         specifier: 1.62.1

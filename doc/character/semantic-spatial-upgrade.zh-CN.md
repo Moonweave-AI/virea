@@ -4,6 +4,9 @@
 
 # 语义连续表达与空间控制
 
+> [!NOTE]
+> 这是当时实验的设计与测量记录。当前部署请使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)，模型和运行环境由统一服务管理。
+
 > 本文保留 2026-09-27 的实现与实验记录。当前路由、原生历史、接触约束与 UI 以
 > [2026-09-28 Motion Studio 升级](motion-studio-upgrade.zh-CN.md)为准；已移除本文旧版的支撑姿态冻结和讲话上身叠加。
 
@@ -87,14 +90,9 @@ flowchart LR
 先完成既有 SentiAvatar / Kokoro / Qwen 部署。外部 DataRoot 的结构为 `models/`、`runtimes/`、`research/`、`logs/`。
 安装 ARDY 原生足部修正需要 CMake 和 MSVC C++ 工具链；本机已构建通过。
 
-```powershell
-./scripts/character/install_spatial.ps1 -DataRoot <DATA_ROOT>
-uv pip install --python <HOME>/runtimes/sentiavatar-susu-cu128/Scripts/python.exe --no-deps --reinstall ./plugins/models/sentiavatar-susu/runtime
-pnpm --filter @virea/web build
-./scripts/character/start_gpu_stack.ps1 -VireaHome <HOME> -LlamaServer <LLAMA_BIN>/llama-server.exe -ModelFile <DATA_ROOT>/models/Qwen3.5-9B-Q4_K_M.gguf -HfHome <HF_CACHE>
-```
+[当时的实验启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1)已由统一启动器替代。
 
-`start_gpu_stack.ps1` 从语言权重路径推导 DataRoot，自动启动/检查 8085 空间服务；所有服务仅绑定 loopback。
+[当时的启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1) 从语言权重路径推导 DataRoot，自动启动/检查 8085 空间服务；所有服务仅绑定 loopback。
 其他配置可省略 `spatial_url`。ARDY 目前是独立实验 worker，尚未纳入主 ModelPool 的统一显存预约；
 并行执行会共享显卡，应以真实并发实测为准。文本编码器占用约 4.7 GB 权重文件，整套常驻测得约 19 GiB 显存。
 
@@ -125,11 +123,11 @@ ARDY 是运动学生成模型。上游也明确没有通用物理动力学保证
 
 <!--
 type: research-record
-status: Active
+status: Historical
 owner: VIREA maintainers
 created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: 单次语义流、SentiAvatar 补帧加速及 ARDY 原生滚动空间控制的研究、部署与验证边界。
 canonical: doc/character/semantic-spatial-upgrade.zh-CN.md

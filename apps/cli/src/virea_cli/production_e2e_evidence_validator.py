@@ -610,8 +610,8 @@ def _validate_application_binding(
     )
     _require(
         application.visible_version_label
-        == f"Motion Studio {expected_application_version}",
-        "visible Motion Studio version differs from the current control plane",
+        == f"Motion Lab {expected_application_version}",
+        "visible Motion Lab version differs from the current control plane",
     )
     root = (web_dist_root if web_dist_root is not None else current_web_dist()).resolve(
         strict=True

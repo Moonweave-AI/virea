@@ -78,7 +78,7 @@ def test_cli_command_names_handlers_and_default_parser_values_are_stable() -> No
         for action in parser._actions
         if isinstance(action, argparse._SubParsersAction)
     )
-    assert tuple(subparsers.choices) == ("process", "serve", "build-demo")
+    assert tuple(subparsers.choices) == ("process", "build-demo")
 
     process = parser.parse_args(["process"])
     assert process.func.__name__ == "_cmd_process"
@@ -93,17 +93,6 @@ def test_cli_command_names_handlers_and_default_parser_values_are_stable() -> No
         "skip_existing": True,
         "force": False,
         "func": process.func,
-    }
-
-    serve = parser.parse_args(["serve"])
-    assert serve.func.__name__ == "_cmd_serve"
-    assert vars(serve) == {
-        "command": "serve",
-        "data_source": "demo",
-        "host": "",
-        "port": None,
-        "reload": False,
-        "func": serve.func,
     }
 
     build_demo = parser.parse_args(["build-demo"])
@@ -124,7 +113,6 @@ def test_preview_http_route_contract_is_stable_without_loading_data() -> None:
         if route.path == "/" or route.path.startswith("/api/")
     ]
     assert actual == [
-        ("/", ("GET",), "root"),
         ("/api/health", ("GET",), "health"),
         ("/api/catalog", ("GET",), "catalog"),
         ("/api/artifacts/sidecars/{digest}", ("GET",), "artifact_sidecar"),
