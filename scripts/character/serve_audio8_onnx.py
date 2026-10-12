@@ -109,9 +109,12 @@ class Audio8OnnxRuntime:
             # Bound memory just as the official service does: unload synthesis
             # sessions while the reference encoder is in use.
             self.runtime = None
+            self.sessions.clear()
             gc.collect()
-            manifest = json.loads((self.model / "runtime_manifest.json").read_text())
             try:
+                manifest = json.loads(
+                    (self.model / "runtime_manifest.json").read_text(encoding="utf-8")
+                )
                 VoiceRegistration(
                     self.model / "registration",
                     self.encoded,

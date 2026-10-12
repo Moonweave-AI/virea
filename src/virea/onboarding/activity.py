@@ -42,13 +42,38 @@ class ActivityLog:
         self.path = directory / "activity.jsonl"
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.rows = deque(maxlen=400)
-        if self.path.exists():
-            for line in self.path.read_text(encoding="utf-8").splitlines()[-400:]:
-                try:
-                    self.rows.append(json.loads(line))
-                except ValueError:
-                    continue
-        self.sequence = self.rows[-1]["sequence"] if self.rows else 0
+        try:
+            with self.path.open("rb") as stream:
+                lines = deque(stream, maxlen=400)
+        except OSError:
+            lines = ()
+        damaged = False
+        for line in lines:
+            try:
+                row = json.loads(line.decode("utf-8"))
+                if (
+                    isinstance(row, dict)
+                    and type(row.get("sequence")) is int
+                    and row["sequence"] > 0
+                    and isinstance(row.get("message"), str)
+                ):
+                    self.rows.append(row)
+                else:
+                    damaged = True
+            except ValueError:
+                damaged = True
+                continue
+        if damaged:
+            try:
+                self.path.write_text(
+                    "".join(
+                        json.dumps(row, ensure_ascii=False) + "\n" for row in self.rows
+                    ),
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
+        self.sequence = max((row["sequence"] for row in self.rows), default=0)
         self.lock = RLock()
 
     def emit(self, category, message, *, status="running", job_id=None, **facts):

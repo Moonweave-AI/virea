@@ -109,7 +109,7 @@ def test_model_progress_rejects_duplicate_and_recovers_after_restart(tmp_path):
 def test_explicit_cpu_and_unavailable_gpu_are_not_confused(monkeypatch):
     from virea.onboarding import recipes
 
-    async def absent():
+    async def absent(**requirements):
         return False
 
     monkeypatch.setattr(recipes, "cuda_available", absent)

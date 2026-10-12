@@ -54,7 +54,12 @@ def snapshots():
                     continue
                 seen.add(path.resolve())
                 try:
-                    yield root, path, json.loads(path.read_text(encoding="utf-8"))
+                    manifest = json.loads(path.read_text(encoding="utf-8"))
+                    if not isinstance(manifest, dict) or not isinstance(
+                        manifest.get("artifacts"), list
+                    ):
+                        continue
+                    yield root, path, manifest
                 except (OSError, ValueError):
                     continue
 

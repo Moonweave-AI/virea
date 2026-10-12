@@ -1,5 +1,7 @@
 /** Connection and execution states are interface copy, independently of chat language. */
 export const runtimeEnglish: Record<string,string> = {
+  "未检测到满足此运行时要求的 GPU。": "No GPU meets this runtime's requirements.",
+  "请释放显存或检查显卡驱动后重新检测，也可选择 CPU。": "Free GPU memory or check the driver, then retry. You can also select CPU.",
   "例如：A person walks forward, turns left, and waves.": "Example: A person walks forward, turns left, and waves.",
   "我的字幕正在排队发送。": "Your chatbox caption is queued.",
   "用户输入": "User input",

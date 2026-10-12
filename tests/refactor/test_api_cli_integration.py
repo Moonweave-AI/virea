@@ -197,6 +197,11 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("POST", "/api/v1/setup/plan"),
         ("POST", "/api/v1/setup/apply"),
         ("GET", "/api/v1/onboarding"),
+        ("GET", "/api/v1/onboarding/activity"),
+        ("GET", "/api/v1/onboarding/environments"),
+        ("GET", "/api/v1/onboarding/model-library"),
+        ("GET", "/api/v1/onboarding/model-deployments"),
+        ("POST", "/api/v1/onboarding/motion-services/connect"),
         ("POST", "/api/v1/onboarding/discover"),
         ("POST", "/api/v1/onboarding/resolve"),
         ("PUT", "/api/v1/onboarding/connections"),
@@ -217,6 +222,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
         ("GET", "/api/v1/models"),
         ("GET", "/api/v1/models/{model_id}"),
         ("GET", "/api/v1/models/{model_id}/execution-options"),
+        ("GET", "/api/v1/models/{model_id}/install-progress"),
         ("POST", "/api/v1/models/install"),
         ("POST", "/api/v1/jobs"),
         ("GET", "/api/v1/jobs"),
@@ -1143,7 +1149,8 @@ def test_api_model_install_allows_buildable_clean_environment(
             },
         )
 
-        def fail_after_gate(model_id, *, accepted_license=False):
+        def fail_after_gate(model_id, *, accepted_license=False, progress=None):
+            assert callable(progress)
             staged.append(model_id)
             return InstallOutcome(
                 installation_id="install-after-buildable-gate",

@@ -8,6 +8,39 @@ import tailwindcss from "@tailwindcss/vite";
 
 const executablePath = [process.env.VIREA_E2E_BROWSER_PATH,"C:/Program Files/Google/Chrome/Application/chrome.exe","C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe","/usr/bin/chromium",chromium.executablePath()].find(p=>p&&existsSync(p));
 
+test("HeroUI selects follow native value hydration, selection indices and form resets",{skip:!executablePath,timeout:30_000},async()=>{
+  const server=await createServer({configFile:false,plugins:[tailwindcss()],root:resolve(import.meta.dirname,".."),server:{host:"127.0.0.1",port:0}});
+  await server.listen();
+  const browser=await chromium.launch({executablePath,headless:true,args:["--mute-audio"]});
+  try {
+    const page=await browser.newPage();
+    await page.route("**/select-fixture",route=>route.fulfill({contentType:"text/html",body:'<form><label>Motion backend<select id="backend"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></form><p id="changes">0</p>'}));
+    await page.goto(server.resolvedUrls.local[0]+"select-fixture");
+    await page.evaluate(async()=>{
+      const {enhanceSelects}=await import('/src/studio/selects.tsx');
+      const native=document.querySelector('#backend');
+      native.addEventListener('change',()=>{document.querySelector('#changes').textContent=String(Number(document.querySelector('#changes').textContent)+1);});
+      enhanceSelects(document.body);
+    });
+    const trigger=page.locator('[data-native-select="backend"]');
+    await trigger.getByText('MotionCraft',{exact:true}).waitFor();
+    await page.evaluate(()=>{document.querySelector('#backend').value='syntalker';});
+    await trigger.getByText('SynTalker',{exact:true}).waitFor();
+    assert.equal(await page.locator('#changes').textContent(),'0','Server hydration must not submit a settings change');
+    await page.evaluate(()=>{document.querySelector('#backend').selectedIndex=0;});
+    await trigger.getByText('MotionCraft',{exact:true}).waitFor();
+    await page.evaluate(()=>{document.querySelector('#backend').value='syntalker';});
+    await trigger.getByText('SynTalker',{exact:true}).waitFor();
+    await page.evaluate(()=>document.querySelector('form').reset());
+    await trigger.getByText('MotionCraft',{exact:true}).waitFor();
+    assert.equal(await page.locator('#changes').textContent(),'0');
+    await trigger.click();
+    await page.getByRole('option',{name:'SynTalker',exact:true}).click();
+    assert.equal(await page.locator('#backend').inputValue(),'syntalker');
+    assert.equal(await page.locator('#changes').textContent(),'1');
+  } finally {await browser.close();await server.close();}
+});
+
 test("studios keep one navigation, translate controls, preserve content and open settings on demand",{skip:!executablePath,timeout:60_000},async()=>{
   const server=await createServer({configFile:false,plugins:[tailwindcss()],root:resolve(import.meta.dirname,".."),server:{host:"127.0.0.1",port:0}});
   await server.listen();

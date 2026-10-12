@@ -3,6 +3,37 @@
 import platform
 
 
+def cuda_requirements(recipe):
+    if recipe != "motioncraft":
+        return 0.0, 0.0
+    import yaml
+    from virea_model_pool.manifest import ModelPluginManifest
+
+    from .recipes import REPOSITORY
+
+    manifest = ModelPluginManifest.model_validate(
+        yaml.safe_load(
+            (REPOSITORY / "plugins/models/motioncraft-smplx/manifest.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    runtime = next(
+        r for r in manifest.runtime_variants if r.accelerator.kind == "nvidia"
+    )
+    return runtime.accelerator.min_vram_gib or 0.0, min(
+        (p.min_free_vram_gib or 0.0 for p in runtime.resource_profiles), default=0.0
+    )
+
+
+def device_matches(requested, actual):
+    return (
+        requested == "auto"
+        or requested == actual
+        or (requested == "gpu" and actual in {"cuda", "mps", "rocm", "gpu"})
+    )
+
+
 async def select_device(requested, recipe):
     from .recipes import cuda_available
 
@@ -12,7 +43,8 @@ async def select_device(requested, recipe):
     # verifies GPU offload after the actual generation request.
     if recipe == "ollama":
         return requested
-    if await cuda_available():
+    total, free = cuda_requirements(recipe)
+    if await cuda_available(min_vram_gib=total, min_free_vram_gib=free):
         return "cuda"
     if (
         requested in {"auto", "gpu"}
@@ -23,7 +55,13 @@ async def select_device(requested, recipe):
         return "mps"
     if requested != "auto":
         raise ValueError(
-            "未检测到此运行时支持的 GPU。请安装显卡驱动后重新检测，或选择 CPU。"
+            "未检测到满足此运行时要求的 GPU。"
+            + (
+                f"需要至少 {total:g} GiB 总显存和 {free:g} GiB 可用显存。"
+                if total or free
+                else ""
+            )
+            + "请释放显存或检查显卡驱动后重新检测，也可选择 CPU。"
         )
     return "cpu"
 

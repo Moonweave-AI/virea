@@ -13,12 +13,12 @@ def checkout(tmp_path):
     return root
 
 
-def test_checkout_runtime_requires_explicit_opt_in(tmp_path, monkeypatch):
+def test_checkout_runtime_uses_ignored_directory_without_opt_in(tmp_path, monkeypatch):
     root = checkout(tmp_path)
     paths = VireaPaths(root / ".virea-runtime/vrchat/home")
     monkeypatch.delenv("VIREA_ALLOW_CHECKOUT_RUNTIME", raising=False)
-    with pytest.raises(ValueError, match="must be outside"):
-        paths.ensure_layout()
+    paths.ensure_layout()
+    assert paths.state.is_dir() and paths.model_assets.is_dir()
     monkeypatch.setenv("VIREA_ALLOW_CHECKOUT_RUNTIME", "1")
     paths.ensure_layout()
     assert paths.state.is_dir() and paths.model_assets.is_dir()

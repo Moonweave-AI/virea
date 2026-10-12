@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+from types import SimpleNamespace
 
+import pytest
 from virea_model_pool import library
 from virea_model_pool.manifest import ArtifactSource
 
@@ -60,3 +62,32 @@ def test_wrong_revision_and_corrupt_receipt_fall_back_to_download(
     )
     assert library.reuse_source(source, tmp_path / "new-install") is None
     assert not (tmp_path / "new-install").exists()
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        None,
+        [],
+        4,
+        {"artifacts": None},
+        {"artifacts": 3},
+        {"artifacts": {}},
+        {"artifacts": [None, 3, "bad", {}]},
+    ],
+)
+def test_malformed_library_manifest_does_not_hide_valid_models(
+    tmp_path, monkeypatch, invalid
+):
+    source, origin = fixture_source(tmp_path, monkeypatch)
+    bad = tmp_path / "library/model-store/snapshots/stale/manifest.json"
+    bad.parent.mkdir()
+    bad.write_text(json.dumps(invalid))
+    assert list(library.candidates(source)) == [(tmp_path / "library", origin)]
+    manifest = SimpleNamespace(model=SimpleNamespace(id="example"), artifacts=[source])
+    assert library.inventory([manifest]) == [
+        {"model_id": "example", "artifacts": ["weights"], "total_artifacts": 1}
+    ]
+    (origin.parent.parent / "manifest.json").write_text(json.dumps(invalid))
+    assert library.inventory([manifest]) == []
+    assert library.reuse_source(source, tmp_path / "new-install") is None

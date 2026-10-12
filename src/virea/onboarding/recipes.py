@@ -9,6 +9,7 @@ import os
 import platform
 import shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 from virea_bootstrap.environment import sanitized_python_environment
@@ -216,14 +217,14 @@ async def install_ollama(jobs, identifier, uv, env):
     return str(installed)
 
 
-async def cuda_available():
+async def cuda_available(*, min_vram_gib=0.0, min_free_vram_gib=0.0):
     executable = shutil.which("nvidia-smi")
     if not executable:
         return False
     flags = {"creationflags": 0x08000000} if os.name == "nt" else {}
     process = await asyncio.create_subprocess_exec(
         executable,
-        "--query-gpu=memory.total",
+        "--query-gpu=memory.total,memory.free",
         "--format=csv,noheader,nounits",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
@@ -231,11 +232,14 @@ async def cuda_available():
     )
     try:
         output, _ = await asyncio.wait_for(process.communicate(), 8)
-        return process.returncode == 0 and any(
-            int(line) > 0
-            for line in output.decode().splitlines()
-            if line.strip().isdigit()
-        )
+        if process.returncode != 0:
+            return False
+        # These workers use cuda:0; another card's capacity cannot qualify it.
+        first = output.decode().splitlines()[0].split(",")
+        total, free = (float(value.strip()) / 1024 for value in first)
+        return total > 0 and total >= min_vram_gib and free >= min_free_vram_gib
+    except (ValueError, IndexError):
+        return False
     except asyncio.TimeoutError:
         process.kill()
         await process.wait()
@@ -243,15 +247,9 @@ async def cuda_available():
 
 
 async def deploy(jobs, identifier, request):
-    from .compute import prepare_kokoro, select_device
+    from .compute import device_matches, prepare_kokoro, select_device
 
     name = request.recipe
-    env = environment(jobs.paths)
-    uv = shutil.which("uv", path=env["PATH"])
-    if not uv:
-        raise ValueError(
-            "尚未找到 uv；请使用仓库的 Start-VIREA.cmd 或 start-virea.sh 启动，启动器会自动补齐"
-        )
     config = jobs.characters.config
     urls = {
         "ollama": "http://127.0.0.1:11434",
@@ -262,12 +260,8 @@ async def deploy(jobs, identifier, request):
     }
     url = urls[name]
     jobs.step(identifier, 1, "检测已安装服务与运行环境")
-    device = await select_device(request.device, name)
-    jobs.update(
-        identifier,
-        compute_device=device,
-        message=f"计算设备：{device.upper()} · 检测已有服务",
-    )
+    local = urlsplit(url).hostname in {"localhost", "127.0.0.1", "::1"}
+    owned = None
     async with httpx.AsyncClient(trust_env=False) as client:
         if await health(client, url, name) and name != "ollama":
             details = (await client.get(url + "/health")).json()
@@ -278,7 +272,8 @@ async def deploy(jobs, identifier, request):
                     runtime.get("device", "") if isinstance(runtime, dict) else "",
                 )
             ).split(":")[0]
-            if request.device == "auto" or actual == device:
+            if device_matches(request.device, actual):
+                jobs.update(identifier, compute_device=actual or "reported by worker")
                 proof = await verify_local(jobs, identifier, client, name, url)
                 return {
                     "endpoint": url,
@@ -288,20 +283,31 @@ async def deploy(jobs, identifier, request):
                     "verification": proof,
                 }
             owned = jobs.services.get(name)
-            if owned is None or owned.returncode is not None:
+            if not local or owned is None or owned.returncode is not None:
                 raise ValueError(
-                    f"{url} 已有外部服务使用 {actual or '未报告的设备'}；请在其启动器切换到 {device.upper()} 后重新检测。VIREA 不会停止外部服务。"
+                    f"{url} 已有外部服务使用 {actual or '未报告的设备'}；请在其启动器切换到 {request.device.upper()} 后重新检测。VIREA 不会停止外部服务。"
                 )
-            if not request.accepted_license:
-                raise ValueError(
-                    "请先阅读并勾选本地模型及依赖的使用条款，再切换运行环境"
-                )
-            await jobs.terminate(owned)
+        if not local:
+            raise ValueError(f"远端 {name} 服务未就绪：{url}。请检查该服务后重新连接。")
         if not request.accepted_license:
             raise ValueError("请先阅读并勾选本地模型及依赖的使用条款，再开始下载")
+        device = await select_device(request.device, name)
+        jobs.update(
+            identifier,
+            compute_device=device,
+            message=f"计算设备：{device.upper()} · 准备本地运行环境",
+        )
+        env = environment(jobs.paths)
+        uv = shutil.which("uv", path=env["PATH"])
+        if not uv:
+            raise ValueError(
+                "尚未找到 uv；请使用仓库的 Start-VIREA.cmd 或 start-virea.sh 启动，启动器会自动补齐"
+            )
         minimum = 20 if name in {"motioncraft", "syntalker"} else 8
         if shutil.disk_usage(jobs.paths.root).free < minimum * 1024**3:
             raise ValueError(f"可用磁盘不足，请至少留出 {minimum} GiB 空间")
+        if owned is not None:
+            await jobs.terminate(owned)
         process = None
         try:
             if name == "ollama":
@@ -498,8 +504,6 @@ async def deploy(jobs, identifier, request):
                     timeout=14400,
                 )
                 jobs.step(identifier, 5, "启动动作服务并加载真实模型")
-                from urllib.parse import urlsplit
-
                 port = urlsplit(url).port
                 process = await jobs.start_service(
                     name,
