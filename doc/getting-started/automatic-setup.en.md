@@ -56,6 +56,8 @@ The language presets include OpenAI, DeepSeek, Anthropic, Alibaba Bailian, Gemin
 
 For voice cloning, use an existing provider clone or import reference audio and its matching transcript into [Audio8](../character/audio8-tts.zh-CN.md). Kokoro offers pretrained voices.
 
+For **DeepSeek**, paste your key and click **Detect, test & activate**. VIREA lists the models available to that account and uses JSON Object for structured replies, including streamed conversations and motion planning. Older connections saved with JSON Schema are adapted automatically. Keep **Use provider defaults** selected in advanced settings.
+
 ## 3. Deploy a local model
 
 Choose an installation recipe and click **Detect & deploy**. The page shows the current step, percentage and download progress. VIREA reuses healthy local services and cached assets; otherwise it prepares an isolated environment, downloads the pinned source and model files, starts the service and runs a generation check.
@@ -92,6 +94,8 @@ The browser shows generation and execution separately. Inspect the model result 
 | Message | Next step |
 |---|---|
 | Connection timeout | Check the endpoint or local service status, then retry detection |
+| HTTP 400 or 422 | Check the specific parameter or format hint. Detect the connection again and use the provider defaults |
+| HTTP 402 | Add credit in the provider console, then retry the generation check |
 | HTTP 401 or 403 | Select the correct region and update the provider key |
 | HTTP 429 | Check the provider quota and retry when available |
 | No voices found | Select a built-in voice, or create a clone in the provider console and detect again |

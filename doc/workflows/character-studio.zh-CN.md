@@ -11,8 +11,8 @@
 
 导入 VRM，让角色在网页中结合对话与模型动作进行表演。
 
-1. 打开 `/app/character.html`，导入角色并开始会话。
-2. 选择通过检验的语言、语音和动作模型。独立轨道默认使用 MotionCraft，也可选择 SynTalker 或已有 SentiAvatar + ARDY 流程。
+1. 打开 `/app/character.html`，点击 **角色与设置**，选择 VRM 文件即可预览。导入不依赖语言、语音或动作模型；浏览器根据 VRM 标准化骨骼计算初始自然站姿。
+2. 需要对话和生成动作时，在 **部署页** 接入并检验语言、语音和动作服务，再开始会话。独立轨道默认使用 MotionCraft，也可选择 SynTalker 或已有 SentiAvatar + ARDY 流程。
 3. 用自然语言说明交互目标。需要明确编排时，每个动作阶段采用简洁英文描述。
 4. 查看规划和生成进度。时间轴分别显示动作与语音，执行状态显示当前轮次及最近确认。
 5. 随时暂停、中断或发送新请求。新轮次替代尚未完成的生成，并保留角色最近确认的姿态。
@@ -35,8 +35,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Use the character-studio workspace.
 canonical: doc/workflows/character-studio.zh-CN.md

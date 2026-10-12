@@ -232,7 +232,7 @@ export class CharacterStage {
     return buffer;
   }
 
-  async loadAvatar(file: File, motionBackend = "sentiavatar_ardy"): Promise<void> {
+  async loadAvatar(file: File): Promise<void> {
     this.stop();
     const epoch = this.epoch;
     const url = URL.createObjectURL(file);
@@ -246,16 +246,9 @@ export class CharacterStage {
         if (!vrm) throw new Error("请选择包含 humanoid 的 VRM 文件");
         return;
       }
-      const reference = await fetch(`/api/v1/characters/neutral-pose?motion_backend=${encodeURIComponent(motionBackend)}`);
-      if (!reference.ok) {
-        VRMUtils.deepDispose(vrm.scene);
-        throw new Error("自然站姿资源未就绪，请运行角色环境初始化。");
-      }
-      const pose = await reference.json() as { rotations: Record<string, number[]> };
-      if (epoch !== this.epoch || this.disposed) { VRMUtils.deepDispose(vrm.scene); return; }
       if (this.vrm) { this.scene.remove(this.vrm.scene); VRMUtils.deepDispose(this.vrm.scene); }
       this.vrm = vrm;
-      this.idle = new RelaxedIdle(vrm, pose.rotations);
+      this.idle = new RelaxedIdle(vrm);
       this.spatial = new SpatialPlayer(vrm, () => this.audibleTime());
       this.rest = this.poseSample();
       this.authority = new BodyAuthority(vrm);

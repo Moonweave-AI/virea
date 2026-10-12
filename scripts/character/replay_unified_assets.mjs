@@ -41,7 +41,7 @@ try {
       const event = page.waitForEvent("download", { timeout: 240000 });
       void event.catch(() => {});
       const rendered = await page.evaluate(async ({ packet, backend, id }) => {
-        await stage.loadAvatar(new File([await (await fetch('/replay.vrm')).blob()], 'VRM-Model-1.vrm'), backend);
+        await stage.loadAvatar(new File([await (await fetch('/replay.vrm')).blob()], 'VRM-Model-1.vrm'));
         await stage.unlockAudio();
         stage.track({ id, epoch: 1, status: "generating" });
         const value = { ...packet, audio_url: '/replay.wav', performance: { ...packet.performance, asset_url: '/replay.json' } };

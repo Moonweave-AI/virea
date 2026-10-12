@@ -24,7 +24,7 @@ test("setup wizard saves without leaking keys, activates, lists voices and recov
     let transientFailure = false;
     let speechOffline = false;
     const state = {
-      providers:{deepseek:{name:"DeepSeek",kind:"language",base_url:"https://api.deepseek.com",model:"deepseek-chat"},
+      providers:{deepseek:{name:"DeepSeek",kind:"language",base_url:"https://api.deepseek.com",model:"deepseek-chat",structured_modes:["json_object"]},
         "openai-speech":{name:"OpenAI Speech",kind:"speech",base_url:"https://api.openai.com/v1",model:"gpt-4o-mini-tts",voice:"alloy"},
         "local-speech":{name:"本地语音",kind:"speech",base_url:"http://127.0.0.1:8081/v1",model:"kokoro",local:true}},
       active:{}, connections:[], jobs:[],
@@ -79,12 +79,30 @@ test("setup wizard saves without leaking keys, activates, lists voices and recov
       await page.locator(`[data-native-select="${id}"]`).click();
       await page.getByRole("option",{name:label,exact:true}).click();
     }
+    async function assertSelectedTab(id) {
+      await page.mouse.move(0,0);
+      await page.waitForFunction(selectedId => {
+        const tabs = [...document.querySelectorAll('#connections [role="tab"]')];
+        const selected = tabs.find(tab => tab.id === selectedId), other = tabs.find(tab => tab.id !== selectedId);
+        return selected.getAttribute('aria-selected') === 'true' && other.getAttribute('aria-selected') === 'false'
+          && selected.classList.contains('button--secondary') && other.classList.contains('button--ghost')
+          && !other.classList.contains('button--secondary')
+          && getComputedStyle(selected).backgroundColor !== getComputedStyle(other).backgroundColor;
+      }, id);
+    }
     await page.goto(server.resolvedUrls.local[0] + "setup.html");
     await page.locator("#provider option").first().waitFor({state:"attached"});
+    await assertSelectedTab('language-tab');
+    await page.getByRole('tab',{name:'语音模型',exact:true}).click();
+    await assertSelectedTab('speech-tab');
+    await page.getByRole('tab',{name:'语音模型',exact:true}).press('ArrowLeft');
+    await assertSelectedTab('language-tab');
+    assert.equal(await page.locator('#language-tab').evaluate(el => el === document.activeElement),true);
     await page.locator("#api-key").fill("dummy-browser-secret");
     assert.equal(await page.locator("#model").evaluate(e => e.tagName), "SELECT");
     assert.equal(await page.locator("#voice").evaluate(e => e.tagName), "SELECT");
     assert.equal(await page.locator("#ollama-model").evaluate(e => e.tagName), "SELECT");
+    assert.equal(await page.locator('#structured option[value="json_schema"]').evaluate(option => option.disabled), true, await page.locator('#structured').innerHTML());
     await page.getByRole("button",{name:"自动检测并启用",exact:true}).click();
     await page.getByText("密钥已保存",{exact:true}).waitFor();
     assert.equal(await page.locator("#api-key").inputValue(), "");
@@ -93,6 +111,20 @@ test("setup wizard saves without leaking keys, activates, lists voices and recov
     await page.getByText("使用中",{exact:true}).waitFor();
     await page.locator("#saved-connections .verification summary").click();
     await page.getByText('{"ready":true}',{exact:true}).waitFor();
+    // An older saved Schema setting must reopen as the compatible default.
+    state.connections[0].structured = "json_schema";
+    await page.getByRole("button",{name:"编辑",exact:true}).click();
+    assert.equal(await page.locator("#structured").inputValue(), "auto");
+    const messages = await page.evaluate(async () => {
+      const {translateLabel} = await import('/src/studio/legacy.ts');
+      const {setLanguage} = await import('/src/studio/preferences.ts');
+      const original = '模型接口 HTTP 400：模型不支持当前结构化输出格式，请在 Set Up 选择供应商默认格式或 JSON Object';
+      setLanguage('en'); const en = translateLabel(original);
+      setLanguage('zh-CN'); return {en,zh:translateLabel(en),original};
+    });
+    assert.equal(/[\u4e00-\u9fff]/.test(messages.en),false);
+    assert.match(messages.en,/Model API HTTP 400/);
+    assert.equal(messages.zh,messages.original);
     await page.getByRole("tab",{name:"语音模型"}).click();
     await page.getByRole("button",{name:"重新检测可选项"}).click();
     await page.waitForFunction(() => document.querySelectorAll("#voice option").length === 2);

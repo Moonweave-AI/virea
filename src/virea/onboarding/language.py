@@ -23,14 +23,58 @@ def headers(connection):
 def provider_error(response):
     if response.is_error:
         hints = {
+            400: "请求格式或参数不被模型支持，请在 Set Up 重新检测并使用供应商默认设置",
             401: "API Key 无效或未填写",
+            402: "账号余额不足，请在供应商控制台充值后重试",
             403: "账号或模型没有访问权限",
             404: "地址或模型 ID 不存在",
+            408: "供应商处理请求超时，请稍后重试",
+            413: "输入内容超过接口限制，请缩短对话或输入文本",
+            422: "请求参数不被模型支持，请在 Set Up 重新检测并使用供应商默认设置",
             429: "额度不足或请求过于频繁",
+            500: "供应商内部错误，请稍后重试",
+            502: "供应商网关暂时不可用，请稍后重试",
+            503: "供应商服务繁忙，请稍后重试",
+            504: "供应商网关响应超时，请稍后重试",
         }
-        raise ValueError(
-            f"模型接口 HTTP {response.status_code}：{hints.get(response.status_code, '服务暂不可用，请检查供应商控制台')}"
-        )
+        hint = hints.get(response.status_code, "模型服务请求失败，请检查接口状态")
+        if response.status_code in {400, 422}:
+            # Classify known protocol errors without echoing upstream bodies:
+            # some providers include submitted prompts or credentials in them.
+            try:
+                payload = response.json()
+                error = payload.get("error", {}) if isinstance(payload, dict) else {}
+                fields = ("code", "type", "param", "message")
+                detail = (
+                    " ".join(str(error.get(key, "")) for key in fields).lower()
+                    if isinstance(error, dict)
+                    else ""
+                )
+            except (ValueError, httpx.ResponseNotRead):
+                detail = ""
+            if "response_format" in detail or "json_schema" in detail:
+                hint = "模型不支持当前结构化输出格式，请在 Set Up 选择供应商默认格式或 JSON Object"
+            elif any(
+                term in detail
+                for term in (
+                    "context_length",
+                    "context length",
+                    "maximum context",
+                    "too many tokens",
+                )
+            ):
+                hint = "对话内容超过模型上下文限制，请缩短对话或新建会话"
+            elif any(
+                term in detail
+                for term in (
+                    "model_not_found",
+                    "model does not exist",
+                    "invalid model",
+                    "supported api model names",
+                )
+            ):
+                hint = "所选模型不可用，请在 Set Up 重新检测并选择可用模型"
+        raise ValueError(f"模型接口 HTTP {response.status_code}：{hint}")
 
 
 def request_spec(connection, messages, schema, tokens, temperature, stream):
@@ -80,8 +124,12 @@ def request_spec(connection, messages, schema, tokens, temperature, stream):
             },
         }
     mode = connection.get("structured", "auto")
-    if mode == "auto":
-        mode = PRESETS[connection["provider"]].get("structured", "json_object")
+    preset = PRESETS[connection["provider"]]
+    supported = preset.get("structured_modes")
+    if mode == "auto" or (supported and mode not in supported):
+        # Saved profiles can predate the provider's capability metadata. Compile
+        # their contract to a supported wire format, including streaming calls.
+        mode = preset.get("structured", "json_object")
     if mode == "json_object":
         contract = "Return only valid JSON matching this schema: " + json.dumps(
             schema, ensure_ascii=False
@@ -182,6 +230,8 @@ async def stream_deltas(config, client, payload):
         async with client.stream(
             "POST", url, json=body, headers=auth, timeout=config.provider_timeout
         ) as response:
+            if response.is_error:
+                await response.aread()
             provider_error(response)
             async for line in response.aiter_lines():
                 if not line or line.startswith(":"):
@@ -227,8 +277,13 @@ async def list_models(connection, client):
     )
     provider_error(response)
     rows = response.json().get("models" if protocol == "ollama" else "data", [])
+    # OpenAI/Anthropic may include a display name alongside the actual wire ID.
+    # Ollama's /api/tags instead uses `name`, including its version tag.
+    identifier_field = "name" if protocol == "ollama" else "id"
     return [
-        str(row.get("name") or row.get("id"))
+        row[identifier_field]
         for row in rows
-        if row.get("name") or row.get("id")
+        if isinstance(row, dict)
+        and isinstance(row.get(identifier_field), str)
+        and row[identifier_field]
     ][:500]

@@ -2,13 +2,22 @@ import * as THREE from "three";
 import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import type { PoseSample } from "./recovery";
 
-/** Captured relaxed stance plus small respiratory motion, separate from bind pose. */
+/** A loading stance in normalized VRM axes; no model weights or captures required. */
+export function relaxedLoadingPose(): Record<string, number[]> {
+  const halfAngle = THREE.MathUtils.degToRad(65) / 2;
+  return {
+    leftUpperArm: [0, 0, -Math.sin(halfAngle), Math.cos(halfAngle)],
+    rightUpperArm: [0, 0, Math.sin(halfAngle), Math.cos(halfAngle)],
+  };
+}
+
+/** Relaxed stance plus small respiratory motion, separate from generated motion. */
 export class RelaxedIdle {
   private elapsed = 0;
   private active = false;
   private readonly base = new Map<THREE.Object3D, THREE.Quaternion>();
 
-  constructor(private readonly vrm: VRM, rotations: Record<string, number[]>) {
+  constructor(private readonly vrm: VRM, rotations = relaxedLoadingPose()) {
     for (const [name, values] of Object.entries(rotations)) {
       const bone = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
       if (!bone || values.length !== 4 || !values.every(Number.isFinite)) continue;

@@ -51,6 +51,7 @@ PRESETS = {
         "https://api.deepseek.com",
         "deepseek-chat",
         structured="json_object",
+        structured_modes=["json_object"],
     ),
     "anthropic": preset(
         "Anthropic Claude", "language", "anthropic", "https://api.anthropic.com/v1", ""

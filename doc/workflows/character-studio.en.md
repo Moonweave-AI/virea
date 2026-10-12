@@ -11,8 +11,8 @@
 
 Import a VRM and combine dialogue with generated movement in the browser.
 
-1. Open `/app/character.html`, import your avatar, and start a session.
-2. Choose the verified language, speech and motion connections. MotionCraft is the default independent-track method; SynTalker and the existing SentiAvatar + ARDY route are selectable.
+1. Open `/app/character.html`, click **Character settings**, and choose a VRM file. Previewing the avatar works immediately, even before any language, speech or motion model is configured. The browser derives its initial relaxed stance from normalized VRM bones.
+2. For conversation and generated movement, connect and verify the language, speech and motion services in **Set Up**, then start a session. MotionCraft is the default independent-track method; SynTalker and the existing SentiAvatar + ARDY route are selectable.
 3. Describe the interaction in ordinary language. For explicit choreography, use short English captions for each meaningful action stage.
 4. Follow planning and generation progress. The timeline shows speech and motion separately; the execution label shows the turn and latest acknowledgement.
 5. Pause, interrupt or submit another request. The next turn supersedes unfinished generation and keeps the character's acknowledged pose.
@@ -35,8 +35,8 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Use the character-studio workspace.
 canonical: doc/workflows/character-studio.en.md

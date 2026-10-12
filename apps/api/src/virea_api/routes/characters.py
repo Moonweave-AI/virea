@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -93,24 +92,16 @@ async def neutral_pose(
     motion_backend: Literal["sentiavatar_ardy", "motioncraft", "syntalker"]
     | None = None,
 ) -> dict:
-    backend = motion_backend or request.app.state.characters.config.motion_backend
-    if backend != "sentiavatar_ardy":
-        # A static VRM loading pose, not a generated motion or another model.
-        angle = math.radians(65) / 2
-        return {
-            "source": "vrm_static_relaxed_loading_pose",
-            "rotations": {
-                "leftUpperArm": [0, 0, -math.sin(angle), math.cos(angle)],
-                "rightUpperArm": [0, 0, math.sin(angle), math.cos(angle)],
-            },
-        }
-    path = request.app.state.characters.directory / "neutral-pose.json"
-    if not path.is_file():
-        raise HTTPException(
-            503,
-            "Prepare the installed idle capture with scripts/character/build_neutral_pose.py",
-        )
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Compatibility endpoint for API clients. The browser computes this loading
+    # stance locally, without a motion backend, capture file, or model download.
+    angle = math.radians(65) / 2
+    return {
+        "source": "vrm_static_relaxed_loading_pose",
+        "rotations": {
+            "leftUpperArm": [0, 0, -math.sin(angle), math.cos(angle)],
+            "rightUpperArm": [0, 0, math.sin(angle), math.cos(angle)],
+        },
+    }
 
 
 @router.post("", status_code=201)

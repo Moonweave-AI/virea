@@ -200,8 +200,7 @@ element<HTMLInputElement>("#avatar").onchange = async (event) => {
   if (!file) return;
   try {
     if (session) return;
-    await motionBackend.ready;
-    await stage.loadAvatar(file, motionBackend.value);
+    await stage.loadAvatar(file);
     element("#avatar-name").textContent = file.name.replace(/\.vrm$/i, "");
     root.classList.add("avatar-loaded");
     element<HTMLButtonElement>("#start").disabled = false;

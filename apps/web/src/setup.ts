@@ -5,7 +5,7 @@ import {mountStudioChrome} from "./studio/chrome";
 import {t, subscribe} from "./studio/preferences";
 import {showHardware, showJobs, mountActivity, showVerification, clearPanel, type DeploymentJob} from "./studio/setup-panels";
 
-type Preset = {name: string; kind: string; base_url: string; model: string; voice?: string; local?: boolean};
+type Preset = {name: string; kind: string; base_url: string; model: string; voice?: string; local?: boolean; structured_modes?: string[]};
 type Proof = {generated:boolean; kind?:string; model?:string; message?:string; verified_at?:string; elapsed_seconds?:number; bytes?:number; seconds?:number; frames?:number; fps?:number; dimensions?:number; result?:unknown; sample_text?:string; waveform?:number[]; artifact_url?:string; format?:string};
 type Connection = {id: string; provider: string; kind: string; base_url: string; model: string; voice: string; has_key: boolean; structured?: string; api_key_env?: string; pending_changes?: boolean; verification?:Proof};
 type Job = DeploymentJob;
@@ -26,7 +26,7 @@ root.innerHTML = `<aside><a class="wordmark" href="./">VIREA<span> / setup</span
 <div id="notice" role="status" aria-live="polite" hidden></div>
 <section id="device"><div class="section-heading"><div><span class="number">01</span><h2>你的设备</h2></div><button id="detect">重新检测</button></div><div id="machine" class="card muted">正在检测设备及已启动的本地模型…</div><div id="discovered" class="discovered"></div></section>
 <section id="connections"><div class="section-heading"><div><span class="number">02</span><h2>接入语言和语音模型</h2></div></div><p class="hint">语言负责理解和回复，语音负责合成声音，可以分别选择不同服务。</p>
-<div class="tabs" role="tablist"><button id="language-tab" role="tab" aria-selected="true">语言模型</button><button id="speech-tab" role="tab" aria-selected="false">语音模型</button></div>
+<div class="tabs" role="tablist"><button id="language-tab" class="button button--secondary" role="tab" aria-selected="true">语言模型</button><button id="speech-tab" class="button button--ghost" role="tab" aria-selected="false" tabindex="-1">语音模型</button></div>
 <form id="connection-form" class="card"><input id="connection-id" type="hidden" /><div class="form-grid"><label>服务提供方<select id="provider"></select></label><label id="region-field" hidden>Azure 资源地区<select id="region"><option value="eastus">美国东部</option><option value="westus">美国西部</option><option value="eastasia">东亚 · 香港</option><option value="southeastasia">东南亚 · 新加坡</option><option value="japaneast">日本东部</option><option value="koreacentral">韩国中部</option><option value="westeurope">西欧</option><option value="uksouth">英国南部</option><option value="australiaeast">澳大利亚东部</option><option value="centralindia">印度中部</option></select></label><label class="wide">API Key <span class="hint">云端只需粘贴密钥；本地服务无需填写</span><input id="api-key" type="password" autocomplete="off" placeholder="只保存在本机服务端" /></label><label>模型<select id="model"><option value="">检测后自动推荐，也可自行选择</option></select></label><label id="voice-field" hidden>声线<select id="voice"><option value="">自动读取可用声线</option></select></label></div>
 <details><summary>高级设置</summary><div class="form-grid"><label class="wide">API 基础地址<input id="base-url" type="url" required /></label><label>结构化输出<select id="structured"><option value="auto">由供应商预设决定</option><option value="json_object">JSON Object（兼容性优先）</option><option value="json_schema">JSON Schema</option></select></label><label>密钥环境变量（可选）<input id="key-env" placeholder="例如 OPENAI_API_KEY" /></label></div></details>
 <div class="actions"><button type="submit" id="connect-button" class="primary">自动检测并启用</button><button type="button" id="fetch-models">重新检测可选项</button><span id="form-status" class="hint" role="status"></span></div></form><div id="saved-connections"></div><p class="hint">自动读取模型和声线，优先推荐适用选项；不需要填写技术 ID。启用前会发送一条短测试请求，云服务可能计费。语音测试始终静音。</p></section>
@@ -63,18 +63,27 @@ function changeProvider() {
   choices("model", [], ""); choices("voice", [], "");
   el<HTMLInputElement>("api-key").value = "";
   el<HTMLInputElement>("key-env").value = "";
-  el<HTMLSelectElement>("structured").value = "auto";
+  syncStructuredModes();
   el("voice-field").hidden = kind !== "speech";
   el("region-field").hidden = id !== "azure-speech";
   el<HTMLSelectElement>("region").value = "eastus";
   el<HTMLDetailsElement>("connection-form").querySelector("details")!.open = !preset.base_url;
   el("form-status").textContent = "";
 }
+function syncStructuredModes(selected = "auto") {
+  const supported = snapshot.providers[value("provider")]?.structured_modes;
+  const select = el<HTMLSelectElement>("structured");
+  for (const option of select.options) option.disabled = option.value !== "auto" && !!supported && !supported.includes(option.value);
+  select.value = Array.from(select.options).some(option => option.value === selected && !option.disabled) ? selected : "auto";
+}
 function chooseKind(next: string) {
   kind = next;
   for (const name of ["language", "speech"]) {
-    el(`${name}-tab`).setAttribute("aria-selected", String(name === kind));
-    el(`${name}-tab`).tabIndex = name === kind ? 0 : -1;
+    const tab = el(`${name}-tab`), selected = name === kind;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    tab.classList.toggle("button--secondary", selected);
+    tab.classList.toggle("button--ghost", !selected);
   }
   el("provider").innerHTML = Object.entries(snapshot.providers).filter(([,p]) => p.kind === kind).map(([id,p]) => `<option value="${esc(id)}">${esc(p.name)}</option>`).join("");
   changeProvider();
@@ -223,7 +232,7 @@ el("saved-connections").onclick = e => void action(async () => {
     for (const [field,val] of Object.entries({"connection-id":c.id,"base-url":c.base_url})) el<HTMLInputElement>(field).value = val;
     choices("model", [{id:c.model, name:c.model}], c.model);
     choices("voice", c.voice ? [{id:c.voice, name:c.voice}] : [], c.voice);
-    el<HTMLSelectElement>("structured").value = c.structured || "auto";
+    syncStructuredModes(c.structured || "auto");
     el<HTMLInputElement>("key-env").value = c.api_key_env || "";
     await resolveOptions(); return;
   }

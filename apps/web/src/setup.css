@@ -28,8 +28,6 @@
  #setup .wide{grid-column:1/-1}
  #setup :is(input,select){min-width:0;width:100%;border:1px solid var(--field-border);border-radius:10px;padding:11px 12px;background:var(--field-background);color:var(--foreground);font-size:13px}
  #setup .tabs{display:inline-flex;padding:4px;background:var(--surface-secondary);border-radius:12px;gap:4px;margin:6px 0}
- #setup .tabs button{background:transparent;color:var(--muted);box-shadow:none;border:0}
- #setup .tabs button[aria-selected=true]{background:var(--surface);color:var(--foreground);box-shadow:0 1px 4px #0001}
  #setup details{margin-top:18px}#setup summary{font-size:12px;color:var(--muted);cursor:pointer}#setup details .form-grid{margin-top:18px}
  #setup .actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:20px}#setup .actions .hint{flex:1;min-width:200px}
  #setup .saved{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}#setup .saved>div:first-child{min-width:0;flex:1}

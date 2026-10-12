@@ -27,6 +27,8 @@ const chinese = Object.fromEntries(Object.entries(copy).map(([zh,en])=>[en,zh]))
 export function translateLabel(source: string): string {
   const value = source.trim();
   if (value.includes("\n")) return source.replace(value, value.split("\n").map(translateLabel).join("\n"));
+  const providerError = value.match(/^(?:模型接口 HTTP (\d+)：|Model API HTTP (\d+): )(.+)$/);
+  if (providerError) return source.replace(value, `${getLanguage() === "en" ? "Model API HTTP " : "模型接口 HTTP "}${providerError[1] || providerError[2]}${getLanguage() === "en" ? ": " : "："}${translateLabel(providerError[3]!)}`);
   if (getLanguage() !== "en") {
     const known = chineseCopy[value] || chinese[value];
     if (known) return source.replace(value, known);
