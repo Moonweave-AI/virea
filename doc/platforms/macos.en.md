@@ -2,40 +2,27 @@
 [✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](macos.zh-CN.md)
 <!-- END DOC NAV -->
 
-# macOS native
+# 💻 macOS
 
-> [English](macos.en.md) · [中文](macos.zh-CN.md)
+Start from the project root:
 
-```bash
-# Read a mounted data-volume root once.
-# At the prompt paste only the directory, such as /Volumes/VIREA-DATA; outer ' or " quotation marks are not part of the path.
-printf '%s' "Enter the selected data-volume root: "
-read -r virea_data_root
-
-# Create the VIREA layout and install a shell hook for all future terminals.
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-
-# Load the generated settings now; new compatible shells load the hook automatically.
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-
-# Verify Git in this macOS execution domain. If it is unavailable, install Git or Xcode Command Line Tools before model installation.
-git --version
-
-# Install the exact locked Python workspace.
-uv sync --locked --all-packages --extra dev
-
-# Start the guided workflow: choose a model, macOS domain, Runtime/profile, then confirm installation, generation and playback.
-uv run virea
+```sh
+sh start-virea.sh
 ```
 
-Apple Silicon MPS, Apple/Intel CPU and CUDA are separate Runtime choices. VIREA selects MPS or CPU only when the Worker
-implements it. A declared macOS CPU Runtime or lock baseline is not a real macOS model-inference/browser-evidence claim.
-Use `model info` and the generated matrix to see exact declarations and blockers.
+The launcher prepares the tools, dependencies and frontend, then opens Set Up. Keep the terminal open during use.
 
-All 14 catalog models declare `osx-arm64` / `osx-64` CPU Runtime paths. On Intel macOS, every frozen CPU dependency graph
-resolves `torch==2.2.2` with `numpy==1.26.4`, avoiding the unsupported NumPy 2.x ABI path. These declarations and lock
-checks do not replace per-model checkpoint inference and browser acceptance on real macOS hardware. CUDA profiles must
-not appear on macOS, and an MPS Worker is not yet implemented.
+| In Set Up | What to inspect |
+|---|---|
+| Your device | OS, CPU, available RAM, disk and GPU memory |
+| Environments & storage | Domains, Python, Conda/Mamba and registered runtimes |
+| Local deployment and motion library | Select model and device, deploy, then verify real generation |
+
+The launcher selects the Node archive for Intel or Apple Silicon. Choose a runtime supported by the selected model; speech backends may offer MPS, while other models use CPU. VRChat integration runs on Windows.
+
+Runtime data defaults to project-local `.virea-runtime/portable/`, ignored by Git.
+
+[Complete setup](../getting-started/automatic-setup.en.md) · [Storage and ports](../getting-started/persistent-data-root.en.md) · [Developer environment](../getting-started/installation.en.md)
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -48,10 +35,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 14
-summary: English macOS-native execution-domain setup and CPU/MPS capability boundaries.
+summary: macOS launch, device detection and model environment selection.
 canonical: doc/platforms/macos.en.md
 related:
   - macos.zh-CN.md

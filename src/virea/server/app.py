@@ -13,13 +13,12 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, Response
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from virea.data.annotations import resolve_cached_sidecar, sidecar_cache_health
 from virea.data.profiles import profile_for_sample
 from virea.data.registry import DatasetRegistry
-from virea.paths import AVAILABLE_DATA_SOURCES, ProjectPaths, repo_root
+from virea.paths import AVAILABLE_DATA_SOURCES, ProjectPaths
 from virea.pipelines.batch import BatchPipeline, default_worker_count
 from virea.pipelines.catalog import CatalogPipeline
 from virea.pipelines.preview_reader import PreviewReader
@@ -59,46 +58,6 @@ def _default_data_source() -> str:
 
 def _resolve_data_source(data_source: str | None) -> str:
     return (data_source or _default_data_source()).strip().lower()
-
-
-def _mount_static_if_exists(app: FastAPI, route: str, directory: str | Path) -> None:
-    path = Path(directory).expanduser()
-    if not path.is_absolute():
-        path = repo_root() / path
-    if path.exists():
-        app.mount(
-            route,
-            StaticFiles(directory=str(path)),
-            name=route.strip("/").replace("/", "_"),
-        )
-
-
-def _mount_static_first_existing(
-    app: FastAPI, route: str, candidates: list[str | Path]
-) -> bool:
-    for directory in candidates:
-        path = Path(directory).expanduser()
-        if not path.is_absolute():
-            path = repo_root() / path
-        if path.exists():
-            app.mount(
-                route,
-                StaticFiles(directory=str(path)),
-                name=route.strip("/").replace("/", "_"),
-            )
-            return True
-    return False
-
-
-def _mount_static_from_env(
-    app: FastAPI, route: str, env_name: str, project_relative_fallbacks: list[str]
-) -> bool:
-    candidates: list[str | Path] = []
-    env_value = os.getenv(env_name)
-    if env_value:
-        candidates.append(env_value)
-    candidates.extend(project_relative_fallbacks)
-    return _mount_static_first_existing(app, route, candidates)
 
 
 def _truthy_env(name: str) -> bool:
@@ -292,7 +251,7 @@ def _preview_query_params(
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="VIREA Preview Runtime", version="0.4.0")
+    app = FastAPI(title="VIREA Dataset API", version="0.4.0")
     trusted_hosts = [
         item.strip()
         for item in os.getenv(
@@ -313,39 +272,14 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type"],
     )
 
-    ui_root = repo_root() / "apps" / "viewer-web"
-    if ui_root.exists():
-        app.mount("/ui", StaticFiles(directory=str(ui_root)), name="ui")
-    three_available = _mount_static_from_env(
-        app, "/vendor/three", "VIREA_THREE_ROOT", ["node_modules/three", "vendor/three"]
-    )
-    vrm_available = _mount_static_from_env(
-        app,
-        "/vendor/three-vrm",
-        "VIREA_THREE_VRM_ROOT",
-        ["node_modules/@pixiv/three-vrm", "vendor/three-vrm"],
-    )
-
-    @app.get("/")
-    def root() -> FileResponse:
-        index = ui_root / "index.html"
-        if not index.exists():
-            raise HTTPException(status_code=404, detail="viewer UI is not available")
-        return FileResponse(index)
-
     @app.get("/api/health")
     def health() -> dict:
         current_source = ProjectPaths().data_source
         registry = _registry_for(current_source)
         return {
-            "ok": bool(ui_root.exists()),
+            "ok": True,
             "default_data_source": registry.paths.data_source,
             "available_data_sources": _public_data_sources(),
-            "dependencies": {
-                "viewer_ui": ui_root.exists(),
-                "three": three_available,
-                "three_vrm": vrm_available,
-            },
             "sidecar_cache": sidecar_cache_health(),
             "write_api_enabled": _truthy_env("VIREA_ENABLE_WRITE_API"),
             "trusted_raw_pickle_enabled": _truthy_env("VIREA_ALLOW_TRUSTED_RAW_PICKLE"),

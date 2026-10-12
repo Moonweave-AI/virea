@@ -81,6 +81,16 @@ cd virea
 
 [完整部署指南](doc/getting-started/automatic-setup.zh-CN.md) · [平台说明](doc/platforms/README.zh-CN.md) · [故障排查](doc/operations/troubleshooting.zh-CN.md)
 
+| 页面 | 默认地址 |
+|---|---|
+| Set Up · 配置与部署 | [打开](http://127.0.0.1:8000/app/setup.html) |
+| Motion Lab · 动作生成 | [打开](http://127.0.0.1:8000/app/) |
+| Character Studio · 角色对话 | [打开](http://127.0.0.1:8000/app/character.html) |
+| VRChat Studio · 游戏接入 | [打开](http://127.0.0.1:8000/app/vrchat.html) |
+
+更改端口后，以启动器打印的链接为准。更新代码后，关闭启动器并再次运行；配置、模型和结果继续保存在原数据目录。
+
+
 ---
 
 <a id="demos"></a>

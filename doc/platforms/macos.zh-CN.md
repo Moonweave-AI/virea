@@ -2,38 +2,27 @@
 [✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](macos.en.md)
 <!-- END DOC NAV -->
 
-# macOS
+# 💻 macOS
 
-> [中文](macos.zh-CN.md) · [English](macos.en.md)
+从项目根目录启动：
 
-```bash
-# 一次性读取已挂载数据卷的根路径。
-# 提示处只粘贴目录本身，例如 /Volumes/VIREA-DATA；外层单/双引号不是路径内容，不能输入。
-printf '%s' "输入所选数据卷根路径: "
-read -r virea_data_root
-# 创建 VIREA 目录并安装 shell hook；之后新终端自动继承目录设置。
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-# 在当前 shell 立即加载生成的设置；之后兼容 shell 将自动加载 hook。
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-# 确认此 macOS 执行域能找到 Git；若不存在，先安装 Git 或 Xcode Command Line Tools，再安装模型。
-git --version
-# 按锁文件安装 Python workspace。
-uv sync --locked --all-packages --extra dev
-# 启动逐步交互向导：选择模型、macOS 执行域、Runtime/profile，确认安装、生成与播放。
-uv run virea
+```sh
+sh start-virea.sh
 ```
 
-Apple Silicon 的 MPS、Apple/Intel CPU 与 CUDA Runtime 是不同构建。只有 Worker 明确实现 MPS 或 CPU 路径时，
-解析器才会选择它；不能加载 cu128 wheel 后把设备名改为 `mps`。
+启动器准备工具、依赖和前端，然后打开 Set Up。使用期间保持终端开启。
 
-macOS 没有 Linux `/proc`。Worker 身份、孤儿恢复和进程树终止必须使用 Darwin 原生进程信息，并在 PID、创建
-时间、可执行文件和完整参数无法同时核实时 fail closed。平台路径完成实现但未取得实机证据时，状态写“待
-macOS 验收”，而不是“macOS 不支持”。
+| 设置位置 | 内容 |
+|---|---|
+| 设备 | 系统、CPU、可用内存、磁盘和显存 |
+| 运行环境与存储 | 执行域、Python、Conda/Mamba 和已注册环境 |
+| 本地部署与动作模型库 | 选择模型、设备，部署后执行真实生成检验 |
 
-目录中的 14 个模型均声明 `osx-arm64` / `osx-64` CPU Runtime 路径。Intel macOS 的每一份冻结 CPU 依赖图
-都会解析到 `torch==2.2.2` 与 `numpy==1.26.4`，避免不受支持的 NumPy 2.x ABI 路径。这些声明与 lock 检查不能
-替代在真实 macOS 硬件上逐模型完成 checkpoint inference 与 browser acceptance。CUDA profiles 不得出现在
-macOS 可选策略中，MPS Worker 也仍未实现。
+启动器根据 Intel 或 Apple Silicon 选择 Node 安装包。按模型选择支持的环境；部分语音后端支持 MPS，其他模型使用 CPU。VRChat 接入运行于 Windows。
+
+默认运行数据位于项目内 `.virea-runtime/portable/`，不会提交到 Git。
+
+[完整部署](../getting-started/automatic-setup.zh-CN.md) · [存储与端口](../getting-started/persistent-data-root.zh-CN.md) · [开发环境](../getting-started/installation.zh-CN.md)
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -46,10 +35,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 14
-summary: macOS native 的外部环境、Apple Silicon MPS/CPU Runtime 和进程生命周期要求。
+summary: macOS launch, device detection and model environment selection.
 canonical: doc/platforms/macos.zh-CN.md
 related:
   - macos.en.md

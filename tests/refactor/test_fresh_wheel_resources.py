@@ -407,7 +407,9 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         "configs/project.yaml",
         "registries/bundles/release-assets.v1.json",
         "registries/datasets.yaml",
-        "apps/viewer-web/index.html",
+        "apps/web/dist/setup.html",
+        "apps/web/dist/character.html",
+        "apps/web/dist/vrchat.html",
         "plugins/models/prism-tp2m-1-4b/manifest.yaml",
         "plugins/models/prism-tp2m-1-4b/evidence/wsl2-real-inference-2026-08-19.json",
         "apps/web/dist/index.html",
@@ -518,7 +520,9 @@ def test_sdist_built_wheel_has_real_resources_in_fresh_install(
         "virea/_bundled/THIRD_PARTY_NOTICES.md",
         "virea/_bundled/configs/project.yaml",
         "virea/_bundled/registries/datasets.yaml",
-        "virea/_bundled/apps/viewer-web/index.html",
+        "virea/_bundled/apps/web/dist/setup.html",
+        "virea/_bundled/apps/web/dist/character.html",
+        "virea/_bundled/apps/web/dist/vrchat.html",
         "virea/_bundled/plugins/models/prism-tp2m-1-4b/manifest.yaml",
         "virea/_bundled/plugins/models/prism-tp2m-1-4b/evidence/wsl2-real-inference-2026-08-19.json",
         "virea/_bundled/registries/index.yaml",
@@ -769,13 +773,15 @@ assert paths.root == resources.root
 assert resources.third_party_notices.is_file()
 assert (paths.root / "configs" / "project.yaml").is_file()
 assert (paths.root / "registries" / "datasets.yaml").is_file()
-assert (paths.root / "apps" / "viewer-web" / "index.html").is_file()
+assert not (paths.root / "apps" / "viewer-web").exists()
+for page in ("index.html", "setup.html", "character.html", "vrchat.html"):
+    assert (resources.web_dist / page).is_file()
 assert (paths.root / "apps/web/dist/third-party-notices/three-LICENSE.txt").is_file()
 assert (paths.root / "apps/web/dist/third-party-notices/pixiv-three-vrm-LICENSE.txt").is_file()
 assert (paths.root / "apps/web/dist/third-party-notices/vite-core-LICENSE.txt").is_file()
 app = create_app()
 route_paths = {route.path for route in app.routes}
-assert "/" in route_paths
+assert "/" not in route_paths
 assert "/api/health" in route_paths
 print(resources.origin)
 """

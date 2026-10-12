@@ -12,8 +12,8 @@ const preferences = fs.readFileSync(path.join(webRoot, "src", "studio", "prefere
 
 test("Motion Studio declares adaptive light and dark appearances", () => {
   assert.match(html, /name="color-scheme" content="light dark"/);
-  assert.match(main, /data-theme-preference/);
-  assert.match(main, /virea\.theme\.v1/);
+  assert.doesNotMatch(main, /data-theme-preference/);
+  assert.match(preferences, /virea\.theme\.v1/);
   assert.match(theme, /:root\[data-theme="light"\]/);
   assert.match(theme, /:root\[data-theme="dark"\]/);
   assert.match(preferences, /prefers-color-scheme: dark/);

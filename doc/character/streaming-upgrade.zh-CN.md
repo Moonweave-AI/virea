@@ -4,6 +4,9 @@
 
 # 自然待机与连续表达
 
+> [!NOTE]
+> 这是当时实验的设计与测量记录。当前部署请使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)，模型和运行环境由统一服务管理。
+
 本轮把“完整表达结束”与“内部推理窗口结束”分开。完整表达结束后回到自然站姿；
 表达内的窗口持续衔接，不反复收手、停声、重新起步。动作生成开始前不再等待整篇回复和整段音频。
 
@@ -119,12 +122,7 @@ TypeScript 构建和 Ruff 检查通过。GitNexus 将跨层改动整体标为 CR
 
 已有 SentiAvatar 0.3.0 安装、外部数据目录及 b11146 的源码与二进制后：
 
-```powershell
-uv pip install --python <HOME>/runtimes/sentiavatar-susu-cu128/Scripts/python.exe --no-deps --reinstall ./plugins/models/sentiavatar-susu/runtime
-uv run python scripts/character/build_motion_planner.py --home <HOME> --llama-source <LLAMA_SOURCE> --output <MODELS>/sentiavatar-planner-f16.gguf
-pnpm --filter @virea/web build
-./scripts/character/start_gpu_stack.ps1 -VireaHome <HOME> -LlamaServer <LLAMA_BIN>/llama-server.exe -ModelFile <MODELS>/Qwen3.5-9B-Q4_K_M.gguf -HfHome <HF_CACHE>
-```
+[当时的实验启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1)已由统一启动器替代。
 
 转换时先停止正在使用该 GGUF 的规划器服务。转换器记录输入权重、tokenizer、转换脚本和输出的 SHA-256，
 并保存上游非商业许可证。`-MotionPlannerFile` 可指定另一处同权重 GGUF；默认在语言模型同级目录寻找它。
@@ -151,11 +149,11 @@ node scripts/character/ending_e2e.mjs <AVATAR.vrm> <EVIDENCE>/rest <FIXED_CAPTUR
 
 <!--
 type: research-record
-status: Active
+status: Historical
 owner: VIREA maintainers
 created: 2026-09-27
-updated: 2026-09-27
-last_reviewed: 2026-09-27
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: 自然站姿、上下文连续生成、统一播放时钟和动作规划器加速的实现与验证。
 canonical: doc/character/streaming-upgrade.zh-CN.md

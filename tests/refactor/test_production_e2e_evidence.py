@@ -19,6 +19,7 @@ from virea_contracts import (
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = ROOT / "packages" / "contracts" / "schemas" / "v1"
+APPLICATION_JAVASCRIPT = b'const label = "Motion Lab 0.4.0";'
 
 
 def _observation() -> dict:
@@ -38,13 +39,13 @@ def _observation() -> dict:
         "base_url": "http://127.0.0.1:8000",
         "application": {
             "application_version": "0.4.0",
-            "visible_version_label": "Motion Studio 0.4.0",
+            "visible_version_label": "Motion Lab 0.4.0",
             "javascript": {
                 "url_path": "/app/assets/index-current040.js",
                 "method": "GET",
                 "status": 200,
-                "body_byte_length": 36,
-                "content_length": 36,
+                "body_byte_length": len(APPLICATION_JAVASCRIPT),
+                "content_length": len(APPLICATION_JAVASCRIPT),
                 "unique_request_count": 1,
                 "unique_response_count": 1,
             },
@@ -928,10 +929,7 @@ def _web_dist(tmp_path: Path) -> Path:
         '<script type="module" src="/app/assets/index-current040.js"></script>',
         encoding="utf-8",
     )
-    (assets / "index-current040.js").write_text(
-        'const label = "Motion Studio 0.4.0";',
-        encoding="utf-8",
-    )
+    (assets / "index-current040.js").write_bytes(APPLICATION_JAVASCRIPT)
     return dist
 
 
@@ -974,7 +972,7 @@ def test_backend_binds_hashed_javascript_body_and_visible_version_to_current_dis
         (
             {
                 "application_version": "0.3.0",
-                "visible_version_label": "Motion Studio 0.3.0",
+                "visible_version_label": "Motion Lab 0.3.0",
             },
             {},
             "application version differs",

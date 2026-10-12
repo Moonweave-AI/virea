@@ -2,232 +2,50 @@
 [✦ VIREA](../README.zh-CN.md) · [文档](README.zh-CN.md) · [部署](getting-started/automatic-setup.zh-CN.md) · [演示](demos/README.zh-CN.md) · [English](getting-started.en.md)
 <!-- END DOC NAV -->
 
-# 从 git clone 到第一个 VIREA 结果
+# 🚀 从下载到第一个结果
 
-<!-- DOCS-SETUP-ROUTE -->
-> [!TIP]
-> 第一次使用？从[自动部署](getting-started/automatic-setup.zh-CN.md)开始，启动器会准备运行环境。本页保留开发者手动安装与命令行操作。
+下载[仓库 ZIP](https://github.com/Moonweave-AI/virea/archive/refs/heads/main.zip) 后解压，也可以克隆：
 
-> [中文](getting-started.zh-CN.md) · [English tutorial](getting-started.en.md) · [完整 CLI 参数参考](reference/cli.zh-CN.md)
-
-复制任何命令前，请先阅读[数据根路径与引号规则](getting-started/persistent-data-root.zh-CN.md)：其中明确说明 Windows
-复制路径该输入什么、引号是否属于路径，以及一次配置如何在新终端持续生效。
-
-零基础用户优先使用[自动配置向导](getting-started/automatic-setup.zh-CN.md)，可从源码 ZIP 开始，无需预装开发工具。
-
-本页保留开发者手动安装流程。它将可变数据放在 checkout 之外，先检测你的实际执行域，再由你显式选择目标域后
-安装模型或创建任务。英文逐步说明见 [English tutorial](getting-started.en.md)。
-
-## 1. 安装前提工具
-
-准备 Git、Python 3.12、[uv](https://docs.astral.sh/uv/)、Node.js 24、npm 与 pnpm 10。项目支持 Python
-3.10+；`.python-version` 和 `.node-version` 固定了可复现开发基线。使用 GPU Runtime 时，选定执行域还必须具备
-该 Runtime 所要求的驱动和 ABI；第 3 步的 `doctor` 会报告当前事实。
-
-## 2. 克隆项目并设置仓库外本地目录
-
-仓库只保存源码、锁文件、注册表与轻量文档。虚拟环境、模型资产、隔离 Runtime、job、结果和日志都应位于
-仓库外、位于容量充足数据盘上的 `VIREA_HOME`。持久命令在未给出 `VIREA_HOME`/`--virea-home` 时会拒绝执行，
-不会再静默使用 `LOCALAPPDATA`、`$HOME` 或 clone。
-
-### Windows PowerShell
-
-```powershell
-# 从公开仓库克隆源码；贡献时可将 URL 换成自己的 fork。
-git clone https://github.com/Moonweave-AI/virea.git
-
-# 进入刚克隆的项目根目录；后续命令都从此目录执行。
-Set-Location virea
-
-# 显示本机文件系统卷和可用空间，再选择自己的数据盘。
-Get-PSDrive -PSProvider FileSystem
-
-# 一次性读取所选数据盘根路径；脚本会在其下创建 VIREA 目录。
-# 提示处只粘贴目录本身，例如 X:\VIREA-DATA；外层单/双引号不是路径内容，不能输入。
-$vireaDataVolume = Read-Host "输入所选数据盘的根路径"
-
-# 持久写入 VIREA_HOME、UV_PROJECT_ENVIRONMENT、UV_CACHE_DIR、HF_HOME；当前与以后 Windows 终端都会继承。
-& .\scripts\configure-virea.ps1 -DataRoot $vireaDataVolume
-
-# 确认 Windows native 执行域能找到 Git；之后隔离 Runtime 构建时 VIREA 会保留 PATH 与 PATHEXT。
-git --version
-
-# 完全按 uv.lock 安装 Python workspace 与开发依赖；--locked 禁止重新解析版本。
-uv sync --locked --all-packages --extra dev
-
-# 严格按 package-lock.json 安装旧 Viewer 依赖；不要用 npm install 替代。
-npm ci
-
-# 严格按 pnpm-lock.yaml 安装当前 Web workspace；--frozen-lockfile 不允许写锁文件。
-pnpm install --frozen-lockfile
-
-# 编译 Web 到 apps/web/dist；不会启动服务器、下载权重或运行模型。
-pnpm --filter @virea/web build
-```
-
-### Linux、WSL2 与 macOS shell
-
-```bash
-# 克隆源码并进入项目根目录。
+```sh
 git clone https://github.com/Moonweave-AI/virea.git
 cd virea
-
-# 一次性读取已挂载数据盘的根路径。
-# 提示处只粘贴目录本身，例如 /mnt/virea-data；外层单/双引号不是路径内容，不能输入。
-printf '%s' "输入所选数据盘根路径: "
-read -r virea_data_root
-
-# 创建 VIREA 目录并安装 shell hook；之后新终端会自动继承所有持久目录设置。
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-
-# 立即在当前 shell 载入生成的设置；以后 shell 将通过已安装的 hook 自动载入。
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-
-# 确认这个 Linux、WSL 或 macOS 执行域内部能找到 Git；装在其他系统中的 Git 不适用。
-git --version
-
-# 依次复现 Python、Viewer、Web 依赖并构建浏览器界面。
-uv sync --locked --all-packages --extra dev
-npm ci
-pnpm install --frozen-lockfile
-pnpm --filter @virea/web build
 ```
 
-`npm ci` 管理旧 Viewer 工具链，`pnpm` 管理 0.4 Web workspace。请按此顺序运行，且不要并发写同一 checkout 的
-`node_modules`。
+## 1. 启动 VIREA
 
-## 3. 推荐：完成逐步交互流程
-
-```bash
-# 启动无参数交互向导：初始化状态、检测执行域、列出模型、选择精确 Runtime/profile、预检资源、确认安装，然后提供生成和本地播放。
-uv run virea
-```
-
-向导会显示已保存的数据根、上次模型/执行环境、每个模型的持久 READY 元数据和最近任务；模型字节会在执行前
-完整复验。保存项直接按 Enter
-即可复用。匹配的 READY 部署不会重新下载，换了执行环境才会创建独立安装。安装与生成使用真实阶段进度条和
-紧凑摘要，不会把 RAW JSON 倾倒到交互界面。它也不会静默改用其他操作系统、加速器、模型、Runtime、profile
-或破坏性操作；在编号选择处输入 `q` 可安全退出。设置 `NO_COLOR=1` 或重定向输出时会自动使用纯文本进度。
-下面保留的详细命令用于自动化和高级恢复，它们仍输出机器可读 JSON。
-
-## 4. 高级：初始化状态并检测执行域
-
-```bash
-# 创建或升级 VIREA_HOME 中的本地状态；不会修改系统 Python、显卡驱动或全局包。
-uv run virea setup --virea-home "$VIREA_HOME"
-
-# 输出 JSON、写入本地诊断记录、解释发现并提供只读修复计划；不会下载或导入模型框架。
-uv run virea doctor --json --record --explain --repair-plan --virea-home "$VIREA_HOME"
-```
-
-PowerShell 请把 `"$VIREA_HOME"` 替换为 `$env:VIREA_HOME`。从输出的 `execution_domains` 读取 canonical ID：
-
-| ID | 含义 |
-|---|---|
-| `windows-native` | 原生 Windows 进程、路径和资源观测。 |
-| `linux-native` | 原生 Linux 进程、路径和资源观测。 |
-| `macos-native` | 原生 macOS 进程、路径和资源观测。 |
-| `wsl:<distribution>` | 某个具体 WSL 发行版，例如 `wsl:Ubuntu-24.04`。 |
-
-如果检测到多个候选域，必须显式选择。选择失败时 VIREA 不会悄悄切换到其他操作系统、加速器或资源 profile。
-
-部署能力按该执行域实际可见的**总物理内存与总显存**判断；当前可用 RAM/VRAM 只作为会变化的观测显示，
-所以 16 GiB 显卡即使被桌面占用一部分，仍按 16 GiB 设备判断。WSL 使用所选发行版内部实际可见的内存上限，
-不会借用 Windows 主机容量。固件或显示保留区造成的小幅差异（例如标称 16 GiB、实际报告 15.9 GiB）只使用
-有上限的容量容差；当前空闲量不会改变设备身份。没有实现当前执行域的平台 Runtime 会显示为不可用事实，
-但不会进入编号选择列表。
-
-PRISM CUDA 现在同时声明原生 Windows 与 Linux/WSL：CUDA 12.8 lock 已在两个平台解析成功，managed loader
-也没有 Linux-only 依赖。因此 64 GiB RAM + 16 GiB VRAM 的 Windows 机器应选择 12 GiB VRAM / 28 GiB RAM
-的 component-split CUDA profile，而不是尚未实测的 96 GiB CPU fallback。Windows 真实 checkpoint 验收仍与
-“可构建”分开记录。如果 WSL 可见内存过小、而 Windows 主机物理容量足够，向导会明确标成可调整的 WSL 配额，
-而不是误报整机硬件不足。
-
-## 5. 高级：查看、规划并应用模型安装
-
-```bash
-# 列出已知模型；--json 适合脚本读取，不会安装或下载任何内容。
-uv run virea model list --json
-
-# 查看模型的任务、资产、Runtime、profile、许可和按执行域返回的原因。
-uv run virea model info flood-diffusion-tiny
-
-# 仅输出精确安装计划，不修改 VIREA_HOME。大写占位符必须替换为 doctor/model info 返回的值。
-uv run virea model install MODEL --execution-domain DOMAIN --runtime RUNTIME --resource-profile PROFILE --virea-home "$VIREA_HOME"
-
-# 审核计划后才加入 --apply；它可能获取/校验资产、构建隔离 Runtime 并执行安装验收。
-uv run virea model install MODEL --execution-domain DOMAIN --runtime RUNTIME --resource-profile PROFILE --apply --virea-home "$VIREA_HOME"
-
-# 只读验证最新安装是否为 READY，且资产和验收事实仍可访问。
-uv run virea model verify MODEL --virea-home "$VIREA_HOME"
-```
-
-| 占位符 | 含义 | 如何获取 |
+| Windows | macOS | Linux |
 |---|---|---|
-| `MODEL` | 稳定模型 manifest ID，例如 `flood-diffusion-tiny`。 | `virea model list` 或 `virea model info`。 |
-| `DOMAIN` | canonical 执行域 ID。 | `virea doctor --json`。 |
-| `RUNTIME` | 可选的高级 Runtime variant 覆盖项。 | `model info` 中该 `DOMAIN` 可用的 Runtime ID。 |
-| `PROFILE` | 可选的高级资源策略覆盖项。 | `model info` 中该 Runtime 的 profile。 |
+| 双击 `Start-VIREA.cmd` | 打开 `Start-VIREA.command` | 运行 `sh start-virea.sh` |
 
-`--runtime` 和 `--resource-profile` 都是可选项；一旦使用其中任意一个，就必须同时给出
-`--execution-domain`。若 manifest 要求许可确认，请先阅读条款，再加 `--accepted-license`；它只记录本地确认，
-不授予再分发或商业权利。
+启动器准备 Python、Node、依赖和四个页面的构建结果，然后打开 **Set Up**。浏览器中的部署操作会同步显示在终端里。使用期间保持这个终端开启。
 
-## 6. 高级：创建一个动作任务
+| 工作区 | 默认地址 | 用途 |
+|---|---|---|
+| ⚙️ Set Up | <http://127.0.0.1:8000/app/setup.html> | 设备检测、服务接入、模型部署、运行环境和存储 |
+| 🦴 Motion Lab | <http://127.0.0.1:8000/app/> | 生成动作，对比源骨架与 VRM 播放 |
+| 🎭 Character Studio | <http://127.0.0.1:8000/app/character.html> | 导入 VRM，组合对话、语音与动作 |
+| 🌐 VRChat Studio | <http://127.0.0.1:8000/app/vrchat.html> | 在 Windows 上控制并观察独立 AI 角色 |
 
-```bash
-# 向所选、已 READY 的 Runtime 提交受限 text-to-motion 任务。
-# --seconds 是请求时长；--fps 是目标采样率；--seed 在模型支持时可复现随机结果；--timeout 单位为秒，最大 7200。
-uv run virea generate --model MODEL --execution-domain DOMAIN --runtime RUNTIME --resource-profile PROFILE --task text_to_motion --prompt "A person walks forward" --seconds 4 --fps 20 --seed 42 --timeout 1800 --virea-home "$VIREA_HOME"
+指定端口后，以终端打印的实际地址为准。四个页面共用同一 API 和模型状态。
 
-# 对返回的 job ID 只读校验安装、原生结果、Motion IR 和 VRMA 事实。
-uv run virea validate-real-e2e --virea-home "$VIREA_HOME" --job-id JOB_ID --expect success
-```
+## 2. 接入并检验模型
 
-保存返回的 `job_id` 与 `result_id`。它们绑定模型资产 snapshot、所选 Runtime、执行域、资源 profile 和输出产物。
-单台设备的一次成功只是一条精确配置的观测，不能外推成所有系统或 GPU 已验证。
+在 **Set Up** 检测本机设备与已有服务。选择语言服务商和模型，运行生成检验，再按相同流程接入语音。需要本地部署时，选择模型配方，由 VIREA 安装并管理服务。**动作模型库**也在 Set Up 中。
 
-## 7. 高级：在浏览器中播放结果
+检验通过时会提供真实的文本、音频或动作结果。语音检验生成波形和 WAV 文件，不会自动播放声音。之后从顶栏进入需要的工作区。
 
-```bash
-# 在本机回环地址启动控制面。--host 避免对外暴露；--port 决定浏览器访问端口。
-uv run virea serve --host 127.0.0.1 --port 8000 --virea-home "$VIREA_HOME"
-```
+## 3. 保留你的数据
 
-打开 `http://127.0.0.1:8000/`，加载本地 `.vrm` Avatar，并在统一的生成与诊断工作台操作。左侧诊断舞台显示
-模型输出经过解码和坐标归一化、但尚未进入 VRM 重定向的源骨架；右侧显示同一结果重定向后的最终 VRM/VRMA。
-CLI 写入的模型部署和结果会自动同步；`/app/` 仍是同一 UI 的兼容地址。在启动服务的终端按 `Ctrl+C` 才会停止
-服务；关闭浏览器标签页不会停止服务。正常退出会取消活动任务、终止每个 Worker 的完整子进程树、重试首次失败的
-回收，并只在终止已被证明后释放资源锁与控制面所有权。若终端或进程异常崩溃，下次启动会先依据持久化进程身份
-回收可验证的孤儿 Worker。`--reload` 与 legacy
-`--data-source` 的说明见 [CLI 参数参考](reference/cli.zh-CN.md#serve)。
+默认运行目录为项目内的 `.virea-runtime/portable/`，包含工具、环境、缓存与 `home/`，不会提交到 Git。下次使用同一启动器即可复用。需要更换磁盘或接续已有安装时，参阅[存储和端口设置](getting-started/persistent-data-root.zh-CN.md)。
 
-## 8. 高级：排错与安全维护
+> [!TIP]
+> 所有模型部署集中在 Set Up。切换语言、语音和动作方案时，共用这一套应用服务。
 
-```bash
-# 输出本地支持摘要；--jobs 指定纳入多少条最近任务摘要。
-uv run virea support --jobs 20 --virea-home "$VIREA_HOME"
+## 开发与自动化
 
-# 只读查看本地状态。
-uv run virea state inspect --virea-home "$VIREA_HOME"
+源码开发使用[开发安装清单](getting-started/installation.zh-CN.md)；脚本操作参阅 [CLI](reference/cli.zh-CN.md)，部署自动化参阅 [Onboarding API](reference/onboarding-api.md)。安装后的 `virea` 命令与 `python -m virea` 进入同一个应用 CLI。
 
-# 预览模型修复；只有加入 --apply 才会创建新的安装事务。
-uv run virea model repair MODEL --execution-domain DOMAIN --virea-home "$VIREA_HOME"
-
-# 预览可回收且不再引用的模型数据；--dry-run 明确保证不删除任何内容。
-uv run virea model gc --dry-run --older-than-hours 168 --virea-home "$VIREA_HOME"
-```
-
-不要手工编辑 VIREA SQLite 数据库、移动安装目录，或为了“修一个模型”而删除整个 `VIREA_HOME`。请先使用
-`model repair`、`model remove` 或 `gc` 的预览，再决定是否使用 `--apply`。全部参数、默认行为与风险均在
-[CLI 参数参考](reference/cli.zh-CN.md)。
-
-## 下一篇
-
-- [CLI 参考：所有命令和参数](reference/cli.zh-CN.md)
-- [平台与执行域](platforms/README.zh-CN.md)
-- [模型目录与能力矩阵](models/README.zh-CN.md)
-- [文档维护规范](development/documentation.zh-CN.md)
+下一步：[完整部署指南](getting-started/automatic-setup.zh-CN.md) · [首次生成](getting-started/first-generation.zh-CN.md) · [故障排查](operations/troubleshooting.zh-CN.md)。
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -240,10 +58,10 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-10
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
-summary: 从 git clone 到执行域选择、模型安装、动作生成和浏览器播放的 VIREA 中文可复现教程。
+summary: 从同一启动器进入 Set Up 和三个工作区的完整流程。
 canonical: doc/getting-started.zh-CN.md
 related:
   - README.zh-CN.md

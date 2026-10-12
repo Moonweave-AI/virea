@@ -3,7 +3,7 @@ param(
     [ValidateSet('calibrate', 'cancel-calibration', 'join', 'invite', 'accept', 'status')]
     [string]$Action = 'status',
     [ValidateSet('auto', 'ai', 'observer')][string]$Target = 'auto',
-    [int]$Port = 18001
+    [int]$Port = 8000
 )
 $ErrorActionPreference = 'Stop'
 if ($Port -lt 1 -or $Port -gt 65535) { throw 'Invalid local API port' }

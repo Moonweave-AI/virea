@@ -6,14 +6,13 @@
 
 > [中文](cli.zh-CN.md) · [English CLI reference](cli.en.md) · [从 clone 到结果](../getting-started.zh-CN.md)
 
-在 clean clone 中先执行 `uv sync --locked --all-packages --extra dev`。所有示例使用 `uv run`，确保调用的是锁定的
-项目环境。自动化场景请把 `VIREA_HOME` 放在容量足够的数据盘且 checkout 外，并显式传入 `--virea-home PATH`。
-会创建或访问持久状态的命令在未给出该路径时会拒绝执行，不会静默把模型数据写入 `LOCALAPPDATA` 或 `$HOME`。
 
-一次性路径输入的精确规则（Windows 复制路径、外层引号、空格和后续新终端）见[选择并持久化 VIREA 数据根目录](../getting-started/persistent-data-root.zh-CN.md)。
-完成后，下面普通交互命令刻意省略 `--virea-home`，因为它们会使用持久化的 `VIREA_HOME`。
+日常配置使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)。本文用于终端向导、脚本和自动化。`virea`、`python -m virea` 与 `python -m virea.cli` 使用同一组命令和同一个服务。
 
-## 推荐的交互式入口
+准备好[开发环境](../getting-started/installation.zh-CN.md)后，通过 `uv run` 执行命令。持久化命令接受 `--virea-home PATH` 或 `VIREA_HOME`。启动器默认使用 `.virea-runtime/portable/home`；在另一个终端访问同一批模型时，请传入相同路径，也可选择容量更大的数据盘。参阅[数据保存位置](../getting-started/persistent-data-root.zh-CN.md)。
+
+## 可选终端向导
+
 
 ```bash
 # 启动完整逐步流程：确认数据根、初始化状态、选择模型/执行域/Runtime/profile、确认安装、生成，并可选启动本地播放。
@@ -156,7 +155,7 @@ uv run virea state inspect --virea-home $env:VIREA_HOME
 uv run virea state inspect --virea-home "$VIREA_HOME"
 ```
 
-## 一次性数据根配置
+## 可选：为终端持久保存数据根
 
 clone 后、`uv sync` 前只运行一次对应脚本。它会在用户选择的数据根下创建 `home/`、`dev-venv/`、`uv-cache/`、
 `npm-cache/` 与 `pnpm-store/`：`home/` 即 `VIREA_HOME`，承载模型数据及 `HF_HOME` 缓存；其余目录承载 Python/Node
@@ -374,6 +373,8 @@ uv run virea serve --host 127.0.0.1 --port 8000
 根地址会跳转到 `/app/`；后者只是挂载路径，并不是第二套 UI。同一 `VIREA_HOME` 下的 CLI 变更会通过本地状态流
 自动显示，无法建立状态流时自动降级轮询。
 
+命令会打印四个入口：`/app/setup.html`、`/app/`、`/app/character.html` 和 `/app/vrchat.html`。源码更新后，服务启动前会重建过期的前端。`python -m virea serve` 与 `python -m virea.cli serve` 也进入同一服务。
+
 ## `state` 与 `support`
 
 ```bash
@@ -432,8 +433,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-26
-last_reviewed: 2026-08-26
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: VIREA CLI 的完整中文参考，逐项说明命令、位置参数、选项、副作用和安全示例。
 canonical: doc/reference/cli.zh-CN.md

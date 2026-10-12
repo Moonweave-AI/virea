@@ -45,7 +45,6 @@ _ASSET_PATHS = (
     "THIRD_PARTY_NOTICES.md",
     "configs",
     "registries",
-    "apps/viewer-web",
     "apps/web/dist",
     "packages/contracts/pyproject.toml",
     "packages/contracts/setup.cfg",

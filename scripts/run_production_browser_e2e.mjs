@@ -333,8 +333,10 @@ try {
   const appUrl = new URL("/app/", baseUrl);
   if (existingJobId) appUrl.searchParams.set("job", existingJobId);
   await page.goto(appUrl.href, { waitUntil: "networkidle", timeout: 60_000 });
-  const visibleVersionLabel = (await page.locator(".brand small").first().textContent())?.trim() || "";
-  const visibleVersionMatch = /^Motion (?:Lab|Studio) (\d+\.\d+\.\d+)$/.exec(visibleVersionLabel);
+  const versionLabel = page.locator("[data-application-version]");
+  await versionLabel.waitFor({state:"visible",timeout:30_000});
+  const visibleVersionLabel = (await versionLabel.textContent())?.trim() || "";
+  const visibleVersionMatch = /^Motion Lab (\d+\.\d+\.\d+)$/.exec(visibleVersionLabel);
   if (!visibleVersionMatch) throw new Error(`visible application version is invalid: ${visibleVersionLabel}`);
   const applicationVersion = visibleVersionMatch[1];
   if (applicationVersion !== health.version) {
@@ -343,9 +345,9 @@ try {
   let generation = persistedGeneration;
   if (!generation) {
     currentStage = "web_generation";
-    await page.locator('button[data-view="playground"]').click();
-    await page.locator("#model-id").waitFor({ state: "visible", timeout: 30_000 });
-    await page.locator("#model-id").selectOption(modelId);
+    await page.locator('[data-native-select="model-id"]').click({timeout:30_000});
+    const option = page.locator(`[role="option"][data-key=${JSON.stringify(modelId)}]`);
+    await option.click();
     await page.locator("#prompt").waitFor({ state: "visible" });
     const form = await page.evaluate(() => ({
       prompt: document.querySelector("#prompt")?.value,

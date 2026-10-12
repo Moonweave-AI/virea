@@ -122,42 +122,9 @@ flowchart LR
 
 ## 启动服务与客户端
 
-页面连接卡片下方提供“启动观察者”“启动 AI”和各自的“重启此窗口”。它们分别使用固定 Profile、独立 OSC 端口和官方 `launch.exe`：观察者为桌面模式，AI 为虚拟 VR 模式。重复点击复用已有启动任务；两个启动请求按顺序执行，重启只向核验过 PID、进程创建时间和 HWND 的那个窗口发送关闭请求，超时不强杀也不另开一份。启动前静音所有活动的 Windows 播放端点；页面显示百分比、`当前步骤/5`、等待登录、场景加载、账号不匹配和 API 401 状态。场景到达不代表同房间或全身动作已验收。
+运行 `Start-VIREA.cmd`，在 Set Up 检测并部署所需模型，再从顶栏进入 VRChat Studio。四个页面使用同一服务与数据目录。完整操作见 [VRChat 操作指南](vrchat-operations.zh-CN.md)。
 
-将[启动配置示例](../../integrations/vrchat/client-launch.example.json)放到 `VIREA_HOME/config/vrchat-clients.json`，填写本机已安装程序路径及两个真实的 `usr_…` 账号 ID（示例 ID 仅是占位符），AI 端口须与页面桥接配置一致。Profile 隔离、已保存的登录会话由 VRChat 管理；此配置不接收密码、Cookie 或任意启动命令。接口 `GET /api/v1/vrchat/clients` 返回状态，`POST /api/v1/vrchat/clients/{observer|ai}` 接收 `{"action":"start"}` 或 `{"action":"restart"}`，沿用回环地址和同源限制。自动登录依赖 Steam/VRChat 的有效保存会话；过期、退出登录或验证码仍需要在相应游戏窗口完成验证，程序不会把“窗口已启动”报成“登录成功”，也不会循环重启 401 窗口。
-
-1. 按[独立动作轨道指南](unified-motion.zh-CN.md)准备 LLM、Audio8 及 MotionCraft/SynTalker worker，并在 `VIREA_CHARACTER_CONFIG` 中指定服务地址。声音继续选用已导入的参考声音，不需要把原始录音放入仓库。
-2. 在仓库安装可选依赖、构建页面，明确启用仓库内的忽略目录作为运行目录：
-
-```powershell
-uv sync --all-packages --extra dev --extra vrchat
-npm --prefix apps/web run build
-$env:VIREA_ALLOW_CHECKOUT_RUNTIME = '1'
-$env:VIREA_HOME = Join-Path $PWD '.virea-runtime/vrchat/home'
-$env:VIREA_CHARACTER_CONFIG = Join-Path $PWD '.virea-runtime/vrchat/config/character.json'
-uv run --package virea-api python -m uvicorn virea_api.app:app --host 127.0.0.1 --port 18001
-```
-
-3. 打开 `http://127.0.0.1:18001/app/vrchat.html`，选模型、声音和自主跟进次数。静音使用时保持声音、移动关闭，开启双方聊天字幕，执行模式选择 `generated_vr`。
-4. 保留当前 Steam 观察者桌面窗口，启动已注册虚拟驱动的 SteamVR。用 `scripts/vrchat/start_ai_client.ps1 -VRChatExe '<已安装的VRChat.exe>' -Profile 1 -SendPort 19000 -ReceivePort 19001 -VR` 启动 AI；该命令通过官方线上启动器运行，不含 `--no-vr`。**只在第二个窗口登录 AI 专用 VRChat 账号**。profile 隔离本地配置，不保证自动登录不同账号，需要核对身份；不要复用观察者已占用的 profile 或端口。省略此底层脚本的 `-VR` 会进入旧桌面模式，无法执行生成全身动作。[官方启动参数](https://docs.vrchat.com/docs/launch-options)
-5. 在 AI 客户端启用 OSC，页面端口与上述命令对应设为 **19000/19001**。页面默认自动连接、发现角色并绑定已安装 VIREA 参数的角色；也可在设置中关闭自动绑定并手动确认。刷新页面和服务恢复后会按保存的设置重连，主动断开后不自动重连。未配置的新安装默认 **19010/19011**，需要保证页面与客户端一致；只读 OSCQuery 探测不会发布 mDNS 或改写其他客户端的输出路由。[官方 OSC 端口说明](https://docs.vrchat.com/docs/osc-overview)
-6. 启用语音时，桥接选择虚拟线缆的**播放端**，VRChat 选择其配对的**录音端**。先在设备自己的监听工具及 VRChat 麦克风电平中验证。设备列表显示实际名称及 Host API，不会凭名称自动认定某设备是正确的虚拟线缆。
-7. 默认由用户在 VRChat 开麦。可选“语音段期间按住说话”，但必须先关闭 VRChat 的 **Toggle Voice**，否则连续的 Voice 输入可能产生错误的切换语义。[官方输入说明](https://docs.vrchat.com/docs/osc-as-input-controller)
-8. 静音全身测试跳过第 6、7 步。在 AI 窗口完成 Calibrate FBT，确认回传 `TrackingType=6` 后，在双方同处的私有测试实例发送目标，检查真实动作、双方字幕、暂停、继续与急停。
-
-仓库的 `.virea-runtime/vrchat/` 按用途分为 `config/`（本机服务配置）、`home/`（会话数据）、`unity/avatar/`（角色工程）、`logs/`、`evidence/`。正式工具保留在 `scripts/vrchat/` 与 `integrations/vrchat/unity/Editor/`。仓库内运行目录需要上述环境变量显式启用，且根 `.gitignore` 必须包含 `/.virea-runtime/`。`scripts/vrchat/start.ps1` 按本机 `config/stack.json` 启动服务；`-CheckOnly` 只检查服务状态。
-
-已配置本机服务后，一次启动使用：
-
-```powershell
-./scripts/vrchat/launch.ps1 -VRChatExe '<已安装的VRChat.exe完整路径>' -VR
-```
-
-该入口构建前端、复制工程中的 VRM 到固定本机预览位置、启动或复用健康服务，并复用专用端口上已运行的 AI 客户端。不会关闭观察者窗口。脚本解析安装目录中的官方 `launch.exe`，缺失时直接报错；直接运行 `VRChat.exe` 会进入离线测试模式，不能代替线上启动。页面的模型预览支持旋转查看，明确标为“非 VRChat 游戏画面”。只读诊断将本机 OSC、明确的离线测试日志和同房间记录分开显示；仅在两个运行中进程分别确认本账号到达同一个完整实例时匹配房间，不返回账号、实例标识或原始日志。场景外观、动作和声音仍需实测。
-
-已有登录配置应按实际 profile 和端口复用，不能根据窗口启动顺序判断账号。项目内 `.virea-runtime/vrchat/config/stack.json` 可设置 `"ai_client": {"profile": 1, "send_port": 19000, "receive_port": 19001, "vr": true}`；本机已持久化此设置，统一启动入口会把 VR 模式传给客户端脚本。2026-10-10 核验的观察者使用 profile 0、9000/9001。无配置时默认 AI profile 2、19010/19011、桌面模式；`-AIProfile`、`-VR` 可显式覆盖。页面高级设置中的 Profile 和端口也必须对应同一个账号。虚拟驱动注册与 SteamVR 启动见前文。
-
-如果 Unity 显示 `No valid Unity Editor license found`，先在 Unity Hub 的许可证设置刷新已有许可证，再从 Hub 打开项目。本次已验证该路径可恢复 E 盘的 2022.3.22f1 编辑器；Unity 许可证、VRChat SDK 登录和上传等级是三个不同的状态。
+默认数据目录为 `.virea-runtime/portable/home/`，Unity 角色工程与驱动构建可放在被 Git 忽略的 `.virea-runtime/vrchat/` 下。已有安装通过 `--virea-home` 继续使用原配置与模型。默认页面是 `http://127.0.0.1:8000/app/vrchat.html`，自定义端口以终端输出为准。
 
 <a id="avatar-independent-control"></a>
 
@@ -273,8 +240,8 @@ type: reference
 status: draft
 owner: VIREA maintainers
 created: 2026-10-04
-updated: 2026-10-11
-last_reviewed: 2026-10-08
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: VIREA 到 VRChat 的本机执行桥接、桌面模式、VR 追踪、角色安装与验证边界。
 canonical: doc/character/vrchat.zh-CN.md

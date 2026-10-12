@@ -189,6 +189,7 @@ def test_api_v1_route_surface_is_versioned_and_complete(tmp_path) -> None:
 
     assert routes == {
         ("GET", "/api/v1/health"),
+        ("GET", "/api/v1/workspaces"),
         ("GET", "/api/v1/state"),
         ("GET", "/api/v1/system"),
         ("GET", "/api/v1/execution-domains"),
@@ -1560,10 +1561,12 @@ def test_source_checkout_serve_reuses_a_current_web_distribution(
     source.mkdir(parents=True)
     assets.mkdir(parents=True)
     (source / "main.ts").write_text("export const current = true;", encoding="utf-8")
-    (web / "dist" / "index.html").write_text("current", encoding="utf-8")
+    for page in ("index.html", "setup.html", "character.html", "vrchat.html"):
+        (web / "dist" / page).write_text("current", encoding="utf-8")
     (assets / "index-current.js").write_text("current", encoding="utf-8")
     current_timestamp = 1_800_000_000
-    os.utime(web / "dist" / "index.html", (current_timestamp, current_timestamp))
+    for page in ("index.html", "setup.html", "character.html", "vrchat.html"):
+        os.utime(web / "dist" / page, (current_timestamp, current_timestamp))
     os.utime(assets / "index-current.js", (current_timestamp, current_timestamp))
 
     monkeypatch.delenv("VIREA_WEB_DIST", raising=False)

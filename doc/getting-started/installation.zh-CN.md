@@ -2,41 +2,39 @@
 [✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](installation.en.md)
 <!-- END DOC NAV -->
 
-# 安装
+# 🛠️ 开发安装清单
 
-<!-- DOCS-SETUP-ROUTE -->
-> [!TIP]
-> 第一次使用？从[自动部署](automatic-setup.zh-CN.md)开始，启动器会准备运行环境。本页保留开发者手动安装与命令行操作。
+日常使用请运行[自动启动器](automatic-setup.zh-CN.md)。本页用于修改源码和运行测试。
 
-> [中文](installation.zh-CN.md) · [English](installation.en.md) · [完整 clone 教程](../getting-started.zh-CN.md)
+准备 Python 3.12、uv、Node.js 24 和 pnpm 10.33.0，然后在仓库根目录执行：
 
-## 前置
-
-- Git、uv、Node.js 与 pnpm；
-- 足够的外部磁盘空间；
-- 目标模型需要的 GPU/CPU 与驱动；
-- checkpoint 或人体模型受限时，接受对应第三方条款。
-
-## 源码开发
-
-先按[完整 clone 教程](../getting-started.zh-CN.md)克隆项目，并把 `UV_PROJECT_ENVIRONMENT` 和 `VIREA_HOME` 指向
-checkout 之外；Windows/Unix 的精确路径输入、复制路径和空格规则见[数据根路径与引号规则](persistent-data-root.zh-CN.md)，再执行：
-
-```bash
-# 严格按 uv.lock 安装 Python workspace 与开发依赖；不会下载模型权重。
+```sh
 uv sync --locked --all-packages --extra dev
-# 严格按 pnpm-lock.yaml 安装当前 Web workspace；不允许改锁文件。
 pnpm install --frozen-lockfile
-# 构建浏览器静态资源，不启动服务。
 pnpm --filter @virea/web build
-# 启动推荐的逐步交互向导：初始化状态、检测执行域、选择模型/Runtime/profile，安装前确认，再提供生成与播放。
-uv run virea
+# 初始化与启动器共用的项目内数据目录。
+uv run virea setup --virea-home .virea-runtime/portable/home
+# 用同一 API 提供 Set Up 和三个工作区。
+uv run virea serve --virea-home .virea-runtime/portable/home
 ```
 
-`doctor --record` 在 `machine/reports/` 保存不可覆盖报告；安装验收会选择安装开始前最新的有效报告，而不是
-读取可能已被后来机器状态覆盖的全局 latest。
+Windows 用户可在 `uv sync` 中追加 `--extra vrchat` 安装 VRChat 接入依赖。通过 CLI 在项目内安装模型运行环境时，设置 `VIREA_ALLOW_CHECKOUT_RUNTIME=1`；自动启动器会自行设置。
 
-仓库根目录不得出现 `.venv`、模型缓存、日志、SQLite、job/result 或 pytest 临时目录。
+服务启动后打印四个页面地址。`python -m virea serve` 也进入同一应用。源码更新后，服务会先检查四个 HTML 入口及其资源，构建过期前端。
+
+## 验证修改
+
+```sh
+uv run ruff check .
+uv run python -m pytest tests/onboarding tests/refactor/test_api_cli_integration.py -q
+pnpm --filter @virea/web test
+pnpm --filter @virea/web build
+uv run python scripts/check_docs.py
+```
+
+需要前端热更新时，保持 API 在 8000 端口运行，再执行 `pnpm --filter @virea/web dev`。Vite 打印开发地址，并将 `/api` 转发给 API；正式启动器直接提供构建后的页面。
+
+配置、模型安装和结果位于选定的 `VIREA_HOME`。参阅[存储](persistent-data-root.zh-CN.md)和 [CLI](../reference/cli.zh-CN.md)。
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -49,10 +47,10 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
-summary: 在不污染 checkout 的前提下安装 VIREA、初始化外部状态并记录机器报告。
+summary: Source development using the same application and web workspace.
 canonical: doc/getting-started/installation.zh-CN.md
 related:
   - installation.en.md

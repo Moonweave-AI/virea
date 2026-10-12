@@ -3,8 +3,8 @@ type: research-record
 status: Current
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-21
-last_reviewed: 2026-08-21
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: FloodDiffusion Full/Tiny 的正式权重、资源与产品选型依据。
 canonical: plugins/models/flood-diffusion-tiny/runtime/RESEARCH_SELECTION.md
@@ -16,6 +16,8 @@ superseded_by: []
 ---
 
 # Model selection report
+
+> 历史基线记录。当前前端位于 `apps/web/`，部署统一通过根目录启动器与 Set Up。
 
 ## Decision
 
@@ -70,8 +72,8 @@ Relevant VIREA components at that historical baseline:
 - `src/virea/data/adapters/humanml3d.py`
 - `src/virea/motion/codecs.py` (`HumanML3D263Codec`)
 - `src/virea/pipelines/preview_builder.py`
-- `apps/viewer-web/vrm-viewer.js`
-- `apps/viewer-web/vrm-canonical-alignment.js`
+- [历史 vrm-viewer.js](https://github.com/Moonweave-AI/virea/blob/4387b89/apps/viewer-web/vrm-viewer.js)
+- [历史 vrm-canonical-alignment.js](https://github.com/Moonweave-AI/virea/blob/4387b89/apps/viewer-web/vrm-canonical-alignment.js)
 
 
 ## RTX 5090 attention decision

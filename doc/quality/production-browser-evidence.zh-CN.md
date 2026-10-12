@@ -44,7 +44,7 @@ observation schema。旧 validated 记录只能作为历史诊断材料；它们
 
 - Web 发出的 JobRequest 与模型 manifest 的 production acceptance 深度相等；
 - 浏览器实际 GET 的唯一 hashed application JavaScript URL、HTTP 200 body bytes、可见
-  `Motion Studio 0.4.0` 标签与当前安装 bundle 完全一致；
+  `Motion Lab 0.4.0` 标签与当前安装 bundle 完全一致；
 - job 为 `SUCCEEDED`，结果含完整 model/runtime/checkpoint、原生 representation/skeleton 和目标骨骼身份；
 - acceptance 与 fresh generation 都有唯一 `job.worker_attested`，且选择的 Runtime project package、project
   version、`runtime_core_epoch`、已安装 `virea-contracts`/`virea-model-sdk` epoch 完全相同；
@@ -172,8 +172,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 14
 summary: 真实 Web 生成、VRM/VRMA 播放观察、后端不可变状态绑定与 evidence registry 晋级边界。
 canonical: doc/quality/production-browser-evidence.zh-CN.md

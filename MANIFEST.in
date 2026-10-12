@@ -16,7 +16,6 @@ recursive-include registries *.yaml
 exclude registries/representations/fake-root-translation.v1.yaml
 exclude registries/runtimes/fake-runtime-v1.yaml
 recursive-include configs *.yaml *.json
-recursive-include apps/viewer-web *.html *.css *.js
 recursive-include apps/web/dist *
 include packages/contracts/pyproject.toml
 include packages/contracts/setup.cfg

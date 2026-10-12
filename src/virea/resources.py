@@ -143,7 +143,6 @@ def _resource_layout(root: Path, *, origin: str) -> VireaResources:
         layout.third_party_notices,
         resolved / "configs" / "project.yaml",
         resolved / "registries" / "datasets.yaml",
-        resolved / "apps" / "viewer-web" / "index.html",
         layout.registry_root / "index.yaml",
         layout.runtime_source_root / "packages" / "contracts" / "pyproject.toml",
         layout.runtime_source_root / "packages" / "contracts" / "setup.cfg",

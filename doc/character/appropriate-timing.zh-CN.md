@@ -4,6 +4,9 @@
 
 # 在合适的时候说话和行动
 
+> [!NOTE]
+> 这是当时实验的设计与测量记录。当前部署请使用[启动器与 Set Up](../getting-started/automatic-setup.zh-CN.md)，模型和运行环境由统一服务管理。
+
 后续的身体目标去冗余与持续运动条件修正见 [保留持续运动意图](persistent-motion-intent.zh-CN.md)。下文的多阶段编译说明和测试数据保留为本轮历史记录。
 
 ## 目标与结论
@@ -93,7 +96,7 @@ LLM 决定正文、行动采纳、前后关系、模型与动作预算。代码�
 
 ## 验证与复现
 
-本轮真实模型探针使用本机 Qwen3.5-9B Q4_K_M、原有 GPU 栈。`start_gpu_stack.ps1` 新增 `ReasoningBudget` 参数，默认 512，并使用 `--reasoning auto`，使请求的 thinking 选择生效。早期 96 token 和中间架构仍出现重复舞台说明、循环依赖及服务错误；这些失败促成了联合正文计划和校验反馈，不能当作通过样本。
+本轮真实模型探针使用本机 Qwen3.5-9B Q4_K_M、原有 GPU 栈。[当时的启动脚本](https://github.com/Moonweave-AI/virea/blob/4387b89/scripts/character/start_gpu_stack.ps1) 新增 `ReasoningBudget` 参数，默认 512，并使用 `--reasoning auto`，使请求的 thinking 选择生效。早期 96 token 和中间架构仍出现重复舞台说明、循环依赖及服务错误；这些失败促成了联合正文计划和校验反馈，不能当作通过样本。
 
 完整角色设定实测另触发单槽 8192 token 上限，服务日志记录 `n_tokens=8191, truncated=1`。启动参数新增 `ContextPerSlot=16384`、`ParallelSlots=2`，总上下文容量按两者乘积设置。长设定不再与两个请求共享一个名义 16K、实际每槽只有 8K 的预算。
 
@@ -137,11 +140,11 @@ LLM 决定正文、行动采纳、前后关系、模型与动作预算。代码�
 
 <!--
 type: explanation
-status: Active
+status: Historical
 owner: VIREA maintainers
 created: 2026-09-30
-updated: 2026-09-30
-last_reviewed: 2026-09-30
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 90
 summary: 用同一份 LLM 计划和实际执行事件决定何时说话、何时行动。
 canonical: doc/character/appropriate-timing.zh-CN.md

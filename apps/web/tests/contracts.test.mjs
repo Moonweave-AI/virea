@@ -22,10 +22,10 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(api, /stateEventsUrl/);
   assert.match(api, /jobEventsUrl/);
   assert.match(api, /\/models\?verification_scope=metadata/);
-  assert.match(main, /type View = "playground" \| "catalog" \| "overview"/);
+  assert.doesNotMatch(main, /type View =|function catalog\(|function refreshSystem\(/);
   assert.doesNotMatch(main, /type View = .*"viewer"/);
   assert.doesNotMatch(main, /type View = .*"jobs"/);
-  const workbench = main.slice(main.indexOf("function playground(): string"), main.indexOf("function catalog(): string"));
+  const workbench = main.slice(main.indexOf("function playground(): string"), main.indexOf("interface FocusSnapshot"));
   assert.match(workbench, /id="generate"/);
   assert.match(workbench, /id="vrm-canvas"/);
   assert.match(workbench, /id="source-skeleton-canvas"/);

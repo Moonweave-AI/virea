@@ -2,36 +2,27 @@
 [✦ VIREA](../../README.zh-CN.md) · [文档](../README.zh-CN.md) · [部署](../getting-started/automatic-setup.zh-CN.md) · [演示](../demos/README.zh-CN.md) · [English](linux.en.md)
 <!-- END DOC NAV -->
 
-# Linux
+# 💻 Linux
 
-> [中文](linux.zh-CN.md) · [English](linux.en.md)
+从项目根目录启动：
 
-```bash
-# 一次性读取已挂载数据盘的根路径。
-# 提示处只粘贴目录本身，例如 /mnt/virea-data；外层单/双引号不是路径内容，不能输入。
-printf '%s' "输入所选数据盘根路径: "
-read -r virea_data_root
-# 创建 VIREA 目录并安装 shell hook；之后新终端自动继承目录设置。
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-# 在当前 shell 立即加载生成的设置；之后兼容 shell 将自动加载 hook。
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-# 确认此 Linux 执行域能找到 Git；装在其他主机或其他 WSL 发行版内的 Git 不满足此检查。
-git --version
-# 按锁文件安装 Python workspace。
-uv sync --locked --all-packages --extra dev
-# 启动逐步交互向导：选择模型、Linux 执行域、Runtime/profile，确认安装、生成与播放。
-uv run virea
+```sh
+sh start-virea.sh
 ```
 
-原生 Linux 执行域内完成 `uv` 构建、framework probe、Worker、`/proc` 进程身份和浏览器服务。NVIDIA CUDA、
-AMD ROCm 与 CPU 是不同 Runtime/profile，不能复用一个 CUDA lock 后仅修改设备字符串。
+启动器准备工具、依赖和前端，然后打开 Set Up。使用期间保持终端开启。
 
-若本机没有满足模型要求的 GPU，解析器应尝试该模型真实实现的 CPU/offload profile；都不满足时在下载前停止，
-列出缺少的 RAM、VRAM、swap 或磁盘，以及可选择的其他 Runtime。
+| 设置位置 | 内容 |
+|---|---|
+| 设备 | 系统、CPU、可用内存、磁盘和显存 |
+| 运行环境与存储 | 执行域、Python、Conda/Mamba 和已注册环境 |
+| 本地部署与动作模型库 | 选择模型、设备，部署后执行真实生成检验 |
 
-CMDM 与 MoMADiff 声明了 `linux-64` CPU Runtime，但当前 build/import 证据只来自 Windows native 与
-`wsl:Ubuntu-24.04`，不能继承为原生 Linux 实测；原生 Linux 的 CPU/CUDA model inference 与
-doctor→browser 仍分别待验收。
+使用原生 CPU 或支持的 CUDA 环境。在 WSL 中选择检测到的发行版；Windows 和 Linux 使用各自的解释器。
+
+默认运行数据位于项目内 `.virea-runtime/portable/`，不会提交到 Git。
+
+[完整部署](../getting-started/automatic-setup.zh-CN.md) · [存储与端口](../getting-started/persistent-data-root.zh-CN.md) · [开发环境](../getting-started/installation.zh-CN.md)
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -44,10 +35,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-21
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
-summary: 原生 Linux 的外部环境、CUDA/ROCm/CPU Runtime 与 system lifecycle 要求。
+summary: Linux launch, device detection and model environment selection.
 canonical: doc/platforms/linux.zh-CN.md
 related:
   - linux.en.md

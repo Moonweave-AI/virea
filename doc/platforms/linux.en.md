@@ -2,35 +2,27 @@
 [✦ VIREA](../../README.md) · [Documentation](../README.en.md) · [Set Up](../getting-started/automatic-setup.en.md) · [Demos](../demos/README.en.md) · [简体中文](linux.zh-CN.md)
 <!-- END DOC NAV -->
 
-# Linux native
+# 💻 Linux
 
-> [English](linux.en.md) · [中文](linux.zh-CN.md)
+Start from the project root:
 
-```bash
-# Read a mounted data-volume root once.
-# At the prompt paste only the directory, such as /mnt/virea-data; outer ' or " quotation marks are not part of the path.
-printf '%s' "Enter the selected data-volume root: "
-read -r virea_data_root
-
-# Create the VIREA layout and install a shell hook for all future terminals.
-./scripts/configure-virea.sh --data-root "$virea_data_root"
-
-# Load the generated settings now; new compatible shells load the hook automatically.
-. "${XDG_CONFIG_HOME:-$HOME/.config}/virea/environment.sh"
-
-# Verify Git in this Linux execution domain; Git installed only on another host or WSL distribution does not satisfy this check.
-git --version
-
-# Install the exact locked Python workspace.
-uv sync --locked --all-packages --extra dev
-
-# Start the guided workflow: choose a model, Linux domain, Runtime/profile, then confirm installation, generation and playback.
-uv run virea
+```sh
+sh start-virea.sh
 ```
 
-CUDA, ROCm and CPU are different Runtimes/profiles, not a device-string change. If no complete profile fits, VIREA rejects
-before download with the missing RAM, VRAM, swap or storage fact. A declared Linux Runtime is not Linux checkpoint-inference
-evidence; inspect the generated matrix and current evidence registry separately.
+The launcher prepares the tools, dependencies and frontend, then opens Set Up. Keep the terminal open during use.
+
+| In Set Up | What to inspect |
+|---|---|
+| Your device | OS, CPU, available RAM, disk and GPU memory |
+| Environments & storage | Domains, Python, Conda/Mamba and registered runtimes |
+| Local deployment and motion library | Select model and device, deploy, then verify real generation |
+
+Use a native CPU or supported CUDA runtime. In WSL, choose the detected distribution explicitly; Windows and Linux environments have separate interpreters.
+
+Runtime data defaults to project-local `.virea-runtime/portable/`, ignored by Git.
+
+[Complete setup](../getting-started/automatic-setup.en.md) · [Storage and ports](../getting-started/persistent-data-root.en.md) · [Developer environment](../getting-started/installation.en.md)
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -43,10 +35,10 @@ type: how-to
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-08-23
-last_reviewed: 2026-08-23
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
-summary: English native Linux execution-domain setup and evidence boundaries.
+summary: Linux launch, device detection and model environment selection.
 canonical: doc/platforms/linux.en.md
 related:
   - linux.zh-CN.md

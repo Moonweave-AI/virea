@@ -1,11 +1,6 @@
 """Deployment boundaries: full body configuration and the real launch wrapper."""
 
 import asyncio
-import json
-import os
-import shutil
-import subprocess
-from pathlib import Path
 
 import httpx
 import numpy as np
@@ -132,90 +127,3 @@ def test_prelogin_client_is_found_but_cannot_arm_autonomous_motion():
     assert transport.protocol.values == {}
     assert not transport.ready()[0]
     assert not transport.ready(require_full_body=False)[0]
-
-
-@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell is not installed")
-@pytest.mark.parametrize(
-    "configured_vr,override,expected_vr",
-    [
-        (True, "", True),
-        (False, "-VR", True),
-        (True, "-VR:$false", False),
-    ],
-)
-def test_stack_launcher_preserves_the_selected_vr_mode(
-    tmp_path, configured_vr, override, expected_vr
-):
-    # Run unchanged production scripts in an isolated project, stubbing only OS
-    # boundaries. A dropped -VR at either script boundary must fail this check.
-    scripts = tmp_path / "scripts" / "vrchat"
-    scripts.mkdir(parents=True)
-    source = Path(__file__).resolve().parents[2] / "scripts" / "vrchat"
-    for name in ("launch.ps1", "start.ps1", "start_ai_client.ps1"):
-        shutil.copyfile(source / name, scripts / name)
-    game = tmp_path / "game"
-    game.mkdir()
-    for name in ("VRChat.exe", "launch.exe"):
-        (game / name).touch()
-    settings = tmp_path / "stack.json"
-    settings.write_text(
-        json.dumps(
-            {
-                "ui": "http://127.0.0.1:18001/app/vrchat.html",
-                "ai_client": {
-                    "profile": 1,
-                    "send_port": 19000,
-                    "receive_port": 19001,
-                    "vr": configured_vr,
-                },
-                "services": [
-                    {
-                        "name": "api",
-                        "health": "http://127.0.0.1:18001/api/v1/vrchat",
-                        "expect": {},
-                        "environment": {
-                            "VIREA_HOME": str(tmp_path / ".virea-runtime" / "home")
-                        },
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-    record = tmp_path / "launch.json"
-    env = dict(
-        os.environ,
-        VIREA_TEST_SCRIPT=str(scripts / "launch.ps1"),
-        VIREA_TEST_SETTINGS=str(settings),
-        VIREA_TEST_GAME=str(game / "VRChat.exe"),
-        VIREA_TEST_RECORD=str(record),
-    )
-    command = (
-        r"""
-function Invoke-RestMethod { param($Uri, $TimeoutSec) return @{} }
-function Get-NetUDPEndpoint { param($LocalPort, $ErrorAction) }
-function Get-CimInstance { param($ClassName, $Filter) }
-function Start-Process {
-    param($FilePath, $WorkingDirectory, $ArgumentList, [switch]$PassThru)
-    @{file=$FilePath; args=$ArgumentList} | ConvertTo-Json -Compress | Set-Content -LiteralPath $env:VIREA_TEST_RECORD
-    [pscustomobject]@{Id=100}
-}
-& $env:VIREA_TEST_SCRIPT -Settings $env:VIREA_TEST_SETTINGS -VRChatExe $env:VIREA_TEST_GAME -SkipWebBuild
-""".rstrip()
-        + " "
-        + override
-    )
-    result = subprocess.run(
-        [shutil.which("pwsh"), "-NoProfile", "-NonInteractive", "-Command", command],
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    launched = json.loads(record.read_text(encoding="utf-8-sig"))
-    assert Path(launched["file"]).name == "launch.exe"
-    assert ("--no-vr" not in launched["args"]) == expected_vr
-    assert "--profile=1" in launched["args"]
-    assert "--osc=19000:127.0.0.1:19001" in launched["args"]

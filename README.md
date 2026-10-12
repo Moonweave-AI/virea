@@ -77,6 +77,16 @@ The launcher prepares Python, Node.js and application dependencies, builds the i
 
 [Full setup guide](doc/getting-started/automatic-setup.en.md) · [Platform guide](doc/platforms/README.en.md) · [Troubleshooting](doc/operations/troubleshooting.en.md)
 
+| Workspace | Default address |
+|---|---|
+| Set Up · configure and deploy | [Open](http://127.0.0.1:8000/app/setup.html) |
+| Motion Lab · generate motion | [Open](http://127.0.0.1:8000/app/) |
+| Character Studio · converse with a character | [Open](http://127.0.0.1:8000/app/character.html) |
+| VRChat Studio · connect the game | [Open](http://127.0.0.1:8000/app/vrchat.html) |
+
+For a custom port, use the links printed by the launcher. After updating the code, close the launcher and run it again; settings, models and results stay in the same data folder.
+
+
 ---
 
 <a id="demos"></a>

@@ -23,6 +23,14 @@ if __package__:
 else:
     from console import banner, ready, stage, watch
 
+from virea.workspaces import (
+    WORKSPACES,
+    home_identity,
+    source_revision,
+    web_distribution_is_current,
+    workspace_links,
+)
+
 REPO = Path(__file__).resolve().parents[2]
 NODE_MAJOR = "24"
 PNPM = "10.33.0"
@@ -118,7 +126,7 @@ def ensure_node(root):
     return node, npm
 
 
-def api_ready(port):
+def api_ready(port, *, revision=None, home=None):
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(
@@ -130,7 +138,31 @@ def api_ready(port):
             f"http://127.0.0.1:{port}/api/v1/onboarding", headers={"X-Virea-Setup": "1"}
         )
         with opener.open(check, timeout=2) as response:
-            return json.load(response).get("schema_version") == "virea.onboarding.v1"
+            if json.load(response).get("schema_version") != "virea.onboarding.v1":
+                return False
+        with opener.open(
+            f"http://127.0.0.1:{port}/api/v1/workspaces", timeout=2
+        ) as response:
+            workspace = json.load(response)
+        if workspace.get("schema_version") != "virea.workspaces.v1":
+            return False
+        if revision is not None and workspace.get("source_revision") != revision:
+            return False
+        if home is not None and workspace.get("home_identity") != home_identity(home):
+            return False
+        expected = [
+            {"name": name, "path": "/app/" + ("" if file == "index.html" else file)}
+            for name, file in WORKSPACES
+        ]
+        if workspace.get("entries") != expected:
+            return False
+        for entry in expected:
+            with opener.open(
+                f"http://127.0.0.1:{port}" + entry["path"], timeout=2
+            ) as response:
+                if response.headers.get_content_type() != "text/html":
+                    return False
+        return True
     except (OSError, ValueError):
         return False
 
@@ -158,8 +190,14 @@ def main():
         parser.error(
             "Choose .virea-runtime inside the project, or a dedicated directory outside it"
         )
-    url = f"http://127.0.0.1:{args.port}/app/setup.html"
-    if not args.prepare_only and api_ready(args.port):
+    url = workspace_links(args.port)["Set Up"]
+    revision = source_revision(REPO)
+    runtime_home = root / "home"
+    if (
+        not args.prepare_only
+        and web_distribution_is_current(REPO)
+        and api_ready(args.port, revision=revision, home=runtime_home)
+    ):
         print(f"Existing VIREA service: {url}")
         ready(args.port)
         if not args.no_browser:
@@ -170,7 +208,9 @@ def main():
             probe.bind(("127.0.0.1", args.port))
         except OSError:
             parser.error(
-                "The selected port is in use; use --port with another port. Existing services were preserved."
+                "This port is occupied by another service or an older VIREA build. "
+                "Stop its launcher with Ctrl+C and run this launcher again, "
+                "or choose --port. An old build will not be reused."
             )
     if shutil.disk_usage(root).free < 5 * 1024**3:
         parser.error(
@@ -255,7 +295,7 @@ def main():
                 raise RuntimeError(
                     "The API exited during startup; see the diagnostic output above"
                 )
-            if api_ready(args.port):
+            if api_ready(args.port, revision=revision, home=runtime_home):
                 progress(8, f"Ready: {url}")
                 ready(args.port)
                 if args.smoke_test:
