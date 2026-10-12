@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -9,10 +10,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
+from virea.onboarding.activity import ActivityLog
 from virea.onboarding.catalog import resolve_options
 from virea.onboarding.connections import PRESETS, ConnectionInput, ConnectionStore
 from virea.onboarding.discovery import discover, local_language_choices
@@ -47,8 +49,86 @@ router = APIRouter(
 )
 
 
+@router.get("/environments")
+async def environments(request: Request):
+    from virea.onboarding.hardware import conda_environments
+
+    control = request.app.state.control_plane
+    domains, conda = await asyncio.gather(
+        asyncio.to_thread(control.execution_domains),
+        asyncio.to_thread(conda_environments),
+    )
+    with control.store.connect() as connection:
+        rows = connection.execute(
+            "SELECT i.id, i.state, i.locator, s.payload_json "
+            "FROM runtime_installations i JOIN runtime_specs s "
+            "ON s.id = i.runtime_spec_id ORDER BY i.id"
+        ).fetchall()
+        runtimes = []
+        for row in rows:
+            spec = json.loads(row["payload_json"])
+            runtimes.append(
+                {
+                    "id": row["id"],
+                    "state": row["state"],
+                    "locator": row["locator"],
+                    "python_version": spec.get("python"),
+                    **{
+                        key: spec.get(key)
+                        for key in (
+                            "project_package",
+                            "project_version",
+                            "runtime_core_epoch",
+                        )
+                    },
+                }
+            )
+    return dict(
+        virea_home=str(control.paths.root),
+        domains=domains["execution_domains"],
+        conda=conda,
+        runtimes=runtimes,
+    )
+
+
+@router.get("/model-library")
+def model_library(request: Request):
+    from virea_model_pool.library import inventory, library_roots
+
+    return dict(
+        roots=[str(p) for p in library_roots()],
+        models=inventory(request.app.state.control_plane.catalog.manifests()),
+    )
+
+
+@router.get("/model-deployments")
+def model_deployments(request: Request):
+    from virea.onboarding.model_progress import read_progress
+
+    root = request.app.state.control_plane.paths.root / "setup/model-progress"
+    rows = []
+    for path in root.glob("*.json"):
+        try:
+            rows.append(read_progress(path))
+        except (OSError, ValueError):
+            continue
+    return sorted(rows, key=lambda row: row.get("updated_at", 0), reverse=True)
+
+
 def store(request):
     return ConnectionStore(Path(request.app.state.characters.config.connections_path))
+
+
+def events(request):
+    manager = getattr(request.app.state, "deployments", None)
+    if manager is not None and hasattr(manager, "activity"):
+        return manager.activity
+    if not hasattr(request.app.state, "setup_activity"):
+        request.app.state.setup_activity = ActivityLog(
+            Path(request.app.state.characters.config.connections_path).parent.parent
+            / "setup"
+        )
+    return request.app.state.setup_activity
 
 
 def connection(request, identifier):
@@ -65,7 +145,7 @@ async def overview(request: Request):
         "schema_version": "virea.onboarding.v1",
         "providers": PRESETS,
         **store(request).public(),
-        "jobs": list(jobs.records.values())[-20:],
+        "jobs": [jobs.snapshot(key) for key in list(jobs.records)[-20:]],
         "services": jobs.service_status(),
         "recipes": [
             {
@@ -79,6 +159,13 @@ async def overview(request: Request):
                 "name": "本地语音 · Kokoro",
                 "license_url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
                 "storage_gib": 8,
+            },
+            {
+                "id": "audio8",
+                "name": "Audio8 · 多语言与声音克隆",
+                "license_url": "https://huggingface.co/Edge0/Audio8-TTS-Preview-0.6B-ONNX-INT4",
+                "storage_gib": 8,
+                "runtime": "ONNX INT4 · CPU / NVIDIA GPU · Windows / Linux / macOS",
             },
             {
                 "id": "motioncraft",
@@ -98,9 +185,36 @@ async def overview(request: Request):
 
 @router.post("/discover")
 async def detect(request: Request):
-    return await discover(
+    activity = events(request)
+    activity.emit("device", "检测系统、内存、磁盘、GPU 与本地服务")
+    report = await discover(
         request.app.state.control_plane.paths, request.app.state.characters.config
     )
+    from virea.onboarding.motion_services import connect_motion_services
+
+    report["motion_connections"] = await connect_motion_services(
+        request.app.state.characters.config
+    )
+    activity.emit(
+        "device",
+        f"设备检测完成 · {report['platform']} · {len(report['services'])} 个本地服务",
+        status="succeeded",
+    )
+    return report
+
+
+@router.post("/motion-services/connect")
+async def connect_motion(request: Request):
+    from virea.onboarding.motion_services import connect_motion_services
+
+    return {
+        "services": await connect_motion_services(request.app.state.characters.config)
+    }
+
+
+@router.get("/activity")
+async def activity(request: Request, after: int = Query(0, ge=0)):
+    return events(request).after(after)
 
 
 async def resolve_local_address(request, draft):
@@ -121,7 +235,7 @@ async def resolve_local_address(request, draft):
         if not available:
             raise HTTPException(
                 409,
-                "没有检测到正在运行的本地语音服务。请在下方选择“本地语音 · Kokoro”并点击“检测并部署”，完成后重新检测。",
+                "没有检测到正在运行的本地语音服务。请在下方选择 Audio8 或 Kokoro 并点击“检测并部署”，完成后重新检测。",
             )
         service = next(
             (s for s in available if s["base_url"] == config.tts_url), available[0]
@@ -169,10 +283,16 @@ async def resolve_connection(request: Request, body: dict = Body(...)):
     ):
         profile["voice"] = config.tts_voice
     try:
-        return {
+        result = {
             **await resolve_options(profile, request.app.state.characters.client),
             "base_url": profile["base_url"],
         }
+        events(request).emit(
+            "connection",
+            f"{draft.provider} · 已检测到 {len(result['models'])} 个模型、{len(result['voices'])} 个声线",
+            status="succeeded",
+        )
+        return result
     except httpx.TimeoutException as exc:
         raise HTTPException(
             409, "模型服务读取超时，请等待服务启动完成后重新检测"
@@ -251,6 +371,7 @@ async def verify_connection(profile, client, directory):
 
 
 def verification_state(request, identifier, profile, status, message):
+    events(request).emit("verification", f"{identifier} · {message}", status=status)
     try:
         store(request).record_verification(
             identifier,
@@ -281,6 +402,11 @@ async def test_connection(identifier: str, request: Request):
             result_directory(request.app.state.characters.config),
         )
         store(request).record_verification(identifier, result, expected=profile)
+        events(request).emit(
+            "verification",
+            f"{identifier} · 真实生成通过 · {result.get('bytes', 0)} bytes",
+            status="succeeded",
+        )
         return result
     except (ValueError, httpx.HTTPError, KeyError) as exc:
         verification_state(
@@ -311,6 +437,9 @@ async def activate_connection(identifier: str, request: Request):
             result_directory(request.app.state.characters.config),
         )
         store(request).activate(identifier, expected=profile, verification=result)
+        events(request).emit(
+            "connection", f"{identifier} · 真实生成通过，已启用", status="succeeded"
+        )
     except (ValueError, httpx.HTTPError, KeyError) as exc:
         verification_state(
             request,
@@ -372,7 +501,7 @@ async def deploy(body: DeploymentRequest, request: Request):
 @router.get("/deployments/{identifier}")
 async def deployment(identifier: str, request: Request):
     try:
-        return dict(request.app.state.deployments.records[identifier])
+        return request.app.state.deployments.snapshot(identifier)
     except KeyError as exc:
         raise HTTPException(404, "部署任务不存在") from exc
 
@@ -385,6 +514,6 @@ async def cancel_deployment(identifier: str, request: Request):
 
 @router.post("/services/{recipe}/stop")
 async def stop_service(recipe: str, request: Request):
-    if recipe not in {"ollama", "kokoro", "motioncraft", "syntalker"}:
+    if recipe not in {"ollama", "kokoro", "audio8", "motioncraft", "syntalker"}:
         raise HTTPException(404, "未知本地服务")
     return await request.app.state.deployments.stop_service(recipe)

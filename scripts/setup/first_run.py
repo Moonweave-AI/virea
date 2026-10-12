@@ -18,13 +18,18 @@ import webbrowser
 import zipfile
 from pathlib import Path
 
+if __package__:
+    from .console import banner, ready, stage, watch
+else:
+    from console import banner, ready, stage, watch
+
 REPO = Path(__file__).resolve().parents[2]
 NODE_MAJOR = "24"
 PNPM = "10.33.0"
 
 
 def progress(step, message):
-    print(f"[VIREA {step}/8 - {round(step / 8 * 100)}%] {message}", flush=True)
+    stage(step, message)
 
 
 def node_asset(system, machine, version):
@@ -115,7 +120,8 @@ def ensure_node(root):
 
 def api_ready(port):
     try:
-        with urllib.request.urlopen(
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(
             f"http://127.0.0.1:{port}/api/v1/health", timeout=2
         ) as response:
             if json.load(response).get("control_plane_ready") is not True:
@@ -123,7 +129,7 @@ def api_ready(port):
         check = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/v1/onboarding", headers={"X-Virea-Setup": "1"}
         )
-        with urllib.request.urlopen(check, timeout=2) as response:
+        with opener.open(check, timeout=2) as response:
             return json.load(response).get("schema_version") == "virea.onboarding.v1"
     except (OSError, ValueError):
         return False
@@ -143,6 +149,7 @@ def main():
         help="Start, check the setup API, then stop (for CI)",
     )
     args = parser.parse_args()
+    banner()
     if not 1024 <= args.port <= 65535:
         parser.error("port must be between 1024 and 65535")
     root = args.data_root.expanduser().resolve()
@@ -154,9 +161,10 @@ def main():
     url = f"http://127.0.0.1:{args.port}/app/setup.html"
     if not args.prepare_only and api_ready(args.port):
         print(f"Existing VIREA service: {url}")
+        ready(args.port)
         if not args.no_browser:
             webbrowser.open(url)
-        return 0
+        return 0 if args.smoke_test else watch(args.port)
     with socket.socket() as probe:
         try:
             probe.bind(("127.0.0.1", args.port))
@@ -235,6 +243,7 @@ def main():
             "127.0.0.1",
             "--port",
             str(args.port),
+            "--no-access-log",
         ],
         cwd=REPO,
         env=env,
@@ -248,12 +257,15 @@ def main():
                 )
             if api_ready(args.port):
                 progress(8, f"Ready: {url}")
+                ready(args.port)
                 if args.smoke_test:
                     check = urllib.request.Request(
                         f"http://127.0.0.1:{args.port}/api/v1/onboarding",
                         headers={"X-Virea-Setup": "1"},
                     )
-                    with urllib.request.urlopen(check, timeout=10) as response:
+                    with urllib.request.build_opener(
+                        urllib.request.ProxyHandler({})
+                    ).open(check, timeout=10) as response:
                         if (
                             json.load(response).get("schema_version")
                             != "virea.onboarding.v1"
@@ -262,7 +274,7 @@ def main():
                     return 0
                 if not args.no_browser:
                     webbrowser.open(url)
-                return process.wait()
+                return watch(args.port, process)
             time.sleep(1)
         raise RuntimeError("The API did not become ready within 120 seconds")
     finally:
@@ -289,6 +301,12 @@ def main():
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
+    except KeyboardInterrupt:
+        print(
+            "\n  Launcher stopped. Your settings and downloaded files are saved.",
+            flush=True,
+        )
+        raise SystemExit(0)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(
             f"Setup stopped: {error}\nDownloaded caches are retained. Correct the problem and run the launcher again.",

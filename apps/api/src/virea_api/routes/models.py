@@ -9,6 +9,14 @@ from virea_contracts import InstallationState
 from virea_contracts.execution import ExecutionTargetSelection
 from virea_motion_ir import CANONICAL211_PROFILE, CANONICAL211_SCHEMA
 
+from virea.onboarding.model_progress import (
+    installation_stage,
+    installation_transfer,
+    progress_path,
+    read_progress,
+    record_installation,
+)
+
 from ..capabilities import model_capability
 from ..dependencies import control_plane
 from ..service import (
@@ -252,6 +260,7 @@ def execution_options(
 
 
 @router.post("/install")
+@record_installation
 def install(
     request: InstallRequest, control: ControlPlane = Depends(control_plane)
 ) -> dict[str, Any]:
@@ -350,6 +359,8 @@ def install(
     stage_options = dict(external_stage)
     if isinstance(compatibility.get("execution_target"), dict):
         stage_options["execution_target"] = compatibility["execution_target"]
+    installation_stage("download", "校验已有模型文件，下载缺少的权重")
+    stage_options["progress"] = installation_transfer
     outcome = control.model_pool.stage_artifacts(
         request.model_id,
         accepted_license=request.accepted_license,
@@ -366,6 +377,7 @@ def install(
     if outcome.state is not InstallationState.BUILDING_RUNTIME:
         return payload
     acceptance_diagnostics: list[str] = []
+    installation_stage("validate", "构建推理环境并运行真实生成验收")
     try:
         acceptance = control.run_real_acceptance(outcome)
     except Exception as exc:
@@ -395,3 +407,17 @@ def install(
         }
     )
     return payload
+
+
+@router.get("/{model_id}/install-progress")
+def install_progress(model_id: str, control: ControlPlane = Depends(control_plane)):
+    try:
+        control.catalog.get(model_id)
+        path = progress_path(control.paths, model_id)
+        return (
+            read_progress(path)
+            if path.is_file()
+            else {"model_id": model_id, "status": "idle"}
+        )
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown model") from exc

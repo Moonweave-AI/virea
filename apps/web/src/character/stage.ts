@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {subscribe} from "../studio/preferences";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName } from "@pixiv/three-vrm";
@@ -78,6 +79,7 @@ export class CharacterStage {
   private avatarSize = new THREE.Vector3(2, 2, .5);
   private readonly inspection = new MotionInspection();
   private readonly grid = new THREE.GridHelper(40, 80, 0xd1d5db, 0xe5e7eb);
+  private readonly unsubscribeTheme: () => void;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.gain.connect(this.audio.destination);
@@ -95,6 +97,19 @@ export class CharacterStage {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 1 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -.015; floor.receiveShadow = true;
     this.scene.add(floor);
+    const applySceneTheme = () => {
+      const tokens = getComputedStyle(document.documentElement);
+      const background = new THREE.Color(tokens.getPropertyValue("--background").trim() || "#f5f2f5");
+      this.scene.background = background;
+      (this.scene.fog as THREE.Fog).color.copy(background);
+      floor.material.color.copy(background);
+      for (const material of [this.grid.material].flat()) {
+        material.color.set(tokens.getPropertyValue("--border").trim() || "#dcd5e0");
+        material.opacity = .35; material.transparent = true;
+      }
+    };
+    applySceneTheme();
+    this.unsubscribeTheme = subscribe(applySceneTheme);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     light.castShadow = true; light.shadow.mapSize.set(1024, 1024);
@@ -561,7 +576,7 @@ export class CharacterStage {
     this.cachedAudio = null;
     this.prepared.clear(); this.poseHistory.clear(); this.rest = null;
     VRMUtils.deepDispose(this.scene);
-    this.renderer.dispose(); void this.audio.close();
+    this.unsubscribeTheme(); this.renderer.dispose(); void this.audio.close();
   }
 
   private async performPerformance(packet: Expression, onStart: () => void,

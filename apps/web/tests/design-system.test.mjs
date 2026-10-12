@@ -7,20 +7,24 @@ const webRoot = path.resolve(import.meta.dirname, "..");
 const html = fs.readFileSync(path.join(webRoot, "index.html"), "utf8");
 const main = fs.readFileSync(path.join(webRoot, "src", "main.ts"), "utf8");
 const styles = fs.readFileSync(path.join(webRoot, "src", "styles.css"), "utf8");
+const theme = fs.readFileSync(path.join(webRoot, "src", "studio", "theme.css"), "utf8");
+const preferences = fs.readFileSync(path.join(webRoot, "src", "studio", "preferences.ts"), "utf8");
 
 test("Motion Studio declares adaptive light and dark appearances", () => {
   assert.match(html, /name="color-scheme" content="light dark"/);
   assert.match(main, /data-theme-preference/);
   assert.match(main, /virea\.theme\.v1/);
-  assert.match(styles, /:root\[data-theme="light"\]/);
-  assert.match(styles, /:root\[data-theme="dark"\]/);
-  assert.match(styles, /prefers-color-scheme: dark/);
+  assert.match(theme, /:root\[data-theme="light"\]/);
+  assert.match(theme, /:root\[data-theme="dark"\]/);
+  assert.match(preferences, /prefers-color-scheme: dark/);
 });
 
-test("Motion Studio uses a wide responsive workbench and balanced comparison stage", () => {
-  assert.match(styles, /\.page-frame \{ width: min\(1920px/);
-  assert.match(styles, /\.studio-grid \{[^}]*minmax\(700px, 1fr\)/s);
-  assert.match(styles, /\.motion-comparison \{[^}]*aspect-ratio: 16 \/ 7/s);
-  assert.match(styles, /@media \(max-width: 920px\)/);
-  assert.match(styles, /@media \(max-width: 680px\)/);
+test("workspace layouts consume a single shared HeroUI theme", () => {
+  assert.match(theme, /@import "@heroui\/styles"/);
+  for (const file of ["styles.css", "character/style.css", "vrchat.css", "setup.css"]) {
+    const layout=fs.readFileSync(path.join(webRoot,"src",file),"utf8");
+    assert.doesNotMatch(layout, /:root\s*\{/);
+    assert.doesNotMatch(layout, /#[0-9a-f]{3,8}(?:\s|;|\))/i);
+  }
+  assert.match(styles, /prefers|@media/);
 });

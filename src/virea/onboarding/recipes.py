@@ -57,11 +57,11 @@ async def verify_local(jobs, identifier, client, name, url, connection=None):
             **PRESETS["local-speech"],
             "provider": "local-speech",
             "base_url": url + "/v1",
-            "model": "auto",
+            "model": "kokoro" if name == "kokoro" else "auto",
         }
         options = await resolve_options(profile, client)
         connection = ConnectionInput(
-            id="local-kokoro",
+            id=f"local-{name}",
             provider="local-speech",
             base_url=profile["base_url"],
             model=options["model"],
@@ -82,6 +82,9 @@ def environment(paths):
         HF_HOME=str(paths.cache / "huggingface"),
         UV_CACHE_DIR=str(paths.cache / "uv"),
         OLLAMA_MODELS=str(paths.model_store / "ollama"),
+        PYTHONUNBUFFERED="1",
+        HF_HUB_DISABLE_PROGRESS_BARS="0",
+        PIP_PROGRESS_BAR="on",
     )
     roots = [
         REPOSITORY,
@@ -108,6 +111,8 @@ async def health(client, url, recipe):
             return isinstance(body.get("models"), list)
         if recipe == "kokoro":
             return "kokoro" in str(body.get("model", "")).lower()
+        if recipe == "audio8":
+            return str(body.get("model", "")).lower() == "audio8/tts-0.6b"
         return (
             body.get("schema") == "virea.performance_worker.v1"
             and body.get("backend") == recipe
@@ -227,7 +232,7 @@ async def cuda_available():
     try:
         output, _ = await asyncio.wait_for(process.communicate(), 8)
         return process.returncode == 0 and any(
-            int(line) >= 12288
+            int(line) > 0
             for line in output.decode().splitlines()
             if line.strip().isdigit()
         )
@@ -238,6 +243,8 @@ async def cuda_available():
 
 
 async def deploy(jobs, identifier, request):
+    from .compute import prepare_kokoro, select_device
+
     name = request.recipe
     env = environment(jobs.paths)
     uv = shutil.which("uv", path=env["PATH"])
@@ -249,20 +256,47 @@ async def deploy(jobs, identifier, request):
     urls = {
         "ollama": "http://127.0.0.1:11434",
         "kokoro": "http://127.0.0.1:18082",
+        "audio8": "http://127.0.0.1:18083",
         "motioncraft": config.motioncraft_url or "http://127.0.0.1:18086",
         "syntalker": config.syntalker_url or "http://127.0.0.1:18087",
     }
     url = urls[name]
     jobs.step(identifier, 1, "检测已安装服务与运行环境")
+    device = await select_device(request.device, name)
+    jobs.update(
+        identifier,
+        compute_device=device,
+        message=f"计算设备：{device.upper()} · 检测已有服务",
+    )
     async with httpx.AsyncClient(trust_env=False) as client:
         if await health(client, url, name) and name != "ollama":
-            proof = await verify_local(jobs, identifier, client, name, url)
-            return {
-                "endpoint": url,
-                "reused": True,
-                "recipe": name,
-                "verification": proof,
-            }
+            details = (await client.get(url + "/health")).json()
+            runtime = details.get("runtime")
+            actual = str(
+                details.get(
+                    "device",
+                    runtime.get("device", "") if isinstance(runtime, dict) else "",
+                )
+            ).split(":")[0]
+            if request.device == "auto" or actual == device:
+                proof = await verify_local(jobs, identifier, client, name, url)
+                return {
+                    "endpoint": url,
+                    "reused": True,
+                    "recipe": name,
+                    "compute_device": actual or "reported by worker",
+                    "verification": proof,
+                }
+            owned = jobs.services.get(name)
+            if owned is None or owned.returncode is not None:
+                raise ValueError(
+                    f"{url} 已有外部服务使用 {actual or '未报告的设备'}；请在其启动器切换到 {device.upper()} 后重新检测。VIREA 不会停止外部服务。"
+                )
+            if not request.accepted_license:
+                raise ValueError(
+                    "请先阅读并勾选本地模型及依赖的使用条款，再切换运行环境"
+                )
+            await jobs.terminate(owned)
         if not request.accepted_license:
             raise ValueError("请先阅读并勾选本地模型及依赖的使用条款，再开始下载")
         minimum = 20 if name in {"motioncraft", "syntalker"} else 8
@@ -278,7 +312,7 @@ async def deploy(jobs, identifier, request):
                     )
                     env["OLLAMA_HOST"] = "127.0.0.1:11434"
                     process = await jobs.start_service(
-                        name, [executable, "serve"], env, REPOSITORY
+                        name, [executable, "serve"], env, REPOSITORY, identifier
                     )
                     await wait_ready(jobs, client, process, url, name)
                 jobs.step(identifier, 3, "下载或校验本地语言模型")
@@ -312,43 +346,44 @@ async def deploy(jobs, identifier, request):
                         )
                 jobs.step(identifier, 5, "加载模型并验证结构化输出")
                 connection = ConnectionInput(
-                    id="local-ollama", provider="ollama", model=request.model
+                    id="local-ollama",
+                    provider="ollama",
+                    model=request.model,
+                    compute_device=request.device,
                 )
                 proof = await verify_local(
                     jobs, identifier, client, name, url, connection
                 )
             elif name == "kokoro":
-                jobs.step(identifier, 2, "安装隔离语音环境并下载 Kokoro 权重")
-                env["VIREA_TTS_DEVICE"] = "cpu"
+                argv = await prepare_kokoro(
+                    jobs, identifier, uv, env, REPOSITORY, device
+                )
+                jobs.step(identifier, 4, "下载 Kokoro 权重、词典与声线；完成后加载模型")
                 process = await jobs.start_service(
                     name,
-                    [
-                        uv,
-                        "run",
-                        "--no-project",
-                        "--python",
-                        "3.12",
-                        "--script",
-                        REPOSITORY / "scripts/character/serve_kokoro.py",
-                        "--port",
-                        "18082",
-                    ],
+                    argv,
                     env,
                     REPOSITORY,
+                    identifier,
                 )
-                jobs.step(identifier, 5, "等待语音模型完成加载与无声合成自检")
+                await wait_ready(jobs, client, process, url, name)
+                proof = await verify_local(jobs, identifier, client, name, url)
+            elif name == "audio8":
+                from .audio8 import prepare_audio8
+
+                argv = await prepare_audio8(
+                    jobs, identifier, uv, env, REPOSITORY, device
+                )
+                jobs.step(identifier, 5, "加载 Audio8 并运行真实语音生成检验；保持静音")
+                process = await jobs.start_service(
+                    name, argv, env, REPOSITORY, identifier
+                )
                 await wait_ready(jobs, client, process, url, name)
                 proof = await verify_local(jobs, identifier, client, name, url)
             else:
-                available_cuda = await cuda_available()
-                if request.device == "cuda" and not available_cuda:
-                    raise ValueError(
-                        "未检测到至少 12 GiB 显存的 NVIDIA GPU，请选择自动或 CPU"
-                    )
-                device = "cuda" if request.device != "cpu" and available_cuda else "cpu"
                 root = jobs.paths.root / "managed" / name
                 root.mkdir(parents=True, exist_ok=True)
-                runtime = root / "environment"
+                runtime = root / f"environment-{device}"
                 python = runtime / (
                     "Scripts/python.exe" if os.name == "nt" else "bin/python"
                 )
@@ -479,6 +514,7 @@ async def deploy(jobs, identifier, request):
                     ],
                     env,
                     REPOSITORY,
+                    identifier,
                 )
                 await wait_ready(jobs, client, process, url, name)
                 proof = await verify_local(jobs, identifier, client, name, url)
@@ -487,6 +523,7 @@ async def deploy(jobs, identifier, request):
                 "endpoint": url,
                 "recipe": name,
                 "reused": False,
+                "compute_device": device,
                 "verification": proof,
             }
         except BaseException:

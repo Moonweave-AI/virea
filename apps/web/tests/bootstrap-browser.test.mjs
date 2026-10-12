@@ -492,22 +492,18 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       waitUntil: "domcontentloaded",
       timeout: 10_000,
     });
-    const environment = page.locator("#global-execution-domain");
-    await environment.waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
-    assert.equal(await environment.inputValue(), "");
-    assert.match(await page.locator("#data-root-indicator").textContent(), /X:\\VIREA-DATA\\home/);
+    await page.locator('[data-native-select="model-id"]').waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
+    assert.equal(await page.locator("#global-execution-domain").count(), 0);
+    assert.equal(await page.locator('button[data-view="overview"]').count(), 0);
     assert.equal(await page.locator("[data-source-empty=true]").count(), 1);
     assert.equal(await page.locator("#source-skeleton-canvas").getAttribute("data-viewer-state"), "idle");
     assert.equal(await page.locator("#source-skeleton-canvas").getAttribute("data-source-frame"), "0");
     assert.equal(fakeJobRequestCount, 0, "bootstrap must not hydrate a test-only successful job");
-    await environment.selectOption("wsl:Ubuntu-24.04");
-    await page.locator('button[data-view="playground"]').click();
-    await page.locator("#model-id").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     await Promise.all([
       bootstrapModelReconciliation,
       page.waitForFunction(() => (
         !document.querySelector("#generate")?.disabled
-        && !document.querySelector("#data-root-indicator")?.textContent?.includes("待确认")
+        && document.querySelector("#app")?.dataset.vireaHomeFresh === "true"
       )),
     ]);
     assert.ok(
@@ -515,7 +511,19 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
       "bootstrap must reconcile collections after its independently fetched revision checkpoint",
     );
     assert.equal(await page.locator("#model-id").inputValue(), "flood-diffusion-tiny");
-    assert.equal(await page.locator("#global-execution-domain").inputValue(), "wsl:Ubuntu-24.04");
+    for (const width of [1440, 1080, 390]) {
+      await page.setViewportSize({width,height:950});
+      const boxes=await page.evaluate(()=>{
+        const rect=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};};
+        return {form:rect('.composer-card'),stage:rect('.stage-card'),result:rect('.studio-bottom-grid'),button:rect('#generate'),width:document.documentElement.scrollWidth,viewport:innerWidth};
+      });
+      assert.ok(boxes.width<=boxes.viewport+1,`No horizontal overflow at ${width}px`);
+      assert.ok(boxes.result.top>=boxes.stage.bottom,`Results follow the viewport at ${width}px`);
+      assert.ok(boxes.button.bottom<=boxes.form.bottom,`Generate stays inside its card at ${width}px`);
+      assert.ok(boxes.form.right<=boxes.stage.left || boxes.form.bottom<=boxes.stage.top,`Cards do not overlap at ${width}px`);
+    }
+    await page.setViewportSize({width:1280,height:900});
+    assert.equal(await page.locator("#app").getAttribute("data-execution-domain"), "windows-native");
     assert.equal(systemRequestCount, 0, "bootstrap must not request the full system diagnostic");
     await Promise.all([
       page.waitForResponse((response) => response.url().endsWith("/execution-options")),
@@ -598,28 +606,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     assert.equal(generationSubmitCount, 1, "reload must resume the durable Job instead of submitting another one");
     includeResponsiveJob = false;
 
-    await page.locator('button[data-view="overview"]').click();
-    await page.locator("#refresh").click();
-    await page.locator(".error").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
-    assert.match(await page.locator(".error").textContent(), /GET \/api\/v1\/system timed out/);
-    assert.equal(systemRequestCount, 1);
-    assert.equal(executionDomainRequestCount, 3);
-    assert.equal(await page.locator("#global-execution-domain").inputValue(), "wsl:Ubuntu-24.04");
-    await page.locator('button[data-view="playground"]').click();
-    await page.locator("#model-id").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
-    await Promise.all([
-      page.waitForResponse((response) => response.url().endsWith("/execution-options")),
-      page.locator("#model-id").dispatchEvent("change"),
-    ]);
-    assert.equal(executionOptionsRequestCount, 5, "refresh must clear execution-option cache");
-
-    await page.locator('button[data-view="overview"]').click();
-    await page.locator("#refresh").click();
-    await page.waitForFunction(
-      () => document.querySelector("#global-execution-domain")?.value === "windows-native",
-    );
-    assert.equal(systemRequestCount, 2);
-    assert.equal(executionDomainRequestCount, 4);
+    assert.equal(systemRequestCount, 0, "system management belongs to Set Up and never blocks creation");
 
     // The durable result must also exist in the authoritative collection;
     // otherwise the normal reconciliation correctly removes it as stale.
@@ -632,7 +619,7 @@ test("a hung explicit system diagnostic cannot block bootstrap, Playground, or a
     await deepPage.locator("#vrm-canvas").waitFor({ state: "visible", timeout: ACTION_TIMEOUT_MS });
     await deepPage.waitForFunction(() => document.querySelector(".viewer-readout")?.textContent?.includes("result-deep"));
     assert.match(await deepPage.locator(".viewer-readout").textContent(), /result-deep/);
-    assert.equal(systemRequestCount, 2, "persisted deep-link bootstrap must not request /system");
+    assert.equal(systemRequestCount, 0, "persisted deep-link bootstrap must not request /system");
     const expectedDiscoveryErrors = consoleErrors.filter((message) => (
       /Failed to load resource/.test(message) && /503 \(Service Unavailable\)/.test(message)
     ));
@@ -919,7 +906,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     assert.equal(await generate.isDisabled(), true, "missing authoritative home must fail closed");
     assert.match(await generate.textContent(), /等待数据根同步/);
     await generate.dispatchEvent("click");
-    await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("VIREA_HOME"));
+    await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("持久数据根"));
     assert.equal(generationPostCount, 0, "generate() itself must reject an event bypassing disabled UI");
 
     stateReady = true;
@@ -928,7 +915,7 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
     await page.waitForFunction(() => !document.querySelector("#generate")?.disabled);
-    assert.match(await page.locator("#data-root-indicator").textContent(), /Private VIREA Data/);
+    assert.match(await page.locator("#app").getAttribute("data-virea-home"), /Private VIREA Data/);
 
     stateReady = false;
     await Promise.all([
@@ -936,7 +923,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
     await page.waitForFunction(() => document.querySelector("#generate")?.disabled);
-    assert.match(await page.locator("#data-root-indicator").textContent(), /home-a.*待确认|待确认.*home-a/);
+    assert.match(await page.locator("#app").getAttribute("data-virea-home"), /home-a/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "false");
     await page.evaluate(() => document.querySelector("#generate")?.click());
     await generate.dispatchEvent("click");
     assert.equal(generationPostCount, 0, "normal and forced activation must fail closed while authority is stale");
@@ -951,8 +939,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       page.evaluate(() => window.dispatchEvent(new Event("online"))),
     ]);
     await page.waitForFunction(() => !document.querySelector("#generate")?.disabled);
-    assert.match(await page.locator("#data-root-indicator").textContent(), /home-b/);
-    assert.doesNotMatch(await page.locator("#data-root-indicator").textContent(), /待确认/);
+    assert.match(await page.locator("#app").getAttribute("data-virea-home"), /home-b/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "true");
 
     // A late failure from an older /state request must not invalidate a newer
     // successful authority observation.
@@ -974,13 +962,14 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     ]);
     await staleResponse;
     assert.equal(await generate.isDisabled(), false, "superseded failure must not stale newer authority");
-    assert.doesNotMatch(await page.locator("#data-root-indicator").textContent(), /待确认/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "true");
 
     failStateAfterOptions = true;
     await generate.click();
     await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("提交前无法重新确认"));
     assert.equal(generationPostCount, 0, "failed pre-POST authority refresh must not create a Job");
-    assert.match(await page.locator("#data-root-indicator").textContent(), /home-b.*待确认|待确认.*home-b/);
+    assert.match(await page.locator("#app").getAttribute("data-virea-home"), /home-b/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "false");
     stateReady = true;
     await Promise.all([
       page.waitForResponse((item) => item.url().endsWith("/api/v1/state") && item.status() === 200),
@@ -995,8 +984,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
     await generate.click();
     await page.waitForFunction(() => document.querySelector(".error")?.textContent?.includes("已应用最新状态"));
     assert.equal(generationPostCount, 0, "pre-POST A/B authority mismatch must not create a Job");
-    assert.match(await page.locator("#data-root-indicator").textContent(), /home-c/);
-    assert.match(await page.locator("#data-root-indicator").textContent(), /待确认/);
+    assert.match(await page.locator("#app").getAttribute("data-virea-home"), /home-c/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "false");
     assert.equal(await generate.isDisabled(), true, "new root stays stale until its collections reconcile");
     modelResponseDelayMs = 250;
     const modelCountBeforeReconciliation = modelRequestCount;
@@ -1025,8 +1014,8 @@ test("generation waits for authoritative VIREA_HOME and reconciles an ambiguous 
       true,
       "collections from an older authority observation cannot restore freshness after /state failed",
     );
-    assert.match(await page.locator("#data-root-indicator").textContent(), /待确认/);
-    assert.match(await page.locator("#sync-status").textContent(), /连接中断/);
+    assert.equal(await page.locator("#app").getAttribute("data-virea-home-fresh"), "false");
+    assert.equal(await page.locator("#app").getAttribute("data-sync-status"), "offline");
     modelResponseDelayMs = 0;
     stateReady = true;
     await Promise.all([

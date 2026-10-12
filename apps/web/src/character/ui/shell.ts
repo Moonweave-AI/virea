@@ -13,18 +13,11 @@ export const icon = (name: string) => `<svg viewBox="0 0 24 24" fill="none" stro
 
 export const studioShell = `
   <nav class="rail" aria-label="工作室导航">
-    <a class="brand" href="./" aria-label="Motion Lab">v<span>.</span></a>
     <button id="history-toggle" class="icon-button" aria-label="打开历史记录" aria-expanded="false" title="历史记录">${icon("panel")}</button>
     <button id="trace-toggle" class="icon-button" aria-label="打开执行链" aria-expanded="false" title="执行链与诊断">${icon("body")}</button>
-    <button id="new-session" class="icon-button" aria-label="新建会话" title="新建会话">${icon("plus")}</button>
-    <a class="icon-button" href="./setup.html" aria-label="部署与模型接入" title="部署与模型接入">${icon("settings")}</a>
-    <a class="icon-button" href="./vrchat.html" aria-label="VRChat Studio" title="VRChat Studio">VR</a>
     <button id="settings-toggle" class="icon-button rail-bottom" aria-label="角色与设置" title="角色与设置">${icon("settings")}</button>
   </nav>
   <main class="workspace">
-    <header class="topbar"><div><strong>Character Studio</strong><span class="topbar-divider">/</span><span id="workspace-title">未命名会话</span></div>
-      <div class="topbar-actions"><span id="status" role="status">未连接</span><button id="close" class="quiet" disabled>结束会话</button></div>
-    </header>
     <section class="stage" aria-label="动作工作室">
       <canvas aria-label="持续角色三维场景"></canvas>
       <div class="stage-heading"><span class="eyebrow">3D WORKSPACE</span><h1>让想法，动起来。</h1><p id="avatar-name">载入角色，开始创作</p></div>
@@ -36,9 +29,10 @@ export const studioShell = `
       <div id="subtitle" aria-live="polite"></div>
       <div class="stage-note"><span class="live-dot"></span> LIVE VIEW <span>拖动旋转 · 滚轮缩放</span></div>
       <aside class="chat-dock" aria-label="角色聊天">
-        <div class="dock-header"><span class="dock-title">创作对话</span><button id="chat-collapse" class="quiet" aria-label="收起聊天" aria-expanded="true">收起</button></div>
+        <div class="dock-header"><span id="workspace-title" class="dock-title" data-ui-copy>未命名会话</span><button id="chat-collapse" class="quiet" aria-label="收起聊天" aria-expanded="true">收起</button></div>
         <div class="chat-content">
-          <section class="latest-reply" aria-label="角色回复"><div class="text-heading"><strong id="reply-owner">VIREA</strong><span id="text-state">准备就绪</span></div><p id="response-text">描述一个动作，或和角色聊聊。</p></section>
+          <div class="session-tools"><span id="status" role="status">未连接</span><button id="close" class="quiet" disabled>结束会话</button></div>
+          <section class="latest-reply" aria-label="角色回复"><div class="text-heading"><strong id="reply-owner">VIREA</strong><span id="text-state">准备就绪</span></div><p id="response-text" data-ui-copy>描述一个动作，或和角色聊聊。</p></section>
           <p id="execution-state" class="hint" role="status"></p>
           <section id="route-card" class="route-card" hidden><span id="route-model"></span><span id="route-reason"></span></section>
           <ol id="motion-plan" class="motion-plan" aria-label="动作序列"></ol>
@@ -84,6 +78,7 @@ export const studioShell = `
   </section>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><div><span class="eyebrow">WORKSPACE SETTINGS</span><h2 id="settings-title">角色与设置</h2></div><button id="settings-close" class="icon-button" aria-label="关闭设置">${icon("close")}</button></div>
+    <div class="settings-scroll">
     <section id="session-tools" class="settings">
       <label class="file"><span class="file-icon">${icon("body")}</span><strong>选择 VRM 角色</strong><span>在本地载入，保留你的角色形象</span><input id="avatar" type="file" accept=".vrm,.glb"></label>
       <label class="mode">动作路线<select id="motion-backend"><option value="sentiavatar_ardy">SentiAvatar + ARDY</option></select></label>
@@ -111,5 +106,5 @@ export const studioShell = `
       <div class="buttons"><button id="start" class="primary" disabled>开始会话</button><button id="sound">继续声音</button></div>
     </section>
     <details class="diagnostics"><summary>运行状态</summary><output id="metrics">尚无测量</output></details>
-    <p id="settings-error" role="alert"></p>
+    <p id="settings-error" role="alert"></p></div>
   </dialog>`;

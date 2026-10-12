@@ -17,7 +17,7 @@ type ActorRender = {
   pointPositions: Float32Array;
 };
 
-const ACTOR_COLORS = [0x9dff43, 0x69a7ff, 0xffb34f, 0xff70a6];
+const ACTOR_COLORS = [0xbdb8d1, 0xc9adb8, 0xd4c4a8, 0x94b5a4];
 const TELEMETRY_INTERVAL_MS = 250;
 
 function disposeMaterial(material: THREE.Material | THREE.Material[]): void {
@@ -77,7 +77,7 @@ export class SourceSkeletonViewer {
   private readonly controls: OrbitControls;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
-  private readonly grid = new THREE.GridHelper(10, 20, 0x416244, 0x1d2b22);
+  private readonly grid = new THREE.GridHelper(10, 20, 0x777185, 0x494653);
   private readonly root = new THREE.Vector3();
   private readonly rootAnchor = new THREE.Vector3();
   private readonly relativeCenter = new THREE.Vector3(0, 0.9, 0);
@@ -109,7 +109,7 @@ export class SourceSkeletonViewer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.scene.background = new THREE.Color(0x0c1110);
+    this.scene.background = null;
     this.scene.add(this.grid);
     this.camera.position.set(2.2, 1.6, 3.2);
     this.camera.lookAt(0, 0.9, 0);

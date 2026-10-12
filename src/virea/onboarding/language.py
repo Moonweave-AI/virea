@@ -70,6 +70,13 @@ def request_spec(connection, messages, schema, tokens, temperature, stream):
                 "temperature": temperature,
                 "num_predict": tokens,
                 "num_ctx": 8192,
+                **(
+                    {"num_gpu": 0}
+                    if connection.get("compute_device") == "cpu"
+                    else {"num_gpu": 999}
+                    if connection.get("compute_device") in {"gpu", "cuda"}
+                    else {}
+                ),
             },
         }
     mode = connection.get("structured", "auto")

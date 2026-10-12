@@ -78,7 +78,31 @@ MotionCraft/SynTalker use existing real inference workers, fixed upstream revisi
 - The Chinese Kokoro recipe provides pretrained Chinese voices, not reference-audio voice cloning; upstream phonemization may omit English text. Audio8 remains the reference-cloning path.
 - Linux/macOS model runtimes and upstream binary wheels may have additional limitations even when base startup passes. External proxies, firewall policy, unavailable releases and gated model resources cannot be declared solved by a launcher.
 - VRChat dual-client execution and virtual tracking remain Windows-only.
-- The GitNexus index was ten commits behind and its native rebuild failed during this work. `detect_changes(scope="all")` reported CRITICAL with 13 indexed symbols and 434 processes; every process was attributed to the README title `VIREA`, rather than an edited code symbol. No partial/truncated flag was reported, but this stale, misresolved result does not establish coverage of the new onboarding files. File-node impact checks, source/caller inspection and regression evidence supplement the graph; no empty result is treated as proof of no impact.
+
+## Studio and deployment validation, 2026-10-12
+
+The four studios now share HeroUI components, Moonweave color tokens and language/theme preferences. Set Up owns deployment, environment discovery and service management. Motion Lab keeps generation and source/retargeted previews together.
+
+| Check | Result |
+|---|---|
+| Frontend regression | 191 passed, including real Chromium interaction tests |
+| Backend deployment and model-library regression | 249 passed |
+| Production build | TypeScript and Vite completed |
+| Repository checks | Ruff lint/format, generated docs, 256 Markdown documents and 42 runtime locks passed |
+| Responsive Motion Lab | 1440, 1080 and 390 px: no horizontal overflow, intersecting form/preview cards or clipped generation controls |
+| Language switching | EN → ZH → EN for settings, live views, keyboard help and runtime states; conversation content retained |
+| Audio8 CUDA | 249,900-byte WAV, 2.833 s, 44.1 kHz; actual CUDA execution provider; reference encoder uses CPU |
+| Kokoro CUDA | 205,244-byte WAV, 4.275 s, 24 kHz |
+| Local motion workers | MotionCraft returned 48 frames; SynTalker returned 112 frames through the deployed verification workflow |
+| Existing model storage | 13 byte-identical weight files linked after SHA256 verification; 3.14 GiB released with every original path retained |
+
+The speech checks generated and inspected audio without playback. CPU and CUDA checks ran on the Windows host; Linux and macOS paths are covered by protocol/platform tests rather than live deployment on those operating systems.
+
+The running API now serves the model-deployment and environment endpoints used by Set Up. Startup probes a local motion worker's schema, backend identity and readiness before filling a missing endpoint. An explicit remote configuration is preserved. Deployment cards group retries by model and keep process logs, download bytes, verification receipts and service controls together.
+
+The visual checks cover both themes, sidebars, HeroUI selectors inside settings dialogs and repeat language switches. The layout uses a single shared palette; page-specific styles define geometry rather than a second color system. Numeric minimum, maximum and step values remain intact in both languages.
+
+The GitNexus rebuild completed against the current checkout. The final change analysis reported 65 files and 30 affected flows, with CRITICAL impact and no partial/truncated response flag. The affected flows include model installation, device discovery, deployment progress and shared studio rendering. The index still has process-discovery caps and unresolved dynamic/cross-language references; these are coverage limits, not evidence that omitted callers are unused. Source inspection and the browser/backend regressions complement the graph review.
 
 <!-- BEGIN DOC FOOTER -->
 ---
@@ -91,8 +115,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: Evidence and limits for portable first-run setup and model-provider onboarding.
 canonical: doc/quality/portable-onboarding.md

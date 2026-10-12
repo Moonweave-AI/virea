@@ -23,6 +23,9 @@ def _virea_source_checkout_containing(path: Path) -> Path | None:
 
 
 def _default_home() -> Path:
+    checkout = _virea_source_checkout_containing(Path(__file__).resolve())
+    if checkout is not None:
+        return checkout / ".virea-runtime" / "portable" / "home"
     if sys.platform == "win32":
         base = os.getenv("LOCALAPPDATA")
         return (
@@ -135,7 +138,6 @@ class VireaPaths:
         checkout = _virea_source_checkout_containing(self.root)
         local_runtime = (
             checkout is not None
-            and os.getenv("VIREA_ALLOW_CHECKOUT_RUNTIME") == "1"
             and self.root.is_relative_to(checkout / ".virea-runtime")
             and (checkout / ".gitignore").is_file()
             and "/.virea-runtime/"
@@ -143,8 +145,8 @@ class VireaPaths:
         )
         if checkout is not None and not local_runtime:
             raise ValueError(
-                "VIREA_HOME must be outside the VIREA source checkout; "
-                f"move runtime data away from {checkout}"
+                "VIREA_HOME must be outside the VIREA source checkout or in its "
+                f"git-ignored .virea-runtime directory: {checkout}"
             )
         directories = (
             self.config,

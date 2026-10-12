@@ -45,13 +45,13 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(main, /changedRevisionKeys/);
   assert.match(main, /visibilitychange/);
   assert.match(main, /window\.setInterval\(\(\) => void pollStateRevision\(\)/);
-  assert.match(main, /executionDomainSelector\(\)/);
-  assert.equal([...main.matchAll(/executionDomainSelector\(/g)].length, 2);
+  assert.doesNotMatch(main, /function executionDomainSelector/);
+  assert.match(main, /installedExecutionTarget\(selectedManifest\(\)\)/);
   assert.doesNotMatch(api, /body:\s*JSON\.stringify\(\{\s*model_id/);
   assert.match(api, /\/jobs\/\$\{encodeURIComponent\(jobId\)\}\/result/);
   assert.match(api, /\/source-skeleton/);
   assert.doesNotMatch(api, /`\/jobs\/\$\{jobId\}/);
-  assert.match(main, /Motion Lab 0\.4\.0/);
+  assert.match(main, /mountStudioChrome\("motion", app\)/);
   assert.doesNotMatch(main, /Motion Studio 0\.3/);
   const bootstrap = main.slice(main.indexOf("async function bootstrap"), main.indexOf("void bootstrap"));
   assert.match(bootstrap, /api\.health\(\)/);
@@ -79,7 +79,8 @@ test("web client uses canonical /api/v1 and one synchronized creation workspace"
   assert.match(main, /productionCatalogJobs\(state\.jobs, state\.models\)/);
   assert.match(main, /data-source-empty="true"/);
   assert.match(main, /payload\.virea_home/);
-  assert.match(main, /runtime\.runtime_core_epoch/);
+  const environments = fs.readFileSync(path.join(root, "src", "studio", "environments.tsx"), "utf8");
+  assert.match(environments, /runtime_core_epoch/);
   assert.match(contracts, /virea\.source_skeleton_preview\.v1\.0\.0/);
   assert.match(sourceViewer, /model_output_pre_retarget/);
   assert.match(sourceViewer, /vrm_retarget_applied !== false/);

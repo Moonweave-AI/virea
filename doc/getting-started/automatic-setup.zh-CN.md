@@ -48,7 +48,7 @@ flowchart LR
 |---|---|---|
 | 语言 | 选择服务商，填写密钥，再从列表选择模型 | 实际生成的结构化回复、耗时和可下载结果 |
 | 语音 | 选择服务商、模型和声线；Azure 还需选择资源区域 | 实际生成的波形、时长和 WAV 下载 |
-| 动作 | 交互表演选择 MotionCraft 或 SynTalker；独立生成从 Motion Lab 模型目录选择 | 动作帧、数据维度、耗时和 NPZ 下载 |
+| 动作 | 交互表演选择 MotionCraft 或 SynTalker；独立生成从 Set Up 动作模型库选择 | 动作帧、数据维度、耗时和 NPZ 下载 |
 
 点击 **自动检测并启用**，完成检测、生成检验和启用。点击 **重新生成检验** 可再次测试。修改后的连接先保存为草稿，通过新检验后启用。语音检验生成文件，需要听声音时再操作播放器。
 
@@ -60,7 +60,20 @@ flowchart LR
 
 选择安装方案，点击 **检测并部署**。界面显示当前步骤、百分比和下载进度。已有健康服务和缓存会被复用；新部署会准备隔离环境，下载固定版本的源码与模型，启动服务，再进行真实生成检验。
 
-Ollama 提供本地语言模型，Kokoro 提供 CPU 语音，MotionCraft 和 SynTalker 提供动作生成。硬件检测会选择运行环境：自动动作部署在检测到至少 12 GiB 显存的 NVIDIA GPU 时优先尝试 CUDA，其余情况选择 CPU。请在[模型目录](../models/README.zh-CN.md)比较模型需求与可用内存。
+| 本地模型 | 运行设备 | 安装内容 |
+|---|---|---|
+| Ollama | 自动、CPU、支持的 GPU | 所选语言模型与服务 |
+| Kokoro | CPU、NVIDIA CUDA、Apple MPS | 语音模型、词典与声线 |
+| Audio8 | CPU、NVIDIA CUDA | 官方 INT4 ONNX 模型与参考声线编码器 |
+| MotionCraft / SynTalker | CPU、NVIDIA CUDA | 独立运行环境、源码与模型权重 |
+
+选择「自动」获得设备推荐，也可明确选择 CPU 或 GPU。不支持的加速器会显示具体原因，不会回落 CPU 后仍声称 GPU 检验通过。Audio8 的参考声线编码器使用 CPU，语音模型使用所选设备。内存需求见[模型目录](../models/README.zh-CN.md)。
+
+「你的设备」展示系统、CPU、可用内存、磁盘、显存、工具及本地服务。「运行环境与存储」统一展示宿主与 WSL 执行域、Python 候选、Conda/Mamba 环境及模型运行环境。所有部署设置都在 Set Up，Motion Lab 直接进入创作界面。
+
+每个模型保留一张部署卡片：当前运行显示六个步骤、总体百分比、已下载字节、传输速度、耗时及可展开的过程日志，旧记录折叠在历史中。完成后可在卡片内查看生成结果和管理服务。网页部署过程也同步显示在启动终端，终端提供三个工作室的链接。
+
+「动作模型库」区分「已就绪」「本地已有」和「可部署」。就绪模型直接进入 Motion Lab；接入已有模型会复用固定版本的本地文件，再核验运行环境。同一版本的不可变权重尽量使用硬链接共享。项目数据保存在 Git 忽略的 `.virea-runtime/` 中，Ollama 等外部共享模型库原地检测复用。
 
 取消和重试会保留可复用下载。部署成功的服务在下次启动时自动恢复。**停止与关闭自动启动** 会停止由 VIREA 管理的服务，并关闭自动恢复。
 
@@ -69,6 +82,8 @@ Ollama 提供本地语言模型，Kokoro 提供 CPU 语音，MotionCraft 和 Syn
 - [Motion Lab](../workflows/motion-lab.zh-CN.md)：描述动作、生成结果、对比骨架并导出。
 - [Character Studio](../workflows/character-studio.zh-CN.md)：导入 VRM，通过独立的语音和动作轨道与角色互动。
 - [VRChat Studio](../workflows/vrchat-studio.zh-CN.md)：在 Windows 中接入 AI 与观察者双账号，完成校准，从观察者视角查看 AI。
+
+顶栏可切换中英文与浅色、深色、跟随系统外观。角色工作室的设置由用户点击打开；对话内容保留原文。
 
 界面分别显示生成状态和执行状态。先检查生成产物，再在目标角色中查看动作和字幕。
 
@@ -97,8 +112,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-12
+last_reviewed: 2026-10-12
 review_cycle_days: 30
 summary: 无需预装开发工具，从源码压缩包启动向导，配置语言、语音和本地动作模型。
 canonical: doc/getting-started/automatic-setup.zh-CN.md

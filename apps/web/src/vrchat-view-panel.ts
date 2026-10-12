@@ -18,8 +18,8 @@ export function mountViews(root: HTMLElement) {
   const background = panel.querySelector<HTMLInputElement>("[data-background]")!;
   const manual = mountManualControls(panel.querySelector<HTMLElement>('[data-view="ai"]')!, () => background.checked);
   const close = panel.querySelector<HTMLButtonElement>(".views-heading button")!;
-  const narrow = matchMedia("(max-width:900px)");
-  const behind = [...root.querySelectorAll<HTMLElement>(".chat-shell, .sidebar")];
+  const narrow = matchMedia("(max-width:640px)");
+  const behind = [...root.querySelectorAll<HTMLElement>(".chat-shell")];
   let opened = false;
   const views = (["observer", "ai"] as const).map(role => {
     const card = panel.querySelector<HTMLElement>(`[data-view=${role}]`)!;
@@ -80,7 +80,7 @@ export function mountViews(root: HTMLElement) {
     toggle.setAttribute("aria-expanded", String(next));
     toggle.setAttribute("aria-label", next ? "收起实时双视角" : "展开实时双视角");
     document.body.classList.toggle("views-open", next);
-    if (next) { document.body.classList.remove("sidebar-open"); close.focus(); }
+    if (next) { if (matchMedia("(max-width:900px)").matches) document.getElementById("sidebar")?.dispatchEvent(new Event("virea:close-sidebar")); close.focus(); }
     sync();
     if (!next) toggle.focus();
   };

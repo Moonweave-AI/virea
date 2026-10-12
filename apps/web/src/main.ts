@@ -1,4 +1,6 @@
 import "./styles.css";
+import {mountStudioChrome} from "./studio/chrome";
+import {setTheme} from "./studio/preferences";
 import {
   api,
   jobEventsUrl,
@@ -133,6 +135,7 @@ const state: {
 const appNode = document.querySelector<HTMLDivElement>("#app");
 if (!appNode) throw new Error("#app is missing");
 const app: HTMLDivElement = appNode;
+mountStudioChrome("motion", app);
 
 function storedThemePreference(): ThemePreference {
   try {
@@ -147,15 +150,7 @@ let themePreference = storedThemePreference();
 
 function applyThemePreference(preference: ThemePreference): void {
   themePreference = preference;
-  if (preference === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = preference;
-  try {
-    if (preference === "system") window.localStorage.removeItem(THEME_STORAGE_KEY);
-    else window.localStorage.setItem(THEME_STORAGE_KEY, preference);
-  } catch {
-    // Private browsing and locked-down WebViews may deny storage; the active
-    // page still receives the selected appearance.
-  }
+  setTheme(preference);
   document.querySelectorAll<HTMLButtonElement>("[data-theme-preference]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.themePreference === preference));
   });
@@ -377,6 +372,12 @@ function modelIntegrityNote(manifest: ModelManifest): string {
 
 function ensureSelectedModel(): void {
   const available = availableModels();
+  const requested = new URLSearchParams(location.search).get("model");
+  if (requested && available.some(item => item.model.id === requested)) {
+    state.selectedModelId = requested;
+    const next = new URL(location.href); next.searchParams.delete("model");
+    history.replaceState(null, "", next);
+  }
   if (!available.some((item) => item.model.id === state.selectedModelId)) {
     const integrated = integratedModels();
     state.selectedModelId = integrated.find(modelReady)?.model.id
@@ -429,7 +430,6 @@ function installedExecutionTarget(manifest: ModelManifest | null): ExecutionTarg
 
 function ensureSelectedExecutionDomain(): void {
   const domains = state.executionDomains?.execution_domains ?? [];
-  if (domains.some((domain) => domain.id === state.selectedExecutionDomainId)) return;
   const installed = installedExecutionTarget(selectedManifest());
   if (
     !state.executionDomainTouched
@@ -439,12 +439,12 @@ function ensureSelectedExecutionDomain(): void {
     state.selectedExecutionDomainId = installed.execution_domain_id;
     return;
   }
-  state.selectedExecutionDomainId = domains.length === 1 ? domains[0]!.id : "";
+  state.selectedExecutionDomainId = domains.find(domain => domain.is_host)?.id ?? domains[0]?.id ?? "";
 }
 
 function selectedExecutionTarget(): ExecutionTargetSelection {
   if (!state.selectedExecutionDomainId) {
-    throw new Error("检测到多个运行环境，请先明确选择一个执行域");
+    throw new Error("请在 Set Up 中选择模型运行环境并完成检验");
   }
   const installed = installedExecutionTarget(selectedManifest());
   if (installed?.execution_domain_id === state.selectedExecutionDomainId) return installed;
@@ -468,19 +468,6 @@ async function loadExecutionOptions(modelId: string, force = false): Promise<voi
   state.executionOptions[modelId] = payload.options;
 }
 
-function executionDomainSelector(): string {
-  const domains = state.executionDomains?.execution_domains ?? [];
-  const placeholder = domains.length > 1 ? '<option value="">选择运行环境</option>' : "";
-  return `<label class="domain-control"><span>运行环境</span><select id="global-execution-domain" ${domains.length ? "" : "disabled"}>${placeholder}${domains
-    .map((domain) => {
-      const label = domain.kind === "wsl"
-        ? `WSL · ${domain.distribution ?? domain.id}`
-        : `${domain.kind.replace("-native", "")} · ${domain.platform}`;
-      return `<option value="${escapeHtml(domain.id)}" ${domain.id === state.selectedExecutionDomainId ? "selected" : ""}>${escapeHtml(label)}</option>`;
-    })
-    .join("")}</select></label>`;
-}
-
 function syncLabel(): string {
   const labels: Record<SyncStatus, string> = {
     connecting: "正在连接",
@@ -494,46 +481,9 @@ function syncLabel(): string {
   return labels[state.syncStatus];
 }
 
-function themeSelector(): string {
-  const choices: Array<[ThemePreference, string, string]> = [
-    ["system", "◐", "跟随系统 / System"],
-    ["light", "☀", "浅色 / Light"],
-    ["dark", "☾", "深色 / Dark"],
-  ];
-  return `<div class="theme-selector" role="group" aria-label="外观 / Appearance">${choices.map(([value, icon, label]) => `
-    <button type="button" data-theme-preference="${value}" aria-pressed="${value === themePreference}" title="${label}">
-      <span aria-hidden="true">${icon}</span><span class="theme-label">${label.split(" / ")[0]}</span>
-    </button>`).join("")}</div>`;
-}
-
 function layout(content: string): string {
-  const nav: Array<[View, string, string]> = [
-    ["playground", "工作台", "生成与预览"],
-    ["catalog", "模型", "部署与能力"],
-    ["overview", "系统", "环境与诊断"],
-  ];
   return `
     <div class="app-shell">
-      <header class="topbar">
-        <button class="brand" id="brand-home" aria-label="打开 VIREA 工作台">
-          <span class="brand-mark"><i></i><i></i><i></i></span>
-          <span><strong>VIREA</strong><small>Motion Lab 0.4.0</small></span>
-        </button>
-        <nav aria-label="主要导航">${nav.map(([id, label, description]) => `
-          <button data-view="${id}" class="nav-item ${state.view === id ? "active" : ""}">
-            <strong>${label}</strong><small>${description}</small>
-          </button>`).join("")}<a class="nav-item" href="./character.html"><strong>Character Studio</strong><small>角色对话</small></a><a class="nav-item" href="./vrchat.html"><strong>VRChat Studio</strong><small>独立 AI 角色</small></a><a class="nav-item" href="./setup.html"><strong>配置</strong><small>部署与模型接入</small></a></nav>
-        <div class="topbar-tools">
-          ${executionDomainSelector()}
-          ${themeSelector()}
-          <div class="data-root-pill ${hasFreshVireaHomeAuthority() ? "" : "stale"}" id="data-root-indicator" title="${escapeHtml(hasFreshVireaHomeAuthority() ? `当前服务 VIREA_HOME：${state.vireaHome}` : state.vireaHome ? `上次确认的 VIREA_HOME：${state.vireaHome}；正在等待服务重新确认` : "正在读取当前服务的 VIREA_HOME")}">
-            <span>${hasFreshVireaHomeAuthority() ? "VIREA_HOME" : "VIREA_HOME · 待确认"}</span><code>${escapeHtml(state.vireaHome || "读取中…")}</code>
-          </div>
-          <div class="sync-pill ${state.syncStatus}" id="sync-status" title="CLI 与 Web 使用同一持久状态">
-            <i></i><span>${syncLabel()}</span>
-          </div>
-        </div>
-      </header>
       <main class="page-frame">
         ${state.error ? `<div class="message error" role="alert"><strong>需要处理</strong><span>${escapeHtml(state.error)}</span><button id="dismiss-error" aria-label="关闭错误">关闭</button></div>` : ""}
         ${state.notice ? `<div class="message success" role="status"><strong>已完成</strong><span>${escapeHtml(state.notice)}</span><button id="dismiss-notice" aria-label="关闭提示">关闭</button></div>` : ""}
@@ -598,7 +548,7 @@ function generationStatusMarkup(): string {
     <div class="progress-track" role="progressbar" aria-label="生成进度" aria-valuemin="0" aria-valuemax="100" ${value == null ? "" : `aria-valuenow="${value}"`}>
       <span class="${value == null ? "indeterminate" : ""}" style="--progress:${value ?? 35}%"></span>
     </div>
-    <p><strong data-generation-label>${escapeHtml(presentation.label)}</strong><code data-generation-job>${escapeHtml(jobId ?? "尚未提交")}</code></p>
+    <p><strong data-generation-label>${escapeHtml(presentation.label)}</strong><code data-generation-job data-ui-copy>${escapeHtml(jobId ?? "尚未提交")}</code></p>
   </div>`;
 }
 
@@ -689,14 +639,14 @@ function draftDisplayValue(value: unknown): string {
 
 function fieldConstraintHelp(name: string, field: ManifestInputField): string {
   const details: string[] = [];
-  if (field.required === true) details.push("必填 / required");
-  if (typeof field.minimum === "number") details.push(`最小 / min ${field.minimum}`);
-  if (typeof field.maximum === "number") details.push(`最大 / max ${field.maximum}`);
-  if (typeof field.multiple_of === "number") details.push(`步长倍数 / multiple ${field.multiple_of}`);
-  if (field.representation_id) details.push(`representation ${field.representation_id}`);
+  if (field.required === true) details.push("必填");
+  if (typeof field.minimum === "number") details.push(`最小值 ${field.minimum}`);
+  if (typeof field.maximum === "number") details.push(`最大值 ${field.maximum}`);
+  if (typeof field.multiple_of === "number") details.push(`步长 ${field.multiple_of}`);
+  if (field.representation_id) details.push(`骨骼格式 ${field.representation_id}`);
   if (typeof field.sample_rate_hz === "number") details.push(`${field.sample_rate_hz} Hz`);
   if (typeof field.description === "string") details.push(field.description);
-  if (name === "prompt") details.push("写清人物、方向、节奏和动作结束方式。 / Describe actor, direction, tempo, and ending.");
+  if (name === "prompt") details.push("写清人物、方向、节奏和动作结束方式。");
   return details.join(" · ");
 }
 
@@ -787,7 +737,7 @@ function playground(): string {
         <p>模型选择、任务进度、重定向前源骨架与最终 VRM 对照保持在一条连续工作流中。</p></div>
     </section>
     <section class="studio-grid">
-      <article class="composer-card surface">
+      <article class="composer-card card">
         <div class="section-title"><span>01</span><div><h2>动作生成</h2><p>使用已部署模型创建可追溯结果</p></div></div>
         <label class="field"><span>模型</span><select id="model-id" ${availableModels().length ? "" : "disabled"}>${modelSelectOptions()}</select></label>
         ${taskSchemas.length > 1 ? `<label class="field"><span>任务 / Task</span><select id="generation-task">${taskSchemas.map((schema) => `<option value="${escapeHtml(schema.task)}" ${schema.task === draft.task ? "selected" : ""}>${escapeHtml(GENERATION_TASK_LABELS[schema.task] ?? schema.task)}</option>`).join("")}</select><small>切换任务会载入该任务自己的生产验收默认值。</small></label>` : taskSchemas.length === 0 ? '<div class="capability-note"><strong>缺少可呈现的输入 schema / No presentable input schema</strong></div>' : ""}
@@ -797,7 +747,7 @@ function playground(): string {
         </div>
         ${manifest && ready && integrated ? `<p class="readiness-evidence">${escapeHtml(modelIntegrityNote(manifest))}</p>` : ""}
         ${manifest && !integrated ? `<div class="capability-note" role="note"><strong>仅上游登记，尚未接入 VIREA</strong><p>${escapeHtml(capabilityReason(manifest))}。此模型仍可浏览，但不会伪装成可部署。</p></div>` : ""}
-        ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "部署这个模型"}</button>` : ""}
+        ${manifest && integrated && !ready ? `<button class="secondary wide" data-install="${escapeHtml(manifest.model.id)}" ${state.installingModelId ? "disabled" : ""}>${state.installingModelId === manifest.model.id ? "正在部署并验收…" : "在 Set Up 部署"}</button>` : ""}
         ${hiddenGenerationFieldCount > 0 ? `<div class="guided-mode-note" role="note"><i></i><span>简洁模式：只填写下方动作；其余 ${hiddenGenerationFieldCount} 项使用已通过生产验收的默认值。<small>Guided mode keeps verified audio, dialogue, and runtime parameters automatically.</small></span></div>` : ""}
         <div class="parameter-grid schema-parameter-grid ${generationFields.length === 1 ? "single-field" : ""}">${generationFields.map(([name, field]) => generationFieldMarkup(name, field, draft.values[name], !integrated)).join("")}</div>
         <button class="primary generate-button" id="generate" ${canGenerate ? "" : "disabled"}>
@@ -807,7 +757,8 @@ function playground(): string {
         <pre id="generation-output" class="machine-evidence" aria-hidden="true">${escapeHtml(state.generationEvidence)}</pre>
       </article>
 
-      <article class="stage-card">
+      <div class="studio-output">
+      <article class="stage-card card">
         <div class="stage-toolbar">
           <div><p class="eyebrow">PRE / POST RETARGET DIAGNOSTICS</p><h2>${state.lastResult ? "最新结果双阶段对照" : "模型骨架与最终 VRM"}</h2></div>
           <div class="stage-actions">
@@ -845,71 +796,16 @@ function playground(): string {
           </div>
         </div>
       </article>
-    </section>
     <section class="studio-bottom-grid">
-      <article class="surface result-summary"><div class="section-title small"><span>02</span><div><h2>结果信息</h2><p>始终显示最近一次成功产物</p></div></div>${resultFacts()}</article>
-      <article class="surface activity-card"><div class="section-title small"><span>03</span><div><h2>实时活动</h2><p>CLI、安装验收和 Web 任务共用同一状态</p></div></div><div data-activity-host>${recentActivity()}</div></article>
+      <article class="card result-summary"><div class="section-title small"><span>02</span><div><h2>结果信息</h2><p>始终显示最近一次成功产物</p></div></div>${resultFacts()}</article>
+      <article class="card activity-card"><div class="section-title small"><span>03</span><div><h2>实时活动</h2><p>CLI、安装验收和 Web 任务共用同一状态</p></div></div><div data-activity-host>${recentActivity()}</div></article>
+    </section>
+      </div>
     </section>`;
 }
 
 function catalog(): string {
-  const models = catalogModels();
-  return `
-    <section class="page-heading">
-      <div><p class="eyebrow">MODEL LIBRARY</p><h1>模型能力与部署</h1><p>一个模型可在多个系统执行；这里展示的是当前数据根中的真实部署状态。</p></div>
-      <div class="heading-metric"><strong>${models.filter((model) => isVireaIntegratedModel(model) && modelReady(model)).length}</strong><span>PERSISTED READY / ${integratedModels().length} INTEGRATED · ${models.length} CATALOGED</span></div>
-    </section>
-    <section class="model-library surface">
-      <div class="library-header"><span>模型</span><span>转换路径</span><span>当前状态</span><span>操作</span></div>
-      ${models.length ? models.map((item) => {
-        const ready = modelReady(item);
-        const integrated = isVireaIntegratedModel(item);
-        const installState = currentInstallationState(item);
-        const installable = integrated;
-        const option = selectedExecutionOption(item.model.id);
-        const runtime = item.runtime_variants.find((candidate) => candidate.id === option?.selected_runtime_id);
-        const latestAttempt = item.installation?.latest_attempt?.state;
-        return `<article class="model-row">
-          <div class="model-identity"><span class="model-monogram">${escapeHtml(item.model.display_name.slice(0, 1))}</span><div><h2>${escapeHtml(item.model.display_name)}</h2><code>${escapeHtml(item.model.id)}</code><p>${escapeHtml(item.model.adapter_family)}</p></div></div>
-          <div class="model-route"><strong>${escapeHtml(item.output.skeleton_id)}</strong><i>→</i><strong>${escapeHtml(item.result_target.skeleton_id)}</strong><small>${escapeHtml(item.model.tasks.join(" · "))}</small></div>
-          <div class="model-state"><span class="state-badge ${ready && integrated ? "ready" : integrated ? (installState ?? "idle").toLowerCase() : "upstream"}"><i></i>${integrated ? ready ? modelReadyBadge(item) : installationLabel(installState) : "UPSTREAM ONLY"}</span><small>${escapeHtml(modelCapabilityLabel(item))}</small><small>${ready && integrated ? escapeHtml(modelIntegrityNote(item)) : latestAttempt && latestAttempt !== installState ? `最近尝试：${installationLabel(latestAttempt)}` : statusLabel(item.model.status)}</small><small>${integrated ? option ? `${option.selected_runtime_id ?? "未实现"} · ${option.selected_resource_profile ?? "无 profile"}${runtime?.runtime_core_epoch ? ` · ${runtime.runtime_core_epoch}` : ""}` : "选择环境后自动核验 Runtime" : escapeHtml(capabilityReason(item))}</small></div>
-          <div class="model-action">${ready && integrated ? `<button data-use-model="${escapeHtml(item.model.id)}">在工作台使用</button>` : `<button data-install="${escapeHtml(item.model.id)}" ${!installable || !state.selectedExecutionDomainId || state.installingModelId ? "disabled" : ""}>${state.installingModelId === item.model.id ? "部署中…" : installable ? "部署并验收" : "浏览详情"}</button>`}</div>
-        </article>`;
-      }).join("") : '<p class="quiet-empty padded">服务没有返回模型目录，请检查项目资源。</p>'}
-    </section>`;
-}
-
-function systemFacts(): { system: Record<string, unknown>; machine: Record<string, unknown> } {
-  const system = (state.system ?? state.health ?? {}) as Record<string, unknown>;
-  const machine = (system.machine ?? {}) as Record<string, unknown>;
-  return { system, machine };
-}
-
-function overview(): string {
-  const { system, machine } = systemFacts();
-  const domains = state.executionDomains?.execution_domains ?? [];
-  const activeWorkerJobs = visibleJobs().filter((job) => [
-    "STARTING_WORKER", "LOADING_MODEL", "RUNNING", "DECODING", "NORMALIZING",
-    "RETARGETING", "VALIDATING", "EXPORTING",
-  ].includes(job.state)).length;
-  return `
-    <section class="page-heading">
-      <div><p class="eyebrow">LOCAL CONTROL PLANE</p><h1>系统、数据与诊断</h1><p>快速状态保持轻量；完整硬件检测只在你明确点击时运行。</p></div>
-      <button class="primary compact-button" id="refresh" ${state.systemLoading ? "disabled" : ""}>${state.systemLoading ? "正在检测…" : "运行完整检测"}</button>
-    </section>
-    <section class="system-metrics">
-      <article class="surface"><small>控制面</small><strong>${state.health?.status === "ready" ? "在线" : "连接中"}</strong><span>${escapeHtml(state.health?.version ?? "—")}</span></article>
-      <article class="surface"><small>可用执行域</small><strong>${domains.length}</strong><span>${escapeHtml(domains.map((item) => item.kind).join(" · ") || "尚未检测")}</span></article>
-      <article class="surface"><small>模型目录</small><strong>${catalogModels().length}</strong><span>${integratedModels().length} 个 VIREA 已接入 · ${integratedModels().filter(modelReady).length} 持久 READY（执行前复验）</span></article>
-      <article class="surface"><small>活动 Worker 任务</small><strong>${activeWorkerJobs}</strong><span>${escapeHtml(machine.platform ?? "按持久 Job 状态实时计算")}</span></article>
-    </section>
-    <section class="system-grid">
-      <article class="surface data-root-card"><div class="section-title small"><span>A</span><div><h2>持久数据根</h2><p>模型、Runtime、任务与结果都以这里为根</p></div></div><code class="path-display">${escapeHtml(state.vireaHome || system.virea_home || "正在读取当前 VIREA_HOME")}</code>
-        <div class="button-row"><button id="setup-plan">查看初始化计划</button><button id="setup-apply">核验目录结构</button></div><pre id="setup-output" class="diagnostic-output"></pre></article>
-      <article class="surface domain-card"><div class="section-title small"><span>B</span><div><h2>执行域</h2><p>Web 与 CLI 共享选择和部署身份</p></div></div><div class="domain-list">${domains.map((domain) => `<div class="domain-row ${domain.id === state.selectedExecutionDomainId ? "selected" : ""}"><i></i><div><strong>${escapeHtml(domain.kind === "wsl" ? `WSL · ${domain.distribution}` : domain.kind)}</strong><small>${escapeHtml(domain.platform)} · ${escapeHtml(domain.architecture)}</small></div><span>${domain.id === state.selectedExecutionDomainId ? "当前" : domain.is_host ? "宿主" : "可用"}</span></div>`).join("") || '<p class="quiet-empty">尚未取得执行域报告。</p>'}</div></article>
-      <article class="surface diagnostics-card"><div class="section-title small"><span>C</span><div><h2>安全诊断</h2><p>生成脱敏的本地支持包</p></div></div><p>支持包不会收集 prompt、token、原始音频、Avatar 或模型权重。</p><button id="support">生成 Support Bundle</button><pre id="support-output" class="diagnostic-output"></pre></article>
-      <article class="surface all-activity"><div class="section-title small"><span>D</span><div><h2>最近任务</h2><p>持久数据库中的最新活动</p></div></div><div data-activity-host data-activity-limit="8">${recentActivity(8)}</div></article>
-    </section>`;
+  return `<section class="page-heading"><div><p class="eyebrow">MODEL LIBRARY</p><h1>模型管理已集中到 Set Up</h1><p>选择运行设备、复用已有模型、查看部署进度与真实生成结果。</p><a class="button button--primary" href="./setup.html#motion-models">打开模型库 ↗</a></div></section>`;
 }
 
 interface FocusSnapshot {
@@ -951,7 +847,7 @@ function render(): void {
   const content = {
     playground: playground(),
     catalog: catalog(),
-    overview: overview(),
+    overview: catalog(),
   }[state.view];
   app.innerHTML = layout(content);
   bind();
@@ -1323,32 +1219,7 @@ function bindViewer(): void {
 
 async function installModel(button: HTMLButtonElement): Promise<void> {
   const id = button.dataset.install;
-  if (!id || state.installingModelId) return;
-  state.installingModelId = id;
-  state.selectedModelId = id;
-  state.error = "";
-  state.notice = "";
-  render();
-  try {
-    const manifest = state.models.find((item) => item.model.id === id);
-    if (!manifest) throw new Error(`模型目录中不存在 ${id}`);
-    const target = selectedExecutionTarget();
-    await loadExecutionOptions(id, true);
-    const option = selectedExecutionOption(id);
-    if (!option?.implemented || !option.can_build) {
-      throw new Error(option?.reasons.join("; ") || `${id} 尚未在 ${target.execution_domain_id} 实现可部署 Runtime`);
-    }
-    const result = await api.install(manifest, target);
-    state.notice = result.state === "READY"
-      ? `${manifest.model.display_name} 已完成部署与真实验收。`
-      : `${manifest.model.display_name} 返回状态 ${String(result.state ?? "UNKNOWN")}。`;
-    await synchronizePersistentState();
-  } catch (error) {
-    state.error = errorMessage(error);
-  } finally {
-    state.installingModelId = "";
-    render();
-  }
+  if (id) location.assign(`./setup.html?model=${encodeURIComponent(id)}#motion-models`);
 }
 
 async function refreshSystem(): Promise<void> {
@@ -1930,6 +1801,9 @@ function revisionKey(payload: StateRevision): string {
 }
 
 function updateVireaHomeIndicator(): void {
+  app.dataset.vireaHome = state.vireaHome;
+  app.dataset.vireaHomeFresh = String(hasFreshVireaHomeAuthority());
+  app.dataset.executionDomain = state.selectedExecutionDomainId;
   const indicator = document.querySelector<HTMLElement>("#data-root-indicator");
   if (!indicator) return;
   const fresh = hasFreshVireaHomeAuthority();
@@ -1957,6 +1831,7 @@ function changedRevisionKeys(
 }
 
 function updateSyncBadge(): void {
+  app.dataset.syncStatus = state.syncStatus;
   const node = document.querySelector<HTMLElement>("#sync-status");
   if (!node) return;
   node.className = `sync-pill ${state.syncStatus}`;
@@ -2188,6 +2063,7 @@ async function pollStateRevision(): Promise<void> {
 }
 
 async function bootstrap(): Promise<void> {
+  render();
   const [healthResult, stateResult, domainResult, modelResult, jobResult] = await Promise.allSettled([
     api.health(),
     requestAuthoritativeStateRevision(),

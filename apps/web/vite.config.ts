@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  plugins: [tailwindcss()],
   // The production UI is served by FastAPI's StaticFiles mount at /app.
   // Keep emitted JS/CSS URLs inside that mount instead of the site root.
   base: "/app/",

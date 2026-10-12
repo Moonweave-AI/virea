@@ -1,0 +1,26 @@
+import {useEffect,useState} from "react";
+import {createRoot} from "react-dom/client";
+import {Button,Card,Chip} from "@heroui/react";
+import {Box,Folder,Layers,RefreshCw} from "lucide-react";
+import {api,request} from "../api";
+import {usePreferences} from "./chrome";
+import {t} from "./preferences";
+
+type Domain={id:string;kind:string;platform:string;architecture:string;distribution?:string;is_host:boolean;virea_home?:string;python_candidates?:{executable:string;python_version:string}[];tools?:Record<string,string|null>;warnings:string[]};
+type Report={virea_home:string;domains:Domain[];conda:{executable:string|null;environments:string[]};runtimes:{id:string;status?:string;state?:string;locator?:string;python_version?:string;project_version?:string;runtime_core_epoch?:string}[]};
+function Environments(){
+  usePreferences();const[data,setData]=useState<Report|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[result,setResult]=useState<unknown>(null);
+  const scan=async()=>{setBusy(true);try{setData(await request<Report>("/onboarding/environments",{headers:{"X-Virea-Setup":"1"}},{timeoutMs:180000}));setError("");}catch(e){setError(String(e));}finally{setBusy(false);}};
+  const action=async(work:()=>Promise<unknown>)=>{setBusy(true);try{setResult(await work());setError("");}catch(e){setError(String(e));}finally{setBusy(false);}};
+  useEffect(()=>{void scan();},[]);
+  return <><div className="section-heading"><div><span className="number">05</span><h2>{t("运行环境与存储", "Environments & storage")}</h2></div><Button variant="ghost" isDisabled={busy} onPress={()=>void scan()}><RefreshCw size={15}/>{t("重新检测", "Scan again")}</Button></div>
+    <p className="hint">{t("宿主系统、WSL、Python 与 Conda 环境在这里统一查看。每个模型的运行环境在模型卡片中选择，工作室自动沿用。", "Inspect your host, WSL, Python and Conda environments here. Choose a runtime on each model card; studios use that verified selection.")}</p>
+    {error&&<p role="alert" className="inline-error">{error}</p>}{!data&&<p role="status">{t("正在检测运行环境…", "Discovering execution environments…")}</p>}
+    {data&&<><div className="mw-environment-grid">{data.domains.map(d=><Card className="mw-environment-card" key={d.id}><Card.Header><Layers size={18}/><Card.Title>{d.distribution?`WSL · ${d.distribution}`:t("本机环境", "Host environment")}</Card.Title><Chip size="sm">{d.is_host?t("宿主", "Host"):t("独立环境", "Isolated")}</Chip></Card.Header><Card.Content><p>{d.platform} · {d.architecture}</p><details><summary>{t("Python 与工具", "Python & tools")} · {d.python_candidates?.length??0}</summary>{d.python_candidates?.map(p=><div className="mw-runtime-row" key={p.executable}><strong>Python {p.python_version}</strong><code>{p.executable}</code></div>)}<div className="mw-tools">{Object.entries(d.tools??{}).filter(([key,value])=>value&&!key.endsWith("_path")).map(([key,value])=><Chip size="sm" key={key} title={String(value)}>{key}</Chip>)}</div></details></Card.Content></Card>)}</div>
+    <div className="mw-environment-grid"><Card className="mw-environment-card"><Card.Header><Box size={18}/><Card.Title>Conda / Mamba</Card.Title><Chip size="sm">{data.conda.environments.length}</Chip></Card.Header><Card.Content>{data.conda.environments.length?<details><summary>{t("查看已发现的环境", "View detected environments")}</summary>{data.conda.environments.map(path=><code className="mw-runtime-row" key={path}>{path}</code>)}</details>:<p className="hint">{t("未发现 Conda 环境。模型部署会自动建立独立运行环境。", "No Conda environments found. Deployment creates an isolated runtime for each model.")}</p>}</Card.Content></Card>
+    <Card className="mw-environment-card"><Card.Header><Folder size={18}/><Card.Title>{t("项目数据目录", "Workspace data")}</Card.Title></Card.Header><Card.Content><code>{data.virea_home}</code><p className="hint">{t("模型、缓存、配置和结果保存在此处。项目内的 .virea-runtime 已由 Git 忽略。", "Models, caches, settings and results live here. The project’s .virea-runtime directory is ignored by Git.")}</p></Card.Content><Card.Footer><Button variant="secondary" isDisabled={busy} onPress={()=>void action(api.setupApply)}>{t("核验目录结构", "Check folders")}</Button><Button variant="ghost" isDisabled={busy} onPress={()=>void action(api.supportBundle)}>{t("导出诊断包", "Create support bundle")}</Button></Card.Footer></Card></div>
+    {data.runtimes.length>0&&<details className="mw-hardware-details"><summary>{t("已登记的模型运行环境", "Registered model runtimes")} · {data.runtimes.length}</summary>{data.runtimes.map(r=><div className="mw-runtime-row" key={r.id}><strong>{r.id}</strong><span>{({READY:t("已就绪","Ready"),FAILED:t("失败","Failed"),INSTALLING:t("安装中","Installing")} as Record<string,string>)[r.status??r.state??""] ?? r.status ?? r.state ?? ""} {r.python_version&&`· Python ${r.python_version}`} {r.project_version&&`· v${r.project_version}`}</span>{r.locator&&<code>{r.locator}</code>}{r.runtime_core_epoch&&<small>{t("运行时版本", "Runtime epoch")} · {r.runtime_core_epoch}</small>}</div>)}</details>}</>}
+    {result!==null&&<details open className="mw-hardware-details"><summary>{t("操作结果", "Result")}</summary><pre>{JSON.stringify(result,null,2)}</pre></details>}
+  </>;
+}
+export function mountEnvironments(host:HTMLElement){host.dataset.uiOwned="true";createRoot(host).render(<Environments/>);}

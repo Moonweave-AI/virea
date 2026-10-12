@@ -39,7 +39,7 @@ export class RealVrmViewer {
   private readonly controls: OrbitControls;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
-  private readonly grid = new THREE.GridHelper(10, 20, 0x34506a, 0x17202c);
+  private readonly grid = new THREE.GridHelper(10, 20, 0x797087, 0x494452);
   private vrm: VRM | null = null;
   private animation: VRMAnimation | null = null;
   private mixer: THREE.AnimationMixer | null = null;
@@ -83,8 +83,8 @@ export class RealVrmViewer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.scene.background = new THREE.Color(0x080b10);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x26334d, 2.2));
+    this.scene.background = null;
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x383747, 2.2));
     const key = new THREE.DirectionalLight(0xffffff, 2.5);
     key.position.set(2, 4, 3);
     this.scene.add(key, this.grid);
