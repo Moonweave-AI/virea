@@ -1,4 +1,4 @@
-"""Exercise the launch contract against the actual served production pages."""
+"""Exercise bootstrap contracts without a prebuilt frontend or model runtime."""
 
 from __future__ import annotations
 
@@ -6,13 +6,11 @@ import os
 import sys
 
 import pytest
-from fastapi.testclient import TestClient
 
 from virea.workspaces import (
     WORKSPACES,
     source_revision,
     web_distribution_is_current,
-    workspace_links,
 )
 
 
@@ -48,28 +46,6 @@ def test_revision_changes_with_application_code_but_not_model_data(tmp_path):
     assert source_revision(tmp_path) == original
     code.write_text("version = 2")
     assert source_revision(tmp_path) != original
-
-
-def test_console_api_and_packaged_pages_share_the_same_links(tmp_path):
-    from virea_api.app import create_app
-
-    from scripts.setup.console import studio_links
-
-    links = workspace_links(18321)
-    assert studio_links(18321) == links
-    assert workspace_links(8000, "::1")["Set Up"].startswith("http://[::1]:8000/")
-    app = create_app(virea_home=tmp_path)
-    # Page availability does not need to start model services or game capture.
-    client = TestClient(app)
-    entries = client.get("/api/v1/workspaces").json()["entries"]
-    for entry in entries:
-        assert links[entry["name"]] == "http://127.0.0.1:18321" + entry["path"]
-        response = client.get(entry["path"])
-        assert response.status_code == 200
-        assert "text/html" in response.headers["content-type"]
-        assert "no-store" in response.headers["cache-control"]
-    for retired in ("/ui/index.html", "/vendor/three/build/three.module.js"):
-        assert client.get(retired).status_code == 404
 
 
 @pytest.mark.parametrize("arguments", [["serve", "--port", "18321"], ["--help"], []])

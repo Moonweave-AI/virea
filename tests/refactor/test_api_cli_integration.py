@@ -48,6 +48,27 @@ TERMINAL_STATES = {"SUCCEEDED", "CANCELLED", "FAILED", "TIMED_OUT", "REJECTED"}
 RELEASE_VERSION = "0.4.0"
 
 
+def test_console_api_and_packaged_pages_share_the_same_links(tmp_path):
+    from scripts.setup.console import studio_links
+    from virea.workspaces import workspace_links
+
+    links = workspace_links(18321)
+    assert studio_links(18321) == links
+    assert workspace_links(8000, "::1")["Set Up"].startswith("http://[::1]:8000/")
+    app = create_app(virea_home=tmp_path)
+    # Page availability does not need to start model services or game capture.
+    client = TestClient(app)
+    entries = client.get("/api/v1/workspaces").json()["entries"]
+    for entry in entries:
+        assert links[entry["name"]] == "http://127.0.0.1:18321" + entry["path"]
+        response = client.get(entry["path"])
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "no-store" in response.headers["cache-control"]
+    for retired in ("/ui/index.html", "/vendor/three/build/three.module.js"):
+        assert client.get(retired).status_code == 404
+
+
 @pytest.fixture
 def multiple_execution_domains(monkeypatch):
     """Selection-required cases must not depend on the runner having WSL."""
