@@ -262,13 +262,12 @@ def test_unknown_json_is_bounded_redacted_and_materialized_as_sidecar(
         assert (tmp_path / reference["path"]).is_file()
 
 
-def test_default_sidecar_cache_stays_outside_the_repository() -> None:
+def test_default_sidecar_cache_uses_the_configured_runtime_directory() -> None:
     import virea.data.annotations as annotation_module
 
-    project_root = Path(__file__).resolve().parents[1]
     cache_parent = annotation_module._SIDECAR_CACHE_ROOT.parent
     assert cache_parent == annotation_module._SIDECAR_CACHE_PARENT
-    assert not cache_parent.is_relative_to(project_root)
+    assert cache_parent == annotation_module.VireaPaths.discover().cache / "annotations"
     assert annotation_module._SIDECAR_CACHE_ROOT.name.startswith("sidecar-cache-v1-")
     assert cache_parent.name == "annotations"
 

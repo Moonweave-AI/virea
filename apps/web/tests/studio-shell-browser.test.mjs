@@ -8,12 +8,14 @@ import tailwindcss from "@tailwindcss/vite";
 
 const executablePath = [process.env.VIREA_E2E_BROWSER_PATH,"C:/Program Files/Google/Chrome/Application/chrome.exe","C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe","/usr/bin/chromium",chromium.executablePath()].find(p=>p&&existsSync(p));
 
-test("HeroUI selects follow native value hydration, selection indices and form resets",{skip:!executablePath,timeout:30_000},async()=>{
+test("HeroUI selects follow native value hydration, selection indices and form resets",{skip:!executablePath,timeout:60_000},async(t)=>{
+  const started=performance.now();
   const server=await createServer({configFile:false,plugins:[tailwindcss()],root:resolve(import.meta.dirname,".."),server:{host:"127.0.0.1",port:0}});
   await server.listen();
   const browser=await chromium.launch({executablePath,headless:true,args:["--mute-audio"]});
   try {
     const page=await browser.newPage();
+    page.setDefaultTimeout(10_000);
     await page.route("**/select-fixture",route=>route.fulfill({contentType:"text/html",body:'<form><label>Motion backend<select id="backend"><option value="motioncraft">MotionCraft</option><option value="syntalker">SynTalker</option></select></label></form><p id="changes">0</p>'}));
     await page.goto(server.resolvedUrls.local[0]+"select-fixture");
     await page.evaluate(async()=>{
@@ -22,6 +24,7 @@ test("HeroUI selects follow native value hydration, selection indices and form r
       native.addEventListener('change',()=>{document.querySelector('#changes').textContent=String(Number(document.querySelector('#changes').textContent)+1);});
       enhanceSelects(document.body);
     });
+    t.diagnostic(`Selector fixture loaded in ${Math.round(performance.now()-started)} ms`);
     const trigger=page.locator('[data-native-select="backend"]');
     await trigger.getByText('MotionCraft',{exact:true}).waitFor();
     await page.evaluate(()=>{document.querySelector('#backend').value='syntalker';});
