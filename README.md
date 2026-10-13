@@ -111,7 +111,7 @@ https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841
 
 ### VRChat Studio
 
-Generated full-body movement in VRChat, with subtitles and an observer view.
+Generated full-body movement and subtitle replies, captured in a VRChat mirror.
 
 https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca
 
