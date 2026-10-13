@@ -24,6 +24,8 @@ https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
 
 [Watch the 4K original](https://github.com/Moonweave-AI/virea/releases/download/launch-film-2026-10/VIREA-English-4K-v2.mp4) · [Film editions & editable project](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
+🗓️ **October 2026 · source 0.4.0** — [Current main](doc/releases/current.en.md) · [Changelog](CHANGELOG.md)
+
 <table>
 <tr>
 <td width="33%" valign="top"><h3>01 · 🦴 Motion that fits your rig</h3><p>Source rest frames, joint hierarchies and rotation conventions enter one retargeting foundation. Inspect the original skeleton beside your avatar, including hands, root movement and ground contact.</p><a href="doc/math-retarget/README.zh-CN.md">Explore the mathematics →</a></td>

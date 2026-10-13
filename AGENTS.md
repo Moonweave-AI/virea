@@ -3,15 +3,22 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-09-26
-updated: 2026-09-26
-last_reviewed: 2026-09-26
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 90
-summary: GitNexus agent workflow and code intelligence instructions.
+summary: GitNexus workflow, code intelligence and the main-only public branch policy.
 canonical: AGENTS.md
 related: []
 supersedes: []
 superseded_by: []
 ---
+
+# Branch and release policy
+
+- The public `origin` keeps **only `main`**. Develop locally or in a separate private repository; do not publish development branches to the public origin or use `git push --all` / `git push --mirror`.
+- Automated local branches use `codex/<short-topic>`: lowercase words, hyphens, one slash and at most 64 characters. Follow [branching and releases](doc/development/branching.en.md) for contributor prefixes, integration and recovery.
+- Preserve unmerged work before retiring branches. Keep user-visible changes in both [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md), and verify CI for the exact commit published to `main`.
+- Historical development dates are not software release dates. Keep software version tags separate from media-release tags.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence

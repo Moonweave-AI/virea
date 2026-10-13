@@ -23,6 +23,8 @@ https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
 
 [观看 4K 原版](https://github.com/Moonweave-AI/virea/releases/download/launch-film-2026-10/VIREA-English-4K-v2.mp4) · [下载成片与可编辑工程](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
+🗓️ **2026 年十月 · 源码版本 0.4.0** — [当前主线说明](doc/releases/current.zh-CN.md) · [更新日志](CHANGELOG.zh-CN.md)
+
 <table>
 <tr>
 <td width="33%" valign="top"><h3>01 · 🦴 让动作适配角色</h3><p>源骨架的静止坐标系、关节层级和旋转约定进入同一套重定向基础。在原始骨架与目标角色之间对照检查手指、根部移动和脚底接触。</p><a href="doc/math-retarget/README.zh-CN.md">了解骨骼与数学 →</a></td>

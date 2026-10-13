@@ -12,6 +12,8 @@
 <tr><td width="33%" valign="top"><h3>🚀 Start here</h3><p>Install VIREA, connect providers, generate your first result.</p><a href="getting-started/automatic-setup.en.md">Set up from zero →</a></td><td width="33%" valign="top"><h3>🎞️ See it in action</h3><p>Watch five selected clips or browse the complete recordings.</p><a href="demos/README.en.md">Demos →</a></td><td width="33%" valign="top"><h3>🧩 Build on it</h3><p>Read the contracts and add a capability or motion adapter.</p><a href="architecture/overview.en.md">Architecture →</a></td></tr>
 </table>
 
+🗓️ [Current main](releases/current.en.md) · [Changelog](../CHANGELOG.md) · [Branching and releases](development/branching.en.md)
+
 ## Choose your workspace
 
 | Workspace | What you will do | Open after startup |
@@ -58,8 +60,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-23
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 14
 summary: Task-oriented documentation home for setup, workspaces and engineering references.
 canonical: doc/README.en.md

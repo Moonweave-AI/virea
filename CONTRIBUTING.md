@@ -47,7 +47,15 @@ Web changes also use the commands in [`package.json`](package.json) and [`apps/w
 
 Keep the scope focused. Changes to public schemas or cross-layer responsibilities should update the relevant [RFC](doc/catalog.en.md#decisions) or architecture record. Run the GitNexus checks described in [AGENTS.md](AGENTS.md) before code edits and commits.
 
+## Name and publish your branch
+
+The public origin keeps only `main`. Use a short local branch such as `feat/provider-discovery`, `fix/wrist-retargeting` or `docs/setup-guide`; automated local work uses `codex/<topic>`. Use one slash, lowercase words and hyphens, with at most 64 characters in the full name. See [branching and releases](doc/development/branching.en.md) ([中文](doc/development/branching.zh-CN.md)) for the full convention and integration commands.
+
+Keep private work local or in a separate private repository. The public origin rejects new development branches; a branch name cannot make content private. Update the [changelog](CHANGELOG.md) and [Chinese version](CHANGELOG.zh-CN.md) for user-visible changes, then verify the CI run for the exact published commit.
+
 ## Share a pull request
+
+Public contributors can open a pull request from their own public fork. Private team review belongs in the separate private repository; maintainers publish the reviewed result to `main`.
 
 Describe the user-visible problem, the resulting behavior and how you tested it. Link the issue or design record if one exists. Report skipped checks with their reason so a reviewer can reproduce the remaining work.
 
@@ -68,8 +76,8 @@ type: how-to
 status: Active
 owner: "@Joker-of-Gotham"
 created: 2026-08-10
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 90
 title: Contributing to VIREA
 audience: Contributors and reviewers

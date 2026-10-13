@@ -78,6 +78,8 @@
 | [Architecture: one foundation, three workspaces](architecture/overview.en.md) | Active | Unified runtime overview. |
 | [架构：一个底座，三种工作台](architecture/overview.zh-CN.md) | Active | Unified runtime overview. |
 | [📚 Documentation design and writing](development/documentation.en.md) | Active | Bilingual documentation structure, banner-matched visual design and publishing workflow. |
+| [🌿 Branching and releases](development/branching.en.md) | Active | Short local branches, main-only public publishing and release records. |
+| [🌿 分支与发布规范](development/branching.zh-CN.md) | Active | 简洁分支命名、本地或私有开发，以及仅 main 的公开远端。 |
 | [📚 文档设计与写作](development/documentation.zh-CN.md) | Active | Bilingual documentation structure, banner-matched visual design and publishing workflow. |
 | [接入新模型](development/model-adapter.zh-CN.md) | Active | 将新 motion generation 模型接入独立 Runtime、ModelResult、Motion IR、骨骼表示和真实验收的步骤。 |
 | [VIREA CLI reference](reference/cli.en.md) | Active | Complete English reference for VIREA CLI commands, positional arguments, options, side effects, and safe examples. |
@@ -216,6 +218,9 @@
 | 文档 | 状态 | 用途 |
 |:--|:--|:--|
 | [Annotation 与 Viewer 契约](annotation-viewer.zh-CN.md) | Active | Annotation v1、多模态 channel 与 2D/3D Viewer 的语义、时间和空间展示契约。 |
+| [✦ Current main — October 2026](releases/current.en.md) | Active | Current capabilities, source version and upgrade path. |
+| [✦ 当前主线 — 2026 年十月](releases/current.zh-CN.md) | Active | 当前能力、源码版本与更新方法。 |
+| [Changelog](../CHANGELOG.md) · [更新日志](../CHANGELOG.zh-CN.md) | Active | Dated development history and release records. |
 | [🧭 Comparing embodied character projects](comparison.en.md) | Active | Capability comparison with pinned primary-source references. |
 | [🧭 具身角色项目对比](comparison.zh-CN.md) | Active | Capability comparison with pinned primary-source references. |
 | [七数据集语义与 Profile 审计](dataset-audit.zh-CN.md) | InReview | 七个数据集的官方定义、上游转换、VIREA profile、标注语义与未闭环证据。 |
@@ -241,8 +246,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Complete topic map of documentation, research, decisions and evidence.
 canonical: doc/catalog.zh-CN.md

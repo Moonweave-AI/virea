@@ -12,6 +12,8 @@
 <tr><td width="33%" valign="top"><h3>🚀 从零开始</h3><p>启动 VIREA，连接模型，看到第一次生成结果。</p><a href="getting-started/automatic-setup.zh-CN.md">部署指南 →</a></td><td width="33%" valign="top"><h3>🎞️ 先看效果</h3><p>观看五段精选演示，或进入完整录像集。</p><a href="demos/README.zh-CN.md">演示中心 →</a></td><td width="33%" valign="top"><h3>🧩 在此基础上开发</h3><p>阅读协议，接入新能力或新的骨骼输出。</p><a href="architecture/overview.zh-CN.md">技术架构 →</a></td></tr>
 </table>
 
+🗓️ [当前主线说明](releases/current.zh-CN.md) · [更新日志](../CHANGELOG.zh-CN.md) · [分支与发布规范](development/branching.zh-CN.md)
+
 ## 选择工作区
 
 | 工作区 | 可以做什么 | 启动后打开 |
@@ -58,8 +60,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-08-08
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 14
 summary: Task-oriented documentation home for setup, workspaces and engineering references.
 canonical: doc/README.zh-CN.md
