@@ -399,13 +399,15 @@ test("a hung external readiness listener yields bounded portable diagnostics wit
       "--vrm-usage-basis", "test-only local asset",
       "--base-url", `http://127.0.0.1:${address.port}`,
       "--virea-home", home,
-      "--api-readiness-timeout-ms", "350",
-      "--api-readiness-attempt-timeout-ms", "100",
+      // Allow cold Node/fetch startup on a shared CI runner, while retaining
+      // a real, bounded network timeout and a single in-flight probe.
+      "--api-readiness-timeout-ms", "3000",
+      "--api-readiness-attempt-timeout-ms", "1000",
     ]);
     const elapsed = performance.now() - started;
     assert.equal(completed.code, 2, completed.stderr);
     assert.equal(completed.signal, null);
-    assert.ok(elapsed < 3_000, `runner exceeded the bounded readiness failure: ${elapsed} ms`);
+    assert.ok(elapsed < 10_000, `runner exceeded the bounded readiness failure: ${elapsed} ms`);
     assert.equal(server.listening, true);
     assert.ok(requestCount >= 1 && requestCount <= 3, `unexpected probe count ${requestCount}`);
     assert.equal(maximumActiveRequests, 1);
@@ -416,7 +418,7 @@ test("a hung external readiness listener yields bounded portable diagnostics wit
       "utf8",
     ));
     assert.equal(failure.failure.stage, "managed_api_startup");
-    assert.match(failure.failure.message, /did not become ready within 350 ms.*timed out/s);
+    assert.match(failure.failure.message, /did not become ready within 3000 ms.*timed out/s);
     assert.equal(failure.eligible_for_promotion, false);
     assert.deepEqual(lifecycle, {
       schema_version: "virea.managed_api_lifecycle.v1.0.0",

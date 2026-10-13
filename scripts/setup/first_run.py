@@ -1,4 +1,8 @@
-"""Standard-library first run: no preinstalled Python packages, Node, pnpm or Git."""
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["pywinpty==3.0.5; sys_platform == 'win32'"]
+# ///
+"""First run: uv prepares its isolated dependencies; no global packages needed."""
 
 from __future__ import annotations
 
@@ -19,9 +23,11 @@ import zipfile
 from pathlib import Path
 
 if __package__:
-    from .console import banner, ready, stage, watch
+    from .console import LiveProgress, banner, ready, stage, watch
+    from .console import installer_progress as _progress_module
 else:
-    from console import banner, ready, stage, watch
+    from console import LiveProgress, banner, ready, stage, watch
+    from console import installer_progress as _progress_module
 
 from virea.workspaces import (
     WORKSPACES,
@@ -50,20 +56,22 @@ def node_asset(system, machine, version):
 
 def download(url, target):
     temporary = target.with_suffix(target.suffix + ".download")
+    display, parser = LiveProgress(), _progress_module.InstallerProgress()
     with (
         urllib.request.urlopen(url, timeout=60) as source,
         temporary.open("wb") as output,
     ):
-        total, count, last = int(source.headers.get("Content-Length", 0)), 0, 0
+        total, count, last = int(source.headers.get("Content-Length", 0)), 0, 0.0
         while block := source.read(1024 * 1024):
             output.write(block)
             count += len(block)
-            if total and count - last >= 5 * 1024 * 1024:
-                print(
-                    f"  Download {count // 1048576}/{total // 1048576} MiB ({round(count / total * 100)}%)",
-                    flush=True,
-                )
-                last = count
+            if time.monotonic() - last >= 0.2 or count == total:
+                event = parser.feed(f"{target.name} {count}B/{total}B")
+                display.update(event)
+                last = time.monotonic()
+    display.finish()
+    if total and count != total:
+        raise OSError(f"Incomplete download: {count}/{total} bytes")
     temporary.replace(target)
 
 
@@ -236,7 +244,22 @@ def main():
         raise RuntimeError("Use Start-VIREA.cmd / start-virea.sh to prepare uv first")
 
     def run(argv):
-        subprocess.run([str(x) for x in argv], cwd=REPO, env=env, check=True)
+        display = LiveProgress()
+        try:
+            _progress_module.run_installer(
+                argv,
+                cwd=REPO,
+                env=env,
+                timeout=7200,
+                on_line=lambda line: (
+                    display.log(line)
+                    if not _progress_module.InstallerProgress().feed(line)
+                    else None
+                ),
+                on_progress=display.update,
+            )
+        finally:
+            display.finish()
 
     progress(2, "Preparing an isolated Python 3.12 environment...")
     run(

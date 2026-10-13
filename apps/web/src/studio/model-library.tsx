@@ -8,8 +8,9 @@ import {usePreferences} from "./chrome";
 import {t} from "./preferences";
 import {bytes} from "./setup-panels";
 import {translateLabel} from "./legacy";
+import {InstallerMeter,type InstallerProgress} from "./installer-progress";
 
-type Progress={model_id:string;status:string;stage?:string;message?:string;started_at?:number;updated_at?:number;transfer?:{artifact_id:string;completed_bytes:number;total_bytes?:number|null;bytes_per_second?:number|null;phase?:string;done?:boolean}|null;result?:{diagnostics?:string[]}};
+type Progress={process?:InstallerProgress|null;model_id:string;status:string;stage?:string;message?:string;started_at?:number;updated_at?:number;transfer?:{artifact_id:string;completed_bytes:number;total_bytes?:number|null;bytes_per_second?:number|null;phase?:string;done?:boolean}|null;result?:{diagnostics?:string[]}};
 function transferLabel(phase?:string) {
   switch(phase) {
     case "verify-local": case "integrity": return t("本地校验", "Local verification");
@@ -32,7 +33,23 @@ function ModelLibrary() {
   const [loadError,setLoadError]=useState("");
   const refresh=async()=>{try {const [catalog,rows]=await Promise.all([api.models(),request<Progress[]>("/onboarding/model-deployments",{headers:{"X-Virea-Setup":"1"}})]);setModels(catalog);setProgress(rows);setLoadError("");}catch(e){setLoadError(String(e));}finally{setLoading(false);}};
   useEffect(()=>{void request<{models:typeof local}>("/onboarding/model-library",{headers:{"X-Virea-Setup":"1"}}).then(data=>setLocal(data.models)).catch(()=>{});},[]);
-  useEffect(()=>{void refresh();const timer=setInterval(()=>void refresh(),5000);return()=>clearInterval(timer);},[]);
+  useEffect(()=>{
+    let stopped=false,timer:ReturnType<typeof setTimeout>,lastCatalog=0,previous="";
+    const poll=async()=>{
+      try {
+        const rows=await request<Progress[]>("/onboarding/model-deployments",{headers:{"X-Virea-Setup":"1"}});
+        if(stopped)return;
+        setProgress(rows);
+        const statuses=rows.map(r=>`${r.model_id}:${r.status}`).join("|");
+        if(Date.now()-lastCatalog>15000||statuses!==previous){
+          const catalog=await api.models();if(stopped)return;setModels(catalog);lastCatalog=Date.now();previous=statuses;
+        }
+        setLoadError("");setLoading(false);
+      } catch(e){if(!stopped){setLoadError(String(e));setLoading(false);}}
+      finally {if(!stopped)timer=setTimeout(()=>void poll(),1000);}
+    };
+    void poll();return()=>{stopped=true;clearTimeout(timer);};
+  },[]);
   const choose=async(model:ModelManifest)=>{setChosen(model);setOptions(null);setAccepted(false);setVariant("");setError("");try {const data=await api.executionOptions(model.model.id);setOptions(data);const best=data.options.find(o=>o.implemented&&o.can_build);setDomain(best?.execution_domain.id ?? data.options[0]?.execution_domain.id ?? "");}catch(e){setError(String(e));}};
   useEffect(()=>{const id=new URLSearchParams(location.search).get("model");const model=models.find(m=>m.model.id===id);if(model&&!chosen){void choose(model);history.replaceState(null,"",`${location.pathname}#motion-models`);}},[models]);
   const option=options?.options.find(o=>o.execution_domain.id===domain);
@@ -52,7 +69,8 @@ function ModelLibrary() {
       <Card.Header><span className="mw-model-symbol"><AudioLines size={19}/></span><div><Card.Title>{m.model.display_name}</Card.Title><Chip size="sm" className={ready?"mw-status-succeeded":""}>{active?t("部署中", "Deploying"):ready?t("已就绪", "Ready"):found?t("本地已有", "Found locally"):t("可部署", "Available")}</Chip></div></Card.Header>
       <Card.Content><div className="mw-model-facts"><Chip size="sm">{m.output.skeleton_id}</Chip><Chip size="sm">{m.output.representation_id}</Chip>{Array.from(new Set(m.runtime_variants.map(r=>r.accelerator.kind === "cpu" ? "CPU" : "GPU"))).map(v=><Chip size="sm" key={v}>{v}</Chip>)}</div>
       {found&&!ready&&<p className="hint">{t("已找到本地文件", "Local files found")} · {found.artifacts.length}/{found.total_artifacts} · {t("部署时复用", "Reused on deployment")}</p>}
-      {p&&!(ready&&p.status==="running")&&<div className="mw-model-progress"><p>{active&&p.transfer?transferLabel(p.transfer.phase):translateLabel(p.message??p.status)}</p>{active&&<><ProgressBar aria-label={p.transfer?`${transferLabel(p.transfer.phase)}${t("进度", " progress")}`:t("部署进度", "Deployment progress")} isIndeterminate={!p.transfer?.total_bytes} value={p.transfer?.total_bytes?100*p.transfer.completed_bytes/p.transfer.total_bytes:undefined}><ProgressBar.Track><ProgressBar.Fill/></ProgressBar.Track></ProgressBar><small>{p.transfer?`${p.transfer.artifact_id} · ${bytes(p.transfer.completed_bytes)} / ${bytes(p.transfer.total_bytes)}${p.transfer.bytes_per_second?` · ${bytes(p.transfer.bytes_per_second)}/s`:""}`:t("准备环境或执行真实生成检验", "Preparing the environment or running real inference")}</small></>}{p.result?.diagnostics?.length?<details><summary>{t("部署详情", "Deployment details")}</summary><pre>{p.result.diagnostics.join("\n")}</pre></details>:null}</div>}
+      {p&&!(ready&&p.status==="running")&&<div className="mw-model-progress"><p>{active&&p.transfer?transferLabel(p.transfer.phase):translateLabel(p.message??p.status)}</p>{active&&p.process&&<InstallerMeter value={p.process}/>}
+      {active&&!p.process&&<><ProgressBar aria-label={p.transfer?`${transferLabel(p.transfer.phase)}${t("进度", " progress")}`:t("部署进度", "Deployment progress")} isIndeterminate={!p.transfer?.total_bytes} value={p.transfer?.total_bytes?100*p.transfer.completed_bytes/p.transfer.total_bytes:undefined}><ProgressBar.Track><ProgressBar.Fill/></ProgressBar.Track></ProgressBar><small>{p.transfer?`${p.transfer.artifact_id} · ${bytes(p.transfer.completed_bytes)} / ${bytes(p.transfer.total_bytes)}${p.transfer.bytes_per_second?` · ${bytes(p.transfer.bytes_per_second)}/s`:""}`:t("准备环境或执行真实生成检验", "Preparing the environment or running real inference")}</small></>}{p.result?.diagnostics?.length?<details><summary>{t("部署详情", "Deployment details")}</summary><pre>{p.result.diagnostics.join("\n")}</pre></details>:null}</div>}
       </Card.Content><Card.Footer>{ready?<a className="button button--secondary" href={`./?model=${encodeURIComponent(m.model.id)}`}>{t("在动作实验室使用", "Open in Motion Lab")} <Check size={14}/></a>:<Button variant="secondary" isDisabled={active||submitting||!m.capability?.installable} onPress={()=>void choose(m)}><Download size={14}/>{found?t("接入已有模型", "Connect existing model"):t("部署与检验", "Deploy & verify")}</Button>}{ready&&<Button variant="ghost" isDisabled={active||submitting} onPress={()=>void choose(m)}>{t("管理", "Manage")}</Button>}</Card.Footer>
     </Card>;})}</div>
     <Modal><Modal.Backdrop isOpen={!!chosen} onOpenChange={open=>{if(!open)setChosen(null);}}><Modal.Container size="md"><Modal.Dialog className="mw-model-dialog"><Modal.CloseTrigger aria-label={t("关闭", "Close")}/><Modal.Header><Modal.Heading>{chosen?.model.display_name}</Modal.Heading></Modal.Header><Modal.Body>

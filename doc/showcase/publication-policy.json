@@ -864,38 +864,6 @@
       "public_embed_allowed": true,
       "publication_basis": "repository-owner-request-2026-10-11",
       "provenance": "doc/assets/brand/README.md"
-    },
-    "doc/assets/featured-demos/character-ardy-sentiavatar.mp4": {
-      "kind": "owner-directed-recorded-performance",
-      "public_embed_allowed": true,
-      "decision": "owner-directed-display-permission-unverified",
-      "legal_permission_verified": false,
-      "publication_basis": "repository-owner-request-2026-10-11",
-      "provenance": "doc/assets/featured-demos/manifest.json"
-    },
-    "doc/assets/featured-demos/motion-lab.mp4": {
-      "kind": "owner-directed-recorded-performance",
-      "public_embed_allowed": true,
-      "decision": "owner-directed-display-permission-unverified",
-      "legal_permission_verified": false,
-      "publication_basis": "repository-owner-request-2026-10-11",
-      "provenance": "doc/assets/featured-demos/manifest.json"
-    },
-    "doc/assets/featured-demos/vrchat-conversation-web.mp4": {
-      "kind": "owner-directed-recorded-performance",
-      "public_embed_allowed": true,
-      "decision": "owner-directed-display-permission-unverified",
-      "legal_permission_verified": false,
-      "publication_basis": "repository-owner-request-2026-10-11",
-      "provenance": "doc/assets/featured-demos/manifest.json"
-    },
-    "doc/assets/featured-demos/vrchat-conversation.mp4": {
-      "kind": "owner-directed-recorded-performance",
-      "public_embed_allowed": true,
-      "decision": "owner-directed-display-permission-unverified",
-      "legal_permission_verified": false,
-      "publication_basis": "repository-owner-request-2026-10-11",
-      "provenance": "doc/assets/featured-demos/manifest.json"
     }
   },
   "public_remote_media_allowlist": {
@@ -1094,6 +1062,38 @@
       "publication_basis": "repository-owner-request-2026-10-11",
       "provenance": "doc/assets/unified-motion-demos/github-videos.json",
       "sha256": "44711af24941c1dd30030c72a1d56683badea29d924b3c0bc89ef6ba8613fb86"
+    },
+    "https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-2026-10-13",
+      "provenance": "doc/assets/featured-demos/manifest.json",
+      "sha256": "f11514467a12ddccd1f2e5113841d44d77270bd5fae0a50d32055bcfcf1e82f7"
+    },
+    "https://github.com/user-attachments/assets/e7da8d2c-c453-41b2-b27b-66920dd792e8": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-2026-10-13",
+      "provenance": "doc/assets/featured-demos/manifest.json",
+      "sha256": "9507a4d5b7511c9c8ac165d608426babfeb640f5d9453cf87278fbed5883337d"
+    },
+    "https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-2026-10-13",
+      "provenance": "doc/assets/featured-demos/manifest.json",
+      "sha256": "86d7b009f0f0558ffb678ef8de168a4a460209b095ace4af3ca3382eef9d5123"
+    },
+    "https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca": {
+      "kind": "owner-directed-recorded-performance",
+      "public_embed_allowed": true,
+      "legal_permission_verified": false,
+      "publication_basis": "repository-owner-request-2026-10-13",
+      "provenance": "doc/assets/featured-demos/manifest.json",
+      "sha256": "7eb43460ecafcf028b1bc596197164b0629af2f62c9ef4896d77e8bfb2d5d9a9"
     }
   }
 }

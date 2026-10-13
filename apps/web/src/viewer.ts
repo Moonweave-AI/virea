@@ -202,6 +202,12 @@ export class RealVrmViewer {
     this.bindAndPlay();
   }
 
+  /** Local clip time includes replay and loop boundaries for synchronized views. */
+  public getPlaybackTime(): number | null {
+    if (!this.mixer || !this.boundClip) return null;
+    return this.mixer.existingAction(this.boundClip)?.time ?? null;
+  }
+
   public clearAnimation(message = "载入 Avatar 后即可预览生成动作"): void {
     this.animationLoadEpoch += 1;
     this.animationLoadUrl = null;

@@ -1,0 +1,7 @@
+# Edit the VIREA film
+
+From `edit/`, run `npm ci`, then `npm run dev`. The master is VIREA-English-4K. From `workbench/`, run `npm ci`, then `npm run open`. The workbench opens at http://localhost:5198 with English controls and muted preview.
+
+Scenes, text, transitions, subtitles and sound effects are separate tracks. Edit their properties, save a project, then export. The initial imported project reproduces the source composition.
+
+Film source is in `edit/src/`, selected footage and illustrations in `edit/public/`, and the saved editable timeline in `workbench/projects/virea-english.json`. Source VRM and model weights are not needed to render this film.

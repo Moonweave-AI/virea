@@ -1045,6 +1045,9 @@ function bindSourceViewer(): void {
     sourceViewerRuntime = new SourceSkeletonViewer(
       sourceViewerCanvas,
       publishSourceViewerStatus,
+      () => viewerLoadedVrmaUrl === state.lastVrmaUrl
+        ? viewerRuntime?.getPlaybackTime() ?? null
+        : null,
     );
   } else {
     placeholder.dataset.viewerState = "idle";

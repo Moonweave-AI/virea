@@ -105,6 +105,7 @@ export class SourceSkeletonViewer {
   public constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly onStatus: (status: SourceViewerStatus) => void,
+    private readonly playbackTime?: () => number | null,
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -454,7 +455,12 @@ export class SourceSkeletonViewer {
       : 0;
     let frame = Number(this.canvas.dataset.sourceFrame ?? "0");
     if (this.preview) {
-      this.playheadSeconds += delta;
+      // Follow the displayed target clip when comparing the same result. This
+      // also shares loop boundaries instead of drifting by one frame per loop.
+      const sharedTime = this.playbackTime?.();
+      this.playheadSeconds = sharedTime != null && Number.isFinite(sharedTime)
+        ? Math.max(0, sharedTime)
+        : this.playheadSeconds + delta;
       frame = Math.floor(this.playheadSeconds * this.preview.fps) % this.preview.frame_count;
       if (frame !== this.currentFrame) this.updateFrame(frame);
     }

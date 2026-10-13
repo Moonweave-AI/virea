@@ -2,18 +2,24 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <dxgi1_2.h>
-#include <d3d11.h>
+#include <d3d11_1.h>
 #include <wrl/client.h>
 #include <openvr_driver.h>
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 #include <memory>
 #include <thread>
 
 namespace {
 using Clock = std::chrono::steady_clock;
+#ifndef VIREA_DESKTOP_COMPOSITOR
+#define VIREA_DESKTOP_COMPOSITOR 0
+#endif
+constexpr bool DesktopCompositor=VIREA_DESKTOP_COMPOSITOR!=0;
 constexpr uint32_t PROTOCOL_VERSION=3; // explicit buttons and scroll axes
 #pragma pack(push, 1)
 struct PosePacket {
@@ -57,7 +63,9 @@ public:
     void GetWindowBounds(int32_t* x,int32_t* y,uint32_t* w,uint32_t* h) override {
         *x=0; *y=0; *w=960; *h=540;
     }
-    bool IsDisplayOnDesktop() override { return false; }
+    // Valve's SimpleHMD sample lets SteamVR own a normal desktop swapchain.
+    // This keeps pose/input devices independent of a shared-texture redirect.
+    bool IsDisplayOnDesktop() override { return DesktopCompositor; }
     bool IsDisplayRealDisplay() override { return false; }
     void GetRecommendedRenderTargetSize(uint32_t* w,uint32_t* h) override { *w=960; *h=960; }
     void GetEyeOutputViewport(vr::EVREye eye,uint32_t* x,uint32_t* y,uint32_t* w,uint32_t* h) override {
@@ -79,90 +87,186 @@ public:
 // The display redirect owns adapter selection (the HMD property alone does not
 // select the compositor GPU in SteamVR's extended-desktop mode).
 class VirtualDisplay final : public vr::ITrackedDeviceServerDriver, public vr::IVRVirtualDisplay {
-    const Clock::time_point epoch=Clock::now();
+    template<class T> using ComPtr=Microsoft::WRL::ComPtr<T>;
+    struct TextureEntry {
+        vr::SharedTextureHandle_t handle=0;
+        ComPtr<ID3D11Texture2D> texture;
+        ComPtr<IDXGIKeyedMutex> mutex;
+        Clock::time_point retry{}, seen{};
+        unsigned failures=0;
+    };
+    Clock::time_point epoch=Clock::now(), reported=epoch, nextOpen{};
     Microsoft::WRL::ComPtr<ID3D11Device> gpu;
+    Microsoft::WRL::ComPtr<ID3D11Device1> gpu1;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> commands;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> source, pixel;
-    vr::SharedTextureHandle_t handle=0;
-    bool pending=false;
+    ComPtr<ID3D11Texture2D> pixel;
+    ComPtr<ID3D11Query> completion;
+    std::array<TextureEntry,8> textures;
+    DXGI_FORMAT pixelFormat=DXGI_FORMAT_UNKNOWN;
+    uint64_t adapterLuid=0;
+    bool pending=false, initialized=false, lost=false;
+    uint64_t deviceInits=0, presents=0, opens=0, openFailures=0, retriesSkipped=0;
+    uint64_t copies=0, completed=0, busy=0, mutexFailures=0, invalidFrames=0;
+    HRESULT lastLegacy=S_OK, lastNt=S_OK;
+    double maxPresentMs=0, maxWaitMs=0;
+
+    void log(const char* line) {
+        if(vr::VRDriverContext()) vr::VRDriverLog()->Log(line);
+    }
+    void report() {
+        const auto now=Clock::now();
+        if(now-reported<std::chrono::seconds(5)) return;
+        char line[640];
+        FormatDiagnostics(line,sizeof(line));
+        log(line); reported=now;
+    }
+    bool pollCompletion() {
+        if(!pending) return true;
+        const auto result=commands->GetData(completion.Get(),nullptr,0,D3D11_ASYNC_GETDATA_DONOTFLUSH);
+        if(result==S_FALSE) return false;
+        pending=false;
+        if(result==S_OK) { ++completed; return true; }
+        // Recreating a removed device on the compositor render thread can stall
+        // every frame. Keep the failure visible until the driver is reactivated.
+        lost=true;
+        log("VIREA display: GPU completion failed; driver reactivation required");
+        return false;
+    }
+    TextureEntry* openTexture(vr::SharedTextureHandle_t handle) {
+        const auto now=Clock::now();
+        auto found=std::find_if(textures.begin(),textures.end(),[handle](const auto& x){return x.handle==handle;});
+        if(found==textures.end()) {
+            found=std::min_element(textures.begin(),textures.end(),[](const auto& a,const auto& b){return a.seen<b.seen;});
+            *found={}; found->handle=handle;
+        }
+        auto& entry=*found; entry.seen=now;
+        if(entry.texture) return &entry;
+        if(now<entry.retry || now<nextOpen) { ++retriesSkipped; return nullptr; }
+        ++opens;
+        const auto nativeHandle=reinterpret_cast<HANDLE>(static_cast<uintptr_t>(handle));
+        // These are distinct documented handle types. Never reinterpret an
+        // opaque OpenVR handle as a COM pointer, nor close a borrowed handle.
+        lastLegacy=gpu->OpenSharedResource(nativeHandle,IID_PPV_ARGS(&entry.texture));
+        lastNt=E_NOINTERFACE;
+        if(FAILED(lastLegacy) && gpu1)
+            lastNt=gpu1->OpenSharedResource1(nativeHandle,IID_PPV_ARGS(&entry.texture));
+        if(!entry.texture) {
+            ++openFailures;
+            entry.retry=now+std::chrono::seconds(1u<<std::min(entry.failures++,3u));
+            nextOpen=now+std::chrono::milliseconds(100);
+            if(openFailures<=3) {
+                DWORD flags=0; SetLastError(0);
+                const bool ntHandle=GetHandleInformation(nativeHandle,&flags)!=FALSE;
+                const auto handleError=ntHandle?ERROR_SUCCESS:GetLastError();
+                char line[320];
+                std::snprintf(line,sizeof(line),"VIREA display: shared handle=%llu legacy=0x%08lx nt=0x%08lx nt_handle=%u handle_error=%lu (cached failure)",handle,lastLegacy,lastNt,unsigned(ntHandle),handleError);
+                log(line);
+            }
+            return nullptr;
+        }
+        entry.texture.As(&entry.mutex);
+        D3D11_TEXTURE2D_DESC desc{}; entry.texture->GetDesc(&desc);
+        char line[256];
+        std::snprintf(line,sizeof(line),"VIREA display: opened %ux%u format=%u samples=%u shared=%u using=%s",desc.Width,desc.Height,unsigned(desc.Format),desc.SampleDesc.Count,desc.MiscFlags,SUCCEEDED(lastLegacy)?"legacy":"NT");
+        log(line);
+        return &entry;
+    }
 public:
+    bool Initialize(int selected) {
+        if(initialized) return gpu!=nullptr && !lost;
+        initialized=true; ++deviceInits;
+        ComPtr<IDXGIFactory1> factory;
+        ComPtr<IDXGIAdapter1> adapter;
+        if(FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return false;
+        // A configured adapter must match the display redirect's LUID. Auto
+        // uses DXGI's default adapter once; it does not probe every GPU per frame.
+        if(FAILED(factory->EnumAdapters1(selected<0?0:UINT(selected),&adapter))) return false;
+        const auto result=D3D11CreateDevice(adapter.Get(),D3D_DRIVER_TYPE_UNKNOWN,nullptr,
+            D3D11_CREATE_DEVICE_BGRA_SUPPORT,nullptr,0,D3D11_SDK_VERSION,&gpu,nullptr,&commands);
+        if(FAILED(result)) return false;
+        gpu.As(&gpu1);
+        D3D11_QUERY_DESC query{D3D11_QUERY_EVENT,0};
+        if(FAILED(gpu->CreateQuery(&query,&completion))) { Deactivate(); return false; }
+        DXGI_ADAPTER_DESC1 desc{}; adapter->GetDesc1(&desc);
+        adapterLuid=(uint64_t(uint32_t(desc.AdapterLuid.HighPart))<<32)|desc.AdapterLuid.LowPart;
+        char line[256];
+        std::snprintf(line,sizeof(line),"VIREA display: initialized adapter=%d LUID=%08lx:%08lx device_inits=%llu",selected<0?0:selected,desc.AdapterLuid.HighPart,desc.AdapterLuid.LowPart,deviceInits);
+        log(line); epoch=reported=Clock::now();
+        return true;
+    }
     vr::EVRInitError Activate(uint32_t id) override {
         auto properties=vr::VRProperties();
         const auto container=properties->TrackedDeviceToPropertyContainer(id);
         properties->SetStringProperty(container,vr::Prop_ModelNumber_String,"VIREA Virtual Display");
         const int selected=vr::VRSettings()->GetInt32("virea_pose","graphicsAdapterIndex");
-        if(selected>=0) {
-            Microsoft::WRL::ComPtr<IDXGIFactory1> factory;
-            Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
-            if(FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) ||
-                FAILED(factory->EnumAdapters1(selected,&adapter))) return vr::VRInitError_Driver_Failed;
-            DXGI_ADAPTER_DESC1 desc{};
-            if(FAILED(adapter->GetDesc1(&desc))) return vr::VRInitError_Driver_Failed;
-            const uint64_t luid=(uint64_t(uint32_t(desc.AdapterLuid.HighPart))<<32)|desc.AdapterLuid.LowPart;
-            properties->SetUint64Property(container,vr::Prop_GraphicsAdapterLuid_Uint64,luid);
-        }
+        if(!Initialize(selected)) return vr::VRInitError_Driver_Failed;
+        // Also publish the actual auto-selected adapter, so the compositor and
+        // driver cannot independently choose different GPUs on hybrid systems.
+        properties->SetUint64Property(container,vr::Prop_GraphicsAdapterLuid_Uint64,adapterLuid);
         return vr::VRInitError_None;
     }
-    void Deactivate() override { pixel.Reset(); source.Reset(); commands.Reset(); gpu.Reset(); handle=0; pending=false; }
+    void Deactivate() override {
+        textures={}; pixel.Reset(); completion.Reset(); commands.Reset(); gpu1.Reset(); gpu.Reset();
+        pixelFormat=DXGI_FORMAT_UNKNOWN; pending=false; initialized=false; lost=false; nextOpen={};
+    }
     void EnterStandby() override {}
     void* GetComponent(const char* name) override {
         return !std::strcmp(name,vr::IVRVirtualDisplay_Version)?static_cast<vr::IVRVirtualDisplay*>(this):nullptr;
     }
     void DebugRequest(const char*,char* output,uint32_t size) override { if(size) output[0]=0; }
+    // Render-thread diagnostics only; the host DebugRequest can be concurrent.
+    void FormatDiagnostics(char* output,uint32_t size) {
+        if(size) std::snprintf(output,size,"VIREA display: elapsed=%.3f device_inits=%llu presents=%llu opens=%llu open_failures=%llu retry_skips=%llu copies=%llu completed=%llu busy=%llu mutex_failures=%llu invalid=%llu lost=%u max_present_ms=%.3f max_wait_ms=%.3f",
+            std::chrono::duration<double>(Clock::now()-epoch).count(),deviceInits,presents,opens,openFailures,retriesSkipped,copies,completed,busy,mutexFailures,invalidFrames,unsigned(lost),maxPresentMs,maxWaitMs);
+    }
     vr::DriverPose_t GetPose() override { return {}; }
     void Present(const vr::PresentInfo_t* info,uint32_t size) override {
-        if(!info || size<sizeof(*info)) return;
-        if(!gpu) {
-            Microsoft::WRL::ComPtr<IDXGIFactory1> factory;
-            if(FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return;
-            for(UINT i=0;;++i) {
-                Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
-                if(factory->EnumAdapters1(i,&adapter)==DXGI_ERROR_NOT_FOUND) break;
-                Microsoft::WRL::ComPtr<ID3D11Device> device;
-                Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
-                if(FAILED(D3D11CreateDevice(adapter.Get(),D3D_DRIVER_TYPE_UNKNOWN,nullptr,0,
-                    nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&context))) continue;
-                if(SUCCEEDED(device->OpenSharedResource(reinterpret_cast<HANDLE>(info->backbufferTextureHandle),
-                    IID_PPV_ARGS(&source)))) { gpu=device; commands=context; break; }
-            }
-            if(!gpu) return;
-        } else if(handle!=info->backbufferTextureHandle) {
-            source.Reset();
-            if(FAILED(gpu->OpenSharedResource(reinterpret_cast<HANDLE>(info->backbufferTextureHandle),
-                IID_PPV_ARGS(&source)))) return;
-        }
-        handle=info->backbufferTextureHandle;
-        if(!pixel) {
-            D3D11_TEXTURE2D_DESC desc{}; source->GetDesc(&desc);
+        const auto started=Clock::now();
+        struct Sample {
+            Clock::time_point start; double& maximum;
+            ~Sample(){maximum=std::max(maximum,std::chrono::duration<double,std::milli>(Clock::now()-start).count());}
+        } sample{started,maxPresentMs};
+        ++presents;
+        if(!info || size<sizeof(*info) || !info->backbufferTextureHandle) { ++invalidFrames; return; }
+        if(!gpu || lost) return;
+        if(!pollCompletion()) { ++busy; return; }
+        auto entry=openTexture(info->backbufferTextureHandle);
+        if(!entry) return;
+        D3D11_TEXTURE2D_DESC sourceDesc{}; entry->texture->GetDesc(&sourceDesc);
+        if(!sourceDesc.Width || !sourceDesc.Height || sourceDesc.SampleDesc.Count!=1) { ++invalidFrames; return; }
+        if(!pixel || pixelFormat!=sourceDesc.Format) {
+            pixel.Reset(); pixelFormat=DXGI_FORMAT_UNKNOWN;
+            D3D11_TEXTURE2D_DESC desc{};
             desc.Width=desc.Height=desc.ArraySize=desc.MipLevels=1;
-            desc.SampleDesc={1,0}; desc.Usage=D3D11_USAGE_STAGING;
-            desc.BindFlags=desc.MiscFlags=0; desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
-            if(FAILED(gpu->CreateTexture2D(&desc,nullptr,&pixel))) return;
+            desc.Format=sourceDesc.Format; desc.SampleDesc.Count=1;
+            desc.Usage=D3D11_USAGE_DEFAULT;
+            if(FAILED(gpu->CreateTexture2D(&desc,nullptr,&pixel))) { ++invalidFrames; return; }
+            pixelFormat=desc.Format;
         }
-        Microsoft::WRL::ComPtr<IDXGIKeyedMutex> mutex;
-        source.As(&mutex);
-        if(mutex && mutex->AcquireSync(0,5)!=S_OK) return;
+        // Present only queues GPU work. A busy producer never blocks the render
+        // thread, and the completion query never reads pixels back to the CPU.
+        if(entry->mutex && entry->mutex->AcquireSync(0,0)!=S_OK) { ++mutexFailures; return; }
         const D3D11_BOX box{0,0,0,1,1,1};
-        commands->CopySubresourceRegion(pixel.Get(),0,0,0,0,source.Get(),0,&box);
+        commands->CopySubresourceRegion(pixel.Get(),0,0,0,0,entry->texture.Get(),0,&box);
+        commands->End(completion.Get());
         commands->Flush();
-        if(mutex) mutex->ReleaseSync(0);
-        pending=true;
+        if(entry->mutex) entry->mutex->ReleaseSync(0);
+        pending=true; ++copies;
     }
     void WaitForPresent() override {
-        if(pending) {
-            const auto deadline=Clock::now()+std::chrono::milliseconds(20);
-            D3D11_MAPPED_SUBRESOURCE mapped{};
-            while(Clock::now()<deadline) {
-                const auto result=commands->Map(pixel.Get(),0,D3D11_MAP_READ,D3D11_MAP_FLAG_DO_NOT_WAIT,&mapped);
-                if(SUCCEEDED(result)) { commands->Unmap(pixel.Get(),0); break; }
-                if(result!=DXGI_ERROR_WAS_STILL_DRAWING) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-            pending=false;
-        }
-        const auto seconds=std::chrono::duration<double>(Clock::now()-epoch).count();
+        const auto started=Clock::now();
+        const auto seconds=std::chrono::duration<double>(started-epoch).count();
         const auto next=std::chrono::duration<double>((std::floor(seconds*60)+1)/60);
-        std::this_thread::sleep_until(epoch+std::chrono::duration_cast<Clock::duration>(next));
+        const auto deadline=epoch+std::chrono::duration_cast<Clock::duration>(next);
+        while(pending && Clock::now()<deadline) {
+            if(pollCompletion()) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        // The virtual display clock advances even when a frame is late/missing.
+        // Keeping a query pending prevents overwriting in-flight GPU work.
+        std::this_thread::sleep_until(deadline);
+        maxWaitMs=std::max(maxWaitMs,std::chrono::duration<double,std::milli>(Clock::now()-started).count());
+        report();
     }
     bool GetTimeSinceLastVsync(float* seconds,uint64_t* counter) override {
         const auto elapsed=std::chrono::duration<double>(Clock::now()-epoch).count();
@@ -174,7 +278,9 @@ class CompositorProvider final : public vr::IVRCompositorPluginProvider {
     VirtualDisplay display;
 public:
     vr::EVRInitError Init(vr::IVRDriverContext* context) override {
-        VR_INIT_COMPOSITOR_DRIVER_CONTEXT(context); return vr::VRInitError_None;
+        VR_INIT_COMPOSITOR_DRIVER_CONTEXT(context);
+        return display.Initialize(vr::VRSettings()->GetInt32("virea_pose","graphicsAdapterIndex"))
+            ?vr::VRInitError_None:vr::VRInitError_Driver_Failed;
     }
     void Cleanup() override { display.Deactivate(); VR_CLEANUP_COMPOSITOR_DRIVER_CONTEXT(); }
     const char* const* GetInterfaceVersions() override { return vr::k_InterfaceVersions; }
@@ -237,7 +343,7 @@ public:
             p->SetFloatProperty(container,vr::Prop_SecondsFromVsyncToPhotons_Float,0.011f);
             p->SetFloatProperty(container,vr::Prop_UserHeadToEyeDepthMeters_Float,0.f);
             p->SetBoolProperty(container,vr::Prop_IsOnDesktop_Bool,false);
-            p->SetBoolProperty(container,vr::Prop_DisplayDebugMode_Bool,false);
+            p->SetBoolProperty(container,vr::Prop_DisplayDebugMode_Bool,DesktopCompositor);
             p->SetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64,42);
             p->SetBoolProperty(container,vr::Prop_ContainsProximitySensor_Bool,true);
             if(vr::VRDriverInput()->CreateBooleanComponent(container,"/proximity",&proximity)!=vr::VRInputError_None)
@@ -351,8 +457,12 @@ public:
             current.devices[i][6]=1;
             vr::VRServerDriverHost()->TrackedDeviceAdded(serials[i],i==0?vr::TrackedDeviceClass_HMD:vr::TrackedDeviceClass_Controller,devices[i].get());
         }
-        display=std::make_unique<VirtualDisplay>();
-        vr::VRServerDriverHost()->TrackedDeviceAdded("VIREA-DISPLAY-1",vr::TrackedDeviceClass_DisplayRedirect,display.get());
+        if(!DesktopCompositor) {
+            display=std::make_unique<VirtualDisplay>();
+            vr::VRServerDriverHost()->TrackedDeviceAdded("VIREA-DISPLAY-1",vr::TrackedDeviceClass_DisplayRedirect,display.get());
+        } else {
+            vr::VRDriverLog()->Log("VIREA display: SteamVR desktop compositor; no virtual-display redirect");
+        }
         vr::VRDriverLog()->Log("VIREA generated-pose driver ready on loopback; no emote synthesis");
         return vr::VRInitError_None;
     }
@@ -395,7 +505,7 @@ CompositorProvider compositor;
 }
 extern "C" __declspec(dllexport) void* HmdDriverFactory(const char* name,int* error) {
     if(!std::strcmp(name,vr::IServerTrackedDeviceProvider_Version)) return &driver;
-    if(!std::strcmp(name,vr::IVRCompositorPluginProvider_Version)) return &compositor;
+    if(!DesktopCompositor && !std::strcmp(name,vr::IVRCompositorPluginProvider_Version)) return &compositor;
     if(error) *error=vr::VRInitError_Init_InterfaceNotFound;
     return nullptr;
 }

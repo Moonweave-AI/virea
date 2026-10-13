@@ -2,7 +2,7 @@
   <img src="doc/assets/brand/virea-banner.png" alt="VIREA — from avatars to agents, with skeletal motion becoming a living character" width="100%">
 </p>
 <h1 align="center">VIREA</h1>
-<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents</sub></p>
+<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents · /ˈvɪəriə/</sub></p>
 
 <p align="center">
   <a href="README.md"><img src="doc/assets/brand/nav-english.png" alt="English" width="240"></a>
@@ -16,11 +16,13 @@
 <a id="choose-your-path"></a>
 <a id="model-support"></a>
 <a id="documentation"></a>
-## ✦ From an idea to a moving character
+## ✦ Bring your avatars to life
 
-**VIREA connects language, speech and motion models to characters that you can watch and interact with.** It retargets native skeletal output onto VRM avatars in the browser and Humanoid avatars in VRChat, with a complete path from model setup to generation, playback and inspection.
+**VIREA brings your existing avatars to life through language, speech and generated movement.** It retargets native skeletal output onto VRM avatars in the browser and Humanoid avatars in VRChat, with a complete path from model setup to generation, playback and inspection.
 
-<img src="doc/assets/brand/features.png" alt="Skeletal retargeting, interchangeable model capabilities, and shared execution in browser and virtual worlds" width="100%">
+https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
+
+[Watch the 4K original](https://github.com/Moonweave-AI/virea/releases/download/launch-film-2026-10/VIREA-English-4K-v2.mp4) · [Film editions & editable project](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
 <table>
 <tr>
@@ -95,35 +97,27 @@ For a custom port, use the links printed by the launcher. After updating the cod
 <a id="motion-studio-demos"></a>
 ## 🎞️ Demos
 
-### VRChat Studio
+### Motion Lab
 
-Conversation and generated movement · 1 min 53 sec
+PRISM and SentiAvatar · original skeletons and retargeted avatars, side by side.
 
-https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
+https://github.com/user-attachments/assets/e7da8d2c-c453-41b2-b27b-66920dd792e8
 
 ### Character Studio
 
-One character, three motion routes.
+A MotionCraft performance with an existing VRM character and an English reply.
 
-<table>
-<tr><th width="33%">MotionCraft</th><th width="33%">SynTalker</th><th width="33%">ARDY + SentiAvatar</th></tr>
-<tr>
-<td align="center"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted preload="metadata" width="250" height="220"></video></td>
-<td align="center"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted preload="metadata" width="250" height="220"></video></td>
-<td align="center"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted preload="metadata" width="250" height="220"></video></td>
-</tr>
-<tr><td align="center">32 s · Text + speech</td><td align="center">32 s · Text + speech</td><td align="center">40 s · Dialogue + behavior</td></tr>
-</table>
+https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841
 
-### Motion Lab
+### VRChat Studio
 
-Native skeleton and retargeted VRM, side by side · 14 sec
+Generated full-body movement in VRChat, with subtitles and an observer view.
 
-https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
+https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca
 
-[All demos and reproduction notes](doc/demos/README.en.md) · [Video files and provenance](doc/assets/featured-demos/README.md)
+[All demos and reproduction notes](doc/demos/README.en.md) · [Media provenance](doc/assets/featured-demos/README.md)
 
-<sub>Character Studio demo avatar: Unnamed Character 6 by Reira. <a href="THIRD_PARTY_NOTICES.md">Credits & terms</a>.</sub>
+<sub>Demo avatar: Unnamed Character 6 — Reira. [Credits & terms](THIRD_PARTY_NOTICES.md).</sub>
 
 ---
 
@@ -209,10 +203,10 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
-summary: Project overview, verified comparison, quick setup, five selected videos and shared architecture.
+summary: Project overview, verified comparison, quick setup, the launch film and three current demos and shared architecture.
 canonical: README.md
 related: []
 supersedes: []

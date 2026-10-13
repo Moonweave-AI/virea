@@ -1,0 +1,906 @@
+{
+  "schema_version": 1,
+  "description": "Explicit source/destination allowlist. No directory globs are expanded at package time. No product sessions, tokens, source VRM, rejected recordings, bundled models, dependencies, or junctions.",
+  "expected_video": {
+    "width": 3840,
+    "height": 2160,
+    "fps": 30,
+    "frames": 3795,
+    "duration_seconds": 126.5,
+    "codec": "h264",
+    "pixel_format": "yuv420p",
+    "color_space": "bt709",
+    "color_primaries": "bt709",
+    "color_transfer": "bt709"
+  },
+  "parity_frames": [
+    0,
+    100,
+    350,
+    700,
+    1030,
+    1200,
+    1600,
+    1960,
+    2270,
+    2460,
+    2700,
+    3040,
+    3270,
+    3630,
+    3794
+  ],
+  "files": [
+    {
+      "source": "edit/out/VIREA-English-4K-v2.mp4",
+      "destination": "VIREA-English-4K-v2.mp4",
+      "role": "film",
+      "edition": "music"
+    },
+    {
+      "source": "edit/out/VIREA-English-4K-v2-no-music.mp4",
+      "destination": "VIREA-English-4K-v2-no-music.mp4",
+      "role": "film",
+      "edition": "no_music"
+    },
+    {
+      "source": "edit/out/VIREA-English-4K-v2-silent.mp4",
+      "destination": "VIREA-English-4K-v2-silent.mp4",
+      "role": "film",
+      "edition": "silent"
+    },
+    {
+      "source": "edit/out/virea-english.srt",
+      "destination": "VIREA-English.srt",
+      "role": "subtitle"
+    },
+    {
+      "source": "templates/delivery-readme.md.in",
+      "destination": "README.md",
+      "role": "delivery_doc"
+    },
+    {
+      "source": "templates/delivery-source-readme.md.in",
+      "destination": "source/README.md",
+      "role": "delivery_doc"
+    },
+    {
+      "source": "templates/delivery-credits.md.in",
+      "destination": "CREDITS.md",
+      "role": "delivery_doc"
+    },
+    {
+      "source": "edit/package.json",
+      "destination": "source/edit/package.json",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/package-lock.json",
+      "destination": "source/edit/package-lock.json",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/tsconfig.json",
+      "destination": "source/edit/tsconfig.json",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/remotion.config.ts",
+      "destination": "source/edit/remotion.config.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/eslint.config.mjs",
+      "destination": "source/edit/eslint.config.mjs",
+      "role": "source"
+    },
+    {
+      "source": "edit/.prettierrc",
+      "destination": "source/edit/.prettierrc",
+      "role": "source"
+    },
+    {
+      "source": "edit/render-no-music.json",
+      "destination": "source/edit/render-no-music.json",
+      "role": "source"
+    },
+    {
+      "source": "edit/render-silent.json",
+      "destination": "source/edit/render-silent.json",
+      "role": "source"
+    },
+    {
+      "source": "edit/prepare_english_voice.py",
+      "destination": "source/edit/prepare_english_voice.py",
+      "role": "recipe"
+    },
+    {
+      "source": "edit/prepare_narration_master.py",
+      "destination": "source/edit/prepare_narration_master.py",
+      "role": "recipe"
+    },
+    {
+      "source": "edit/verify_narration.py",
+      "destination": "source/edit/verify_narration.py",
+      "role": "recipe"
+    },
+    {
+      "source": "edit/build_audio_data.py",
+      "destination": "source/edit/build_audio_data.py",
+      "role": "recipe"
+    },
+    {
+      "source": "edit/prepare_music.py",
+      "destination": "source/edit/prepare_music.py",
+      "role": "recipe"
+    },
+    {
+      "source": "edit/src/Assets.ts",
+      "destination": "source/edit/src/Assets.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/audio-data.ts",
+      "destination": "source/edit/src/audio-data.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/CinematicClipCard.tsx",
+      "destination": "source/edit/src/CinematicClipCard.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/CinematicOutput.tsx",
+      "destination": "source/edit/src/CinematicOutput.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/CinematicPageCam.tsx",
+      "destination": "source/edit/src/CinematicPageCam.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/CinematicStage.tsx",
+      "destination": "source/edit/src/CinematicStage.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/components.tsx",
+      "destination": "source/edit/src/components.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/Composition.tsx",
+      "destination": "source/edit/src/Composition.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/index.ts",
+      "destination": "source/edit/src/index.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/Root.tsx",
+      "destination": "source/edit/src/Root.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/scenes/ArchitectureScene.tsx",
+      "destination": "source/edit/src/scenes/ArchitectureScene.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/scenes/BrandScenes.tsx",
+      "destination": "source/edit/src/scenes/BrandScenes.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/scenes/FoundationScene.tsx",
+      "destination": "source/edit/src/scenes/FoundationScene.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/scenes/ProductScenes.tsx",
+      "destination": "source/edit/src/scenes/ProductScenes.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/scenes/TimingScene.tsx",
+      "destination": "source/edit/src/scenes/TimingScene.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/theme.ts",
+      "destination": "source/edit/src/theme.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/timeline.ts",
+      "destination": "source/edit/src/timeline.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/src/workbench.ts",
+      "destination": "source/edit/src/workbench.ts",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/footage/motion-lab-prism-full-new.mp4",
+      "destination": "source/edit/public/footage/motion-lab-prism-full-new.mp4",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/footage/motion-lab-senti-continuous.mp4",
+      "destination": "source/edit/public/footage/motion-lab-senti-continuous.mp4",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/footage/character-performance-full.mp4",
+      "destination": "source/edit/public/footage/character-performance-full.mp4",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/footage/vrchat-world-extended.mp4",
+      "destination": "source/edit/public/footage/vrchat-world-extended.mp4",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/motion-lab-prism-full-new.png",
+      "destination": "source/edit/public/captures/motion-lab-prism-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/motion-lab-senti-full-new.png",
+      "destination": "source/edit/public/captures/motion-lab-senti-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/character-full-new.png",
+      "destination": "source/edit/public/captures/character-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/setup-full-new.png",
+      "destination": "source/edit/public/captures/setup-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/setup-connections-full-new.png",
+      "destination": "source/edit/public/captures/setup-connections-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/setup-verification-full-new.png",
+      "destination": "source/edit/public/captures/setup-verification-full-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/vrchat-hdr-correct-new.png",
+      "destination": "source/edit/public/captures/vrchat-hdr-correct-new.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/art/lunar-world.png",
+      "destination": "source/edit/public/art/lunar-world.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/music-arranged.wav",
+      "destination": "source/edit/public/audio/music-arranged.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/music.mp3",
+      "destination": "source/edit/public/audio/music.mp3",
+      "role": "selected_media"
+    },
+    {
+      "source": "edit/public/audio/air-zoom-vacuum.mp3",
+      "destination": "source/edit/public/audio/air-zoom-vacuum.mp3",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/stardust-swish.mp3",
+      "destination": "source/edit/public/audio/stardust-swish.mp3",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/narration-en.json",
+      "destination": "source/edit/public/audio/narration-en.json",
+      "role": "selected_media"
+    },
+    {
+      "source": "edit/public/audio/vo-en-opening.wav",
+      "destination": "source/edit/public/audio/vo-en-opening.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-brand.wav",
+      "destination": "source/edit/public/audio/vo-en-brand.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-motion.wav",
+      "destination": "source/edit/public/audio/vo-en-motion.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-retarget.wav",
+      "destination": "source/edit/public/audio/vo-en-retarget.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-timeline.wav",
+      "destination": "source/edit/public/audio/vo-en-timeline.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-character.wav",
+      "destination": "source/edit/public/audio/vo-en-character.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-vrchat.wav",
+      "destination": "source/edit/public/audio/vo-en-vrchat.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-setup.wav",
+      "destination": "source/edit/public/audio/vo-en-setup.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-architecture.wav",
+      "destination": "source/edit/public/audio/vo-en-architecture.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/audio/vo-en-close.wav",
+      "destination": "source/edit/public/audio/vo-en-close.wav",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/out/narration-mastering.json",
+      "destination": "source/edit/out/narration-mastering.json",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/narration-mastering-check.json",
+      "destination": "source/edit/out/narration-mastering-check.json",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/narration-validation.json",
+      "destination": "source/edit/out/narration-validation.json",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/narration-transcript.json",
+      "destination": "source/edit/out/narration-transcript.json",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/music-validation.json",
+      "destination": "source/edit/out/music-validation.json",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/virea-english.srt",
+      "destination": "source/edit/out/virea-english.srt",
+      "role": "audio_evidence"
+    },
+    {
+      "source": "edit/out/narration-mastering.json",
+      "destination": "validation/narration-mastering.json",
+      "role": "validation"
+    },
+    {
+      "source": "edit/out/narration-mastering-check.json",
+      "destination": "validation/narration-mastering-check.json",
+      "role": "validation"
+    },
+    {
+      "source": "edit/out/narration-validation.json",
+      "destination": "validation/narration-validation.json",
+      "role": "validation"
+    },
+    {
+      "source": "edit/out/music-validation.json",
+      "destination": "validation/music-validation.json",
+      "role": "validation"
+    },
+    {
+      "source": "workbench/package.json",
+      "destination": "source/workbench/package.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/package-lock.json",
+      "destination": "source/workbench/package-lock.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/tsconfig.json",
+      "destination": "source/workbench/tsconfig.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/vite.config.ts",
+      "destination": "source/workbench/vite.config.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/remotion.config.ts",
+      "destination": "source/workbench/remotion.config.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/index.html",
+      "destination": "source/workbench/index.html",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/LICENSE.upstream",
+      "destination": "source/workbench/LICENSE.upstream",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/App.tsx",
+      "destination": "source/workbench/src/App.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/background-cards.tsx",
+      "destination": "source/workbench/src/cards/background-cards.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/buildRegistry.ts",
+      "destination": "source/workbench/src/cards/buildRegistry.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/demoCards.ts",
+      "destination": "source/workbench/src/cards/demoCards.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/inkpress/caption-strip.tsx",
+      "destination": "source/workbench/src/cards/inkpress/caption-strip.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/inkpress/digit-roll.tsx",
+      "destination": "source/workbench/src/cards/inkpress/digit-roll.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/inkpress/flash-cut.tsx",
+      "destination": "source/workbench/src/cards/inkpress/flash-cut.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/inkpress/title-card.tsx",
+      "destination": "source/workbench/src/cards/inkpress/title-card.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/legacyCards.ts",
+      "destination": "source/workbench/src/cards/legacyCards.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/manifest.ts",
+      "destination": "source/workbench/src/cards/manifest.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/media-cards.tsx",
+      "destination": "source/workbench/src/cards/media-cards.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/projectCards.ts",
+      "destination": "source/workbench/src/cards/projectCards.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/registry.ts",
+      "destination": "source/workbench/src/cards/registry.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/shared.tsx",
+      "destination": "source/workbench/src/cards/shared.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/text-basic.tsx",
+      "destination": "source/workbench/src/cards/text-basic.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/cards/types.ts",
+      "destination": "source/workbench/src/cards/types.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/demoProject.ts",
+      "destination": "source/workbench/src/demoProject.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/dnd.ts",
+      "destination": "source/workbench/src/dnd.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/i18n.ts",
+      "destination": "source/workbench/src/i18n.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/main.tsx",
+      "destination": "source/workbench/src/main.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/palettePresets.ts",
+      "destination": "source/workbench/src/palettePresets.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/panels/Inspector.tsx",
+      "destination": "source/workbench/src/panels/Inspector.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/panels/LibraryPanel.tsx",
+      "destination": "source/workbench/src/panels/LibraryPanel.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/panels/ThemePanel.tsx",
+      "destination": "source/workbench/src/panels/ThemePanel.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/playerRef.ts",
+      "destination": "source/workbench/src/playerRef.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/preview/Composition.tsx",
+      "destination": "source/workbench/src/preview/Composition.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/preview/PreviewPanel.tsx",
+      "destination": "source/workbench/src/preview/PreviewPanel.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/proj.d.ts",
+      "destination": "source/workbench/src/proj.d.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/projectImport.ts",
+      "destination": "source/workbench/src/projectImport.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/remotion/index.ts",
+      "destination": "source/workbench/src/remotion/index.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/remotion/Root.tsx",
+      "destination": "source/workbench/src/remotion/Root.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/remotion/zodFromCard.ts",
+      "destination": "source/workbench/src/remotion/zodFromCard.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/store.ts",
+      "destination": "source/workbench/src/store.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/styles.css",
+      "destination": "source/workbench/src/styles.css",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/theme.ts",
+      "destination": "source/workbench/src/theme.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/time.ts",
+      "destination": "source/workbench/src/time.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/timeline/ClipView.tsx",
+      "destination": "source/workbench/src/timeline/ClipView.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/timeline/Ruler.tsx",
+      "destination": "source/workbench/src/timeline/Ruler.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/timeline/Timeline.tsx",
+      "destination": "source/workbench/src/timeline/Timeline.tsx",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/types.ts",
+      "destination": "source/workbench/src/types.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/src/vite-env.d.ts",
+      "destination": "source/workbench/src/vite-env.d.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/check-demo.mjs",
+      "destination": "source/workbench/scripts/check-demo.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/gen-index.mjs",
+      "destination": "source/workbench/scripts/gen-index.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/link-project.mjs",
+      "destination": "source/workbench/scripts/link-project.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/open.mjs",
+      "destination": "source/workbench/scripts/open.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/parity.mjs",
+      "destination": "source/workbench/scripts/parity.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/render-demos.mjs",
+      "destination": "source/workbench/scripts/render-demos.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/save-project.mjs",
+      "destination": "source/workbench/scripts/save-project.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/start.mjs",
+      "destination": "source/workbench/scripts/start.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/sync-public.mjs",
+      "destination": "source/workbench/scripts/sync-public.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/test-legacy.mjs",
+      "destination": "source/workbench/scripts/test-legacy.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/scripts/test-themes.mjs",
+      "destination": "source/workbench/scripts/test-themes.mjs",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/proj-stub/workbench.ts",
+      "destination": "source/workbench/proj-stub/workbench.ts",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/i18n/ru/categories.json",
+      "destination": "source/workbench/i18n/ru/categories.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/i18n/ru/names.json",
+      "destination": "source/workbench/i18n/ru/names.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/i18n/ru/summaries.1.json",
+      "destination": "source/workbench/i18n/ru/summaries.1.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/i18n/ru/summaries.2.json",
+      "destination": "source/workbench/i18n/ru/summaries.2.json",
+      "role": "workbench"
+    },
+    {
+      "source": "workbench/projects/virea-english.json",
+      "destination": "source/workbench/projects/virea-english.json",
+      "role": "saved_project"
+    },
+    {
+      "source": "workbench/.parity-4k/report.json",
+      "destination": "source/workbench/.parity-4k/report.json",
+      "role": "validation"
+    },
+    {
+      "source": "workbench/.parity-4k/report.json",
+      "destination": "validation/parity.json",
+      "role": "validation"
+    },
+    {
+      "source": "validation/export-validation.json",
+      "destination": "validation/export-validation.json",
+      "role": "validation"
+    },
+    {
+      "source": "validation/render-inputs.json",
+      "destination": "validation/render-inputs.json",
+      "role": "validation"
+    },
+    {
+      "source": "review/v2-independent-review.md",
+      "destination": "validation/final-film-review.md",
+      "role": "validation"
+    },
+    {
+      "source": "validation/measure_exports.py",
+      "destination": "source/validation/measure_exports.py",
+      "role": "source"
+    },
+    {
+      "source": "delivery-manifest.json",
+      "destination": "source/delivery-manifest.json",
+      "role": "source"
+    },
+    {
+      "source": "validation/export-measurements/report.json",
+      "destination": "validation/export-measurements.json",
+      "role": "evidence"
+    },
+    {
+      "source": "validation/export-measurements/subtitles.json",
+      "destination": "validation/subtitles.json",
+      "role": "evidence"
+    },
+    {
+      "source": "validation/measure_audio_alignment.py",
+      "destination": "source/validation/measure_audio_alignment.py",
+      "role": "source"
+    },
+    {
+      "source": "validation/export-measurements/audio-alignment.json",
+      "destination": "validation/audio-alignment.json",
+      "role": "evidence"
+    },
+    {
+      "source": "validation/workbench-live.json",
+      "destination": "validation/workbench-live.json",
+      "role": "evidence"
+    },
+    {
+      "source": "edit/src/SpatialLanguage.tsx",
+      "destination": "source/edit/src/SpatialLanguage.tsx",
+      "role": "source",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/art/brand-cover-v2.png",
+      "destination": "source/edit/public/art/brand-cover-v2.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/art/mascot-full-body.png",
+      "destination": "source/edit/public/art/mascot-full-body.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/character-performance-full.png",
+      "destination": "source/edit/public/captures/character-performance-full.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/captures/vrchat-greeting-close.png",
+      "destination": "source/edit/public/captures/vrchat-greeting-close.png",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/public/footage/vrchat-greeting-close.mp4",
+      "destination": "source/edit/public/footage/vrchat-greeting-close.mp4",
+      "role": "selected_media",
+      "render_input": true
+    },
+    {
+      "source": "edit/out/VIREA-Cover.png",
+      "destination": "VIREA-Cover.png",
+      "role": "cover"
+    },
+    {
+      "source": "edit/out/VIREA-English-Web-v2.mp4",
+      "destination": "VIREA-English-Web-v2.mp4",
+      "role": "web_preview"
+    },
+    {
+      "source": "workbench/README.md",
+      "destination": "source/workbench/README.md",
+      "role": "source"
+    },
+    {
+      "source": "edit/README.md",
+      "destination": "source/edit/README.md",
+      "role": "source"
+    },
+    {
+      "source": "DELIVERY.md",
+      "destination": "source/DELIVERY.md",
+      "role": "source"
+    }
+  ]
+}

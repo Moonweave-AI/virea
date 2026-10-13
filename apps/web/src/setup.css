@@ -115,6 +115,10 @@ body[data-studio="vrchat"] #settings-dialog{width:720px;max-height:calc(100dvh -
 .mw-model-facts{display:flex;flex-wrap:wrap;gap:6px}.mw-model-facts .chip{max-width:100%;height:auto;min-height:20px;white-space:normal;overflow-wrap:anywhere;font-size:10px}
 .mw-model-progress{font-size:12px;color:var(--muted);margin-top:12px;overflow-wrap:anywhere}.mw-model-progress p{margin-bottom:10px}
 .mw-model-progress pre{max-height:160px;overflow:auto;white-space:pre-wrap;font-size:11px;padding:10px;background:var(--surface-secondary);border-radius:10px}
+.mw-installer-meter{display:grid;gap:10px;min-width:0;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface-secondary)}
+.mw-installer-meter .mw-transfer{margin:0;align-items:center;font-variant-numeric:tabular-nums;min-width:0}
+.mw-installer-meter .mw-transfer strong{font-weight:550;color:var(--foreground)}
+.mw-installer-meter .mw-job-facts:empty{display:none}
 .mw-model-dialog .modal__body{display:grid;gap:20px}.mw-license{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.8;color:var(--muted)}.mw-license input{margin-top:5px;accent-color:var(--accent)}
 
 .mw-environment-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:22px;align-items:start}

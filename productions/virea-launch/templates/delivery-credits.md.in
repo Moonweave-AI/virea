@@ -1,0 +1,21 @@
+# Credits and usage terms
+
+**VIREA — Verifiable Interaction Runtime for Embodied Agents** is a Moonweave AI project. This production combines new product captures with original diagrams and deterministic Remotion animation.
+
+| Material | Source and terms |
+| --- | --- |
+| English synthetic narration | Kokoro-82M, `af_heart`. The official [model card](https://huggingface.co/hexgrad/Kokoro-82M) identifies Apache-2.0 weights. The included WAVs were generated for this script and mastered offline. |
+| Music | “House Vibez” by Lily J, [Mixkit track 745](https://assets.mixkit.co/music/745/745.mp3), under the [Mixkit Stock Music Free License](https://mixkit.co/license/#musicFree). The film uses a 126.5-second arrangement. |
+| Sound effects | [Air zoom vacuum](https://assets.mixkit.co/active_storage/sfx/2608/2608-preview.mp3) and [Stardust swish](https://assets.mixkit.co/active_storage/sfx/1498/1498-preview.mp3), via Mixkit's [Sound Effects Free License](https://mixkit.co/license/#sfxFree). |
+| Typography | Inter, under the [SIL Open Font License 1.1](https://github.com/rsms/inter/blob/master/LICENSE.txt). The project loads it through Remotion Google Fonts. |
+| Lunar artwork | Generated for this production with the image-generation tool. It provides brand atmosphere and is not a product screenshot. |
+| Editable workbench | Adapted from [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft); [Apache 2.0 license retained](source/workbench/LICENSE.upstream). |
+| Video renderer | [Remotion's license](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md) applies separately to renderer use. |
+
+Suggested end-credit copy:
+
+> Music: “House Vibez” by Lily J, via Mixkit. Sound effects via Mixkit. Synthetic English narration: Kokoro-82M, `af_heart`. Character: Reira.
+
+The supplied character's embedded VRM metadata names **Reira**, requires credit, and disallows personal/corporate commercial use and redistribution. The source VRM is not included.
+
+Mixkit's selected music is for an online promotional video, not an in-game or application soundtrack. The no-music and silent film editions are included for alternative uses. Reference films researched during production are not included in the footage or source package.

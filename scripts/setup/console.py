@@ -1,5 +1,6 @@
 """Dependency-free setup console: useful in a terminal and readable in log files."""
 
+import importlib.util
 import json
 import os
 import sys
@@ -9,6 +10,50 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from virea.workspaces import workspace_links  # noqa: E402
+
+# This file also runs before the workspace environment has been installed.
+_progress_spec = importlib.util.spec_from_file_location(
+    "virea_first_run_progress",
+    Path(__file__).resolve().parents[2]
+    / "packages/bootstrap/src/virea_bootstrap/process_progress.py",
+)
+installer_progress = importlib.util.module_from_spec(_progress_spec)
+_progress_spec.loader.exec_module(installer_progress)
+
+
+def progress_line(label, event):
+    return f"  {label}  {installer_progress.progress_text(event)}"
+
+
+class LiveProgress:
+    """One live terminal line, with durable readable output when redirected."""
+
+    def __init__(self):
+        # Some Windows shells redirect through a legacy code page. Installer
+        # glyphs must never turn a successful deployment into an encoding error.
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(errors="replace")
+        self.active = False
+        self.last = None
+
+    def finish(self):
+        if self.active:
+            print(flush=True)
+            self.active = False
+
+    def log(self, line):
+        self.finish()
+        print("  " + line, flush=True)
+
+    def update(self, event, label=""):
+        line = progress_line(label, event)
+        if sys.stdout.isatty():
+            print("\r\033[2K" + tint(line), end="", flush=True)
+            self.active = True
+        elif line != self.last:
+            print(line, flush=True)
+        self.last = line
 
 
 def tint(value, color="38;2;189;184;209"):
@@ -62,6 +107,12 @@ def watch(port, process=None):
                 cursor = 0
                 continue
             for event in data["events"]:
+                if event.get(
+                    "kind"
+                ) == "output" and installer_progress.InstallerProgress().feed(
+                    event["message"]
+                ):
+                    continue  # The measured bar below represents this output.
                 clock = time.strftime("%H:%M:%S", time.localtime(event["time"]))
                 label = (
                     "OK"
@@ -78,6 +129,21 @@ def watch(port, process=None):
             snapshot = read_api(port, "")
             for job in snapshot.get("jobs", []):
                 if job["status"] != "running":
+                    continue
+                if job.get("process"):
+                    detail = job["process"]
+                    signature = (
+                        detail.get("phase"),
+                        detail.get("file"),
+                        detail.get("percent"),
+                        detail.get("completed_bytes"),
+                    )
+                    if signatures.get(job["id"]) != signature:
+                        print(
+                            tint(progress_line(job["request"]["recipe"], detail)),
+                            flush=True,
+                        )
+                        signatures[job["id"]] = signature
                     continue
                 size = job.get("total_bytes", 0)
                 received = job.get("downloaded_bytes", 0)
@@ -104,6 +170,19 @@ def watch(port, process=None):
                     signatures[job["id"]] = signature
             for job in read_api(port, "/model-deployments"):
                 if job.get("status") != "running":
+                    continue
+                if job.get("process"):
+                    detail = job["process"]
+                    key = "model:" + job["model_id"]
+                    signature = (
+                        detail.get("phase"),
+                        detail.get("file"),
+                        detail.get("percent"),
+                        detail.get("completed_bytes"),
+                    )
+                    if signatures.get(key) != signature:
+                        print(tint(progress_line(job["model_id"], detail)), flush=True)
+                        signatures[key] = signature
                     continue
                 transfer = job.get("transfer") or {}
                 received, total = (

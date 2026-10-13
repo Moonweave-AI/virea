@@ -9,11 +9,13 @@ import os
 import re
 import signal
 import subprocess
+import threading
 import time
 from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
+from virea_bootstrap.process_progress import run_installer
 
 from .activity import activity_log, safe_text
 from .connections import private_json
@@ -178,6 +180,7 @@ class DeploymentJobs:
             step=step,
             percent=round((step - 1) / 6 * 100),
             stage_percent=None,
+            process=None,
             downloaded_bytes=0,
             total_bytes=0,
             bytes_per_second=0,
@@ -241,54 +244,32 @@ class DeploymentJobs:
         return dict(self.records[identifier])
 
     async def command(self, identifier, argv, *, env, cwd, timeout=3600):
-        flags = (
-            {
-                "creationflags": subprocess.CREATE_NO_WINDOW
-                | subprocess.CREATE_NEW_PROCESS_GROUP
-            }
-            if os.name == "nt"
-            else {"start_new_session": True}
+        loop = asyncio.get_running_loop()
+        cancelled = threading.Event()
+        self.update(identifier, process=None)
+        task = asyncio.create_task(
+            asyncio.to_thread(
+                run_installer,
+                argv,
+                env=env,
+                cwd=cwd,
+                timeout=timeout,
+                cancel_event=cancelled,
+                on_line=lambda line: loop.call_soon_threadsafe(
+                    self.output, identifier, line
+                ),
+                on_progress=lambda event: loop.call_soon_threadsafe(
+                    lambda: self.update(
+                        identifier, process=event, last_output_at=time.time()
+                    )
+                ),
+            )
         )
-        process = await asyncio.create_subprocess_exec(
-            *map(str, argv),
-            env=env,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            **flags,
-        )
-        tail = ""
-
-        async def consume():
-            nonlocal tail
-            decoder = codecs.getincrementaldecoder("utf-8")("replace")
-            pending = ""
-            secrets = [
-                v
-                for k, v in env.items()
-                if any(s in k.upper() for s in ("KEY", "TOKEN", "PASSWORD", "SECRET"))
-            ]
-            while block := await process.stdout.read(2048):
-                pending += decoder.decode(block)
-                lines = re.split(r"[\r\n]", pending)
-                pending = lines.pop()
-                for line in lines:
-                    self.output(identifier, line, secrets)
-                    tail = (tail + safe_text(line, secrets) + "\n")[-1800:]
-                if len(pending) > 2048:
-                    self.output(identifier, pending, secrets)
-                    pending = ""
-            self.output(identifier, pending + decoder.decode(b"", final=True), secrets)
-            return await process.wait()
-
         try:
-            code = await asyncio.wait_for(consume(), timeout)
-            if code:
-                # Installer output contains package/download diagnostics, never API keys.
-                raise RuntimeError(f"安装命令退出码 {code}。{tail[-1200:]}")
+            await asyncio.shield(task)
         finally:
-            if process.returncode is None:
-                await self.terminate(process)
+            cancelled.set()
+            await asyncio.gather(task, return_exceptions=True)
 
     async def terminate(self, process):
         if process.returncode is not None:

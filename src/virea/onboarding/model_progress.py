@@ -10,6 +10,8 @@ from dataclasses import asdict
 from functools import wraps
 from uuid import uuid4
 
+from virea_bootstrap.process_progress import observe_installers
+
 from .activity import activity_log, safe_text
 from .connections import _LOCK, private_json
 
@@ -98,7 +100,8 @@ def record_installation(function):
         token = _current.set(publish)
         try:
             publish("detect")
-            result = function(request, control)
+            with observe_installers(lambda event: publish(process=event)):
+                result = function(request, control)
             succeeded = result.get("state") == "READY"
             publish(
                 "ready" if succeeded else "failed",
@@ -124,7 +127,7 @@ def record_installation(function):
 
 def installation_stage(stage, message):
     if publish := _current.get():
-        publish(stage, message, transfer=None)
+        publish(stage, message, transfer=None, process=None)
 
 
 def installation_transfer(event):

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import os
 import shutil
-import signal
 import subprocess
 import threading
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Protocol
@@ -16,6 +14,7 @@ except ModuleNotFoundError:  # Python 3.10 compatibility
     import tomli as tomllib
 
 from virea_bootstrap import sanitized_python_environment
+from virea_bootstrap.process_progress import InstallerError, run_installer
 from virea_contracts.machine import ExecutionDomainReport
 from virea_contracts.runtime import RuntimeSpec
 
@@ -128,90 +127,20 @@ class BuildPlan:
         for command in self.commands:
             if cancel_event is not None and cancel_event.is_set():
                 raise RuntimeBuildError(f"runtime build cancelled: {self.runtime_id}")
-            creationflags = (
-                subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
-                if os.name == "nt"
-                else 0
-            )
-            process = subprocess.Popen(
-                list(command),
-                cwd=(
-                    None
-                    if is_host_routed_wsl(self.execution_domain)
-                    else self.environment.get("VIREA_RUNTIME_SOURCE") or None
-                ),
-                env=dict(self.environment),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                shell=False,
-                creationflags=creationflags,
-                start_new_session=os.name != "nt",
-            )
-            deadline = time.monotonic() + timeout_per_command
-            while True:
-                if cancel_event is not None and cancel_event.is_set():
-                    _terminate_process_tree(process)
-                    stdout, stderr = process.communicate()
-                    detail = (stderr or stdout)[-4000:]
-                    raise RuntimeBuildError(
-                        f"runtime build cancelled: {self.runtime_id}\n{detail}"
-                    )
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    _terminate_process_tree(process)
-                    stdout, stderr = process.communicate()
-                    detail = (stderr or stdout)[-4000:]
-                    raise RuntimeBuildError(
-                        f"runtime command timed out after {timeout_per_command:g}s: "
-                        f"{command!r}\n{detail}"
-                    )
-                try:
-                    stdout, stderr = process.communicate(timeout=min(0.1, remaining))
-                    break
-                except subprocess.TimeoutExpired:
-                    continue
-            if process.returncode != 0:
-                detail = (stderr or stdout)[-4000:]
-                raise RuntimeBuildError(
-                    f"runtime command failed ({process.returncode}): {command!r}\n{detail}"
-                )
-
-
-def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
-    if process.poll() is not None:
-        return
-    if os.name == "nt":
-        try:
-            subprocess.run(
-                ("taskkill", "/PID", str(process.pid), "/T", "/F"),
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=10.0,
-                shell=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            process.terminate()
-    else:
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except (OSError, ProcessLookupError):
-            process.terminate()
-    try:
-        process.wait(timeout=5.0)
-    except subprocess.TimeoutExpired:
-        if os.name != "nt":
             try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except (OSError, ProcessLookupError):
-                process.kill()
-        else:
-            process.kill()
-        process.wait(timeout=5.0)
+                run_installer(
+                    command,
+                    env=self.environment,
+                    cwd=None
+                    if is_host_routed_wsl(self.execution_domain)
+                    else self.environment.get("VIREA_RUNTIME_SOURCE"),
+                    timeout=timeout_per_command,
+                    cancel_event=cancel_event,
+                )
+            except InstallerError as exc:
+                raise RuntimeBuildError(
+                    f"runtime build {self.runtime_id}: {exc}"
+                ) from exc
 
 
 class RuntimeBackendDriver(Protocol):

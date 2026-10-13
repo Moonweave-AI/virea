@@ -5,6 +5,7 @@ import {Activity, Cpu, HardDrive, MemoryStick, Monitor, Terminal, Download, Chec
 import {t} from "./preferences";
 import {usePreferences} from "./chrome";
 import {translateLabel} from "./legacy";
+import {InstallerMeter, type InstallerProgress} from "./installer-progress";
 
 export interface HardwareReport {
   platform: string; architecture: string; data_directory: string; memory_gib?:number; free_disk_gib:number;
@@ -23,7 +24,7 @@ export interface DeploymentJob {
   id:string;status:string;message:string;step:number;total_steps:number;percent:number;stage_percent:number|null;
   downloaded_bytes?:number;total_bytes?:number;bytes_per_second?:number;elapsed_seconds?:number;eta_seconds?:number|null;
   output_age_seconds?:number|null;file?:string|null;files_done?:number|null;files_total?:number|null;logs?:{time:number;message:string}[];
-  request:Record<string,unknown>;result?:{verification?:unknown};
+  process?:InstallerProgress|null;request:Record<string,unknown>;result?:{verification?:unknown};
 }
 const roots = new WeakMap<HTMLElement,Root>();
 function render(host:HTMLElement, content:React.ReactNode) {host.dataset.uiOwned="true";let root=roots.get(host);if(!root){root=createRoot(host);roots.set(host,root);}root.render(content);}
@@ -70,7 +71,8 @@ function JobPanel({jobs,proofMarkup,services}:{jobs:DeploymentJob[];proofMarkup:
     <Card.Header><div className="mw-job-name"><span className="mw-job-symbol">{job.status === "succeeded" ? <Check size={20}/> : job.status === "failed" ? <CircleAlert size={20}/> : <Download size={20}/>}</span><div><strong>{recipeNames[String(job.request.recipe)] ?? String(job.request.recipe)}</strong><Chip size="sm" className={`mw-status-${job.status}`}>{status(job.status)}</Chip></div></div><span className="mw-job-percent">{job.percent}% · [{job.step}/{job.total_steps}]</span></Card.Header>
     <Card.Content>{active && <><Bar value={job.percent} label={t("整体部署进度", "Overall deployment progress")}/><ol className="mw-stepper">{steps.map((step,i) => <li key={step} data-state={job.step>i+1 ? "done" : job.step===i+1 ? "active" : "pending"}><span>{job.step>i+1 ? <Check size={11}/> : i+1}</span>{step}</li>)}</ol></>}
     <p className="mw-current-step" role="status">{translateLabel(job.message)}</p>
-    {job.status === "running" && <><Bar value={job.stage_percent} label={t("当前步骤进度", "Current step progress")}/><div className="mw-transfer"><span>{job.file || (job.stage_percent == null ? t("正在处理 · 总量尚未报告", "Working · total not yet reported") : `${t("当前步骤", "Current step")} ${job.stage_percent}%`)}</span><span>{job.total_bytes ? `${bytes(job.downloaded_bytes)} / ${bytes(job.total_bytes)}` : ""}</span></div><div className="mw-job-facts"><span><Clock size={13}/>{duration(job.elapsed_seconds ?? 0)}</span>{!!job.bytes_per_second && <span>{bytes(job.bytes_per_second)}/s</span>}{job.eta_seconds!=null && <span>{t("剩余约", "About")} {duration(job.eta_seconds)}</span>}{job.files_total!=null && <span>{job.files_done ?? 0}/{job.files_total} {t("文件", "files")}</span>}</div>{job.output_age_seconds!=null && job.output_age_seconds>20 && <p className="hint">{t(`最近一条输出在 ${Math.round(job.output_age_seconds)} 秒前；仍在等待此步骤完成。`, `Last output ${Math.round(job.output_age_seconds)}s ago; waiting for this step to finish.`)}</p>}</>}
+    {job.status === "running" && job.process && <InstallerMeter value={job.process}/>}
+    {job.status === "running" && !job.process && <><Bar value={job.stage_percent} label={t("当前步骤进度", "Current step progress")}/><div className="mw-transfer"><span>{job.file || (job.stage_percent == null ? t("正在处理 · 总量尚未报告", "Working · total not yet reported") : `${t("当前步骤", "Current step")} ${job.stage_percent}%`)}</span><span>{job.total_bytes ? `${bytes(job.downloaded_bytes)} / ${bytes(job.total_bytes)}` : ""}</span></div><div className="mw-job-facts"><span><Clock size={13}/>{duration(job.elapsed_seconds ?? 0)}</span>{!!job.bytes_per_second && <span>{bytes(job.bytes_per_second)}/s</span>}{job.eta_seconds!=null && <span>{t("剩余约", "About")} {duration(job.eta_seconds)}</span>}{job.files_total!=null && <span>{job.files_done ?? 0}/{job.files_total} {t("文件", "files")}</span>}</div>{job.output_age_seconds!=null && job.output_age_seconds>20 && <p className="hint">{t(`最近一条输出在 ${Math.round(job.output_age_seconds)} 秒前；仍在等待此步骤完成。`, `Last output ${Math.round(job.output_age_seconds)}s ago; waiting for this step to finish.`)}</p>}</>}
     {job.logs?.length ? <details className="mw-job-log"><summary><Terminal size={14}/>{t("过程日志", "Process log")} · {job.logs.length}</summary><pre>{job.logs.map(line=>`${new Date(line.time*1000).toLocaleTimeString()}  ${line.message}`).join("\n")}</pre></details> : null}
     {job.status === "succeeded" && <div dangerouslySetInnerHTML={{__html:proofMarkup(job.result?.verification).replace(/(<details[^>]*?)\sopen/g, "$1")}}/>}
     {attempts.length>1 && <details className="mw-attempts"><summary>{t("部署历史", "Deployment history")} · {attempts.length}</summary>{attempts.filter(a=>a.id!==job.id).map(a=><div key={a.id}><Chip size="sm" className={`mw-status-${a.status}`}>{status(a.status)}</Chip><span>{String(a.request.device ?? "auto").toUpperCase()}</span><small>{translateLabel(a.message)}</small></div>)}</details>}

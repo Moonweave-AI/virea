@@ -32,6 +32,14 @@ export function translateLabel(source: string): string {
   if (getLanguage() !== "en") {
     const known = chineseCopy[value] || chinese[value];
     if (known) return source.replace(value, known);
+    const epoch = value.match(/^Turn (\d+)$/);
+    if (epoch) return source.replace(value, `第 ${epoch[1]} 轮`);
+    const frames = value.match(/^(\d+) frames$/);
+    if (frames) return source.replace(value, `${frames[1]} 帧`);
+    const duration = value.match(/^(\d+) \/ ([\d.]+) s$/);
+    if (duration) return source.replace(value, `${duration[1]} / ${duration[2]} 秒`);
+    const played = value.match(/^Played ([\d.]+) s this turn$/);
+    if (played) return source.replace(value, `本轮已播放 ${played[1]} 秒`);
     const segments = value.split(/\s+·\s+/);
     if (segments.length > 1) return source.replace(value, segments.map(translateLabel).join(" · "));
     const constraint = value.match(/^(Min|Max|Step) ([\d.-]+)$/);
@@ -42,6 +50,11 @@ export function translateLabel(source: string): string {
   const known = copy[value];
   if (known) return source.replace(value, known);
   const patterns: [RegExp,(...groups:string[])=>string][] = [
+    [/^第 (\d+) 轮$/, epoch=>`Turn ${epoch}`],
+    [/^本轮已播放 ([\d.]+) 秒$/, seconds=>`Played ${seconds} s this turn`],
+    [/^([\d.]+) \/ ([\d.]+) 秒$/, (elapsed,total)=>`${elapsed} / ${total} s`],
+    [/^(\d+) \/ ([\d.]+) 秒$/, (frames,seconds)=>`${frames} / ${seconds} s`],
+    [/^(\d+) 帧$/, frames=>`${frames} frames`],
     [/^语言流水线 (.+?)s · TTS (.+?)s · 动作 (.+?)s$/, (llm,tts,motion)=>`Language pipeline ${llm}s · TTS ${tts}s · Motion ${motion}s`],
     [/^语音就绪 (.+?)s · 首包就绪 (.+?)s · (动作|生成) RTF (.+)$/, (audio,first,kind,rtf)=>`Speech ready ${audio}s · First chunk ${first}s · ${kind === "动作" ? "Motion" : "Generation"} RTF ${rtf}`],
     [/^我的字幕暂未送达：(.+)$/, detail=>`Your chatbox caption has not arrived: ${detail}`],

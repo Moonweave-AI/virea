@@ -44,6 +44,22 @@ Deployment input: `recipe` (`ollama`, `kokoro`, `audio8`, `motioncraft`, `syntal
 
 Status: `queued`, `running`, `succeeded`, `failed`, `cancelled`, `interrupted`. `percent` is completed stages out of six; only success reaches 100. `stage_percent` comes from actual installer/download progress and may be null. File totals are optional. Download telemetry includes `downloaded_bytes`, `total_bytes`, `bytes_per_second`, `elapsed_seconds`, `eta_seconds`, `file`, `files_done`, `files_total` and `output_age_seconds`. The log remains useful when a subprocess cannot report a percentage. Motion-library progress is also available through `/api/v1/models/{id}/install-progress`; simultaneous installation of the same model returns 409. Success requires a real inference receipt in `result.verification`, even for a reused endpoint. Speech rejects empty/silent output; motion uses the existing native-window/final-decoding pipeline and rejects invalid or constant frames. This validates generation, not visual motion quality or VRChat IK. A restart marks incomplete jobs interrupted and attempts to restore previously successful services. Only processes created by this manager are terminated on shutdown/cancellation.
 
+## Installer progress
+
+Both deployment jobs and motion-library installation progress expose an optional `process` object. The terminal and Set Up consume this same record.
+
+| Field | Meaning |
+|:--|:--|
+| `phase` | `resolve`, `download`, `prepare`, `install`, `build`, `extract` or `reuse` |
+| `file` | Current package or artifact label |
+| `percent` | Measured **phase-local** percentage; `null` when the installer reports no total |
+| `completed_bytes`, `total_bytes` | Current transfer bytes; omitted when unknown |
+| `completed`, `total` | Installed/prepared package count; omitted when unknown |
+| `bytes_per_second`, `eta_seconds` | Rolling transfer estimate; ETA may be `null` |
+| `updated_at` | Unix timestamp of the latest progress output |
+
+A new phase replaces the old transfer/count fields. Overall job progress remains separate. The UI polls sequentially every second and suppresses stale speed/ETA after ten seconds. Windows ConPTY and POSIX pseudo-terminals preserve installer progress that would otherwise disappear under redirected output; a pipe fallback continues forwarding logs. Cancellation and timeouts terminate the owned installer process tree. Credentials and terminal escape sequences are removed before log publication.
+
 ## Minimal automation example
 
 After starting VIREA, use Python with the workspace's `httpx`. This example makes a small request to an existing local Ollama and changes the active language provider; it does not download a model or produce audio.
@@ -100,8 +116,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-12
-last_reviewed: 2026-10-12
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Local provider configuration, discovery and allowlisted deployment API contracts.
 canonical: doc/reference/onboarding-api.md

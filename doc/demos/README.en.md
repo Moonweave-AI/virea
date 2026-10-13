@@ -4,35 +4,35 @@
 
 # 🎞️ Demos
 
-Five selected recordings show the shared motion foundation across three workspaces. Use the inline players to watch; subtitles remain in the recorded picture.
+The launch film connects setup, motion generation, retargeting, character interaction and VRChat. The three demos below use current-interface recordings, complete windows and continuous performances.
 
-## 🌐 VRChat Studio
+https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
 
-Watch an independent AI character respond to successive instructions from the observer's view: step back, jump, return to standing and continue the interaction. The web version keeps the supplied recording's full duration.
+[4K · film & editable project](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
-https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
+### Motion Lab
 
-## 🎭 Character Studio
+PRISM and SentiAvatar · original skeletons and retargeted avatars, side by side.
 
-| MotionCraft | SynTalker | ARDY + SentiAvatar |
-|:--|:--|:--|
-| Text motion + speech conditioning | Speech and text together | Dialogue behavior and motion planning |
+https://github.com/user-attachments/assets/e7da8d2c-c453-41b2-b27b-66920dd792e8
 
-<table><tr><td width="33%"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted width="250"></video></td><td width="33%"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted width="250"></video></td><td width="33%"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted width="250"></video></td></tr></table>
+### Character Studio
 
-The MotionCraft and SynTalker recordings each schedule a 32-second welcome sequence. The third is an ARDY + SentiAvatar stage-host interaction. Their manifests retain the prompts, generated timing and configuration used for each recorded replay.
+A MotionCraft performance with an existing VRM character and an English reply.
 
-## 🦴 Motion Lab
+https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841
 
-Compare the model's native skeleton and the retargeted VRM in one view. The recording uses PRISM T2M 1.4B.
+### VRChat Studio
 
-https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
+Generated full-body movement in VRChat, with subtitles and an observer view.
+
+https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca
 
 ## Explore the collection
 
 | Collection | Open |
 |:--|:--|
-| All Character Studio and VRChat recordings | [Complete recordings](recordings.en.md) |
+| All Character Studio and VRChat recordings | [Earlier full recordings](recordings.en.md) |
 | Seven source families, including hands, feet and heading | [Dataset gallery](../showcase/README.md) |
 | Supplied files, web editions and hashes | [Media provenance](../assets/featured-demos/README.md) |
 | MotionCraft / SynTalker prompts and configuration | [Technical synopsis](../character/unified-motion.en.md) · [Manifest](../assets/unified-motion-demos/manifest.json) |
@@ -59,8 +59,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Selected playable recordings and links to the complete galleries.
 canonical: doc/demos/README.en.md

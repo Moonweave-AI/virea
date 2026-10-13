@@ -2,7 +2,7 @@
   <img src="doc/assets/brand/virea-banner.png" alt="VIREA — from avatars to agents, with skeletal motion becoming a living character" width="100%">
 </p>
 <h1 align="center">VIREA</h1>
-<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents</sub></p>
+<p align="center"><sub>Verifiable Interaction Runtime for Embodied Agents · /ˈvɪəriə/</sub></p>
 
 <p align="center">
   <a href="README.md"><img src="doc/assets/brand/nav-english.png" alt="English" width="240"></a>
@@ -15,11 +15,13 @@
 <a id="从动作生成走向持续的具身对话"></a>
 <a id="model-support"></a>
 <a id="documentation"></a>
-## ✦ 让想法成为角色的行动
+## ✦ 让你的角色活过来
 
 **VIREA 把语言、语音和动作模型连接到可观看、可交互的角色。** 它将模型的原始骨骼输出重定向到网页中的 VRM 角色，以及 VRChat 中的 Humanoid 角色，串起从模型部署、动作生成到播放与检查的完整工作流。
 
-<img src="doc/assets/brand/features.png" alt="骨骼重定向、可组合的模型能力，以及网页和虚拟世界中的统一执行" width="100%">
+https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
+
+[观看 4K 原版](https://github.com/Moonweave-AI/virea/releases/download/launch-film-2026-10/VIREA-English-4K-v2.mp4) · [下载成片与可编辑工程](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
 <table>
 <tr>
@@ -99,35 +101,27 @@ cd virea
 <a id="motion-studio-演示"></a>
 ## 🎞️ 演示
 
-### VRChat Studio
+### Motion Lab
 
-实时对话与生成动作 · 1 分 53 秒
+PRISM 与 SentiAvatar · 并排观察原始骨架与重定向角色。
 
-https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
+https://github.com/user-attachments/assets/e7da8d2c-c453-41b2-b27b-66920dd792e8
 
 ### Character Studio
 
-同一角色，三条动作生成路线。
+MotionCraft 驱动已有 VRM 角色，在浏览器中呈现动作与英文回复。
 
-<table>
-<tr><th width="33%">MotionCraft</th><th width="33%">SynTalker</th><th width="33%">ARDY + SentiAvatar</th></tr>
-<tr>
-<td align="center"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted preload="metadata" width="250" height="220"></video></td>
-<td align="center"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted preload="metadata" width="250" height="220"></video></td>
-<td align="center"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted preload="metadata" width="250" height="220"></video></td>
-</tr>
-<tr><td align="center">32 s · Text + speech</td><td align="center">32 s · Text + speech</td><td align="center">40 s · Dialogue + behavior</td></tr>
-</table>
+https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841
 
-### Motion Lab
+### VRChat Studio
 
-原始骨架与 VRM 重定向对照 · 14 秒
+从观察者视角观看模型生成的全身动作与字幕回复。
 
-https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
+https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca
 
-[全部演示与复现说明](doc/demos/README.zh-CN.md) · [视频文件与来源](doc/assets/featured-demos/README.md)
+[全部演示与复现说明](doc/demos/README.zh-CN.md) · [素材来源](doc/assets/featured-demos/README.md)
 
-<sub>Character Studio 演示角色：Unnamed Character 6，作者 Reira。 <a href="THIRD_PARTY_NOTICES.md">Credits & terms</a>.</sub>
+<sub>演示角色：Unnamed Character 6 — Reira。[素材署名](THIRD_PARTY_NOTICES.md)。</sub>
 
 ---
 
@@ -209,10 +203,10 @@ type: readme
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
-summary: Project overview, verified comparison, quick setup, five selected videos and shared architecture.
+summary: Project overview, verified comparison, quick setup, the launch film and three current demos and shared architecture.
 canonical: README.zh-CN.md
 related: []
 supersedes: []

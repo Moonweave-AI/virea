@@ -6,6 +6,14 @@
 
 This record distinguishes protocol fixtures, base installation, service readiness and real inference. It does not claim a live paid request to every cloud provider or full motion generation on every OS/GPU combination.
 
+## Measured installer progress, 2026-10-13
+
+- A Windows launcher run with an isolated data root reached the ready API and printed all four workspace URLs. Redirected output also completed under the system's legacy text encoding.
+- A real uv dependency download through ConPTY emitted byte-level progress. Child-only terminal settings preserve progress even when the parent has `RUST_LOG` configured.
+- Parser/process tests cover downloads, package counts, phase resets, ANSI and credential removal, timeouts, cancellation and quiet subprocesses.
+- Chromium tests mount the actual Set Up job and motion-library cards, verify both languages, advance download progress from 50% to 75%, switch to package counts, and verify unknown-total and stale-output states.
+- The Python regression suites passed 1,750 tests with 34 optional skips. Live cloud-provider inference is outside this installer-progress check.
+
 ## Local evidence, 2026-10-11
 
 - Windows AMD64: launcher used a separate empty data root, installed uv 0.10.9, managed Python 3.12, downloaded Node v24.21.0 with SHA256 verification, installed locked workspace dependencies, built the web app, initialized the database, started the API and checked the onboarding schema. The `-SmokeTest` path then stopped only its own API.
@@ -115,8 +123,8 @@ type: reference
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-12
-last_reviewed: 2026-10-12
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Evidence and limits for portable first-run setup and model-provider onboarding.
 canonical: doc/quality/portable-onboarding.md

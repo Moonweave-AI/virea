@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {existsSync, mkdirSync} from "node:fs";
 import {resolve} from "node:path";
 import {chromium} from "playwright";
-import {createServer, preview} from "vite";
+import {preview} from "vite";
+import {createServer} from "./vite-fixture.mjs";
 import tailwindcss from "@tailwindcss/vite";
 
 const executablePath = [process.env.VIREA_E2E_BROWSER_PATH,

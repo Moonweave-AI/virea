@@ -75,6 +75,20 @@ Choose **Automatic** for a device recommendation, or choose CPU/GPU explicitly. 
 
 Each model has one deployment card. Its current run shows six steps, overall percentage, download bytes, transfer speed, elapsed time and an expandable process log. Earlier attempts are folded into history. Completed cards include the generated result and service controls. The launcher prints the same deployment events while the page is used, then lists links to all three studios.
 
+### Follow an installation
+
+The terminal and Set Up share live installer updates. Large CUDA/PyTorch dependencies show the package being downloaded, transferred bytes, total size, speed and estimated time remaining. Installation switches to a package-count bar, such as **4 / 10 packages**. The current stage and the overall deployment each have their own progress bar.
+
+| Stage | What you see |
+|:--|:--|
+| Resolve | Dependency resolution and the latest installer message |
+| Download | Package name, MiB/GiB transferred, percentage, speed and ETA when available |
+| Prepare / install | Completed packages out of the reported total |
+| Build / extract | Current operation and live output; an animated bar when no total is reported |
+| Verify | The actual generated result and its verification receipt |
+
+After ten seconds without new installer output, the page shows **Waiting for the installer's next update** and clears the old speed estimate. Open **Process log** to inspect the last message. Percentages come from the installer, not the elapsed timer. Re-running the launcher reuses completed downloads and prints the exact Set Up and studio URLs for your selected port.
+
 The **Motion model library** distinguishes **Ready**, **Found locally** and **Available**. Ready models open directly in Motion Lab. Connect an existing model to reuse its pinned local files and verify its environment. Sources must match the requested revision; immutable weights are shared with hard links when possible. Keep project data in ignored `.virea-runtime/`; external shared model stores such as Ollama are detected in place.
 
 Cancel and retry keep reusable downloads. Successful services restart with VIREA. **Stop & disable autostart** stops a VIREA-managed service and turns off its automatic recovery.
@@ -116,8 +130,8 @@ type: tutorial
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-12
-last_reviewed: 2026-10-12
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Start from a source ZIP, configure model providers, and deploy local models through the setup wizard.
 canonical: doc/getting-started/automatic-setup.en.md

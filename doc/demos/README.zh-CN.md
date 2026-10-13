@@ -4,35 +4,35 @@
 
 # 🎞️ Demos · 演示中心
 
-五段精选视频展示同一套动作基础在三个工作区中的使用方式。点击播放器即可观看，字幕保留在录制画面中。
+新版宣传片串起部署、动作生成、重定向、角色交互与 VRChat。下方三段演示来自当前界面录制，保留完整窗口与连续动作。
 
-## 🌐 VRChat Studio
+https://github.com/user-attachments/assets/1f2c4711-2246-466b-ae1b-84e5c5a2f746
 
-从观察者视角看独立 AI 角色响应连续指令：后退、跳跃、恢复站姿，以及后续交流。录像来自本次提供的完整文件，网页版本保留原时长。
+[4K · 成片与工程](https://github.com/Moonweave-AI/virea/releases/tag/launch-film-2026-10)
 
-https://github.com/user-attachments/assets/c31d1bfe-b35e-4ceb-a77d-034043bf54fe
+### Motion Lab
 
-## 🎭 Character Studio
+PRISM 与 SentiAvatar · 并排观察原始骨架与重定向角色。
 
-| MotionCraft | SynTalker | ARDY + SentiAvatar |
-|:--|:--|:--|
-| 文本动作 + 语音条件 | 语音与文本共同驱动 | 对话行为与动作规划 |
+https://github.com/user-attachments/assets/e7da8d2c-c453-41b2-b27b-66920dd792e8
 
-<table><tr><td width="33%"><video src="https://github.com/user-attachments/assets/5a641799-897b-4f66-934e-22227d4a27b3" controls muted width="250"></video></td><td width="33%"><video src="https://github.com/user-attachments/assets/8712149b-cb6b-4111-b085-856d914d6d2a" controls muted width="250"></video></td><td width="33%"><video src="https://github.com/user-attachments/assets/ead22345-362c-493a-8fa5-6e0c9e085447" controls muted width="250"></video></td></tr></table>
+### Character Studio
 
-MotionCraft 与 SynTalker 的两段录像都编排了 32 秒的迎宾场景；第三段是 ARDY + SentiAvatar 的主持人场景。画面按实际播放录制，原始时间轴、生成配置和时长记录在各自的 manifest 中。
+MotionCraft 驱动已有 VRM 角色，在浏览器中呈现动作与英文回复。
 
-## 🦴 Motion Lab
+https://github.com/user-attachments/assets/c2a02ab9-6f57-4217-a77a-42b7130ec841
 
-在同一个窗口中比较模型的原始骨架与 VRM 角色。录像中的生成模型为 PRISM T2M 1.4B。
+### VRChat Studio
 
-https://github.com/user-attachments/assets/9dc77be4-7195-4c96-840f-e61f05276103
+从观察者视角观看模型生成的全身动作与字幕回复。
+
+https://github.com/user-attachments/assets/9b721347-c840-4e40-a35a-2df3beb365ca
 
 ## 继续探索
 
 | 内容 | 入口 |
 |:--|:--|
-| 全部 Character Studio 与 VRChat 录像 | [完整录像集](recordings.zh-CN.md) |
+| 全部 Character Studio 与 VRChat 录像 | [历史完整录像集](recordings.zh-CN.md) |
 | 七类源骨架的动作、手、脚与朝向对照 | [数据集画廊](../showcase/README.md) |
 | 新增视频原文件、网页文件与哈希 | [素材说明](../assets/featured-demos/README.md) |
 | MotionCraft / SynTalker 的任务与参数 | [技术梗概](../character/unified-motion.zh-CN.md) · [Manifest](../assets/unified-motion-demos/manifest.json) |
@@ -59,8 +59,8 @@ type: index
 status: Active
 owner: VIREA maintainers
 created: 2026-10-11
-updated: 2026-10-11
-last_reviewed: 2026-10-11
+updated: 2026-10-13
+last_reviewed: 2026-10-13
 review_cycle_days: 30
 summary: Selected playable recordings and links to the complete galleries.
 canonical: doc/demos/README.zh-CN.md
